@@ -1,0 +1,3 @@
+python-dotenv>=1.0.0
+mutagen>=1.47
+# TTS (announce.py) uses its own kokoro/.venv — see README for setup

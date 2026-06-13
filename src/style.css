@@ -1,0 +1,206 @@
+/* Bedstead: download bedstead.woff2 to fonts/ for authentic teletext rendering */
+@font-face {
+  font-family: 'Bedstead';
+  src: url('fonts/bedstead.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --black:   #000000;
+  --white:   #ffffff;
+  --cyan:    #00ffff;
+  --yellow:  #ffff00;
+  --green:   #00ff00;
+  --red:     #ff0000;
+  --magenta: #ff00ff;
+  --blue:    #0000ff;
+
+  --font-size: 22px;
+  --line-height: 1.15;
+  --cols: 40;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Bedstead', 'VT323', 'Courier New', monospace;
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2em 1em;
+}
+
+#screen {
+  width: 40ch;
+  min-height: 25em;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ─── Page header ─── */
+#page-header {
+  color: var(--white);
+  white-space: pre;
+  overflow: hidden;
+  width: 40ch;
+  background: var(--black);
+  letter-spacing: 0;
+}
+
+/* ─── Page body ─── */
+#page-body {
+  flex: 1;
+  min-height: 18em;
+  overflow: hidden;
+}
+
+/* ─── Nav bar ─── */
+#page-nav {
+  margin-top: auto;
+}
+
+#nav-prev {
+  display: inline-block;
+}
+
+#nav-next {
+  display: inline-block;
+  float: right;
+}
+
+/* ─── Color bands ─── */
+.band {
+  display: block;
+  width: 40ch;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.band-top,
+.band-bottom {
+  display: block;
+  overflow: hidden;
+  white-space: pre;
+  width: 40ch;
+  line-height: var(--line-height);
+  font-size: var(--font-size);
+}
+
+.band-middle {
+  display: block;
+  white-space: pre;
+  width: 40ch;
+  overflow: hidden;
+  line-height: var(--line-height);
+  font-size: var(--font-size);
+  color: var(--white);
+  padding-left: 1ch;
+}
+
+/* Cyan band */
+.band--cyan .band-top    { color: var(--cyan);    background: var(--black); }
+.band--cyan .band-middle { background: var(--cyan);  color: var(--black); }
+.band--cyan .band-bottom { color: var(--cyan);    background: var(--black); }
+
+/* Green band */
+.band--green .band-top    { color: var(--green);   background: var(--black); }
+.band--green .band-middle { background: var(--green); color: var(--black); }
+.band--green .band-bottom { color: var(--green);   background: var(--black); }
+
+/* Yellow band */
+.band--yellow .band-top    { color: var(--yellow);  background: var(--black); }
+.band--yellow .band-middle { background: var(--yellow); color: var(--black); }
+.band--yellow .band-bottom { color: var(--yellow);  background: var(--black); }
+
+/* Red band */
+.band--red .band-top    { color: var(--red);     background: var(--black); }
+.band--red .band-middle { background: var(--red);    color: var(--white); }
+.band--red .band-bottom { color: var(--red);     background: var(--black); }
+
+/* Magenta band */
+.band--magenta .band-top    { color: var(--magenta); background: var(--black); }
+.band--magenta .band-middle { background: var(--magenta); color: var(--black); }
+.band--magenta .band-bottom { color: var(--magenta); background: var(--black); }
+
+/* Blue band */
+.band--blue .band-top    { color: var(--blue);    background: var(--black); }
+.band--blue .band-middle { background: var(--blue);   color: var(--white); }
+.band--blue .band-bottom { color: var(--blue);    background: var(--black); }
+
+/* ─── Teletext text rows ─── */
+.row {
+  display: block;
+  white-space: pre;
+  width: 40ch;
+  overflow: hidden;
+  line-height: var(--line-height);
+}
+
+.row--yellow  { color: var(--yellow); }
+.row--cyan    { color: var(--cyan); }
+.row--green   { color: var(--green); }
+.row--white   { color: var(--white); }
+.row--magenta { color: var(--magenta); }
+.row--red     { color: var(--red); }
+
+/* ─── Flash animation ─── */
+@keyframes flash {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.flash {
+  animation: flash 1s step-end infinite;
+}
+
+/* ─── Mosaic grid ─── */
+.mosaic {
+  display: grid;
+  gap: 0;
+  width: fit-content;
+  margin: 0.3em auto;
+  line-height: 0;
+}
+
+.mosaic-cell {
+  width: 1ch;
+  height: 1em;
+  display: block;
+}
+
+.mosaic-cell--0 { background: var(--black); }
+.mosaic-cell--1 { background: var(--cyan); }
+.mosaic-cell--2 { background: var(--white); }
+
+/* ─── Page-specific ─── */
+.spacer {
+  display: block;
+  height: calc(var(--font-size) * var(--line-height));
+}
+
+.indent {
+  padding-left: 2ch;
+}
+
+/* ─── Responsive: scale down on narrow screens ─── */
+@media (max-width: 540px) {
+  :root { --font-size: 16px; }
+}
+
+@media (max-width: 400px) {
+  :root { --font-size: 13px; }
+}
