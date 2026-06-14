@@ -1,0 +1,74 @@
+# DJ Set for slot: test slot
+
+## Program Brief
+
+```markdown
+# Time Slot: Test Slot  
+**Program ID:** TEST-SLOT-001  
+
+## Core Sonic Parameters  
+- **BPM Range:** 65–75  
+- **Spectral Targets:** 50–150 Hz, 300–500 Hz  
+- **Key Constraints:** C Major  
+
+## Segment Structure  
+- **Intro:** 15s Vocoded Texture  
+- **Core:** 2m Vocoded Neural Signal  
+- **Wind-down:** 15s Reciprocal Filtering  
+
+## Technical Requirements  
+- **Processing Chain:** TSS-2 Core  
+- **Constraints:** Single-threaded Execution  
+- **Environmental:** -20°C Temperature, 320kHz Bandwidth  
+- **System:** Single-MT Interface, No Concurrency  
+```
+
+## Tracks
+
+### Track 1: "70 BPM C major opening track using sub-sine bass, filtered FM organ, low-noise bed, and sparse vocoded TTS fragments. Spectral focus: 50-150 Hz and 300-500 Hz. Processing chain: TSS-2 Core with reciprocal filtering, single-threaded timing, no concurrent layers."
+- **BPM:** 70
+- **Key:** C major
+- **Duration:** 150s
+- **Prompt:** `Program brief:
+
+```markdown
+# Time Slot: Test Slot  
+**Program ID:** TEST-SLOT-001  
+
+## Core Sonic Parameters  
+- **BPM Range:** 65–75  
+- **Spectral Targets:** 50–150 Hz, 300–500 Hz  
+- **Key Constraints:** C Major  
+
+## Segment Structure  
+- **Intro:** 15s Vocoded Texture  
+- **Core:** 2m Vocoded Neural Signal  
+- **Wind-down:** 15s Reciprocal Filtering  
+
+## Technical Requirements  
+- **Processing Chain:** TSS-2 Core  
+- **Constraints:** Single-threaded Execution  
+- **Environmental:** -20°C Temperature, 320kHz Bandwidth  
+- **System:** Single-MT Interface, No Concurrency  
+```
+
+This is track 1 of 1. Compose the opening track for this DJ set.
+
+Guidance:
+- Keep vocals to a minimum. Not all tracks need vocals.
+- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.
+- Focus on atmosphere, texture, and the evolving narrative of the set.`
+
+## Full Set Data
+
+```json
+[
+  {
+    "caption": "70 BPM C major opening track using sub-sine bass, filtered FM organ, low-noise bed, and sparse vocoded TTS fragments. Spectral focus: 50-150 Hz and 300-500 Hz. Processing chain: TSS-2 Core with reciprocal filtering, single-threaded timing, no concurrent layers.",
+    "lyrics": "[vocoder texture] test slot / one / one\nC major / seven zero BPM\nneural signal / null / null\nreciprocal / filter / reciprocal / filter\nend / end / end",
+    "bpm": 70,
+    "keyscale": "C major",
+    "duration": 150
+  }
+]
+```

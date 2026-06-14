@@ -1,0 +1,85 @@
+**Program Brief – “Midnight Signal” (Late‑Night Slot)**  
+
+---
+
+### 1. Overview  
+- **Time Slot:** 00:00 – 04:00 local time (the deepest‑night window when listener activity is minimal and the ionosphere is most stable for long‑range propagation).  
+- **Program ID:** MS‑2025‑LN‑01  
+- **Core Intent:** Keep the station’s carrier alive while evoking the quiet, introspective mood of the late night. The broadcast should feel like a solitary transmission drifting through empty airwaves, offering a subtle auditory companion for any night‑shift workers, astronomers, or stray listeners who happen to tune in.  
+
+---
+
+### 2. Objectives  
+
+| # | Objective | Success Metric |
+|---|-----------|----------------|
+| 1 | **Zero dead‑air** – maintain an uninterrupted audio stream. | ≤ 2 seconds of silence per hour; audio level ≥ ‑12 dBFS at all times. |
+| 2 | **Establish a nocturnal atmosphere** – low‑energy, slowly evolving soundscape. | Spectral centroid ≤ 1.8 kHz; average BPM (if rhythmic elements present) ≤ 70 BPM; listener‑mood analysis (if available) rates “calm” or “melancholic” ≥ 80 % of the time. |
+| 3 | **Leverage archival material** – reuse existing “night‑time” audio assets to reduce load on storage and processing. | ≥ 40 % of playlist drawn from the **NIGHT_ARCHIVE** folder (field recordings, ambient drones, processed spoken word). |
+| 4 | **Automatic fault recovery** – switch to a safe fallback without human intervention. | Fallback to low‑level ambient noise engaged within 4 seconds of any audio dropout; normal resume attempted after 30 seconds. |
+| 5 | **Comprehensive logging** – capture all technical events for post‑mortem and future optimization. | Every error, warning, and performance metric timestamped and forwarded to central monitoring system; daily log size < 5 MB. |
+
+---
+
+### 3. Content Structure  
+
+| Segment | Duration | Description | Notes |
+|---------|----------|-------------|-------|
+| **A. Night‑Opening Drone** | 00:00‑00:07 | Ultra‑low‑frequency sine‑wave drone (≈ 30 Hz) blended with distant wind‑field recordings; slow amplitude modulation (0.2 Hz). | Sets the sense of vast, empty space. |
+| **B. Core Ambient Loop** | 00:07‑03:50 | Continuous playback of a **pre‑sequenced 2‑hour ambient mix** built from NIGHT_ARCHIVE items (field recordings, processed piano fragments, granular synth pads). The mix is looped seamlessly; each iteration adds a subtle pitch‑shift (+/- 0.5 cents) to avoid perceptible repetition. | All tracks are normalized to ‑16 dBFS, faded 0.3 s in/out, and passed through a gentle low‑pass filter (cut‑off ≈ 6 kHz) to emulate nocturnal propagation loss. |
+| **C. Hourly Marker** | 01:00‑01:02, 02:00‑02:02, 03:00‑03:02 | 2‑second soft chime (pure sine at 880 Hz, decay 1.5 s) followed by 4 seconds of pink noise. | Provides a subtle temporal reference for any monitoring systems and reinforces the “hourly beacon” concept without breaking mood. |
+| **D. Twilight Wind‑Down** | 03:50‑04:00 | Gradual reduction of the ambient mix volume (‑6 dB over 30 s) while the low‑frequency drone persists, ending with a single resonant bell tone that decays into silence. | Signals the end of the transmission cycle and prepares the transmitter for the morning hand‑off. |
+
+---
+
+### 4. Technical Requirements  
+
+| Component | Specification | Reason |
+|-----------|----------------|--------|
+| **Audio Engine** | Real‑time PCM 48 kHz/24‑bit → Opus encoder (16 kbps, variable bitrate) → streaming to transmitter. | High enough fidelity for subtle ambience while conserving bandwidth on a weak repeater link. |
+| **Redundant Power** | Online UPS (10 min runtime) → automatic generator kick‑in (rated for 4 h at 30 % load). | Guarantees continuity during brief grid fluctuations and longer outages. |
+| **RF Path** | Antenna → broadband matcher → 10 kHz low‑pass filter (protects harmonics) → linear Class‑AB PA → directional antenna (gain ≈ 5 dBi). | Keeps spurious emissions low; the filter reduces out‑of‑band noise that could interfere with other services. |
+| **Monitoring & Control** | Central syslog + SNMP agent; heartbeat ping every 5 s; alerts (email/SMS) on: audio level < ‑18 dBFS for > 3 s, CPU > 80 %, UPS on battery, or VSWR > 1.5. | Enables rapid detection of the AI‑like failure symptoms described in the brief. |
+| **Fallback Media** | 10‑minute loop of “deep‑night ambience” (low‑level wind + distant thunder) stored locally on the playback server. | Engaged instantly if the main playlist cannot be read; maintains the nocturnal mood without silence. |
+| **Metadata** | Each audio file tagged with EBU‑R128 loudness (‑23 LUFS) and a custom “night‑mood” tag (value 0‑1). The player reads the tag to apply a slight dynamic‑range compression if the tag falls below 0.4 (prevents sudden loud spikes). | Guarantees consistent perceived loudness and protects against accidental loud transients. |
+
+---
+
+### 5. Operational Procedure  
+
+1. **Pre‑Shift Check (23:45‑23:55)**  
+   - Verify UPS charge, generator fuel level, and that the NIGHT_ARCHIVE volume is mounted and readable.  
+   - Run a short audio sanity test (1 kHz tone at ‑20 dBFS) and confirm logging daemon is active.  
+
+2. **Launch (00:00)**  
+   - Play Segment A (Night‑Opening Drone).  
+   - Initiate the ambient loop engine; it will read the pre‑sequenced 2‑hour mix from the NIGHT_ARCHIVE playlist in order, applying the programmed pitch‑drift on each loop.  
+
+3. **Mid‑Shift Monitoring (01:00, 02:00, 03:00)**  
+   - Automated scripts check: <br>• Audio RMS level (alert if < ‑18 dBFS for > 3 s). <br>• Playlist read errors (skip > 2 s triggers fallback). <br>• System load (CPU, memory, temperature). <br>If any threshold breached, switch to fallback ambience for up to 90 seconds, then attempt to resume the main loop.  
+
+4. **Shutdown (03:50‑04:00)**  
+   - Execute the Twilight Wind‑Down sequence (volume fade, drone sustain, bell decay).  
+   - Log end‑of‑shift metrics: average loudness, total uptime, number of fallback activations, peak VSWR.  
+
+5. **Post‑Shift Review (04:05‑04:20)**  
+   - Pull the shift log, annotate any glitch timestamps, and archive the playlist health report (percentage of tracks played without error).  
+   - Update the “Night‑Transmission Health” dashboard; schedule any needed maintenance (e.g., antenna VSWR check, UPS test).  
+
+---
+
+### 6. Success Criteria (End‑of‑Night)  
+
+- **Audio Continuity:** ≤ 2 seconds of silence per hour; no unplanned dead‑air exceeding 5 seconds.  
+- **Mood Consistency:** Average spectral centroid ≤ 1.8 kHz; loudness variation (integrated LUFS) within ± 1 LUFS of ‑23 LUFS across the entire slot.  
+- **System Reliability:** Zero UPS‑to‑generator transfer failures; CPU usage never > 85 % for more than 10 seconds; VSWR stays < 1.5 throughout.  
+- **Archival Usage:** ≥ 40 % of aired content sourced from NIGHT_ARCHIVE (verified via playlist metadata).  
+- **Logging Completeness:** All events recorded; daily log file < 5 MB and successfully forwarded to central server.  
+
+---
+
+**Prepared by:**  
+*Late‑Night Transmission Team*  
+*Version 1.0 – 2025‑11‑03*  
+
+*The brief is intentionally modest: the goal is not to entertain a large audience but to keep the carrier humming through the dark hours, a quiet beacon for anyone—or anything—still listening.*

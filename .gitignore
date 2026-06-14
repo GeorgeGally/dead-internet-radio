@@ -6,3 +6,4 @@ __pycache__/
 
 # Compound Engineering local config
 .compound-engineering/*.local.yaml
+static.mp4

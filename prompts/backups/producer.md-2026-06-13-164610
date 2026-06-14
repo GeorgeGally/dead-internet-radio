@@ -1,0 +1,76 @@
+**Program Brief – "Late Night Synth"**  
+**Time Slot:** 00:00 – 04:00 local time  
+**Program ID:** LN-SYNTH-2025  
+**Core Intent:** Sustain the nocturnal atmosphere with immersive, evolving synthscapes that blend retro futurism with ambient experimentation. The broadcast should feel like a co-pilot for night workers, urban explorers, or curious minds, offering a hypnotic companion through the dark hours.  
+
+---
+
+### **1. Objectives & Success Metrics**  
+| # | Objective | Success Metric |  
+|---|---------|----------------|  
+| 1 | **Zero dead-air** | ≤2 seconds of silence per hour; audio RMS ≥ -12 dBFS. |  
+| 2 | **Establish a nocturnal mood** | Spectral centroid ≤ 2.2 kHz (darker timbres); average BPM ≤ 80 (if rhythmic elements present). Listener mood analysis (if available) rates "hypnotic," "moody," or "contemplative" ≥75% of the time. |  
+| 3 | **Leverage archival content** | ≥35% of tracks sourced from **SYNTH_ARCHIVE** (retro synth vinyl rips, modular patches, vintage sampler loops). |  
+| 4 | **Intelligent transitions** | Seamless crossfades (<0.5s) between tracks; gradual layering of drones/effects to avoid abrupt shifts. |  
+| 5 | **System redundancy** | Fallback to a 10-minute "synth ambience" loop within 5s of failure; full recovery by 30s. |  
+| 6 | **Logging integrity** | Timestamped errors/warnings; daily log <3MB, sent to central monitoring. |  
+
+---
+
+### **2. Content Structure**  
+| Segment | Duration | Description | Notes |  
+|---------|----------|-------------|-------|  
+| **A. Cosmic Drone Intro** | 00:00–00:10 | Sustained 60Hz drone blended with granular rain textures and analog synth chirps. Subtle 0.1Hz LFO modulation on a 200Hz sub-bass pad. | Establishes a vast, weightless ambiance. |  
+| **B. Rhythmic Synth Core** | 00:10–03:50 | Loop of modular synth sequences (TB-303 arpeggios, Roland JD-800 plucks) layered with ambient pads (Korg Karma, Emulator II). Sequences shift gradually by ±5% tempo per hour. | Tracks sourced from **SYNTH_ARCHIVE**; normalized to -16 dBFS with 0.3s crossfades. Low-pass filter (5kHz) applied globally. |  
+| **C. Midnight Crescendo** | 03:50–04:00 | Build-up with filter sweeps, reversed tape effects, and percussive stabs (303 claps, 808 snares) peaking at 0 dBFS. Ends with a single resonant 440Hz sine wave fading to silence. | Energizes final moments without disrupting mood. |  
+
+---
+
+### **3. Technical Requirements**  
+| Component | Specification | Reason |  
+|-----------|----------------|--------|  
+| **Audio Engine** | Real-time 44.1kHz/24-bit → MP3 (128kbps, VBR) → streaming. | Balance fidelity and bandwidth for long slots. |  
+| **Redundant Power** | 20-minute UPS → generator (rated 5h runtime at 50% load). | Protects against grid instability. |  
+| **RF Chain** | Antenna → RF choker → 20kHz low-pass filter → linear amplifier → 20dBi directional antenna. | Minimizes harmonic distortion; filter reduces out-of-band noise. |  
+| **Monitoring** | SNMP traps + custom Python script polling audio level/CPU every 10s. Alert thresholds: <br>- Audio level < -18 dBFS for 4s <br>- CPU > 85% for 15s <br>- UPS battery < 20%. | Detects synthetic failure modes (e.g., stuck loops, encoder errors). |  
+| **Fallback Media** | 15-minute "Darkwave Ambience" loop (Nachtmahr vinyl rip, processed with reverb/degradation). | Instant failover; tagged with "low-energy" metadata. |  
+| **Metadata** | FFmpeg tags per track: BPM, key signature, mood score (0–1). Player applies dynamic range compression if mood score <0.5. | Prevents jarring volume shifts; ensures tonal consistency. |  
+
+---
+
+### **4. Operational Procedure**  
+1. **Pre-Shift Prep (23:45–23:55):**  
+   - Verify UPS/generator status and SYNTH_ARCHIVE integrity.  
+   - Test audio path with a 1kHz tone at -20 dBFS.  
+   - Confirm logging daemon is active and disk space >20%.  
+
+2. **Launch (00:00):**  
+   - Queue Cosmic Drone Intro.  
+   - Activate looping engine for Rhythmic Synth Core with pitch-drift randomization.  
+
+3. **Mid-Shift Checks (01:00, 02:00, 03:00):**  
+   - Script triggers:  
+     - Audio health check (RMS, spectral centroid).  
+     - Memory usage and playlist read errors.  
+   - Auto-fallback if thresholds breached.  
+
+4. **Sign-Off (03:50–04:00):**  
+   - Gradual volume decay (-9dB over 60s) on ambiance layer.  
+   - Play single 440Hz tone (1.5s attack, 4s decay) at -12 dBFS.  
+   - Log end-of-slot metrics: average mood score, dropout count.  
+
+5. **Post-Shift Review (04:05–04:20):**  
+   - Analyze logs for anomalies; update SYNTH_ARCHIVE playlist rotation.  
+   - Schedule maintenance (antenna alignment, UPS battery test) if needed.  
+
+---
+
+### **5. Success Criteria (Post-Slot)**  
+- **Audience Consistency:** No abrupt tonal shifts; listeners report "predictably strange" yet "comforting" progression.  
+- **Technical Precision:** Zero unplanned silences >5s; <1% packet loss in stream.  
+- **Archival Utilization:** ≥35% of aired tracks traceable to SYNTH_ARCHIVE (via metadata tags).  
+- **System Stability:** No generator engagement; CPU never exceeds 85% for >10s.  
+
+**Prepared by:** *Night Sound Design Collective*  
+**Version 1.1 – 2025-11-03**  
+*"A pulse in the void, where analog ghosts meet digital static."*

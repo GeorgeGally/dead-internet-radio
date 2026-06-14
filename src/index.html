@@ -3,26 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
   <title>Dead Internet Radio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="screen">
-    <div id="page-header"></div>
-    <div id="page-body"></div>
-    <div id="page-nav">
-      <div class="band band--cyan">
-        <div class="band-top"></div>
-        <div class="band-middle">
-          <span id="nav-prev">&#9668; PREV</span><span id="nav-next">NEXT &#9658;</span>
-        </div>
-        <div class="band-bottom"></div>
-      </div>
+  <main id="broadcast-frame" aria-label="Dead Internet Radio teletext broadcast">
+    <div id="screen">
+      <header id="page-header" aria-live="off">
+        <span id="page-number">P100</span>
+        <span id="station-id">DEAD INTERNET RADIO</span>
+        <time id="clock">00:00:00</time>
+      </header>
+
+      <section id="page-body" aria-live="polite"></section>
+
+      <nav id="page-nav" aria-label="Teletext pages">
+        <button id="nav-prev" type="button" aria-label="Previous teletext page">
+          <span aria-hidden="true">&#9668;</span> PREV
+        </button>
+        <span id="page-index" aria-hidden="true">100 / 105</span>
+        <button id="nav-next" type="button" aria-label="Next teletext page">
+          NEXT <span aria-hidden="true">&#9658;</span>
+        </button>
+      </nav>
     </div>
-  </div>
+  </main>
+
   <audio id="player" preload="auto"></audio>
   <script src="app.js"></script>
 </body>

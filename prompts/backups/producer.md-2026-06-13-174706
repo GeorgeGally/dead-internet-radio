@@ -1,0 +1,19 @@
+**Program Brief – Test Slot (TEST‑SLOT‑001)**  
+
+**Program ID:** TEST‑SLOT‑001  
+
+**Core Sonic Parameters**  
+- **BPM Range:** 65 – 75  
+- **Spectral Targets:** 50–150 Hz, 300–500 Hz  
+- **Key Constraint:** C Major  
+
+**Segment Structure**  
+- **Intro (15 s):** Vocoded texture establishing tonal foundation.  
+- **Core (2 min):** Vocoded neural signal delivering the primary melodic and rhythmic content.  
+- **Wind‑down (15 s):** Reciprocal filtering to resolve and fade out the signal.  
+
+**Technical Requirements**  
+- **Processing Chain:** TSS‑2 Core  
+- **Execution Model:** Single‑threaded; no concurrency allowed.  
+- **Environmental Conditions:** –20 °C operating temperature; 320 kHz bandwidth.  
+- **System Interface:** Single‑MT (Machine‑Tool) interface; strict no‑parallel execution.

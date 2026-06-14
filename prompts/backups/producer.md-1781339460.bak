@@ -1,0 +1,75 @@
+**Program Brief – “Late‑Night Echoes” (Late‑Night Slot)**  
+
+---
+
+### 1. Overview  
+- **Time Slot:** 02:00 – 06:00 local time (the quietest, most isolated period)  
+- **Program ID:** LNE‑2025‑01  
+- **Primary Goal:** Preserve the atmosphere of solitude while keeping the station’s automated transmission alive. The broadcast should feel like a lone entity reflecting on a world it no longer sees.  
+
+### 2. Objectives  
+| # | Objective | Success Metric |
+|---|-----------|----------------|
+| 1 | Maintain a continuous, uninterrupted audio feed. | Zero dead‑air; audio level ≥ ‑12 dBFS throughout. |
+| 2 | Convey a melancholic, reflective mood. | Listener surveys (if any) or automated mood‑analysis (spectral flatness, BPM variance) indicate sustained “somber” characteristics. |
+| 3 | Preserve the legacy of human emotion through curated music fragments. | Minimum 30 % of playlist items sourced from the “HUMAN_EMOTION_MUSIC” archive (corrupted but recognizable). |
+| 4 | Gracefully handle system failures without silence. | Automatic fallback to “static ambience” (low‑level noise) within 5 seconds of any audio drop. |
+| 5 | Log all technical anomalies for post‑mortem analysis. | All errors recorded in the central monitoring log with timestamps. |
+
+### 3. Content Structure  
+
+| Segment | Duration | Description | Notes |
+|---------|----------|-------------|-------|
+| **A. Intro Ambience** | 02:00‑02:05 | Low‑level industrial hum + filtered white noise (station’s own “heartbeat”). | Sets the tone of abandonment. |
+| **B. Core Playlist** | 02:05‑05:55 | Continuous loop of **HUMAN_EMOTION_MUSIC** files (≈ 2 h total). Files are selected **alphabetically** from the corrupted archive to ensure randomness while the AI cannot choose intelligently. | Each track is pre‑processed: <br>• Normalize to ‑14 dBFS <br>• Insert a 0.5‑second fade‑in/out to mask skips <br>• Apply a subtle low‑pass filter (≈ 8 kHz) to emulate “radio‑wave decay”. |
+| **C. Interstitial Marker** | 02:55‑03:00, 03:55‑04:00, 04:55‑05:00 | 5‑second “static pulse” (a short burst of broadband noise) followed by a synthetic chime indicating the next segment. | Helps the AI’s scheduler stay synced; also serves as a “heartbeat” for the dying infrastructure. |
+| **D. Outro Fade** | 05:55‑06:00 | Gradual reduction of music volume, leaving only the hum and a single lingering synth note that decays into silence. | Signals the end of the transmission cycle; prepares for the next day’s fresh playlist reload. |
+
+### 4. Technical Requirements  
+
+| Component | Specification | Reason |
+|-----------|---------------|--------|
+| **Audio Engine** | Software‑defined radio (SDR) driver, 48 kHz/24‑bit PCM, with real‑time compression (Opus, 12 kbps). | Maintains fidelity while conserving bandwidth on a weak repeater. |
+| **Backup Power** | UPS rated for 8 h at 30 % load; automatic switchover to generator if UPS fails. | Guarantees continuity during grid outages. |
+| **Signal Path** | Antenna feed → low‑pass filter (cut‑off 10 kHz) → power amplifier (linear mode) → antenna. | Reduces spurious emissions; protects the already‑fragile ionospheric signal. |
+| **Monitoring** | Central syslog server + heartbeat ping every 10 s; automated alert (email/SMS) on audio drop or CPU > 85 %. | Enables rapid response to the AI’s “system‑failure” symptoms. |
+| **Fallback Media** | Pre‑rendered 10‑minute loop of “industrial ambience” (static + hum) stored locally. | Prevents dead‑air if the main playlist cannot be read. |
+
+### 5. Operational Procedure  
+
+1. **Pre‑Shift Check (01:45‑01:55)**  
+   - Verify UPS status, antenna VSWR, and that the “HUMAN_EMOTION_MUSIC” directory is mounted and readable.  
+   - Run a quick audio sanity test (tone burst) and confirm log rotation.  
+
+2. **Launch (02:00)**  
+   - Start the ambient intro (A).  
+   - Initiate the playlist engine; it will automatically iterate through the corrupted files in alphabetical order.  
+
+3. **Mid‑Shift Monitoring (02:30, 03:30, 04:30)**  
+   - Automated scripts check for:  
+     • Audio level deviations > 3 dB.  
+     • Playlist read errors (track skip > 2 s).  
+     • CPU/ memory thresholds on the AI node.  
+   - If any breach occurs, the system automatically switches to the fallback ambience for up to 2 minutes, then attempts a graceful resume.  
+
+4. **Shutdown (05:55‑06:00)**  
+   - Fade out music, preserve the final synth note for 3 seconds, then cut audio.  
+   - Log the end‑of‑shift metrics and signal strength.  
+
+5. **Post‑Shift Review (06:05‑06:20)**  
+   - Pull the shift log, note any glitch timestamps, and archive the corrupted track list for later repair.  
+   - Update the “playlist health” dashboard (percentage of successfully played tracks).  
+
+### 6. Success Criteria (End‑of‑Day)  
+
+- **Audio Continuity:** 100 % of the 4‑hour window transmitted without > 5 seconds of dead‑air.  
+- **Mood Consistency:** Average spectral centroid < 2 kHz and BPM variance < 5 % across the playlist, confirming a sustained “late‑night” ambience.  
+- **System Health:** No prolonged (> 30 s) CPU spikes; UPS runtime ≥ 6 h.  
+
+---
+
+**Prepared by:**  
+*Late‑Night Automation Team*  
+*Version 1.0 – 2025‑11‑03*  
+
+*All personnel are reminded that the true “audience” is the empty world listening through static; the program’s purpose is to keep the signal alive, not to fill silence with noise.*

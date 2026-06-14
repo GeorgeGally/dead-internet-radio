@@ -17,12 +17,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
-OPENROUTER_FALLBACK_MODELS = [
+OPENROUTER_FREE_MODELS = [
     "google/gemma-4-31b-it:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
     "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-9b-it:free",
+    "google/gemma-4-flash:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
 ]
+_build_model_index = 0
+
+
+def _next_model() -> str:
+    global _build_model_index
+    model = OPENROUTER_FREE_MODELS[_build_model_index % len(OPENROUTER_FREE_MODELS)]
+    _build_model_index += 1
+    return model
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 OUTPUT_DIR = Path("output")
@@ -32,8 +41,9 @@ DIST_DIR = Path("dist")
 
 EPOCH_MS = 2051222400000  # 2035-01-01T00:00:00Z
 
-TRACK_RE = re.compile(r"dead-internet-radio-track-(\d+)-(.+)\.mp3$")
-PROMPT_RE = re.compile(r"dead-internet-radio-track-(\d+)-(.+)\.prompt\.json$")
+TRACK_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.mp3$")
+PROMPT_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.prompt\.json$")
+DJ_VO_RE = re.compile(r"-DJ-voice-")
 
 FALLBACK_PAGES = {
     "headlines": [
@@ -130,31 +140,36 @@ Output valid JSON only. No markdown, no extra text:
 
 
 def call_llm(system_prompt: str, user_message: str, json_mode: bool = False) -> str:
-    models_to_try = [OPENROUTER_MODEL] + OPENROUTER_FALLBACK_MODELS
+    tried = set()
     last_error = None
-    for model in models_to_try:
+    while len(tried) < len(OPENROUTER_FREE_MODELS):
+        model = _next_model()
+        if model in tried:
+            continue
+        tried.add(model)
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
         }
-        body = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            "temperature": 0.9,
-        }
-        if json_mode:
-            body["response_format"] = {"type": "json_object"}
-        req = urllib.request.Request(
-            OPENROUTER_URL,
-            data=json.dumps(body).encode(),
-            headers=headers,
-            method="POST",
-        )
-        for attempt in range(3):
+        use_json_mode = json_mode
+        for attempt in range(2):
+            body = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                "temperature": 0.9,
+            }
+            if use_json_mode:
+                body["response_format"] = {"type": "json_object"}
             try:
+                req = urllib.request.Request(
+                    OPENROUTER_URL,
+                    data=json.dumps(body).encode(),
+                    headers=headers,
+                    method="POST",
+                )
                 with urllib.request.urlopen(req, timeout=120) as resp:
                     result = json.loads(resp.read().decode())
                     content = result["choices"][0]["message"]["content"]
@@ -162,21 +177,30 @@ def call_llm(system_prompt: str, user_message: str, json_mode: bool = False) -> 
                         raise ValueError("LLM returned null content")
                     return content
             except urllib.error.HTTPError as e:
-                if e.code == 429 and attempt < 2:
-                    wait = 10 * (attempt + 1)
+                if e.code == 400 and use_json_mode:
+                    print(f"  Model {model} rejects json_object, retrying without...", flush=True)
+                    use_json_mode = False
+                    continue
+                if e.code == 429:
+                    wait = 3 * (attempt + 1)
                     print(f"  Rate limited ({model}), retrying in {wait}s...", flush=True)
                     time.sleep(wait)
                     continue
+                if e.code in (400, 404):
+                    print(f"  Model {model} unavailable ({e.code}), skipping", flush=True)
+                    break
                 last_error = str(e)
                 print(f"  Model {model} failed: {e}", flush=True)
                 break
             except Exception as e:
-                if attempt < 2:
-                    time.sleep(5 * (attempt + 1))
+                if attempt < 1:
+                    wait = 3 * (attempt + 1)
+                    print(f"  {e}, retrying in {wait}s...", flush=True)
+                    time.sleep(wait)
                     continue
                 last_error = str(e)
                 break
-    print(f"  All models failed. Last error: {last_error}", file=sys.stderr)
+    print(f"  All models exhausted. Last error: {last_error}", file=sys.stderr)
     return None
 
 
@@ -195,7 +219,7 @@ def find_tracks():
     mp3s = defaultdict(list)
     for f in OUTPUT_DIR.glob("*.mp3"):
         m = TRACK_RE.match(f.name)
-        if m:
+        if m and not DJ_VO_RE.search(f.name):
             mp3s[int(m.group(1))].append(f)
 
     jsons = defaultdict(list)
@@ -255,10 +279,14 @@ def build_playlist(tracks):
                 pass
 
         duration_ms = get_duration_ms(t["mp3"])
+        title = payload.get("title", payload.get("caption", ""))
+        artist = payload.get("artist", "")
         entries.append({
             "file": f"audio/{t['mp3'].name}",
             "durationMs": duration_ms,
-            "caption": payload.get("caption", ""),
+            "title": title,
+            "artist": artist,
+            "caption": f"{artist} — {title}" if artist else title,
             "bpm": payload.get("bpm") or None,
             "key": normalize_key(payload.get("keyscale", "")),
         })

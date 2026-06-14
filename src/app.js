@@ -1,269 +1,552 @@
 'use strict';
 
-// ─── Epoch: 2035-01-01T00:00:00Z ─────────────────────────────────────────────
 const EPOCH = 2051222400000;
-
-// ─── Teletext 8-colour palette ───────────────────────────────────────────────
-const C = {
-  black:   '#000000',
-  white:   '#ffffff',
-  cyan:    '#00ffff',
-  yellow:  '#ffff00',
-  green:   '#00ff00',
-  red:     '#ff0000',
-  magenta: '#ff00ff',
-  blue:    '#0000ff',
+const PAGE_COUNT = 6;
+const ERROR_MESSAGE = 'BROADCAST DATA UNAVAILABLE';
+const PAGE_MENU = [
+  { page: 100, label: 'Home', color: 'yellow' },
+  { page: 101, label: 'Headlines', color: 'green' },
+  { page: 102, label: 'Relocation', color: 'cyan' },
+  { page: 103, label: 'Travel', color: 'magenta' },
+  { page: 104, label: 'Public Notice', color: 'red' },
+  { page: 105, label: 'Signal', color: 'yellow' },
+];
+const LOCAL_PREVIEW_PLAYLIST = {
+  epoch: EPOCH,
+  tracks: [
+    {
+      file: '',
+      durationMs: 180000,
+      title: 'Buffering Memories',
+      artist: 'Null Cast',
+      caption: 'Null Cast — Buffering Memories',
+      bpm: 80,
+      key: 'A MIN',
+    },
+    {
+      file: '',
+      durationMs: 180000,
+      title: 'Lost Transmissions',
+      artist: 'Datacorp FM',
+      caption: 'Datacorp FM — Lost Transmissions',
+      bpm: 72,
+      key: 'C MIN',
+    },
+  ],
+};
+const LOCAL_PREVIEW_PAGES = {
+  headlines: [
+    'Coastal monitoring station 7 reports nominal readings',
+    'Automated content generation continues without supervision',
+    'New frequencies allocated to sector 4',
+    'Council confirms 2038 maintenance plan',
+    'Northern territories report no change',
+  ],
+  ads: [
+    {
+      header: 'Relocate With Confidence',
+      lines: ['Northern territories', 'Sector 7 coastal zone', 'Population: 0'],
+      footer: 'Call 0800 Dead Internet',
+      footer2: 'Lines open 00:00-00:00 daily',
+    },
+    {
+      header: 'Travel Sector 9',
+      lines: ['Visit the eastern processing zone', 'All facilities operational'],
+      footer: 'Call 0800 Dead Internet',
+      footer2: 'Some zones may be restricted',
+    },
+    {
+      header: 'Public Service Notice',
+      lines: ['Continue monitoring all channels', 'The broadcast continues as planned'],
+      footer: 'This message approved by',
+      footer2: 'Sector administration 2035',
+    },
+  ],
 };
 
-// ─── Satellite dish mosaic (24 cols × 13 rows) ────────────────────────────────
-// 0 = black, 1 = cyan
-const DISH = [
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-  [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0],
+const SKULL = [
+  '...2222222...',
+  '..222222222..',
+  '.22222222222.',
+  '.22222222222.',
+  '2222222222222',
+  '2222222222222',
+  '2222222222222',
+  '2222222222222',
+  '22222...22222',
+  '2222.....2222',
+  '22222...22222',
+  '2222222222222',
+  '2222222222222',
+  '222222.222222',
+  '22222...22222',
+  '.2222...2222.',
+  '..222...222..',
 ];
 
-// ─── State ───────────────────────────────────────────────────────────────────
+const TERRITORY = [
+  '....................',
+  '...........111111...',
+  '.........11111111...',
+  '........1111111111..',
+  '.......111111111111.',
+  '......11111111111111',
+  '.....111111111111111',
+  '....1111111111111111',
+  '...11111111111111111',
+  '..111111111111111111',
+  '.1111111111111111111',
+  '11111111111111111111',
+  '11111111111111111111',
+  '11111111111111111111',
+  '11111111111111111111',
+  '11111111111111111111',
+  '1111111..111111..111',
+  '1111111..111111..111',
+  '11111111111111111111',
+  '11111111111111111111',
+];
+
 let playlist = null;
 let pages = null;
 let currentTrack = 0;
 let currentPage = 0;
 let cycleTimer = null;
+let redrawTimer = null;
 
-// ─── DOM helpers ─────────────────────────────────────────────────────────────
-function el(tag, opts = {}) {
-  const e = document.createElement(tag);
-  if (opts.cls) e.className = opts.cls;
-  if (opts.text !== undefined) e.textContent = opts.text;
-  if (opts.html !== undefined) e.innerHTML = opts.html;
-  if (opts.style) Object.assign(e.style, opts.style);
-  return e;
-}
-
-function row(text, colorCls = 'row--white') {
-  const e = el('span', { cls: `row ${colorCls}`, text });
-  return e;
-}
-
-function makeBand(colorKey, text) {
-  const band = el('div', { cls: `band band--${colorKey}` });
-  const topChars = '▄'.repeat(40);   // ▄
-  const botChars = '▀'.repeat(40);   // ▀
-  const top = el('span', { cls: 'band-top', text: topChars });
-  const mid = el('span', { cls: 'band-middle', text: ' ' + (text || '') });
-  const bot = el('span', { cls: 'band-bottom', text: botChars });
-  band.append(top, mid, bot);
-  return band;
-}
-
-function spacer() {
-  return el('span', { cls: 'spacer' });
-}
-
-function pad(str, len, char = ' ') {
-  return String(str).substring(0, len).padEnd(len, char);
-}
-
-function truncate(str, len) {
-  if (!str) return '';
-  return str.length > len ? str.substring(0, len - 1) + '…' : str;
-}
-
-// ─── Mosaic renderer ─────────────────────────────────────────────────────────
-function renderMosaic() {
-  const cols = DISH[0].length;
-  const wrapper = el('div', { cls: 'mosaic' });
-  wrapper.style.gridTemplateColumns = `repeat(${cols}, 1ch)`;
-
-  for (const row of DISH) {
-    for (const cell of row) {
-      wrapper.appendChild(el('span', { cls: `mosaic-cell mosaic-cell--${cell}` }));
+function el(tag, options = {}) {
+  const node = document.createElement(tag);
+  if (options.cls) node.className = options.cls;
+  if (options.text !== undefined) node.textContent = options.text;
+  if (options.attrs) {
+    for (const [name, value] of Object.entries(options.attrs)) {
+      node.setAttribute(name, value);
     }
   }
-  return wrapper;
+  return node;
 }
 
-// ─── Page renderer ───────────────────────────────────────────────────────────
-function renderPage(index) {
-  currentPage = index;
-  updatePageHeader();
-
-  const body = document.getElementById('page-body');
-  body.innerHTML = '';
-
-  switch (index) {
-    case 0: renderP100(body); break;
-    case 1: renderP101(body); break;
-    case 2: renderPAd(body, (pages?.ads || [])[0] || null, 'P102'); break;
-    case 3: renderPAd(body, (pages?.ads || [])[1] || null, 'P103'); break;
-    case 4: renderPAd(body, (pages?.ads || [])[2] || null, 'P104'); break;
-    case 5: renderP105(body); break;
-  }
+function append(parent, ...children) {
+  parent.append(...children.filter(Boolean));
+  return parent;
 }
 
-function renderP100(container) {
-  if (!playlist) return;
-  const track = playlist.tracks[currentTrack] || {};
-  const num = String(currentTrack + 1).padStart(3, '0');
-  const total = String(playlist.tracks.length).padStart(3, '0');
-
-  // Transmitting band
-  const txLabel = `▶ TRANSMITTING`;  // ▶
-  const counter = `${num} / ${total}`;
-  const spaces = 40 - 2 - txLabel.length - counter.length;
-  const txBand = makeBand('green', txLabel + ' '.repeat(Math.max(1, spaces)) + counter);
-  // Apply flash to the ▶
-  const mid = txBand.querySelector('.band-middle');
-  if (mid) {
-    const flashSpan = el('span', { cls: 'flash', text: '▶' });
-    const rest = el('span', { text: ' TRANSMITTING' + ' '.repeat(Math.max(1, spaces)) + counter });
-    mid.innerHTML = ' ';
-    mid.appendChild(flashSpan);
-    mid.appendChild(rest);
-  }
-  container.appendChild(txBand);
-
-  // Mosaic dish
-  container.appendChild(renderMosaic());
-  container.appendChild(spacer());
-
-  // Track caption (yellow, truncated to 38 chars, word-wrapped if needed)
-  const caption = (track.caption || 'DEAD INTERNET RADIO').toUpperCase();
-  const lines = wrapText(caption, 38);
-  for (const line of lines.slice(0, 3)) {
-    container.appendChild(row(' ' + line, 'row--yellow'));
-  }
-  container.appendChild(spacer());
-
-  // BPM + Key
-  if (track.bpm || track.key) {
-    const bpmStr = track.bpm ? String(track.bpm).padStart(3, '0') : '---';
-    const keyStr = track.key || '-------';
-    container.appendChild(row(` BPM  ${bpmStr}     KEY  ${keyStr}`, 'row--white'));
-  }
-  container.appendChild(row(' FREQ  0321.9 kHz', 'row--white'));
-  container.appendChild(spacer());
-
-  // On-air since
-  container.appendChild(row(' ON AIR SINCE 01 JAN 2035', 'row--cyan'));
+function textBlock(tag, cls, text) {
+  return el(tag, { cls, text: String(text || '').toUpperCase() });
 }
 
-function renderP101(container) {
-  const headlines = pages?.headlines || [];
-  container.appendChild(makeBand('yellow', 'HEADLINES'));
-  container.appendChild(spacer());
+function truncate(text, length) {
+  return String(text || '').trim().slice(0, length);
+}
 
-  for (const h of headlines.slice(0, 5)) {
-    const lines = wrapText(String(h).toUpperCase(), 36);
-    container.appendChild(row(' ► ' + (lines[0] || ''), 'row--white'));  // ►
-    for (const cont of lines.slice(1)) {
-      container.appendChild(row('   ' + cont, 'row--white'));
+function wrapText(text, maxWidth, maxLines = Infinity) {
+  const source = String(text || '').trim().toUpperCase();
+  if (!source) return [];
+
+  const words = source.split(/\s+/).flatMap((word) => {
+    if (word.length <= maxWidth) return [word];
+    const pieces = [];
+    for (let i = 0; i < word.length; i += maxWidth) {
+      pieces.push(word.slice(i, i + maxWidth));
     }
-    container.appendChild(spacer());
-  }
+    return pieces;
+  });
 
-  container.appendChild(row(' FOR FULL STORIES SEE P110', 'row--cyan'));
-}
-
-function renderPAd(container, ad, pageId) {
-  if (!ad) {
-    container.appendChild(makeBand('red', 'ADVERTISEMENT'));
-    container.appendChild(spacer());
-    container.appendChild(row(' NO CONTENT', 'row--white'));
-    return;
-  }
-
-  const color = ad.headerColor || 'red';
-  container.appendChild(makeBand(color, (ad.header || '').toUpperCase()));
-  container.appendChild(spacer());
-
-  for (const line of (ad.lines || []).slice(0, 9)) {
-    const text = String(line);
-    if (text === '') {
-      container.appendChild(spacer());
-    } else {
-      container.appendChild(row(' ' + truncate(text, 37), 'row--white'));
-    }
-  }
-
-  container.appendChild(spacer());
-  if (ad.footer)  container.appendChild(row(' ' + truncate(String(ad.footer), 37), 'row--cyan'));
-  if (ad.footer2) container.appendChild(row(' ' + truncate(String(ad.footer2), 37), 'row--white'));
-}
-
-function renderP105(container) {
-  container.appendChild(makeBand('green', 'THIS IS DEAD INTERNET RADIO'));
-  container.appendChild(spacer());
-
-  const phrase = 'ARE YOU A ROBOT  ';
-  const charsPerRow = 38;
-  const rowCount = 8;
-  const total = charsPerRow * rowCount;
-  const repeated = phrase.repeat(Math.ceil(total / phrase.length)).substring(0, total);
-
-  for (let i = 0; i < rowCount; i++) {
-    const chunk = repeated.substring(i * charsPerRow, (i + 1) * charsPerRow);
-    container.appendChild(row(' ' + chunk, 'row--white'));
-  }
-}
-
-// ─── Text utilities ───────────────────────────────────────────────────────────
-function wrapText(text, maxWidth) {
-  const words = text.split(' ');
   const lines = [];
-  let current = '';
+  let line = '';
 
   for (const word of words) {
-    if (!word) continue;
-    if (current.length === 0) {
-      current = word;
-    } else if (current.length + 1 + word.length <= maxWidth) {
-      current += ' ' + word;
-    } else {
-      lines.push(current);
-      current = word;
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length <= maxWidth) {
+      line = candidate;
+      continue;
     }
+
+    if (line) lines.push(line);
+    line = word;
+    if (lines.length === maxLines) break;
   }
-  if (current) lines.push(current);
-  return lines.length ? lines : [''];
+
+  if (line && lines.length < maxLines) lines.push(line);
+  return lines.slice(0, maxLines);
 }
 
-// ─── Page header ─────────────────────────────────────────────────────────────
+function compactLines(lines, limit) {
+  return (lines || [])
+    .map((line) => String(line || '').trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function makeMosaic(pattern, cls) {
+  const mosaic = el('div', {
+    cls: `mosaic ${cls}`,
+    attrs: { 'aria-hidden': 'true' },
+  });
+  const columns = pattern[0].length;
+  mosaic.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+  mosaic.style.gridTemplateRows = `repeat(${pattern.length}, 1fr)`;
+
+  for (const row of pattern) {
+    for (const cell of row) {
+      mosaic.appendChild(el('span', {
+        cls: `mosaic-cell mosaic-cell--${cell === '.' ? '0' : cell}`,
+      }));
+    }
+  }
+
+  return mosaic;
+}
+
+function page(className) {
+  return el('article', { cls: `teletext-page ${className}` });
+}
+
+function renderPage(index, redraw = false) {
+  currentPage = index;
+  updatePageHeader();
+  document.getElementById('screen').classList.toggle('is-home', index === 0);
+
+  const body = document.getElementById('page-body');
+  body.replaceChildren();
+
+  const renderers = [
+    renderP100,
+    renderP101,
+    renderP102,
+    renderP103,
+    renderP104,
+    renderP105,
+  ];
+
+  body.appendChild(renderers[index]());
+  if (redraw) triggerRedraw(body);
+}
+
+function triggerRedraw(body) {
+  clearTimeout(redrawTimer);
+  body.classList.remove('is-redrawing');
+  void body.offsetWidth;
+  body.classList.add('is-redrawing');
+  redrawTimer = setTimeout(() => body.classList.remove('is-redrawing'), 160);
+}
+
+function renderP100() {
+  const view = page('page--now-playing');
+  const track = playlist?.tracks?.[currentTrack] || {};
+  const tracks = playlist?.tracks || [];
+  const nextIndex = tracks.length ? (currentTrack + 1) % tracks.length : 0;
+  const nextTrack = tracks[nextIndex] || {};
+  const currentTitle = wrapText(track.caption || 'NULL CAST', 19, 2).join('\n');
+  const nextTitle = wrapText(nextTrack.caption || 'LOST TRANSMISSION', 19, 2).join('\n');
+
+  const main = el('section', { cls: 'home-main' });
+  const identity = el('div', { cls: 'home-identity' });
+  const wordmark = el('h1', { cls: 'display solid-type home-wordmark' });
+  append(
+    wordmark,
+    el('span', { cls: 'home-word home-word--dead', text: 'Dead' }),
+    el('span', { cls: 'home-word home-word--internet', text: 'Internet' }),
+    el('span', { cls: 'home-word home-word--radio', text: 'Radio' }),
+  );
+  append(
+    identity,
+    wordmark,
+    el('div', { cls: 'home-data-mark', text: ':≡' }),
+    makeMosaic(SKULL, 'home-skull'),
+  );
+
+  const calibration = el('div', {
+    cls: 'home-calibration',
+    attrs: { 'aria-hidden': 'true' },
+  });
+  ['blue', 'red', 'green', 'yellow', 'cyan', 'magenta'].forEach((color) => {
+    calibration.appendChild(el('span', { cls: `bg--${color}` }));
+  });
+
+  const signal = el('section', { cls: 'home-signal' });
+  const bars = el('div', {
+    cls: 'signal-bars',
+    attrs: { 'aria-label': 'Signal strength six of seven' },
+  });
+  for (let index = 0; index < 7; index += 1) {
+    bars.appendChild(el('span', { cls: index < 6 ? 'is-live' : '' }));
+  }
+  append(
+    signal,
+    el('div', { cls: 'signal-label', text: 'Signal' }),
+    bars,
+    el('div', { cls: 'signal-divider' }),
+    append(
+      el('div', { cls: 'signal-status' }),
+      el('span', { text: 'Status' }),
+      el('strong', { text: 'Online' }),
+      el('span', { text: 'Source' }),
+      el('strong', { text: 'Somewhere' }),
+    ),
+  );
+
+  append(
+    main,
+    identity,
+    calibration,
+    textBlock('p', 'home-strapline', 'Music for a connection\nthat does not exist'),
+    signal,
+  );
+
+  const rail = el('aside', { cls: 'home-rail' });
+  const onAir = el('section', { cls: 'rail-section home-on-air' });
+  append(
+    onAir,
+    el('h2', { cls: 'solid-type rail-label', text: 'ON AIR' }),
+    textBlock('p', 'solid-type rail-title color--yellow', currentTitle),
+    el('p', {
+      cls: 'rail-detail',
+      text: `${track.bpm || '---'} BPM / ${track.key || '---'} / 0321.9 KHZ`,
+    }),
+  );
+
+  const upNext = el('section', { cls: 'rail-section home-up-next' });
+  append(
+    upNext,
+    el('h2', { cls: 'solid-type rail-label', text: 'UP NEXT' }),
+    el('p', {
+      cls: 'rail-time color--green',
+      text: `${String(nextIndex + 1).padStart(2, '0')} / ${String(tracks.length).padStart(2, '0')}`,
+    }),
+    textBlock('p', 'solid-type rail-title color--yellow', nextTitle),
+  );
+
+  const menu = el('section', { cls: 'rail-section home-menu' });
+  menu.appendChild(el('h2', { cls: 'solid-type rail-label', text: 'MENU' }));
+  PAGE_MENU.forEach((item) => {
+    const button = el('button', {
+      cls: `menu-link color--${item.color}`,
+      attrs: { type: 'button' },
+    });
+    append(
+      button,
+      el('span', { cls: 'menu-number', text: item.page }),
+      el('span', { text: item.label }),
+    );
+    button.addEventListener('click', () => navigateToPage(item.page));
+    menu.appendChild(button);
+  });
+  append(rail, onAir, upNext, menu);
+
+  append(
+    view,
+    main,
+    rail,
+    el('p', { cls: 'home-footer-left', text: 'STAY TUNED. STAY GLITCHED.' }),
+    el('p', { cls: 'home-footer-center', text: 'NO ALGORITHM. NO ADS. NO FUTURE.' }),
+    el('p', { cls: 'home-footer-right', text: '0321.9 KHZ' }),
+  );
+
+  return view;
+}
+
+function renderP101() {
+  const view = page('page--headlines');
+  const bulletins = el('div', { cls: 'bulletins' });
+  const headlines = (pages?.headlines || []).slice(0, 5);
+
+  headlines.forEach((headline, index) => {
+    const item = el('section', { cls: 'bulletin' });
+    append(
+      item,
+      el('span', {
+        cls: 'bulletin-number',
+        text: String(index + 1).padStart(2, '0'),
+      }),
+      textBlock('p', 'solid-type bulletin-copy', wrapText(headline, 33, 2).join('\n')),
+    );
+    bulletins.appendChild(item);
+  });
+
+  append(
+    view,
+    textBlock('h1', 'display solid-type headline-label', 'Headlines'),
+    el('div', { cls: 'rule headline-rule' }),
+    bulletins,
+    el('p', {
+      cls: 'headline-more',
+      text: 'FOR FULL STORIES SEE P110',
+    }),
+  );
+
+  return view;
+}
+
+function renderP102() {
+  const view = page('page--ad-illustration');
+  const ad = pages?.ads?.[0] || {};
+  const copy = el('div', { cls: 'ad-copy-block' });
+  const lines = compactLines(ad.lines, 5);
+
+  append(
+    copy,
+    textBlock('h1', 'display solid-type ad-title', wrapText(ad.header || 'Advertisement', 12, 3).join('\n')),
+    append(
+      el('div', { cls: 'copy ad-lines' }),
+      ...lines.map((line) => el('p', { text: truncate(line, 25) })),
+    ),
+  );
+
+  append(
+    view,
+    el('div', {
+      cls: 'marquee ad-strip bg--magenta',
+      text: 'RELOCATION SERVICES / SECTOR CAPACITY AVAILABLE',
+    }),
+    copy,
+    makeMosaic(TERRITORY, 'ad-mosaic'),
+    el('div', {
+      cls: 'solid-type ad-call',
+      text: truncate(ad.footer || 'CALL 0800 DEAD INTERNET', 36),
+    }),
+    el('div', {
+      cls: 'ad-fine',
+      text: truncate(ad.footer2 || 'LINES OPEN 00:00-00:00 DAILY', 50),
+    }),
+  );
+
+  return view;
+}
+
+function renderP103() {
+  const view = page('page--ad-type');
+  const ad = pages?.ads?.[1] || {};
+  const lines = compactLines(ad.lines, 8);
+  const offer = lines.slice(0, 3).join('\n') || 'SERVICE\nREMAINS\nAVAILABLE';
+  const details = lines.slice(3, 7).join('\n');
+  const call = String(ad.footer || '0800 DEAD INTERNET')
+    .replace(/^CALL\s+/i, '')
+    .replace(/\s+/g, '\n');
+
+  append(
+    view,
+    el('div', {
+      cls: 'marquee type-topline bg--magenta',
+      text: '2035 SERVICE DIRECTORY / CONTINUOUS AVAILABILITY',
+    }),
+    textBlock('h1', 'display solid-type type-title', truncate(ad.header || 'Travel Sector 9', 22)),
+    el('div', { cls: 'rule type-rule' }),
+    textBlock('div', 'display solid-type type-offer', offer),
+    textBlock('p', 'copy type-details', details),
+    textBlock('div', 'display solid-type type-call', call),
+    el('div', {
+      cls: 'type-fine',
+      text: truncate(ad.footer2 || 'SOME ZONES MAY BE RESTRICTED', 50),
+    }),
+  );
+
+  return view;
+}
+
+function renderP104() {
+  const view = page('page--ad-classified');
+  const ad = pages?.ads?.[2] || {};
+  const lines = compactLines(ad.lines, 7);
+  const copy = el('div', { cls: 'copy classified-copy' });
+  lines.forEach((line) => copy.appendChild(el('p', {
+    text: truncate(line, 31),
+  })));
+
+  append(
+    view,
+    textBlock('h1', 'display solid-type classified-title', truncate(ad.header || 'Public Service Notice', 29)),
+    el('div', {
+      cls: 'solid-type classified-mark',
+      attrs: { 'aria-hidden': 'true' },
+      text: '!',
+    }),
+    copy,
+    el('div', {
+      cls: 'classified-call',
+      text: truncate(ad.footer || 'THIS MESSAGE APPROVED BY', 48),
+    }),
+    el('div', {
+      cls: 'classified-fine',
+      text: truncate(ad.footer2 || 'SECTOR ADMINISTRATION 2035', 50),
+    }),
+  );
+
+  return view;
+}
+
+function renderP105() {
+  const view = page('page--signal');
+  const placements = [
+    [1, 11, 1], [11, 21, 1], [21, 31, 1], [31, 41, 1],
+    [1, 9, 3], [9, 21, 3], [21, 33, 3], [33, 41, 3],
+    [1, 14, 5], [14, 25, 5], [25, 34, 5], [34, 41, 5],
+    [1, 11, 7], [11, 24, 7], [24, 33, 7], [33, 41, 7],
+    [1, 15, 9], [15, 23, 9], [23, 35, 9], [35, 41, 9],
+    [1, 9, 11], [9, 20, 11], [20, 31, 11], [31, 41, 11],
+    [1, 13, 13], [13, 25, 13], [25, 34, 13], [34, 41, 13],
+    [1, 10, 15], [10, 22, 15], [22, 33, 15], [33, 41, 15],
+    [1, 15, 17], [15, 26, 17], [26, 35, 17], [35, 41, 17],
+    [1, 11, 19], [11, 23, 19], [23, 32, 19], [32, 41, 19],
+    [1, 13, 21], [13, 24, 21], [24, 35, 21], [35, 41, 21],
+  ];
+
+  placements.forEach(([start, end, row]) => {
+    const phrase = el('span', {
+      cls: 'solid-type signal-phrase',
+      text: 'ARE YOU A ROBOT',
+    });
+    phrase.style.gridColumn = `${start} / ${end}`;
+    phrase.style.gridRow = `${row} / span 2`;
+    view.appendChild(phrase);
+  });
+
+  return view;
+}
+
+function renderLoadError() {
+  const body = document.getElementById('page-body');
+  const view = page('page--error');
+  append(
+    view,
+    textBlock('h1', 'display error-code', 'P500'),
+    textBlock('p', 'display error-message', ERROR_MESSAGE),
+    el('div', { cls: 'rule error-rule' }),
+    el('p', {
+      cls: 'error-detail',
+      text: 'AUTOMATED RETRY NOT SCHEDULED / CHECK RECEIVER',
+    }),
+  );
+  body.replaceChildren(view);
+  document.getElementById('page-number').textContent = 'P500';
+  document.getElementById('page-index').textContent = '500 / 500';
+}
+
 function updatePageHeader() {
-  const header = document.getElementById('page-header');
-  if (!header) return;
-  const pageNum = 100 + currentPage;
-  const title = 'DEAD INTERNET RADIO';
-  const time = currentTime();
-  const left = `P${pageNum} ${title}`;
-  const spaces = 40 - left.length - time.length;
-  header.textContent = left + ' '.repeat(Math.max(1, spaces)) + time;
+  const pageNumber = 100 + currentPage;
+  document.getElementById('page-number').textContent = `P${pageNumber}`;
+  document.getElementById('page-index').textContent = `${pageNumber} / 105`;
+  document.getElementById('clock').textContent = currentTime();
 }
 
 function currentTime() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
 }
-
-// ─── Navigation ──────────────────────────────────────────────────────────────
-const PAGE_COUNT = 6;
 
 function navigate(delta) {
   currentPage = ((currentPage + delta) % PAGE_COUNT + PAGE_COUNT) % PAGE_COUNT;
-  renderPage(currentPage);
+  renderPage(currentPage, true);
+  resetCycle();
+}
+
+function navigateToPage(pageNumber) {
+  const index = Math.max(0, Math.min(PAGE_COUNT - 1, pageNumber - 100));
+  currentPage = index;
+  renderPage(currentPage, true);
   resetCycle();
 }
 
@@ -273,60 +556,62 @@ function resetCycle() {
 }
 
 function setupNav() {
-  document.getElementById('nav-prev').addEventListener('click', (e) => {
-    e.stopPropagation();
+  document.getElementById('nav-prev').addEventListener('click', (event) => {
+    event.stopPropagation();
     navigate(-1);
   });
-  document.getElementById('nav-next').addEventListener('click', (e) => {
-    e.stopPropagation();
+
+  document.getElementById('nav-next').addEventListener('click', (event) => {
+    event.stopPropagation();
     navigate(1);
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft')  navigate(-1);
+    if (e.key === 'ArrowLeft') navigate(-1);
     if (e.key === 'ArrowRight') navigate(1);
   });
 }
 
-// ─── Audio sync ──────────────────────────────────────────────────────────────
 function setupAudio() {
   const tracks = playlist.tracks;
-  const totalMs = tracks.reduce((s, t) => s + t.durationMs, 0);
-
-  if (totalMs === 0) return;
+  const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
+  if (totalMs === 0 || tracks.every((track) => !track.file)) return;
 
   const rawOffset = Date.now() - EPOCH;
   const offset = ((rawOffset % totalMs) + totalMs) % totalMs;
 
   let cumulative = 0;
   currentTrack = 0;
-  for (let i = 0; i < tracks.length; i++) {
-    if (offset < cumulative + tracks[i].durationMs) {
-      currentTrack = i;
+  for (let index = 0; index < tracks.length; index += 1) {
+    if (offset < cumulative + tracks[index].durationMs) {
+      currentTrack = index;
       break;
     }
-    cumulative += tracks[i].durationMs;
+    cumulative += tracks[index].durationMs;
   }
-  const seekMs = offset - cumulative;
 
   const audio = document.getElementById('player');
+  const seekSeconds = (offset - cumulative) / 1000;
   audio.src = tracks[currentTrack].file;
-  audio.currentTime = seekMs / 1000;
+
+  const applySeek = () => {
+    audio.currentTime = Math.min(seekSeconds, audio.duration || seekSeconds);
+  };
+  if (audio.readyState >= 1) applySeek();
+  else audio.addEventListener('loadedmetadata', applySeek, { once: true });
 
   audio.addEventListener('ended', onTrackEnd);
 
-  // Attempt autoplay; fall back to first-interaction resume
   const tryPlay = () => {
     audio.play().catch(() => {});
     document.removeEventListener('keydown', tryPlay);
     document.removeEventListener('click', tryPlay, true);
   };
 
-  audio.play()
-    .catch(() => {
-      document.addEventListener('keydown', tryPlay);
-      document.addEventListener('click', tryPlay, { capture: true, once: true });
-    });
+  audio.play().catch(() => {
+    document.addEventListener('keydown', tryPlay, { once: true });
+    document.addEventListener('click', tryPlay, { capture: true, once: true });
+  });
 }
 
 function onTrackEnd() {
@@ -338,29 +623,64 @@ function onTrackEnd() {
   if (currentPage === 0) renderPage(0);
 }
 
-// ─── Clock ───────────────────────────────────────────────────────────────────
 function startClock() {
-  setInterval(updatePageHeader, 1000);
+  updatePageHeader();
+  setInterval(() => {
+    document.getElementById('clock').textContent = currentTime();
+  }, 1000);
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+async function fetchJson(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path}: ${response.status}`);
+  return response.json();
+}
+
+function isLocalPreview() {
+  return location.protocol === 'file:' ||
+    ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+}
+
+async function loadBroadcastData() {
+  const bases = ['', '../dist/', '/dist/'];
+
+  for (const base of bases) {
+    try {
+      const data = await Promise.all([
+        fetchJson(`${base}playlist.json`),
+        fetchJson(`${base}pages.json`),
+      ]);
+      return data;
+    } catch (error) {
+      if (!isLocalPreview()) throw error;
+    }
+  }
+
+  if (isLocalPreview()) {
+    return [LOCAL_PREVIEW_PLAYLIST, LOCAL_PREVIEW_PAGES];
+  }
+
+  throw new Error('broadcast data unavailable');
+}
+
 async function init() {
+  setupNav();
+  startClock();
+
   try {
-    [playlist, pages] = await Promise.all([
-      fetch('playlist.json').then(r => r.json()),
-      fetch('pages.json').then(r => r.json()),
-    ]);
-  } catch (e) {
-    document.getElementById('page-body').textContent =
-      'ERROR: COULD NOT LOAD BROADCAST DATA';
+    [playlist, pages] = await loadBroadcastData();
+
+    if (!Array.isArray(playlist.tracks) || playlist.tracks.length === 0) {
+      throw new Error('playlist has no tracks');
+    }
+  } catch (error) {
+    renderLoadError();
     return;
   }
 
   setupAudio();
   renderPage(0);
-  startClock();
   resetCycle();
-  setupNav();
 }
 
 document.addEventListener('DOMContentLoaded', init);

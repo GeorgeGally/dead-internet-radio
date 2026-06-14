@@ -93,14 +93,17 @@ Do not use cards, rounded panels, shadows, outlines around every region, or deco
 
 P100 is the principal station identity screen.
 
-- The left side contains an oversized `DEAD INTERNET RADIO` wordmark, current track title, BPM, key, frequency, and broadcast count.
-- The station wordmark is the largest text on the page.
-- A cyan satellite-dish mosaic dominates the right side and may crop against the top, right, or bottom edge.
-- The illustration must be recognizably designed rather than a filled oval with a stem.
-- `TRANSMITTING` appears as a strong green state label with a stepped blinking marker.
-- Yellow is reserved for the current track title.
-- Blue rules separate major information groups.
-- Metadata should scan quickly and should not be centered.
+- P100 uses a split main-and-sidebar composition. This split layout is exclusive to P100.
+- The left field contains an oversized three-line `DEAD INTERNET RADIO` wordmark, a short station strapline, a six-step signal meter, and compact status/source metadata.
+- A small skull-and-data mosaic may sit alongside the wordmark as a broadcast identifier. It must remain subordinate to the station name.
+- The right rail contains three stacked modules: `ON AIR`, `UP NEXT`, and `MENU`.
+- `ON AIR` shows the synchronized current track title and useful metadata.
+- `UP NEXT` shows the next playlist entry and its position in the loop.
+- `MENU` lists the actual available pages P100 through P105 and navigates to them when selected.
+- Blue rules and filled blue labels organize the page. Yellow identifies titles and page 100, green identifies live status, cyan identifies source/frequency data, magenta identifies advertising pages, and red identifies the signal page.
+- A thin six-color calibration bar separates the station identity from the strapline.
+- The bottom strapline carries short station copy and the fixed broadcast frequency.
+- The station wordmark remains the largest element on the page.
 
 P100 updates live track data without recreating the complete page unless the track changes.
 
