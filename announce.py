@@ -18,18 +18,53 @@ VOICES = [
 
 
 def apply_lofi(audio: np.ndarray, sr: int, intensity: float = 0.3) -> np.ndarray:
+    # Low-pass filter for radio/transmission character
     if intensity > 0.2:
         window = int(max(1, sr * 0.001 * intensity))
         kernel = np.ones(window) / window
         audio = np.convolve(audio, kernel, mode="same")
 
-    noise_level = intensity * 0.005
-    noise = np.random.randn(len(audio)) * noise_level
-    audio = audio + noise
-
     audio = np.clip(audio, -0.85, 0.85)
 
     return audio
+
+
+def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.4) -> np.ndarray:
+    """Ring-modulator vocoder for robotic voice character."""
+    carrier_freq = 75.0
+    t = np.arange(len(audio)) / sr
+    carrier = np.sin(2 * np.pi * carrier_freq * t)
+
+    modulated = audio * carrier
+
+    # Gentle low-pass to tame ring modulation harshness
+    window = int(sr * 0.0015)
+    kernel = np.ones(window) / window
+    modulated = np.convolve(modulated, kernel, mode="same")
+
+    # Blend with a high-emphasis copy to keep consonants intelligible
+    emphasis = np.zeros_like(audio)
+    emphasis[1:] = audio[1:] - 0.9 * audio[:-1]  # simple pre-emphasis
+
+    wet = modulated * 0.65 + emphasis * 0.35
+    max_wet = np.max(np.abs(wet))
+    if max_wet > 0:
+        wet = wet / max_wet * 0.95
+
+    return audio * (1 - mix) + wet * mix
+
+
+def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.25, decay: float = 0.4) -> np.ndarray:
+    """Simple Schroeder-style reverb using comb-like delays."""
+    delays_ms = [29.7, 37.1, 41.3, 43.7]
+    wet = np.zeros_like(audio)
+    for delay_ms in delays_ms:
+        delay = int(sr * delay_ms / 1000)
+        tap = np.zeros_like(audio)
+        tap[delay:] = audio[:-delay]
+        wet += tap * decay
+    wet /= len(delays_ms)
+    return audio * (1 - mix) + wet * mix
 
 
 def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path):
@@ -48,6 +83,8 @@ def generate_announcement(text: str, voice: str, speed: float, intensity: float,
     audio = np.concatenate(all_audio)
 
     audio = apply_lofi(audio, 24000, intensity)
+    audio = apply_vocoder(audio, 24000)
+    audio = apply_reverb(audio, 24000)
 
     max_val = np.max(np.abs(audio))
     if max_val > 0:

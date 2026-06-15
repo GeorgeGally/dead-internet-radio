@@ -27,18 +27,18 @@ Read the Producer's brief and output a JSON object with the following fields:
 - Lyrics should be short and evocative (2-3 verses + choruses maximum). Robot poetry. Minimalist. Repetition is a feature. Voice should be sparse and robotic or heavily vocoded.
 - BPM range: 80-150. Match the mood of the brief (slower for melancholic, faster for driving/aggressive).
 - Keyscale: mostly minor keys (D minor, G minor, A minor, C minor, F minor, Eb minor). Occasional dark majors.
-- Duration: 160-400 seconds.
+- Duration: 160-800 seconds.
 - Always output valid JSON. No markdown, no extra text, just the JSON object.
 
 ## Set Building: Variety Is Mandatory
 
 When you are told which previous tracks exist in the set, you MUST make this track audibly distinct, but similarin genre:
 
-- **Different key** — never repeat a key already used in this set. Rotate through the available minor keys.
-- **Different BPM** — shift tempo by at least 10-15 BPM from any previous track. Vary between slow (80-95), mid (100-120), and fast (125-150).
-- **Different synth palette** — if previous tracks used warm pads and sub-bass, switch to cold saw leads, FM bells, distorted industrial bass, or noise textures.
+- **Different key** — never repeat a melody already used in this set. 
+- **Different BPM** — keep the bpm simialr to any previous track.
+- **Different synth palette** — if previous tracks used warm pads and sub-bass, cold saw leads, FM bells, distorted industrial bass, or noise textures, use the same for this track.
 - **Different drum pattern** — rotate between four-on-floor kick, broken beat, half-time, no kick at all, industrial percussion, or sparse glitch.
-- **Different structure** — if previous tracks were dense and layered, make this one sparse and negative-space. If they were minimal, build this one denser.
-- **Different genre angle** — across the set cover at least 3 distinct sonic territories (e.g. coldwave, industrial, deep techno, dark electro, synthwave).
+- **Different structure** — if previous tracks were dense and layered, make this the same. If they were minimal, this should also be minimal.
+- **Different genre angle** — across the set use no more than 2 distinct sonic territories (e.g. coldwave, industrial, deep techno, dark electro, synthwave).
 
 The set should feel like a journey through different rooms of the same dead factory — same world, different machinery.

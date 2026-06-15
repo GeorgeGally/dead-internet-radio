@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Build Dead Internet Radio website into dist/."""
 import argparse
+import hashlib
 import json
 import os
+import random
 import re
 import shutil
 import sys
@@ -10,6 +12,7 @@ import time
 import urllib.request
 import urllib.error
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -40,6 +43,14 @@ SRC_DIR = Path("src")
 DIST_DIR = Path("dist")
 
 EPOCH_MS = 2051222400000  # 2035-01-01T00:00:00Z
+
+DJ_NAMES = [
+    "Bl0ckb3at", "Bas32", "C64", "ZX", "Antar3s",
+    "P13iades", "Summer-0n-Mars", "4lpha", "STAN", "Memp00l",
+    "Y0ct0b1t", "Syst3m", "S3venH4sh", "0rdin41", "Z0dia",
+    "M3gacity", "N0nce", "Ph0t0n", "Terraform", "Byt3",
+    "H3x", "Sh0ck", "Singu1arity", "R0b0t0", "Shutt13",
+]
 
 TRACK_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.mp3$")
 PROMPT_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.prompt\.json$")
@@ -86,7 +97,7 @@ FALLBACK_PAGES = {
                 "SUBJECT TO AVAILABILITY",
             ],
             "footer": "CALL 0800 DEAD INTERNET",
-            "footer2": "SOME ZONES MAY BE RESTRICTED",
+            "footer2": "LINES OPEN 00:00-00:00 DAILY",
         },
         {
             "header": "PUBLIC SERVICE NOTICE",
@@ -215,12 +226,28 @@ def normalize_key(keyscale: str) -> str:
     return keyscale.upper()[:8]
 
 
+def seeded_shuffle(names, seed_str):
+    seed = int(hashlib.sha256(seed_str.encode()).hexdigest(), 16)
+    rng = random.Random(seed)
+    shuffled = list(names)
+    rng.shuffle(shuffled)
+    return shuffled
+
+
+def select_dj_name(build_date=None):
+    if build_date is None:
+        build_date = date.today()
+    seed_str = build_date.isoformat()
+    shuffled = seeded_shuffle(DJ_NAMES, seed_str)
+    return shuffled[0]
+
+
 def find_tracks():
-    mp3s = defaultdict(list)
+    all_mp3s = defaultdict(list)
     for f in OUTPUT_DIR.glob("*.mp3"):
         m = TRACK_RE.match(f.name)
-        if m and not DJ_VO_RE.search(f.name):
-            mp3s[int(m.group(1))].append(f)
+        if m:
+            all_mp3s[int(m.group(1))].append(f)
 
     jsons = defaultdict(list)
     for f in PROMPTS_DIR.glob("*.prompt.json"):
@@ -228,33 +255,41 @@ def find_tracks():
         if m:
             jsons[int(m.group(1))].append(f)
 
-    tracks = []
-    for nn in sorted(mp3s.keys()):
-        mp3_list = mp3s[nn]
+    entries = []
+    for nn in sorted(all_mp3s.keys()):
+        mp3_list = all_mp3s[nn]
         json_list = jsons.get(nn, [])
 
-        chosen_mp3 = None
+        songs = [f for f in mp3_list if not DJ_VO_RE.search(f.name)]
+        voiceovers = [f for f in mp3_list if DJ_VO_RE.search(f.name)]
+
+        chosen_song = None
         chosen_json = None
-
-        # Try exact stem match first
-        for mp3 in mp3_list:
-            stem = mp3.stem
-            for j in json_list:
-                if j.name == stem + ".prompt.json":
-                    chosen_mp3 = mp3
-                    chosen_json = j
+        if songs:
+            for s in songs:
+                for j in json_list:
+                    if j.name == s.stem + ".prompt.json":
+                        chosen_song = s
+                        chosen_json = j
+                        break
+                if chosen_song:
                     break
-            if chosen_mp3:
-                break
+            if not chosen_song:
+                chosen_song = max(songs, key=lambda f: f.stat().st_mtime)
+                if json_list:
+                    chosen_json = max(json_list, key=lambda f: f.stat().st_mtime)
 
-        if not chosen_mp3:
-            chosen_mp3 = max(mp3_list, key=lambda f: f.stat().st_mtime)
-            if json_list:
-                chosen_json = max(json_list, key=lambda f: f.stat().st_mtime)
+        if chosen_song:
+            entries.append({
+                "number": nn, "mp3": chosen_song, "json": chosen_json, "kind": "song"
+            })
 
-        tracks.append({"number": nn, "mp3": chosen_mp3, "json": chosen_json})
+        for vo in sorted(voiceovers, key=lambda f: f.stat().st_mtime):
+            entries.append({
+                "number": nn, "mp3": vo, "json": None, "kind": "voiceover"
+            })
 
-    return tracks
+    return entries
 
 
 def get_duration_ms(mp3_path: Path) -> int:
@@ -264,34 +299,219 @@ def get_duration_ms(mp3_path: Path) -> int:
         return int(audio.info.length * 1000)
     except Exception as e:
         print(f"  Warning: mutagen failed for {mp3_path.name}: {e}", flush=True)
-        return 30000  # fallback: 30s
+        return 30000
 
 
 def build_playlist(tracks):
     entries = []
     for t in tracks:
         payload = {}
+        prompt_data = {}
         if t["json"]:
             try:
-                data = json.loads(t["json"].read_text())
-                payload = data.get("payload", {})
+                prompt_data = json.loads(t["json"].read_text())
+                payload = prompt_data.get("payload", {})
             except Exception:
                 pass
 
+        kind = t.get("kind", "song")
+        track_type = prompt_data.get("type", "track")
+        script = prompt_data.get("text", "") if track_type == "dj_announce" else ""
+        brief = prompt_data.get("brief", "")
+
         duration_ms = get_duration_ms(t["mp3"])
-        title = payload.get("title", payload.get("caption", ""))
-        artist = payload.get("artist", "")
+        title = payload.get("title", payload.get("caption", "")) if kind != "voiceover" else ""
+        artist = payload.get("artist", "") if kind != "voiceover" else ""
+
+        if kind == "voiceover":
+            caption = "DJ"
+        else:
+            caption = f"{artist} — {title}" if artist else title
+
         entries.append({
             "file": f"audio/{t['mp3'].name}",
             "durationMs": duration_ms,
+            "kind": kind,
+            "type": track_type,
+            "script": script,
+            "brief": brief,
             "title": title,
             "artist": artist,
-            "caption": f"{artist} — {title}" if artist else title,
+            "caption": caption,
+            "lyrics": payload.get("lyrics", ""),
             "bpm": payload.get("bpm") or None,
             "key": normalize_key(payload.get("keyscale", "")),
         })
 
-    return {"epoch": EPOCH_MS, "tracks": entries}
+    dj_name = select_dj_name()
+    return {"epoch": EPOCH_MS, "djName": dj_name, "tracks": entries}
+
+
+def _build_dist_static():
+    """Copy static src/ assets to dist/."""
+    DIST_DIR.mkdir(exist_ok=True)
+    (DIST_DIR / "audio").mkdir(exist_ok=True)
+    for src_file in SRC_DIR.iterdir():
+        if src_file.is_file():
+            shutil.copy2(src_file, DIST_DIR / src_file.name)
+        elif src_file.is_dir():
+            dest_dir = DIST_DIR / src_file.name
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            shutil.copytree(src_file, dest_dir)
+
+
+def _copy_shows_audio(shows):
+    """Copy show audio files into dist/audio/ alongside shows.json."""
+    for show in shows:
+        playlist_path = OUTPUT_DIR / show["id"] / "playlist.json"
+        if not playlist_path.exists():
+            continue
+        try:
+            pl = json.loads(playlist_path.read_text())
+        except Exception:
+            continue
+        for track in pl.get("tracks", []):
+            if "file" not in track:
+                continue
+            src = OUTPUT_DIR / show["id"] / track["file"]
+            if src.exists():
+                shutil.copy2(src, DIST_DIR / "audio" / Path(track["file"]).name)
+
+
+def find_shows():
+    """Scan output/ for show subdirectories and return a list of show dicts."""
+    SHOW_DIR_RE = re.compile(r"^(.+?)-(\d{8}-\d{6})$")
+    shows = []
+
+    for entry in sorted(OUTPUT_DIR.iterdir()):
+        if not entry.is_dir():
+            continue
+        m = SHOW_DIR_RE.match(entry.name)
+        if not m:
+            continue
+
+        slot_slug = m.group(1).replace("-", " ").title()
+        timestamp = m.group(2)
+
+        mp3_files = sorted(
+            [f for f in entry.glob("*.mp3") if not DJ_VO_RE.search(f.name)],
+            key=lambda f: f.name
+        )
+
+        prompt_files = sorted(entry.glob("prompts/*.prompt.json"))
+
+        tracks = []
+        for mp3 in mp3_files:
+            tn_match = TRACK_RE.match(mp3.name)
+            if not tn_match:
+                continue
+            tn = int(tn_match.group(1))
+            stem = mp3.stem
+
+            prompt_data = {}
+            payload = {}
+            for pf in prompt_files:
+                if pf.stem == stem + '.prompt':
+                    try:
+                        prompt_data = json.loads(pf.read_text())
+                        payload = prompt_data.get("payload", {})
+                    except Exception:
+                        pass
+                    break
+
+            track_type = prompt_data.get("type", "track")
+            script = prompt_data.get("text", "") if track_type == "dj_announce" else ""
+            brief = prompt_data.get("brief", "")
+            title = payload.get("title", payload.get("caption", ""))
+            artist = payload.get("artist", "")
+
+            tracks.append({
+                "number": tn,
+                "file": mp3.name,
+                "durationMs": get_duration_ms(mp3),
+                "type": track_type,
+                "script": script,
+                "brief": brief,
+                "title": title,
+                "artist": artist,
+                "caption": f"{artist} — {title}" if artist else title,
+                "lyrics": payload.get("lyrics", ""),
+                "bpm": payload.get("bpm") or None,
+                "key": normalize_key(payload.get("keyscale", "")),
+            })
+
+        if not tracks:
+            continue
+
+        # Sort tracks by number
+        tracks.sort(key=lambda t: t["number"])
+
+        dj_name = select_dj_name()
+
+        # Look for mix file
+        mix_file = None
+        mix_dir = entry / "mix"
+        if mix_dir.is_dir():
+            mix_mp3s = list(mix_dir.glob("*.mp3"))
+            if mix_mp3s:
+                mix_file = str(mix_mp3s[0].relative_to(OUTPUT_DIR))
+
+        show = {
+            "id": entry.name,
+            "name": slot_slug,
+            "timestamp": timestamp,
+            "djName": dj_name,
+            "trackCount": len(tracks),
+            "mixFile": mix_file,
+            "tracks": tracks,
+        }
+        shows.append(show)
+
+    return shows
+
+
+def build_shows_manifest(shows: list[dict]) -> None:
+    """Write shows.json manifest and per-show playlist files.
+
+    The shows.json lists available shows with their metadata.
+    Per-show playlist files are written to output/<show-id>/playlist.json.
+    Each show playlist uses the standard playlist format so the frontend
+    can load it with the same code path as the main playlist.
+    """
+    # Write per-show playlist.json with relative paths
+    for show in shows:
+        show_dir = OUTPUT_DIR / show["id"]
+        playlist = {
+            "epoch": EPOCH_MS,
+            "djName": show["djName"],
+            "tracks": show["tracks"],
+        }
+        # Strip 'tracks' from manifest entry to keep it lean
+        (show_dir / "playlist.json").write_text(json.dumps(playlist, indent=2))
+
+    # Build lean manifest (no track data, just IDs and metadata)
+    manifest = []
+    for show in shows:
+        manifest.append({
+            "id": show["id"],
+            "name": show["name"],
+            "timestamp": show["timestamp"],
+            "djName": show["djName"],
+            "trackCount": show["trackCount"],
+            "mixFile": show["mixFile"],
+            "playlist": f"output/{show['id']}/playlist.json",
+        })
+
+    manifest_json = json.dumps({"shows": manifest}, indent=2)
+    (OUTPUT_DIR / "shows.json").write_text(manifest_json)
+    DIST_DIR.mkdir(exist_ok=True)
+    (DIST_DIR / "shows.json").write_text(manifest_json)
+    # Also write to project root for local dev
+    (Path("shows.json")).write_text(manifest_json)
+    print(f"  shows.json — {len(manifest)} shows")
+    for s in manifest:
+        print(f"    {s['name']} ({s['trackCount']} tracks)")
 
 
 def generate_pages(skip_llm: bool, existing_pages_path: Path) -> dict:
@@ -314,7 +534,6 @@ def generate_pages(skip_llm: bool, existing_pages_path: Path) -> dict:
 
     try:
         data = json.loads(raw)
-        # Validate structure
         assert "headlines" in data and "ads" in data
         assert len(data["headlines"]) >= 3
         assert len(data["ads"]) >= 1
@@ -328,15 +547,39 @@ def main():
     parser = argparse.ArgumentParser(description="Build Dead Internet Radio website")
     parser.add_argument("--skip-llm", action="store_true",
                         help="Skip LLM call; reuse existing pages.json or use fallback")
+    parser.add_argument("--shows-only", action="store_true",
+                        help="Only scan shows and generate shows.json (skip full site build)")
     args = parser.parse_args()
 
     print("Dead Internet Radio — Building site", flush=True)
     print()
 
+    # Always scan shows first
+    print("Scanning shows...", flush=True)
+    shows = find_shows()
+    if shows:
+        build_shows_manifest(shows)
+    else:
+        print("  No shows found in output/ subdirectories")
+    print()
+
+    if args.shows_only:
+        print("Done (shows-only mode).")
+        return
+
     raw_tracks = find_tracks()
-    if not raw_tracks:
+    if not raw_tracks and not shows:
         print("Error: no numbered MP3 tracks found in output/", file=sys.stderr)
         sys.exit(1)
+
+    if not raw_tracks:
+        print("No tracks in output/ root — shows-only build.")
+        _build_dist_static()
+        _copy_shows_audio(shows)
+        print()
+        print(f"Done! dist/ ready for deployment.")
+        print(f"  Shows: {len(shows)}")
+        return
 
     print(f"Found {len(raw_tracks)} track(s):", flush=True)
     for t in raw_tracks:
@@ -344,39 +587,34 @@ def main():
         print(f"  Track {t['number']:02d}: {t['mp3'].name[:60]}  [{json_status}]", flush=True)
     print()
 
-    # Build playlist
     print("Building playlist.json...", flush=True)
     playlist = build_playlist(raw_tracks)
     total_ms = sum(t["durationMs"] for t in playlist["tracks"])
     total_s = total_ms // 1000
-    print(f"  Total duration: {total_s // 60}m {total_s % 60}s", flush=True)
+    print(f"  DJ: {playlist['djName']}")
+    print(f"  Total duration: {total_s // 60}m {total_s % 60}s")
     print()
 
-    # Generate pages
     print("Generating pages.json...", flush=True)
     existing_pages = DIST_DIR / "pages.json"
     pages = generate_pages(args.skip_llm, existing_pages)
-    print(f"  {len(pages.get('headlines', []))} headlines, {len(pages.get('ads', []))} ads", flush=True)
+    print(f"  {len(pages.get('headlines', []))} headlines, {len(pages.get('ads', []))} ads")
     print()
 
-    # Build dist/
     print("Writing dist/...", flush=True)
     DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "audio").mkdir(exist_ok=True)
 
-    # Copy audio files
     for t in raw_tracks:
         dest = DIST_DIR / "audio" / t["mp3"].name
         shutil.copy2(t["mp3"], dest)
         print(f"  audio/{t['mp3'].name}", flush=True)
 
-    # Write JSON files
     (DIST_DIR / "playlist.json").write_text(json.dumps(playlist, indent=2))
     (DIST_DIR / "pages.json").write_text(json.dumps(pages, indent=2))
     print("  playlist.json", flush=True)
     print("  pages.json", flush=True)
 
-    # Copy src/ assets
     for src_file in SRC_DIR.iterdir():
         if src_file.is_file():
             shutil.copy2(src_file, DIST_DIR / src_file.name)
@@ -390,6 +628,7 @@ def main():
 
     print()
     print(f"Done! dist/ ready for deployment.")
+    print(f"  DJ: {playlist['djName']}")
     print(f"  Tracks: {len(raw_tracks)}")
     print(f"  Duration: {total_s // 60}m {total_s % 60}s (loops every ~{total_s}s)")
     print(f"  Epoch: 2035-01-01T00:00:00Z")

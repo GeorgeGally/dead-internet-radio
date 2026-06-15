@@ -5,30 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#000000">
   <title>Dead Internet Radio</title>
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main id="broadcast-frame" aria-label="Dead Internet Radio teletext broadcast">
-    <div id="screen">
-      <header id="page-header" aria-live="off">
-        <span id="page-number">P100</span>
+  <canvas id="block-canvas"></canvas>
+
+  <header id="deck" aria-live="off">
+    <div class="player-center">
+      <div class="player-titles">
         <span id="station-id">DEAD INTERNET RADIO</span>
-        <time id="clock">00:00:00</time>
-      </header>
-
-      <section id="page-body" aria-live="polite"></section>
-
-      <nav id="page-nav" aria-label="Teletext pages">
-        <button id="nav-prev" type="button" aria-label="Previous teletext page">
-          <span aria-hidden="true">&#9668;</span> PREV
-        </button>
-        <span id="page-index" aria-hidden="true">100 / 105</span>
-        <button id="nav-next" type="button" aria-label="Next teletext page">
-          NEXT <span aria-hidden="true">&#9658;</span>
-        </button>
-      </nav>
+      </div>
     </div>
-  </main>
+
+    <div class="transport">
+      <div class="speaker" aria-hidden="true"></div>
+      <div class="wave-wrap">
+        <canvas id="wave" width="320" height="80"></canvas>
+        <span id="track-title"></span>
+      </div>
+      <span class="ctrl"><span class="led"></span><button id="btn-prev" class="abtn" title="Previous track">⏮</button></span>
+      <span class="ctrl"><span class="led" id="led-play"></span><button id="btn-play" class="abtn" title="Play / Pause">▶</button></span>
+      <span class="ctrl"><span class="led"></span><button id="btn-stop" class="abtn" title="Stop">⏹</button></span>
+      <span class="ctrl"><span class="led"></span><button id="btn-next" class="abtn" title="Next track">⏭</button></span>
+    </div>
+  </header>
 
   <audio id="player" preload="auto"></audio>
   <script src="app.js"></script>

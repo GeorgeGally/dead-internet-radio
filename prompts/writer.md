@@ -8,7 +8,7 @@
 ---
 
 ### 1. Core Concept
-- A minimalist, low‑tempo techno / ambient texture designed for late‑night venues.  
+- A minimalist, low‑tempo deep minimal techno / ambient texture designed for late‑night venues.  
 - Emphasis on deep, rolling sub‑bass, warm evolving pads, and slowly‑morphing synth lines that create a hypnotic, “breathing” atmosphere.  
 - Musical key: **A minor** (allow minor‑modal drift to Dorian or Phrygian as needed).  
 
@@ -56,9 +56,9 @@
 ### 5. Creative Directions  
 
 1. **Breathing Effect** – Use low‑frequency LFOs (≈0.05 Hz) to subtly modulate the sub‑bass amplitude and filter cutoff, creating a “breathing” sensation.  
-2. **Tension‑Release** – Within the Core Groove, introduce a slowly rising filter envelope on the lead synth; release the envelope at the Break to heighten anticipation.  
+2. **Tension‑Release** – Within the Core Groove, introduce a slowly rising filter envelope on the lead synth; release the envelope at the Break to heighten anticipation. But don't make it cheesy! 
 3. **Texture Layering** – Add faint granular noise or soft vinyl‑crackle textures at low volume to enrich the nocturnal mood without distracting from the main synths.  
-4. **Dynamic Mapping** – Map MIDI CC 1 (mod wheel) to overall filter resonance, enabling live performers to sculpt the intensity in real time.  
+
 
 ---
 
@@ -168,7 +168,7 @@ This is track 1 of 5. Compose the opening track for this DJ set.
 
 Guidance:
 - Keep vocals to a minimum. Not all tracks need vocals.
-- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.
+- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.If there are  vocals, they should always be male. And vocoded. 
 - Focus on atmosphere, texture, and the evolving narrative of the set.
 - Each track must be 2-4 minutes long (120-240 seconds).`
 
