@@ -2,7 +2,8 @@
   "shows": [
     {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260614-180406",
-      "name": "late-night-ambient-cinematic-slomo-folk-disco",
+      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260614-180406",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -12,7 +13,8 @@
     },
     {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260615-211320",
-      "name": "late-night-ambient-cinematic-slomo-folk-disco",
+      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260615-211320",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -22,7 +24,8 @@
     },
     {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260616-181002",
-      "name": "late-night-ambient-cinematic-slomo-folk-disco",
+      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260616-181002",
       "djName": "M3gacity",
       "trackCount": 5,
@@ -31,8 +34,20 @@
       "mixCues": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.cues.json"
     },
     {
+      "id": "late-night-ambient-melancholic-cinematic-slomo-fol-20260616-205718",
+      "name": "Lunar Echoes Fade",
+      "showName": "Lunar Echoes Fade",
+      "timestamp": "20260616-205718",
+      "djName": "Ghost",
+      "trackCount": 1,
+      "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-fol-20260616-205718/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
       "id": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757",
-      "name": "late-night-deep-soulful-minimal-slomo-robot-bass",
+      "name": "Late Night Deep Soulful Minimal Slomo Robot Bass",
+      "showName": "Late Night Deep Soulful Minimal Slomo Robot Bass",
       "timestamp": "20260614-081757",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -42,7 +57,8 @@
     },
     {
       "id": "late-night-disco-clubbing-20260614-220202",
-      "name": "late-night-disco-clubbing",
+      "name": "Late Night Disco Clubbing",
+      "showName": "Late Night Disco Clubbing",
       "timestamp": "20260614-220202",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -52,7 +68,8 @@
     },
     {
       "id": "late-night-slomo-disco-vocoder-bass-20260614-150625",
-      "name": "late-night-slomo-disco-vocoder-bass",
+      "name": "Late Night Slomo Disco Vocoder Bass",
+      "showName": "Late Night Slomo Disco Vocoder Bass",
       "timestamp": "20260614-150625",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -62,7 +79,8 @@
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243",
-      "name": "late-night-soulful-minimal-slomo-vocoder-bass",
+      "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
+      "showName": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084243",
       "djName": "M3gacity",
       "trackCount": 1,
@@ -72,7 +90,8 @@
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509",
-      "name": "late-night-soulful-minimal-slomo-vocoder-bass",
+      "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
+      "showName": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084509",
       "djName": "M3gacity",
       "trackCount": 6,
@@ -82,7 +101,8 @@
     },
     {
       "id": "sunrise-slow-deep-disco-20260616-110423",
-      "name": "sunrise-slow-deep-disco",
+      "name": "Sunrise Slow Deep Disco",
+      "showName": "Sunrise Slow Deep Disco",
       "timestamp": "20260616-110423",
       "djName": "M3gacity",
       "trackCount": 7,

@@ -343,6 +343,17 @@ def find_shows():
         slot_slug = m.group(1).replace("-", " ").title()
         timestamp = m.group(2)
 
+        # Read show metadata (show name + DJ name from LLM)
+        show_meta = {}
+        meta_file = entry / "show.json"
+        if meta_file.exists():
+            try:
+                show_meta = json.loads(meta_file.read_text())
+            except Exception:
+                pass
+        show_name = show_meta.get("show_name", "").strip() or slot_slug
+        show_dj = show_meta.get("dj_name", "").strip()
+
         mp3_files = sorted(
             [f for f in entry.glob("*.mp3") if not DJ_VO_RE.search(f.name)],
             key=lambda f: f.name
@@ -413,7 +424,7 @@ def find_shows():
                     t["voiceoverDurationMs"] = get_duration_ms(vo)
                     break
 
-        dj_name = select_dj_name()
+        dj_name = show_dj or select_dj_name()
 
         # Look for mix file in flat mixes/ directory
         mix_file = None
@@ -430,7 +441,8 @@ def find_shows():
 
         show = {
             "id": entry.name,
-            "name": slot_slug,
+            "name": show_name,
+            "showName": show_name,
             "timestamp": timestamp,
             "djName": dj_name,
             "trackCount": len(tracks),
@@ -464,6 +476,7 @@ def build_shows_manifest(shows: list[dict]) -> None:
         # Write per-show playlist with relative paths (audio/file.mp3)
         playlist = {
             "epoch": EPOCH_MS,
+            "showName": show["showName"],
             "djName": show["djName"],
             "tracks": [],
         }
@@ -519,6 +532,7 @@ def build_shows_manifest(shows: list[dict]) -> None:
         manifest.append({
             "id": show["id"],
             "name": show["name"],
+            "showName": show["showName"],
             "timestamp": show["timestamp"],
             "djName": show["djName"],
             "trackCount": show["trackCount"],

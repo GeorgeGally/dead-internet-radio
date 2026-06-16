@@ -137,6 +137,18 @@ function updateTrackTitle() {
   if (!track) return;
   const name = [track.artist, track.title].filter(Boolean).join(' — ') || track.file || '';
   el.textContent = name || 'Dead Internet Radio';
+  updateMarquee(el);
+}
+
+function updateMarquee(el) {
+  const container = el.parentElement;
+  if (!container) return;
+  const overflow = el.scrollWidth > container.clientWidth;
+  container.classList.toggle('scrolling', overflow);
+  if (overflow) {
+    const speed = Math.max(8, Math.round(el.textContent.length * 0.2));
+    container.style.setProperty('--duration', speed + 's');
+  }
 }
 
 function stopPlayback() {
@@ -373,8 +385,8 @@ async function selectShow(showId) {
   blockInk = isColorLight(blockBg.slice(1)) ? '#000000' : '#ffffff';
   initBlocks();
 
-  // const stationEl = document.getElementById('station-id');
-  // if (stationEl) stationEl.textContent = show.name || 'DEAD INTERNET RADIO';
+  const stationEl = document.getElementById('station-id');
+  if (stationEl) stationEl.textContent = playlist.showName || show.name || 'DEAD INTERNET RADIO';
 
   setupAudio();
   updateTrackTitle();

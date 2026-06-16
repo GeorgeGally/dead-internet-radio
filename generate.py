@@ -349,18 +349,46 @@ def main():
     print(f"Dead Internet Radio — {slot}")
     print()
 
-    print("1. Producer writing program brief...", flush=True)
-    brief = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a program brief for this slot.")
-    if "User Safety:" in brief or len(brief) < 20:
-        print("  Producer got moderated, retrying with different model...", flush=True)
-        brief = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
-    print(f"\n{brief}\n")
+    print("1. Producer writing show name and program brief...", flush=True)
+    raw = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a program brief for this slot.")
+    try:
+        result = extract_json(raw)
+        show_name = result.get("show_name", "").strip()
+        brief = result.get("brief", "").strip()
+    except (ValueError, json.JSONDecodeError, AttributeError):
+        show_name = ""
+        brief = ""
+    if not show_name or not brief or "User Safety:" in brief or len(brief) < 20:
+        print("  Producer output malformed or moderated, retrying with different model...", flush=True)
+        raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
+        try:
+            result2 = extract_json(raw2)
+            show_name = result2.get("show_name", "").strip()
+            brief = result2.get("brief", "").strip()
+        except (ValueError, json.JSONDecodeError, AttributeError):
+            show_name = ""
+            brief = ""
+        if not show_name or not brief:
+            show_name = slot
+            brief = "A late-night broadcast from Dead Internet Radio."
+    print(f"\nShow: {show_name}\n{brief}\n")
+
+    # Save show metadata
+    show_meta = {
+        "show_name": show_name,
+        "slot": slot,
+        "dj_name": args.dj_name or "",
+    }
+    (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
 
     # 2. DJ Opening Announcement
     print("2. Announcer writing DJ opening announcement...", flush=True)
     announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
 
     dj_name = args.dj_name or random_dj_name()
+    # Update show metadata with actual DJ name
+    show_meta["dj_name"] = dj_name
+    (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
     print(f"   DJ: {dj_name}")
 
     if args.delay > 0:
@@ -638,7 +666,7 @@ def main():
         for t in track_history
     )
     all_payloads = [t["payload"] for t in track_history]
-    set_content = f"""# DJ Set for slot: {slot}
+    set_content = f"""# {show_name}
 
 ## Program Brief
 
