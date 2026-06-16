@@ -17,8 +17,8 @@ const LOCAL_PREVIEW_PLAYLIST = {
       file: '',
       durationMs: 180000,
       title: 'Buffering Memories',
-      artist: 'Null Cast',
-      caption: 'Null Cast — Buffering Memories',
+      artist: 'Dead Internet Radio',
+      caption: 'Dead Internet Radio — Buffering Memories',
       bpm: 80,
       key: 'A MIN',
     },
@@ -26,8 +26,8 @@ const LOCAL_PREVIEW_PLAYLIST = {
       file: '',
       durationMs: 180000,
       title: 'Lost Transmissions',
-      artist: 'Datacorp FM',
-      caption: 'Datacorp FM — Lost Transmissions',
+      artist: 'Dead Internet Radio',
+      caption: 'Dead Internet Radio — Lost Transmissions',
       bpm: 72,
       key: 'C MIN',
     },
@@ -221,7 +221,7 @@ function startVoiceoverIfNeeded() {
 
   stopVoiceover();
 
-  player.volume = 0.3;
+  player.volume = 0.8;
 
   vo.src = playlistBase + track.voiceoverFile;
   vo.load();

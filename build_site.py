@@ -25,6 +25,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 OUTPUT_DIR = Path("output")
 PROMPTS_DIR = OUTPUT_DIR / "prompts"
+MIXES_DIR = Path("mixes")
 SRC_DIR = Path("src")
 DIST_DIR = Path("dist")
 
@@ -414,13 +415,18 @@ def find_shows():
 
         dj_name = select_dj_name()
 
-        # Look for mix file
+        # Look for mix file in flat mixes/ directory
         mix_file = None
-        mix_dir = entry / "mix"
-        if mix_dir.is_dir():
-            mix_mp3s = list(mix_dir.glob("*.mp3"))
-            if mix_mp3s:
-                mix_file = str(mix_mp3s[0].relative_to(OUTPUT_DIR))
+        mix_cues = None
+        if MIXES_DIR.is_dir():
+            slot_slug = entry.name.rsplit("-", 2)[0]
+            for mix_mp3 in MIXES_DIR.glob("*.mp3"):
+                if slot_slug in mix_mp3.stem:
+                    mix_file = mix_mp3
+                    cues_path = mix_mp3.with_suffix(".cues.json")
+                    if cues_path.exists():
+                        mix_cues = cues_path
+                    break
 
         show = {
             "id": entry.name,
@@ -429,6 +435,7 @@ def find_shows():
             "djName": dj_name,
             "trackCount": len(tracks),
             "mixFile": mix_file,
+            "mixCues": mix_cues,
             "tracks": tracks,
         }
         shows.append(show)
@@ -493,6 +500,22 @@ def build_shows_manifest(shows: list[dict]) -> None:
         (show_dist / "playlist.json").write_text(json.dumps(playlist, indent=2))
         print(f"  {show['id']}/ ({len(show['tracks'])} tracks)")
 
+        # Copy mix + cues if they exist
+        mix_url = None
+        mix_cues_url = None
+        if show.get("mixFile"):
+            mix_src = show["mixFile"]
+            mix_dest = show_dist / "audio" / mix_src.name
+            if mix_src.exists():
+                shutil.copy2(mix_src, mix_dest)
+                mix_url = f"audio/{mix_src.name}"
+            if show.get("mixCues"):
+                cues_src = show["mixCues"]
+                cues_dest = show_dist / "audio" / cues_src.name
+                if cues_src.exists():
+                    shutil.copy2(cues_src, cues_dest)
+                    mix_cues_url = f"audio/{cues_src.name}"
+
         manifest.append({
             "id": show["id"],
             "name": show["name"],
@@ -500,6 +523,8 @@ def build_shows_manifest(shows: list[dict]) -> None:
             "djName": show["djName"],
             "trackCount": show["trackCount"],
             "playlist": f"shows/{show['id']}/playlist.json",
+            "mixFile": mix_url,
+            "mixCues": mix_cues_url,
         })
 
     manifest_json = json.dumps({"shows": manifest}, indent=2)
@@ -558,6 +583,11 @@ def main():
         build_shows_manifest(shows)
     else:
         print("  No shows found in output/ subdirectories")
+    print()
+
+    # Always copy static files (needed even in shows-only mode)
+    print("Copying static assets...", flush=True)
+    _build_dist_static()
     print()
 
     if args.shows_only:

@@ -2,67 +2,93 @@
   "shows": [
     {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260614-180406",
-      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "name": "late-night-ambient-cinematic-slomo-folk-disco",
       "timestamp": "20260614-180406",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260614-180406/playlist.json"
+      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260614-180406/playlist.json",
+      "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.cues.json"
     },
     {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260615-211320",
-      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "name": "late-night-ambient-cinematic-slomo-folk-disco",
       "timestamp": "20260615-211320",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260615-211320/playlist.json"
+      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260615-211320/playlist.json",
+      "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.cues.json"
+    },
+    {
+      "id": "late-night-ambient-cinematic-slomo-folk-disco-20260616-181002",
+      "name": "late-night-ambient-cinematic-slomo-folk-disco",
+      "timestamp": "20260616-181002",
+      "djName": "M3gacity",
+      "trackCount": 5,
+      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260616-181002/playlist.json",
+      "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.cues.json"
     },
     {
       "id": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757",
-      "name": "Late Night Deep Soulful Minimal Slomo Robot Bass",
+      "name": "late-night-deep-soulful-minimal-slomo-robot-bass",
       "timestamp": "20260614-081757",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/playlist.json"
+      "playlist": "shows/late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
     },
     {
       "id": "late-night-disco-clubbing-20260614-220202",
-      "name": "Late Night Disco Clubbing",
+      "name": "late-night-disco-clubbing",
       "timestamp": "20260614-220202",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-disco-clubbing-20260614-220202/playlist.json"
+      "playlist": "shows/late-night-disco-clubbing-20260614-220202/playlist.json",
+      "mixFile": "audio/dead-internet-radio-signal-static-datacorp-fm-neon-grid-late-night-disco-clubbing.mp3",
+      "mixCues": "audio/dead-internet-radio-signal-static-datacorp-fm-neon-grid-late-night-disco-clubbing.cues.json"
     },
     {
       "id": "late-night-slomo-disco-vocoder-bass-20260614-150625",
-      "name": "Late Night Slomo Disco Vocoder Bass",
+      "name": "late-night-slomo-disco-vocoder-bass",
       "timestamp": "20260614-150625",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-slomo-disco-vocoder-bass-20260614-150625/playlist.json"
+      "playlist": "shows/late-night-slomo-disco-vocoder-bass-20260614-150625/playlist.json",
+      "mixFile": "audio/lobby-archive-01-dead-internet-radio-signal-void-null-cast-echoes-late-night-slomo-disco-vocoder-bass.mp3",
+      "mixCues": "audio/lobby-archive-01-dead-internet-radio-signal-void-null-cast-echoes-late-night-slomo-disco-vocoder-bass.cues.json"
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243",
-      "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
+      "name": "late-night-soulful-minimal-slomo-vocoder-bass",
       "timestamp": "20260614-084243",
       "djName": "M3gacity",
       "trackCount": 1,
-      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243/playlist.json"
+      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243/playlist.json",
+      "mixFile": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.cues.json"
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509",
-      "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
+      "name": "late-night-soulful-minimal-slomo-vocoder-bass",
       "timestamp": "20260614-084509",
       "djName": "M3gacity",
       "trackCount": 6,
-      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509/playlist.json"
+      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509/playlist.json",
+      "mixFile": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.cues.json"
     },
     {
       "id": "sunrise-slow-deep-disco-20260616-110423",
-      "name": "Sunrise Slow Deep Disco",
+      "name": "sunrise-slow-deep-disco",
       "timestamp": "20260616-110423",
       "djName": "M3gacity",
       "trackCount": 7,
-      "playlist": "shows/sunrise-slow-deep-disco-20260616-110423/playlist.json"
+      "playlist": "shows/sunrise-slow-deep-disco-20260616-110423/playlist.json",
+      "mixFile": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.mp3",
+      "mixCues": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.cues.json"
     }
   ]
 }

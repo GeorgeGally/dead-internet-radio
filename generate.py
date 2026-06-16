@@ -29,6 +29,16 @@ ANNOUNCER_PROMPT_PATH = PROMPTS_DIR / "announcer.md"
 ANNOUNCE_SCRIPT = Path(__file__).parent / "announce.py"
 KOKORO_PYTHON = Path(__file__).parent / "kokoro" / ".venv" / "bin" / "python3"
 
+DJ_NAMES = [
+    "c^$", "Kode Red", "Agent Orange", "Static", "Void", "Echo",
+    "Ghost", "Synthia", "Reaper", "Blade", "Circuit", "Pixel",
+    "Zero", "Neon", "Cipher", "Rust", "Glitch", "Hex",
+]
+
+
+def random_dj_name() -> str:
+    return random.choice(DJ_NAMES)
+
 
 def load_prompt(path: Path) -> str:
     return path.read_text().strip()
@@ -207,7 +217,7 @@ def call_ace_step(payload: dict) -> str:
         "lyrics": payload.get("lyrics", ""),
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
-        "audio_duration": payload.get("duration", 60),
+        "audio_duration": payload.get("duration", 240),
         "thinking": True,
         "audio_format": "mp3",
     }
@@ -318,6 +328,8 @@ def main():
                         help="Seconds to wait between LLM calls to avoid rate limits (default: 5)")
     parser.add_argument("--no-batch", action="store_true",
                         help="Disable batch mode — use per-track LLM calls instead")
+    parser.add_argument("--dj-name", type=str, default="",
+                        help="DJ name for announcements (default: random)")
     args = parser.parse_args()
 
     if not OPENROUTER_API_KEY:
@@ -348,13 +360,16 @@ def main():
     print("2. Announcer writing DJ opening announcement...", flush=True)
     announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
 
+    dj_name = args.dj_name or random_dj_name()
+    print(f"   DJ: {dj_name}")
+
     if args.delay > 0:
         print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
         time.sleep(args.delay)
 
     dj_announce = call_llm(
         announcer_prompt,
-        f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, DJ name, and time slot only. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
+        f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, time slot, and DJ name. The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
     ).strip().strip('"').strip("'").strip()
     print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
 
@@ -413,7 +428,6 @@ def main():
             f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
             f"- When vocals are present, sparse and atmospheric.\n"
             f"- Focus on atmosphere, texture, evolving narrative.\n"
-            f"- Each track: 90-180 seconds. Atmospheric pieces, not full songs.\n"
             f"- Vary the sonic palette across the set.\n"
             f"- The set should feel like a journey through different rooms of the same dead factory.\n\n"
             f"Output a JSON array of {args.tracks} objects, each with: "
@@ -465,7 +479,6 @@ def main():
                 "- Keep vocals to a minimum. Not all tracks need vocals.\n"
                 "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
                 "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
-                "- Each track must be 90-180 seconds. Atmospheric pieces, not full songs. No verse/chorus pop structure.\n"
                 "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
             )
 
@@ -479,7 +492,7 @@ def main():
 
     # --- Process tracks (shared between batch and per-track) ---
     for i, song in enumerate(songs, 1):
-        song["duration"] = max(min(song.get("duration", 120), 180), 90)
+        song["duration"] = max(song.get("duration", 240), 30)
         track_prompt = song.pop("_prompt", dj_input)
 
         title = song.get("title", "").strip() or "Untitled"
@@ -569,22 +582,23 @@ def main():
             vo_entries = []
             for idx in voiceover_schedule:
                 t = track_history[idx - 1]
-                atype = random.choice(["THOUGHT", "NEWS", "TRIVIA", "ANNOUNCEMENT", "WEATHER"])
                 vo_entries.append(
-                    f"- Voiceover after track {idx} (TYPE: {atype}, "
-                    f"NOW PLAYING: {t['artist']} — \"{t['title']}\")"
+                    f"- Voiceover after track {idx}, "
+                    f"NEXT TRACK: {t['artist']} — \"{t['title']}\""
                 )
 
             vo_input = (
                 f"Slot: {slot}\n\n"
+                f"DJ name: {dj_name}\n\n"
                 f"Program brief:\n\n{brief}\n\n"
                 f"Generate {len(voiceover_schedule)} mid-set voiceovers. "
                 f"Return a JSON array of {len(voiceover_schedule)} objects.\n\n"
-                f"Each voiceover: under 30 words. No meta-commentary or labels. "
-                f"Direct delivery — thinking out loud or reading a headline.\n\n"
+                f"Each voiceover: announce the next track and identify yourself as DJ {dj_name}. "
+                f"Weave in the station ID ('Dead Internet Radio' or 'D.I.R.'). "
+                f"Under 30 words. Vary the phrasing — don't repeat the same intro formula.\n\n"
                 f"Voiceovers:\n" + "\n".join(vo_entries) + "\n\n"
                 f"Output: JSON array with objects: "
-                f'{{"track_number": int, "type": string, "text": string}}'
+                f'{{"track_number": int, "type": "TRACK_INTRO", "text": string}}'
             )
 
             vo_json = call_llm(announcer_prompt, vo_input)
