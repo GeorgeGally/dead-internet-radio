@@ -20,21 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_FREE_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "google/gemma-4-9b-it:free",
-    "google/gemma-4-flash:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-]
-_build_model_index = 0
-
-
-def _next_model() -> str:
-    global _build_model_index
-    model = OPENROUTER_FREE_MODELS[_build_model_index % len(OPENROUTER_FREE_MODELS)]
-    _build_model_index += 1
-    return model
+OPENROUTER_MODEL = "openrouter/free"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 OUTPUT_DIR = Path("output")
@@ -150,68 +136,48 @@ Output valid JSON only. No markdown, no extra text:
 }"""
 
 
-def call_llm(system_prompt: str, user_message: str, json_mode: bool = False) -> str:
-    tried = set()
-    last_error = None
-    while len(tried) < len(OPENROUTER_FREE_MODELS):
-        model = _next_model()
-        if model in tried:
-            continue
-        tried.add(model)
+def call_llm(system_prompt: str, user_message: str) -> str:
+    for attempt in range(3):
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
         }
-        use_json_mode = json_mode
-        for attempt in range(2):
-            body = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                "temperature": 0.9,
-            }
-            if use_json_mode:
-                body["response_format"] = {"type": "json_object"}
-            try:
-                req = urllib.request.Request(
-                    OPENROUTER_URL,
-                    data=json.dumps(body).encode(),
-                    headers=headers,
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=120) as resp:
-                    result = json.loads(resp.read().decode())
-                    content = result["choices"][0]["message"]["content"]
-                    if content is None:
-                        raise ValueError("LLM returned null content")
-                    return content
-            except urllib.error.HTTPError as e:
-                if e.code == 400 and use_json_mode:
-                    print(f"  Model {model} rejects json_object, retrying without...", flush=True)
-                    use_json_mode = False
-                    continue
-                if e.code == 429:
-                    wait = 3 * (attempt + 1)
-                    print(f"  Rate limited ({model}), retrying in {wait}s...", flush=True)
-                    time.sleep(wait)
-                    continue
-                if e.code in (400, 404):
-                    print(f"  Model {model} unavailable ({e.code}), skipping", flush=True)
-                    break
-                last_error = str(e)
-                print(f"  Model {model} failed: {e}", flush=True)
-                break
-            except Exception as e:
-                if attempt < 1:
-                    wait = 3 * (attempt + 1)
-                    print(f"  {e}, retrying in {wait}s...", flush=True)
-                    time.sleep(wait)
-                    continue
-                last_error = str(e)
-                break
-    print(f"  All models exhausted. Last error: {last_error}", file=sys.stderr)
+        body = {
+            "model": OPENROUTER_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.9,
+        }
+        try:
+            req = urllib.request.Request(
+                OPENROUTER_URL,
+                data=json.dumps(body).encode(),
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read().decode())
+                content = result["choices"][0]["message"]["content"]
+                if content is None:
+                    raise ValueError("LLM returned null content")
+                return content
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = 3 * (attempt + 1)
+                print(f"  Rate limited, retrying in {wait}s...", flush=True)
+                time.sleep(wait)
+                continue
+            print(f"  LLM call failed ({e.code}), retrying in 3s...", flush=True)
+            time.sleep(3)
+        except Exception as e:
+            if attempt < 2:
+                print(f"  {e}, retrying...", flush=True)
+                time.sleep(3)
+                continue
+            print(f"  LLM call failed: {e}", file=sys.stderr)
+            return None
     return None
 
 
@@ -361,24 +327,6 @@ def _build_dist_static():
             shutil.copytree(src_file, dest_dir)
 
 
-def _copy_shows_audio(shows):
-    """Copy show audio files into dist/audio/ alongside shows.json."""
-    for show in shows:
-        playlist_path = OUTPUT_DIR / show["id"] / "playlist.json"
-        if not playlist_path.exists():
-            continue
-        try:
-            pl = json.loads(playlist_path.read_text())
-        except Exception:
-            continue
-        for track in pl.get("tracks", []):
-            if "file" not in track:
-                continue
-            src = OUTPUT_DIR / show["id"] / track["file"]
-            if src.exists():
-                shutil.copy2(src, DIST_DIR / "audio" / Path(track["file"]).name)
-
-
 def find_shows():
     """Scan output/ for show subdirectories and return a list of show dicts."""
     SHOW_DIR_RE = re.compile(r"^(.+?)-(\d{8}-\d{6})$")
@@ -472,42 +420,62 @@ def find_shows():
 
 
 def build_shows_manifest(shows: list[dict]) -> None:
-    """Write shows.json manifest and per-show playlist files.
+    """Write shows.json and copy per-show playlists + audio into dist/.
 
-    The shows.json lists available shows with their metadata.
-    Per-show playlist files are written to output/<show-id>/playlist.json.
-    Each show playlist uses the standard playlist format so the frontend
-    can load it with the same code path as the main playlist.
+    dist/
+      shows.json               — show manifest (IDs, names, counts)
+      shows/<show-id>/
+        playlist.json          — per-show track list
+        audio/<file>.mp3       — show audio files
     """
-    # Write per-show playlist.json with relative paths
+    DIST_DIR.mkdir(exist_ok=True)
+    (DIST_DIR / "shows").mkdir(exist_ok=True)
+
+    manifest = []
     for show in shows:
-        show_dir = OUTPUT_DIR / show["id"]
+        show_dist = DIST_DIR / "shows" / show["id"]
+        show_dist.mkdir(exist_ok=True)
+        (show_dist / "audio").mkdir(exist_ok=True)
+
+        # Write per-show playlist with relative paths (audio/file.mp3)
         playlist = {
             "epoch": EPOCH_MS,
             "djName": show["djName"],
-            "tracks": show["tracks"],
+            "tracks": [],
         }
-        # Strip 'tracks' from manifest entry to keep it lean
-        (show_dir / "playlist.json").write_text(json.dumps(playlist, indent=2))
+        for track in show["tracks"]:
+            src = OUTPUT_DIR / show["id"] / track["file"]
+            dest = show_dist / "audio" / track["file"]
+            if src.exists():
+                shutil.copy2(src, dest)
+            playlist["tracks"].append({
+                "file": f"audio/{track['file']}",
+                "durationMs": track["durationMs"],
+                "title": track.get("title", ""),
+                "artist": track.get("artist", ""),
+                "caption": track.get("caption", ""),
+                "bpm": track.get("bpm"),
+                "key": track.get("key", ""),
+                "type": track.get("type", "track"),
+                "script": track.get("script", ""),
+                "brief": track.get("brief", ""),
+            })
 
-    # Build lean manifest (no track data, just IDs and metadata)
-    manifest = []
-    for show in shows:
+        (show_dist / "playlist.json").write_text(json.dumps(playlist, indent=2))
+        print(f"  {show['id']}/ ({len(show['tracks'])} tracks)")
+
         manifest.append({
             "id": show["id"],
             "name": show["name"],
             "timestamp": show["timestamp"],
             "djName": show["djName"],
             "trackCount": show["trackCount"],
-            "mixFile": show["mixFile"],
-            "playlist": f"output/{show['id']}/playlist.json",
+            "playlist": f"shows/{show['id']}/playlist.json",
         })
 
     manifest_json = json.dumps({"shows": manifest}, indent=2)
-    (OUTPUT_DIR / "shows.json").write_text(manifest_json)
-    DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "shows.json").write_text(manifest_json)
-    # Also write to project root for local dev
+    (OUTPUT_DIR / "shows.json").write_text(manifest_json)
     (Path("shows.json")).write_text(manifest_json)
     print(f"  shows.json — {len(manifest)} shows")
     for s in manifest:
@@ -527,7 +495,7 @@ def generate_pages(skip_llm: bool, existing_pages_path: Path) -> dict:
         return FALLBACK_PAGES
 
     print("  Calling LLM for page content...", flush=True)
-    raw = call_llm(PAGES_PROMPT, "Generate teletext page content for Dead Internet Radio.", json_mode=True)
+    raw = call_llm(PAGES_PROMPT, "Generate teletext page content for Dead Internet Radio.")
     if raw is None:
         print("  LLM failed, using fallback pages", flush=True)
         return FALLBACK_PAGES
@@ -575,7 +543,6 @@ def main():
     if not raw_tracks:
         print("No tracks in output/ root — shows-only build.")
         _build_dist_static()
-        _copy_shows_audio(shows)
         print()
         print(f"Done! dist/ ready for deployment.")
         print(f"  Shows: {len(shows)}")

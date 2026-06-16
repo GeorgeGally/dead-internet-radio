@@ -16,22 +16,7 @@ load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "")
-OPENROUTER_FREE_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "google/gemma-4-9b-it:free",
-    "google/gemma-4-flash:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-]
-_model_index = 0
-
-
-def _next_model() -> str:
-    global _model_index
-    model = OPENROUTER_FREE_MODELS[_model_index % len(OPENROUTER_FREE_MODELS)]
-    _model_index += 1
-    return model
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
@@ -121,69 +106,86 @@ def extract_json(text: str) -> dict:
     raise ValueError(f"Could not extract JSON from LLM output ({len(text)} chars)")
 
 
+def extract_json_array(text: str) -> list:
+    """Extract a JSON array from LLM output, returning all elements."""
+    text = re.sub(r'^```(?:json)?\s*\n?', '', text.strip())
+    text = re.sub(r'\n?```\s*$', '', text)
 
-def call_llm(system_prompt: str, user_message: str, json_mode: bool = False) -> str:
-    tried = set()
-    last_error = None
-    while len(tried) < len(OPENROUTER_FREE_MODELS):
-        model = _next_model()
-        if model in tried:
-            continue
-        tried.add(model)
+    try:
+        result = json.loads(text)
+        return result if isinstance(result, list) else [result]
+    except json.JSONDecodeError:
+        pass
+
+    start = text.find("[")
+    if start >= 0:
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "[":
+                depth += 1
+            elif text[i] == "]":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start:i + 1]
+                    try:
+                        result = json.loads(candidate)
+                        return result if isinstance(result, list) else [result]
+                    except json.JSONDecodeError:
+                        fixed = re.sub(r',\s*]', ']', candidate)
+                        try:
+                            result = json.loads(fixed)
+                            return result if isinstance(result, list) else [result]
+                        except json.JSONDecodeError:
+                            pass
+
+    raise ValueError(f"Could not extract JSON array from LLM output ({len(text)} chars)")
+
+
+
+def call_llm(system_prompt: str, user_message: str) -> str:
+    for attempt in range(3):
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
         }
-        use_json_mode = json_mode
-        for attempt in range(2):
-            body = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                "temperature": 0.9,
-            }
-            if use_json_mode:
-                body["response_format"] = {"type": "json_object"}
-            try:
-                req = urllib.request.Request(
-                    OPENROUTER_URL,
-                    data=json.dumps(body).encode(),
-                    headers=headers,
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=120) as resp:
-                    result = json.loads(resp.read().decode())
-                    content = result["choices"][0]["message"]["content"]
-                    if content is None:
-                        raise ValueError("LLM returned null content")
-                    return content
-            except urllib.error.HTTPError as e:
-                if e.code == 400 and use_json_mode:
-                    print(f"  Model {model} rejects json_object, retrying without...", flush=True)
-                    use_json_mode = False
-                    continue
-                if e.code == 429:
-                    wait = 3 * (attempt + 1)
-                    print(f"  Rate limited ({model}), retrying in {wait}s...", flush=True)
-                    time.sleep(wait)
-                    continue
-                if e.code in (400, 404):
-                    print(f"  Model {model} unavailable ({e.code}), skipping", flush=True)
-                    break
-                last_error = str(e)
-                print(f"  Model {model} failed: {e}", flush=True)
-                break
-            except Exception as e:
-                if attempt < 1:
-                    wait = 3 * (attempt + 1)
-                    print(f"  {e}, retrying in {wait}s...", flush=True)
-                    time.sleep(wait)
-                    continue
-                last_error = str(e)
-                break
-    print(f"  All models exhausted. Last error: {last_error}", file=sys.stderr)
+        body = {
+            "model": OPENROUTER_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            "temperature": 0.9,
+        }
+        try:
+            req = urllib.request.Request(
+                OPENROUTER_URL,
+                data=json.dumps(body).encode(),
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read().decode())
+                content = result["choices"][0]["message"]["content"]
+                if content is None:
+                    raise ValueError("LLM returned null content")
+                return content
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = 3 * (attempt + 1)
+                print(f"  Rate limited, retrying in {wait}s...", flush=True)
+                time.sleep(wait)
+                continue
+            print(f"  LLM call failed ({e.code}), retrying in 3s...", flush=True)
+            time.sleep(3)
+        except Exception as e:
+            if attempt < 2:
+                print(f"  {e}, retrying...", flush=True)
+                time.sleep(3)
+                continue
+            print(f"  LLM call failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    print("  LLM call failed after 3 attempts", file=sys.stderr)
     sys.exit(1)
 
 
@@ -314,6 +316,8 @@ def main():
                         help="Number of tracks to generate per set (default: 5)")
     parser.add_argument("--delay", type=int, default=5,
                         help="Seconds to wait between LLM calls to avoid rate limits (default: 5)")
+    parser.add_argument("--no-batch", action="store_true",
+                        help="Disable batch mode — use per-track LLM calls instead")
     args = parser.parse_args()
 
     if not OPENROUTER_API_KEY:
@@ -388,53 +392,95 @@ def main():
 
     track_history = []
     ace_healthy = None
-    next_announce_at = random.randint(2, 4)
 
-    for i in range(1, args.tracks + 1):
-        print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
-
-        if i > 1 and args.delay > 0:
+    # --- BATCH MODE: compose all tracks in one LLM call ---
+    if not args.no_batch:
+        print(f"3. DJ composing {args.tracks} tracks (batch)...", flush=True)
+        if args.delay > 0:
             print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
             time.sleep(args.delay)
 
-        if i == 1:
-            dj_input = (
-                f"Program brief:\n\n{brief}\n\n"
-                f"This is track 1 of {args.tracks}. Compose the opening track for this DJ set."
-            )
-        else:
-            prev_summary = "\n".join(
-                f"Track {t['number']}: {t['artist']} — \"{t['title']}\" "
-                f"({t['bpm']} BPM, {t['keyscale']})"
-                for t in track_history
-            )
-            prev_keys = [t["keyscale"] for t in track_history if t["keyscale"]]
-            prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
-            dj_input = (
-                f"Program brief:\n\n{brief}\n\n"
-                f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
-                f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
-                f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
-                f"This is track {i} of {args.tracks}. "
-                f"Make this track SOUND DISTINCT from all previous tracks — "
-                f"different key, different tempo range, different synth palette, different drum pattern."
-            )
-
-        dj_input += (
-            "\n\nGuidance:\n"
-            "- Keep vocals to a minimum. Not all tracks need vocals.\n"
-            "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
-            "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
-            "- Each track must be 90-180 seconds. Atmospheric pieces, not full songs. No verse/chorus pop structure.\n"
-            "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+        dj_input = (
+            f"Program brief:\n\n{brief}\n\n"
+            f"Compose {args.tracks} tracks for this DJ set. "
+            f"Return a JSON array of exactly {args.tracks} objects.\n\n"
+            f"CONSTRAINTS — all tracks must be distinct:\n"
+            f"- Different keys — no repeats across all {args.tracks} tracks\n"
+            f"- BPM range 80-150, cohesive but varied\n"
+            f"- Different synth palettes, drum patterns, and structures\n"
+            f"- Different genre angles (coldwave, industrial, deep techno, dark electro, synthwave)\n\n"
+            f"Guidance:\n"
+            f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
+            f"- When vocals are present, sparse and atmospheric.\n"
+            f"- Focus on atmosphere, texture, evolving narrative.\n"
+            f"- Each track: 90-180 seconds. Atmospheric pieces, not full songs.\n"
+            f"- Vary the sonic palette across the set.\n"
+            f"- The set should feel like a journey through different rooms of the same dead factory.\n\n"
+            f"Output a JSON array of {args.tracks} objects, each with: "
+            f"title, artist, caption, lyrics, bpm, keyscale, duration."
         )
 
-        song_json = call_llm(dj_prompt, dj_input, json_mode=True)
-        song = extract_json(song_json)
-        if isinstance(song, list):
-            song = song[0]
+        song_json = call_llm(dj_prompt, dj_input)
+        songs = extract_json_array(song_json)
 
+        if len(songs) < 2:
+            print(f"  WARNING: Batch returned only {len(songs)} tracks, falling back to per-track mode",
+                  flush=True)
+            args.no_batch = True
+
+    # --- FALLBACK: per-track mode ---
+    if args.no_batch:
+        print(f"3. DJ composing {args.tracks} tracks (per-track)...", flush=True)
+        songs = []
+        for i in range(1, args.tracks + 1):
+            if i > 1 and args.delay > 0:
+                print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
+                time.sleep(args.delay)
+
+            if i == 1:
+                dj_input = (
+                    f"Program brief:\n\n{brief}\n\n"
+                    f"This is track 1 of {args.tracks}. Compose the opening track for this DJ set."
+                )
+            else:
+                prev_summary = "\n".join(
+                    f"Track {t['number']}: {t['artist']} — \"{t['title']}\" "
+                    f"({t['bpm']} BPM, {t['keyscale']})"
+                    for t in track_history
+                )
+                prev_keys = [t["keyscale"] for t in track_history if t["keyscale"]]
+                prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
+                dj_input = (
+                    f"Program brief:\n\n{brief}\n\n"
+                    f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
+                    f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
+                    f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
+                    f"This is track {i} of {args.tracks}. "
+                    f"Make this track SOUND DISTINCT from all previous tracks — "
+                    f"different key, different tempo range, different synth palette, different drum pattern."
+                )
+
+            dj_input += (
+                "\n\nGuidance:\n"
+                "- Keep vocals to a minimum. Not all tracks need vocals.\n"
+                "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
+                "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
+                "- Each track must be 90-180 seconds. Atmospheric pieces, not full songs. No verse/chorus pop structure.\n"
+                "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+            )
+
+            print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
+            song_json = call_llm(dj_prompt, dj_input)
+            song = extract_json(song_json)
+            if isinstance(song, list):
+                song = song[0]
+            song["_prompt"] = dj_input
+            songs.append(song)
+
+    # --- Process tracks (shared between batch and per-track) ---
+    for i, song in enumerate(songs, 1):
         song["duration"] = max(min(song.get("duration", 120), 180), 90)
+        track_prompt = song.pop("_prompt", dj_input)
 
         title = song.get("title", "").strip() or "Untitled"
         artist = song.get("artist", "").strip() or "Unknown Artist"
@@ -443,7 +489,6 @@ def main():
         print(f"  Track {i}: {display_name}")
         print(f"         {song.get('bpm', '?')} BPM, {song.get('keyscale', '?')}, "
               f"{song.get('duration', '?')}s")
-        print()
 
         track_history.append({
             "number": i,
@@ -455,13 +500,13 @@ def main():
             "keyscale": song.get("keyscale", ""),
             "duration": song.get("duration", 0),
             "payload": song,
-            "prompt": dj_input,
+            "prompt": track_prompt,
         })
 
         if args.dry_run:
             song_file = show_prompts_dir / f"dry-run-track-{i:02d}-{slugify(display_name)}.json"
             song_file.write_text(json.dumps(song, indent=2))
-            print(f"  Song data saved to {song_file}\n")
+            print(f"  Song data saved to {song_file}")
         prompt_file = show_prompts_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.prompt.json"
         prompt_data = {
             "track": i,
@@ -473,10 +518,13 @@ def main():
         }
         prompt_file.write_text(json.dumps(prompt_data, indent=2))
         print(f"  Prompt log → {prompt_file}")
+    print()
 
-        if args.dry_run:
-            continue
-
+    if args.dry_run:
+        # Skip ACE-Step and voiceovers in dry-run
+        pass
+    else:
+        # --- ACE-Step generation for each track ---
         if ace_healthy is None:
             ace_healthy, err = check_ace_step_health()
             if not ace_healthy:
@@ -485,46 +533,86 @@ def main():
                 print(f"  cd ACE-Step-1.5 && uv run acestep-api", file=sys.stderr)
                 sys.exit(1)
 
-        print(f"4.{i} Sending track {i} to ACE-Step...", flush=True)
-        task_id = call_ace_step(song)
-        print(f"    Task ID: {task_id}")
+        for t in track_history:
+            i = t["number"]
+            display_name = t["display_name"]
+            song = t["payload"]
+            print(f"4.{i} Sending track {i} to ACE-Step...", flush=True)
+            task_id = call_ace_step(song)
+            print(f"    Task ID: {task_id}")
 
-        print(f"5.{i} Waiting for generation...", flush=True)
-        result = poll_ace_step(task_id)
-        result_data = json.loads(result["result"])
-        audio_path = result_data[0]["file"]
+            print(f"5.{i} Waiting for generation...", flush=True)
+            result = poll_ace_step(task_id)
+            result_data = json.loads(result["result"])
+            audio_path = result_data[0]["file"]
 
-        output_file = show_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.mp3"
-        print(f"6.{i} Downloading to {output_file}...", flush=True)
-        download_audio(audio_path, output_file)
-        print(f"   Track {i} saved to {output_file}")
+            output_file = show_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.mp3"
+            print(f"6.{i} Downloading to {output_file}...", flush=True)
+            download_audio(audio_path, output_file)
+            print(f"   Track {i} saved to {output_file}")
+        print()
 
-        if i >= next_announce_at:
-            announce_wav = show_dir / f"{i:02d}-DJ-voice-{slugify(display_name)}-dead-internet-radio.wav"
-            announce_mp3 = show_dir / f"{i:02d}-DJ-voice-{slugify(display_name)}-dead-internet-radio.mp3"
-            print(f"7.{i} Announcer writing DJ voiceover...", flush=True)
+        # --- BATCH voiceover generation ---
+        voiceover_schedule = []
+        next_announce_at = random.randint(2, 3)
+        while next_announce_at < args.tracks:
+            voiceover_schedule.append(next_announce_at)
+            next_announce_at += random.randint(2, 3)
+
+        if voiceover_schedule:
+            print(f"Announcer batch: {len(voiceover_schedule)} voiceovers...", flush=True)
+            if args.delay > 0:
+                print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
+                time.sleep(args.delay)
+
             announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
-            announce_type = random.choice(["THOUGHT", "NEWS", "TRIVIA", "ANNOUNCEMENT", "WEATHER"])
+            vo_entries = []
+            for idx in voiceover_schedule:
+                t = track_history[idx - 1]
+                atype = random.choice(["THOUGHT", "NEWS", "TRIVIA", "ANNOUNCEMENT", "WEATHER"])
+                vo_entries.append(
+                    f"- Voiceover after track {idx} (TYPE: {atype}, "
+                    f"NOW PLAYING: {t['artist']} — \"{t['title']}\")"
+                )
 
-            current_track = f"{artist} — \"{title}\""
-            user_msg = (
+            vo_input = (
                 f"Slot: {slot}\n\n"
                 f"Program brief:\n\n{brief}\n\n"
-                f"TYPE: {announce_type}\n\n"
-                f"TRACK NOW PLAYING: {current_track}\n"
-                f"You may optionally mention the track name or artist, but you don't have to. "
-                f"Speak."
+                f"Generate {len(voiceover_schedule)} mid-set voiceovers. "
+                f"Return a JSON array of {len(voiceover_schedule)} objects.\n\n"
+                f"Each voiceover: under 30 words. No meta-commentary or labels. "
+                f"Direct delivery — thinking out loud or reading a headline.\n\n"
+                f"Voiceovers:\n" + "\n".join(vo_entries) + "\n\n"
+                f"Output: JSON array with objects: "
+                f'{{"track_number": int, "type": string, "text": string}}'
             )
-            announce_text = call_llm(announcer_prompt, user_msg)
-            announce_text = announce_text.strip().strip('"').strip("'").strip()
-            print(f"   [{announce_type}] \"{announce_text[:120]}\"")
-            print(f"8.{i} Generating TTS...", flush=True)
-            generate_announcement(announce_text, announce_wav, intensity=0.2 + random.random() * 0.2)
-            if announce_wav.exists() and announce_wav.stat().st_size > 100:
-                if not wav_to_mp3(announce_wav, announce_mp3):
-                    print(f"   ffmpeg not found, keeping wav", flush=True)
-            next_announce_at = i + random.randint(2, 4)
-        print()
+
+            vo_json = call_llm(announcer_prompt, vo_input)
+            try:
+                voiceovers = extract_json_array(vo_json)
+            except ValueError:
+                print("  WARNING: Could not parse voiceover batch, skipping", flush=True)
+                voiceovers = []
+
+            for vo in voiceovers:
+                track_num = vo.get("track_number", 0)
+                if track_num < 1 or track_num > len(track_history):
+                    continue
+                t = track_history[track_num - 1]
+                atype = vo.get("type", "THOUGHT")
+                text = vo.get("text", "").strip().strip('"').strip("'").strip()
+                if not text:
+                    continue
+
+                wav = show_dir / f"{track_num:02d}-DJ-voice-{slugify(t['display_name'])}-dead-internet-radio.wav"
+                mp3 = show_dir / f"{track_num:02d}-DJ-voice-{slugify(t['display_name'])}-dead-internet-radio.mp3"
+                print(f"  [{atype}] \"{text[:120]}\"")
+                print(f"  Generating TTS...", flush=True)
+                generate_announcement(text, wav, intensity=0.2 + random.random() * 0.2)
+                if wav.exists() and wav.stat().st_size > 100:
+                    if not wav_to_mp3(wav, mp3):
+                        print(f"   ffmpeg not found, keeping wav", flush=True)
+            print()
 
     tracks_md = "\n".join(
         f"### Track {t['number']}: {t['artist']} — \"{t['title']}\"\n"
