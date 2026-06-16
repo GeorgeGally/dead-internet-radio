@@ -395,6 +395,23 @@ def find_shows():
         # Sort tracks by number
         tracks.sort(key=lambda t: t["number"])
 
+        # Attach voiceover files to following song entries
+        voiceover_mp3s = sorted(
+            [f for f in entry.glob("*.mp3") if DJ_VO_RE.search(f.name)],
+            key=lambda f: f.name
+        )
+        for vo in voiceover_mp3s:
+            tn_match = TRACK_RE.match(vo.name)
+            if not tn_match:
+                continue
+            vo_tn = int(tn_match.group(1))
+            # Find the first song entry with number > vo_tn
+            for t in tracks:
+                if t["number"] > vo_tn:
+                    t["voiceoverFile"] = vo.name
+                    t["voiceoverDurationMs"] = get_duration_ms(vo)
+                    break
+
         dj_name = select_dj_name()
 
         # Look for mix file
@@ -448,7 +465,8 @@ def build_shows_manifest(shows: list[dict]) -> None:
             dest = show_dist / "audio" / track["file"]
             if src.exists():
                 shutil.copy2(src, dest)
-            playlist["tracks"].append({
+
+            entry = {
                 "file": f"audio/{track['file']}",
                 "durationMs": track["durationMs"],
                 "title": track.get("title", ""),
@@ -459,7 +477,18 @@ def build_shows_manifest(shows: list[dict]) -> None:
                 "type": track.get("type", "track"),
                 "script": track.get("script", ""),
                 "brief": track.get("brief", ""),
-            })
+            }
+
+            # Attach voiceover to the track it plays over
+            if track.get("voiceoverFile"):
+                vo_src = OUTPUT_DIR / show["id"] / track["voiceoverFile"]
+                vo_dest = show_dist / "audio" / track["voiceoverFile"]
+                if vo_src.exists():
+                    shutil.copy2(vo_src, vo_dest)
+                entry["voiceoverFile"] = f"audio/{track['voiceoverFile']}"
+                entry["voiceoverDurationMs"] = track["voiceoverDurationMs"]
+
+            playlist["tracks"].append(entry)
 
         (show_dist / "playlist.json").write_text(json.dumps(playlist, indent=2))
         print(f"  {show['id']}/ ({len(show['tracks'])} tracks)")

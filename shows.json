@@ -4,55 +4,65 @@
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260614-180406",
       "name": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260614-180406",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 6,
-      "mixFile": null,
-      "playlist": "output/late-night-ambient-cinematic-slomo-folk-disco-20260614-180406/playlist.json"
+      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260614-180406/playlist.json"
+    },
+    {
+      "id": "late-night-ambient-cinematic-slomo-folk-disco-20260615-211320",
+      "name": "Late Night Ambient Cinematic Slomo Folk Disco",
+      "timestamp": "20260615-211320",
+      "djName": "M3gacity",
+      "trackCount": 6,
+      "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260615-211320/playlist.json"
     },
     {
       "id": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757",
       "name": "Late Night Deep Soulful Minimal Slomo Robot Bass",
       "timestamp": "20260614-081757",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 6,
-      "mixFile": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/mix/null-cast-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
-      "playlist": "output/late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/playlist.json"
+      "playlist": "shows/late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/playlist.json"
     },
     {
       "id": "late-night-disco-clubbing-20260614-220202",
       "name": "Late Night Disco Clubbing",
       "timestamp": "20260614-220202",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 6,
-      "mixFile": null,
-      "playlist": "output/late-night-disco-clubbing-20260614-220202/playlist.json"
+      "playlist": "shows/late-night-disco-clubbing-20260614-220202/playlist.json"
     },
     {
       "id": "late-night-slomo-disco-vocoder-bass-20260614-150625",
       "name": "Late Night Slomo Disco Vocoder Bass",
       "timestamp": "20260614-150625",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 6,
-      "mixFile": null,
-      "playlist": "output/late-night-slomo-disco-vocoder-bass-20260614-150625/playlist.json"
+      "playlist": "shows/late-night-slomo-disco-vocoder-bass-20260614-150625/playlist.json"
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243",
       "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084243",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 1,
-      "mixFile": null,
-      "playlist": "output/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243/playlist.json"
+      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243/playlist.json"
     },
     {
       "id": "late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509",
       "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084509",
-      "djName": "C64",
+      "djName": "M3gacity",
       "trackCount": 6,
-      "mixFile": null,
-      "playlist": "output/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509/playlist.json"
+      "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509/playlist.json"
+    },
+    {
+      "id": "sunrise-slow-deep-disco-20260616-110423",
+      "name": "Sunrise Slow Deep Disco",
+      "timestamp": "20260616-110423",
+      "djName": "M3gacity",
+      "trackCount": 7,
+      "playlist": "shows/sunrise-slow-deep-disco-20260616-110423/playlist.json"
     }
   ]
 }

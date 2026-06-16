@@ -84,7 +84,7 @@
 ### Track 1: "Opening slow-techno texture in A minor at 64 BPM: a filtered low-synth drone descends into a soft four-on-floor pulse, brushed hi-hats, rolling 40-80 Hz sub-bass, warm 120-250 Hz pads, and airy 2-4 kHz synth shimmer. Sparse whispered vocal texture, subtle Dorian lift, long reverb, gentle chorus, and a final filtered fade."
 - **BPM:** 64
 - **Key:** A minor
-- **Duration:** 210s
+- **Duration:** 310s
 - **Prompt:** `Program brief:
 
 **Program Brief – Late‑Night Slow‑Techno Synths**  

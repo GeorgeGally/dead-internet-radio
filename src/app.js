@@ -112,17 +112,22 @@ function setupAudio() {
     document.addEventListener('keydown', tryPlay);
     document.addEventListener('click', tryPlay, true);
   });
+
+  startVoiceoverIfNeeded();
 }
 
 function onTrackEnd() {
+  stopVoiceover();
   currentTrack = (currentTrack + 1) % playlist.tracks.length;
   cyclePalette(currentTrack);
   updateTrackTitle();
   updatePlayBtn();
   const audio = document.getElementById('player');
+  audio.volume = 1;
   audio.src = playlistBase + playlist.tracks[currentTrack].file;
   audio.currentTime = 0;
   audio.play().catch(() => {});
+  startVoiceoverIfNeeded();
 }
 
 function updateTrackTitle() {
@@ -135,10 +140,12 @@ function updateTrackTitle() {
 }
 
 function stopPlayback() {
+  stopVoiceover();
   const audio = document.getElementById('player');
   if (!audio) return;
   audio.pause();
   audio.currentTime = 0;
+  audio.volume = 1;
   waveHistory = [];
   updatePlayBtn();
 }
@@ -169,19 +176,63 @@ function playAudio() {
 }
 
 function prevTrack() {
+  stopVoiceover();
   if (!playlist) return;
   currentTrack = (currentTrack - 1 + playlist.tracks.length) % playlist.tracks.length;
   cyclePalette(currentTrack);
   updateTrackTitle();
   const audio = document.getElementById('player');
+  audio.volume = 1;
   audio.src = playlistBase + playlist.tracks[currentTrack].file;
   audio.currentTime = 0;
   audio.play().catch(() => {});
+  startVoiceoverIfNeeded();
 }
 
 function nextTrack() {
   if (!playlist) return;
   onTrackEnd();
+}
+
+let voiceoverEndedHandler = null;
+
+function stopVoiceover() {
+  const vo = document.getElementById('voiceover-el');
+  if (vo) {
+    vo.pause();
+    vo.src = '';
+  }
+  const player = document.getElementById('player');
+  if (player) player.volume = 1;
+  if (voiceoverEndedHandler && vo) {
+    vo.removeEventListener('ended', voiceoverEndedHandler);
+    voiceoverEndedHandler = null;
+  }
+}
+
+function startVoiceoverIfNeeded() {
+  if (!playlist) return;
+  const track = playlist.tracks[currentTrack];
+  if (!track || !track.voiceoverFile) return;
+
+  const player = document.getElementById('player');
+  const vo = document.getElementById('voiceover-el');
+  if (!player || !vo) return;
+
+  stopVoiceover();
+
+  player.volume = 0.3;
+
+  vo.src = playlistBase + track.voiceoverFile;
+  vo.load();
+  vo.play().catch(() => {});
+
+  voiceoverEndedHandler = () => {
+    player.volume = 1;
+    vo.removeEventListener('ended', voiceoverEndedHandler);
+    voiceoverEndedHandler = null;
+  };
+  vo.addEventListener('ended', voiceoverEndedHandler);
 }
 
 function setupControls() {
@@ -250,8 +301,13 @@ async function loadShows() {
   for (const base of bases) {
     try {
       const data = await fetchJson(`${base}shows.json`);
-      showsList = data.shows || [];
-      if (showsList.length) {
+      const shows = data.shows || [];
+      if (!shows.length) continue;
+      // Validate that the first show's playlist actually resolves
+      const testUrl = base + shows[0].playlist;
+      const resp = await fetch(testUrl, { method: 'HEAD' });
+      if (resp.ok) {
+        showsList = shows;
         showsBase = base;
         selectShow(showsList[0].id);
         return;
@@ -273,17 +329,33 @@ async function selectShow(showId) {
   const show = showsList.find(s => s.id === showId);
   if (!show || !show.playlist) return;
 
-  const newPlaylist = await fetchJson(showsBase + show.playlist);
+  let playlistUrl = showsBase + show.playlist;
+  let resp;
+  try {
+    resp = await fetch(playlistUrl);
+  } catch (e) {}
+  // Fallback: if the playlist wasn't found at showsBase, try dist/
+  if (!resp || !resp.ok) {
+    const alt = '../dist/' + show.playlist;
+    try {
+      resp = await fetch(alt);
+      if (resp.ok) playlistUrl = alt;
+    } catch (e) {}
+  }
+  if (!resp || !resp.ok) return;
+
+  const newPlaylist = await resp.json();
   if (!Array.isArray(newPlaylist.tracks) || !newPlaylist.tracks.length) return;
 
+  stopVoiceover();
   const audio = document.getElementById('player');
   if (audio) {
     audio.pause();
     audio.src = '';
   }
 
-  // Resolve audio paths relative to the playlist URL
-  playlistBase = showsBase + show.playlist.replace(/\/[^/]+$/, '/');
+  // Resolve audio paths relative to the actual playlist URL
+  playlistBase = playlistUrl.replace(/\/[^/]+$/, '/');
 
   playlist = newPlaylist;
   currentShowId = showId;
@@ -293,6 +365,8 @@ async function selectShow(showId) {
   blockColorMult = 5 + Math.floor(Math.random() * 30);
   blockStyle = Math.floor(Math.random() * BLOCK_STYLE_COUNT);
   blockStripes = 4 + Math.floor(Math.random() * 4);
+  styleFrameCount = 0;
+  styleCooldown = 0;
   // Background always matches the topbar color (top of the #deck gradient).
   blockBg = TOPBAR_COLOR;
   // Ink contrasts the bg: light bg → black ink, dark bg → white ink.
@@ -431,17 +505,23 @@ let audioAnalysisReady = false;
 let waveCanvas = null;
 let waveCtx = null;
 let waveHistory = [];
-const WAVE_BARS = 72;
+const WAVE_BARS = 140;
 let blockFrameCount = 0;
 let blockColorMult = 12;
 const BLOCK_DENSITY = 64;
+let bassEnergy = 0;
+let bassSmoothed = 0;
 
-// One geometry style per load (like the original's global `T` type), so the
-// whole screen is a coherent design that changes dramatically between loads.
-let blockStyle = 0;
+// Block style evolves over time — old blocks keep their style, new blocks get
+// the current style. Cycles automatically every ~8s, bass hits accelerate.
 const BLOCK_STYLE_COUNT = 6;
-// Stripe count for style 6, fixed per load so every striped block matches.
-let blockStripes = 5;
+let blockStyle = Math.floor(Math.random() * BLOCK_STYLE_COUNT);
+// Stripe count for style 5, updated when style changes.
+let blockStripes = 4 + Math.floor(Math.random() * 4);
+// Frame counter for automatic style cycling.
+let styleFrameCount = 0;
+const STYLE_CYCLE_FRAMES = 480; // ~8 seconds at 60fps
+let styleCooldown = 0;
 // Ink color for the whole design: black OR white (never both), picked per load.
 // Every block style draws palette-background + this single ink, two colors total.
 let blockInk = '#000000';
@@ -583,26 +663,63 @@ function initBlocks() {
 
 function updateBlocks() {
   blockFrameCount++;
+  styleCooldown = Math.max(0, styleCooldown - 1);
+  styleFrameCount++;
 
   if (blockFrameCount % 600 === 0) {
     const idx = (Math.floor(blockFrameCount / 600) + 3) % PALETTES.length;
     currentPalette = PALETTES[idx];
   }
 
+  // Automatic style cycle — changes every ~8s regardless of audio
+  if (styleFrameCount >= STYLE_CYCLE_FRAMES && styleCooldown === 0) {
+    advanceBlockStyle();
+    styleFrameCount = 0;
+  }
+
   if (audioAnalysisReady && analyser && frequencyData) {
     const audio = document.getElementById('player');
     if (audio && audio.paused) {
       scrollSpeed = 0;
+      bassSmoothed *= 0.95;
       return;
     }
     analyser.getByteFrequencyData(frequencyData);
-    let totalEnergy = 0;
-    for (let i = 0; i < frequencyData.length; i++) {
-      totalEnergy += frequencyData[i];
+
+    // Bass: average of the lowest ~12 bins (roughly 0–460 Hz at 256 FFT)
+    const bassEnd = 12;
+    let bassSum = 0;
+    for (let i = 0; i < bassEnd; i++) {
+      bassSum += frequencyData[i];
     }
-    totalEnergy /= frequencyData.length * 255;
-    scrollSpeed = totalEnergy > 0.015 ? 2 : 0;
+    bassEnergy = bassSum / (bassEnd * 255);
+
+    // Smooth the bass energy so it doesn't jitter
+    bassSmoothed = bassSmoothed * 0.7 + bassEnergy * 0.3;
+
+    // Scroll speed: bass drives it. Strong bass = fast scroll, silence = stopped.
+    if (bassSmoothed > 0.12) {
+      scrollSpeed = Math.min(6, 1 + bassSmoothed * 20);
+    } else {
+      scrollSpeed = 0;
+    }
+
+    // Bass hits accelerate the style change
+    if (bassEnergy > 0.18 && styleCooldown === 0) {
+      advanceBlockStyle();
+      styleFrameCount = 0;
+    }
   }
+}
+
+function advanceBlockStyle() {
+  let newStyle;
+  do {
+    newStyle = Math.floor(Math.random() * BLOCK_STYLE_COUNT);
+  } while (newStyle === blockStyle);
+  blockStyle = newStyle;
+  blockStripes = 4 + Math.floor(Math.random() * 4);
+  styleCooldown = 120; // 2 seconds minimum between changes
 }
 
 function renderBlocks() {
@@ -618,6 +735,13 @@ function renderBlocks() {
     let y = (b.row * blockSize - scrollOffset) % totalH;
     if (y < 0) y += totalH;
     if (y < -blockSize || y > h + blockSize) continue;
+
+    // Style evolution: blocks near the top (just scrolled in) pick up the
+    // current blockStyle. Old blocks below keep their original style.
+    if (y < h * 0.15 && b.style !== blockStyle) {
+      b.style = blockStyle;
+    }
+
     b.draw(ctx, Math.round(b.col * blockSize), Math.round(y), blockSize);
   }
 
