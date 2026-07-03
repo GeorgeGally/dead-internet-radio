@@ -61,11 +61,23 @@ const visuals = (() => {
     activate(order[(idx - 1 + order.length) % order.length]);
   }
 
+  function isEditableTarget(target) {
+    return !!(target && target.closest && target.closest('input,textarea,select,[contenteditable="true"]'));
+  }
+
+  function activateByLetterKey(key) {
+    if (!order.length || typeof key !== 'string') return false;
+    const normalized = key.toLowerCase();
+    if (!/^[a-z]$/.test(normalized)) return false;
+    const idx = normalized.charCodeAt(0) - 97;
+    activate(order[idx % order.length]);
+    return true;
+  }
+
   function handleKeyDown(e) {
-    if (e.key === 'v' || e.key === 'V') {
+    if (e.ctrlKey || e.metaKey || e.altKey || isEditableTarget(e.target)) return;
+    if (activateByLetterKey(e.key)) {
       e.preventDefault();
-      if (e.shiftKey) prev();
-      else next();
     }
   }
 

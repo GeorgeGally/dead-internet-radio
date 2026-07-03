@@ -418,20 +418,6 @@ function setupControls() {
       if (galleryLed) galleryLed.classList.remove('on');
     }
   };
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
-      requestAnimationFrame(() => {
-        const panel = document.querySelector('.gallery-panel');
-        if (panel && panel.classList.contains('open')) {
-          galleryToggle.classList.add('active');
-          if (galleryLed) galleryLed.classList.add('on');
-        } else {
-          galleryToggle.classList.remove('active');
-          if (galleryLed) galleryLed.classList.remove('on');
-        }
-      });
-    }
-  });
 
   const knob = document.getElementById('threshold-knob');
   const knobLed = document.getElementById('knob-led');

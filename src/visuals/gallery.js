@@ -244,14 +244,7 @@ const gallery = (() => {
     }
   }
 
-  function init() {
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
-        e.preventDefault();
-        toggle();
-      }
-    });
-  }
+  function init() {}
 
   return { init, open, close, toggle };
 })();
