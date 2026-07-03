@@ -3,6 +3,7 @@
 const canvasFilters = (() => {
   const registry = new Map();
   let activeKey = null;
+  let enabled = true;
 
   const EP_TITLE = 'BROADCAST INTERFERENCE EP';
   const LABEL = 'DEAD INTERNET RADIO';
@@ -87,7 +88,7 @@ const canvasFilters = (() => {
     }
     activeKey = key;
     const filter = registry.get(key);
-    if (filter) showCover(key);
+    if (enabled && filter) showCover(key);
   }
 
   function clearActive() {
@@ -95,13 +96,27 @@ const canvasFilters = (() => {
     hideCover();
   }
 
+  function setEnabled(value) {
+    enabled = !!value;
+    if (!enabled) hideCover();
+  }
+
+  function toggleEnabled() {
+    setEnabled(!enabled);
+  }
+
+  function isEnabled() {
+    return enabled;
+  }
+
   function apply(ctx, w, h, frame) {
-    if (!activeKey) return;
+    if (!enabled || !activeKey) return;
     const filter = registry.get(activeKey);
     if (filter) filter.fn(ctx, w, h, frame);
   }
 
   function getActiveName() {
+    if (!enabled) return 'off';
     if (!activeKey) return 'none';
     const filter = registry.get(activeKey);
     return filter ? filter.name : 'none';
@@ -293,7 +308,22 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  return { register, setActive, clearActive, apply, getActiveName, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold };
+  return {
+    register,
+    setActive,
+    clearActive,
+    setEnabled,
+    toggleEnabled,
+    isEnabled,
+    apply,
+    getActiveName,
+    setupKeybindings,
+    getCoverInfo,
+    getAllCoverInfo,
+    coverStyles,
+    COVERS,
+    setThreshold
+  };
 })();
 
 canvasFilters.setupKeybindings();

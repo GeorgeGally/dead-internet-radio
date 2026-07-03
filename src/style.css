@@ -348,6 +348,43 @@ html, body {
   background: radial-gradient(circle at 50% 55%, #b0a898, #c8c3b8 60%, #d0cbc2 100%);
 }
 
+#filter-toggle {
+  background: linear-gradient(160deg, #dad6cb, #aaa59b);
+}
+
+#filter-toggle.active {
+  background: linear-gradient(160deg, #f08236, #c6531f);
+}
+
+#filter-led.on {
+  background: #ff5a1f;
+  box-shadow: 0 0 10px rgba(255, 90, 31, 0.75);
+}
+
+.filter-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-glyph {
+  width: 16px;
+  height: 12px;
+  border-top: 2px solid rgba(0, 0, 0, 0.68);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.68);
+  position: relative;
+  opacity: 0.75;
+}
+
+.filter-glyph::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  border-top: 2px solid rgba(0, 0, 0, 0.68);
+}
+
 .pushbtn-dot {
   display: none;
 }

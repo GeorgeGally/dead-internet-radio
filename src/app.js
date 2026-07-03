@@ -419,6 +419,29 @@ function setupControls() {
     }
   };
 
+  const filterToggle = document.getElementById('filter-toggle');
+  const filterLed = document.getElementById('filter-led');
+  function updateFilterToggle() {
+    const enabled = canvasFilters.isEnabled ? canvasFilters.isEnabled() : true;
+    filterToggle.classList.toggle('active', enabled);
+    filterToggle.setAttribute('aria-pressed', String(enabled));
+    if (filterLed) filterLed.classList.toggle('on', enabled);
+  }
+  filterToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    canvasFilters.toggleEnabled();
+    updateFilterToggle();
+    updateNowPlaying();
+  });
+  filterToggle.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    canvasFilters.toggleEnabled();
+    updateFilterToggle();
+    updateNowPlaying();
+  });
+  updateFilterToggle();
+
   const knob = document.getElementById('threshold-knob');
   const knobLed = document.getElementById('knob-led');
   let knobVal = 40;
