@@ -89,7 +89,11 @@ visuals.register('isocubes', (() => {
 
       p.draw = () => {
         p.background(216, 212, 203);
-        p.ortho(-400, 400, 400, -400, 0, 1000);
+        const viewSize = 800;
+        const aspect = p.width / p.height;
+        const viewWidth = viewSize * Math.max(1, aspect);
+        const viewHeight = viewSize * Math.max(1, 1 / aspect);
+        p.ortho(-viewWidth / 2, viewWidth / 2, viewHeight / 2, -viewHeight / 2, 0, 1000);
         p.push();
         p.rotateX(ma);
         p.rotateY(-Math.PI / 4);
