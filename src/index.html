@@ -10,30 +10,70 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <img id="gif-bg" alt="" aria-hidden="true">
+  <canvas id="overlay-canvas"></canvas>
   <canvas id="block-canvas"></canvas>
 
-  <header id="deck" aria-live="off">
-    <div class="player-center">
-      <div class="player-titles">
-        <span id="station-id">DEAD INTERNET RADIO</span>
-      </div>
-    </div>
-
-    <div class="transport">
+  <header id="deck">
+    <div class="deck-logo">
       <div class="speaker" aria-hidden="true"></div>
-      <div class="wave-wrap">
-        <canvas id="wave" width="760" height="80"></canvas>
-        <div class="marquee"><span id="track-title"></span></div>
+      <span class="logo-text"></span>
+      <span class="logo-cursor">_</span>
+    </div>
+    <div class="deck-mini">
+      <span class="mini-track" id="mini-track">—</span>
+      <span class="mini-dot"></span>
+    </div>
+    <div class="deck-content">
+      <div class="deck-transport">
+        <div class="wave-wrap">
+          <canvas id="wave" width="760" height="80"></canvas>
+        </div>
+        <span class="ctrl"><span class="led" id="led-prev"></span><button id="btn-prev" class="abtn" title="Previous track">⏮</button></span>
+        <span class="ctrl"><span class="led" id="led-play"></span><button id="btn-play" class="abtn" title="Play / Pause">▶</button></span>
+        <span class="ctrl"><span class="led" id="led-next"></span><button id="btn-next" class="abtn" title="Next track">⏭</button></span>
       </div>
-      <span class="ctrl"><span class="led"></span><button id="btn-prev" class="abtn" title="Previous track">⏮</button></span>
-      <span class="ctrl"><span class="led" id="led-play"></span><button id="btn-play" class="abtn" title="Play / Pause">▶</button></span>
-      <span class="ctrl"><span class="led"></span><button id="btn-stop" class="abtn" title="Stop">⏹</button></span>
-      <span class="ctrl"><span class="led"></span><button id="btn-next" class="abtn" title="Next track">⏭</button></span>
+      <div id="np-display">
+        <div class="npd-line npd-track"></div>
+        <div class="npd-line npd-artist"></div>
+        <div class="npd-line npd-artwork"></div>
+      </div>
+      <div class="deck-display">
+        <span class="ctrl"><span class="led on" id="filter-led"></span><div id="filter-toggle" class="rams-pushbtn active" title="Filter on / off" role="button" aria-pressed="true" tabindex="0"><div class="pushbtn-face filter-face"><span class="filter-glyph"></span></div></div></span>
+        <span class="ctrl"><span class="led" id="knob-led"></span><div id="threshold-knob" class="rams-knob" title="LED threshold"><div class="knob-body"><div class="knob-tick"></div></div></div></span>
+        <span class="ctrl"><span class="led" id="gallery-led"></span><div id="gallery-toggle" class="rams-pushbtn" title="Visual gallery"><div class="pushbtn-face"><span class="pushbtn-dot"></span></div></div></span>
+      </div>
     </div>
   </header>
 
   <audio id="player" preload="auto"></audio>
   <audio id="voiceover-el" preload="auto"></audio>
+  <script src="visuals/engine.js"></script>
+  <script src="visuals/filters.js"></script>
+  <script src="visuals/lib/p5.js"></script>
+  <script src="visuals/giphy.js"></script>
+  <script src="visuals/blocks.js"></script>
+  <script src="visuals/grid.js"></script>
+  <script src="visuals/trail.js"></script>
+  <script src="visuals/isocubes.js"></script>
+  <script src="visuals/bouncy.js"></script>
+  <script src="visuals/twirlz.js"></script>
+  <script src="visuals/bubbles.js"></script>
+  <script src="visuals/branches.js"></script>
+  <script src="visuals/particle_drawings.js"></script>
+  <script src="visuals/particle_machine.js"></script>
+  <script src="visuals/four_dots.js"></script>
+  <script src="visuals/delayed_lerp_points2c.js"></script>
+  <script src="visuals/delayed_lerp_points8.js"></script>
+  <script src="visuals/delayed_lerp_points7.js"></script>
+  <script src="visuals/delayed_lerp_points7b.js"></script>
+  <script src="visuals/delayed_lerp_points_1600.js"></script>
+  <script src="visuals/patterns2.js"></script>
+  <script src="visuals/wall_drawing_26.js"></script>
+  <script src="visuals/self_avoiding_walk_3d.js"></script>
+  <script src="visuals/cubes_token_sha.js"></script>
+  <script src="visuals/led_grid.js"></script>
+  <script src="visuals/gallery.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
