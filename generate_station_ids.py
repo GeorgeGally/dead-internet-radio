@@ -28,15 +28,13 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 
 VOICES = [
-    # standard
-    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+    # American
     "af_bella", "af_nicole", "af_sarah", "af_sky",
-    "am_adam", "am_michael",
-    "bf_emma", "bf_isabella",
-    # weird
-    "am_fenrir", "am_onyx", "am_echo", "am_puck",
-    "af_aoede", "af_kore", "af_nova", "af_heart",
-    "bm_sam", "bm_peter",
+    "af_aoede", "af_kore", "af_nova", "af_heart", "af_alloy", "af_jessica", "af_river",
+    "am_adam", "am_michael", "am_fenrir", "am_onyx", "am_echo", "am_puck", "am_eric", "am_liam", "am_santa",
+    # British
+    "bf_emma", "bf_isabella", "bf_alice", "bf_lily",
+    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
 ]
 
 KOKORO_PYTHON = Path(__file__).parent / "kokoro" / ".venv" / "bin" / "python3"
@@ -259,7 +257,7 @@ def generate_sting(caption, key=None, bpm=None):
 # ---------------------------------------------------------------------------
 
 def generate_tts(text, voice, output_path, intensity=0.3, speed=1.0):
-    """Generate TTS via announce.py."""
+    """Generate TTS via announce.py. Returns (ok, error_msg)."""
     cmd = [
         str(KOKORO_PYTHON),
         str(ANNOUNCE_SCRIPT),
@@ -270,10 +268,15 @@ def generate_tts(text, voice, output_path, intensity=0.3, speed=1.0):
         "--speed", str(speed),
     ]
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
-        return output_path.exists() and output_path.stat().st_size > 100
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+        ok = output_path.exists() and output_path.stat().st_size > 100
+        return ok, "" if ok else "output missing or empty"
+    except subprocess.CalledProcessError as e:
+        return False, e.stderr.strip() or f"exit code {e.returncode}"
+    except FileNotFoundError:
+        return False, "Kokoro python not found"
+    except subprocess.TimeoutExpired:
+        return False, "TTS timed out"
 
 
 # ---------------------------------------------------------------------------
@@ -385,12 +388,21 @@ def main():
 
     pool = [(t, "id") for t in ids] + [(t, "jingle") for t in jingles]
     random.shuffle(pool)
-    pool = pool[:args.count]
+    pool = pool[:max(args.count * 2, len(pool))]
+
+    fallback_pool = [(t, "id") for t in FALLBACK_IDS] + [(t, "jingle") for t in FALLBACK_JINGLES]
+    random.shuffle(fallback_pool)
+    fi = 0
 
     total = 0
     failed = 0
 
-    for text, kind in pool:
+    while total < args.count and (pool or fi < len(fallback_pool)):
+        if not pool:
+            pool = fallback_pool[fi:]
+            fi = len(fallback_pool)
+        text, kind = pool.pop(0)
+
         slug = "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")[:30]
         out_path = args.output / f"{kind}-{slug}.wav"
 
@@ -411,19 +423,38 @@ def main():
             else:
                 print(" (caption failed)", flush=True)
 
-        # 2. Generate TTS
+        # 2. Sometimes extend ID text with a jingle tagline when music plays
+        extra_tag = None
+        if sting_path and kind == "id" and jingles and random.random() < 0.55:
+            extra_tag = random.choice(jingles)
+            text = f"{text}... {extra_tag}."
+            slug = "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")[:40]
+            print(f"    Tagline: \"{extra_tag}\"")
+
+        # 3. Generate TTS (retry with different voice on failure)
         voice_path = args.output / ".tmp" / f"voice-{slug}.wav"
-        speed = random.uniform(0.8, 1.25)
-        intensity = random.uniform(0.2, 0.7)
-        print(f"    TTS [{voice}] spd={speed:.2f} int={intensity:.2f}...", end="", flush=True)
-        tts_ok = generate_tts(text, voice, voice_path, intensity=intensity, speed=speed)
+        tts_ok = False
+        tts_retries = 3
+        tts_error = ""
+        for attempt in range(tts_retries):
+            if attempt > 0:
+                voice = random.choice(VOICES)
+                speed = random.uniform(0.85, 1.15)
+                intensity = random.uniform(0.2, 0.5)
+            else:
+                speed = random.uniform(0.8, 1.25)
+                intensity = random.uniform(0.2, 0.7)
+            print(f"    TTS [{voice}] spd={speed:.2f} int={intensity:.2f}...", end="", flush=True)
+            tts_ok, tts_error = generate_tts(text, voice, voice_path, intensity=intensity, speed=speed)
+            if tts_ok:
+                print(" OK")
+                break
+            print(f" FAILED ({tts_error})")
         if not tts_ok:
-            print(" FAILED")
             failed += 1
             continue
-        print(" OK")
 
-        # 3. Mix or TTS-only
+        # 4. Mix or TTS-only
         if sting_path:
             sting_after = random.random() < 0.3
             mode = "sting-after" if sting_after else "sting-bed"

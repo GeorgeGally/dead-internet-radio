@@ -1,6 +1,94 @@
 {
   "shows": [
     {
+      "id": "afternoon-drive-time-berlin-slow-dark-minimal-tech-20260620-165843",
+      "name": "Midafternoon Machine Pulse",
+      "showName": "Midafternoon Machine Pulse",
+      "timestamp": "20260620-165843",
+      "djName": "Circuit",
+      "trackCount": 1,
+      "playlist": "shows/afternoon-drive-time-berlin-slow-dark-minimal-tech-20260620-165843/playlist.json",
+      "mixFile": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.mp3",
+      "mixCues": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-berlin-slow-dark-minimal-tech-20260620-200453",
+      "name": "Berlin Grid Hours",
+      "showName": "Berlin Grid Hours",
+      "timestamp": "20260620-200453",
+      "djName": "Echo",
+      "trackCount": 6,
+      "playlist": "shows/afternoon-drive-time-berlin-slow-dark-minimal-tech-20260620-200453/playlist.json",
+      "mixFile": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.mp3",
+      "mixCues": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-in-the-snow-slow-dark-minimal-20260621-145221",
+      "name": "Winter Transit Loop",
+      "showName": "Winter Transit Loop",
+      "timestamp": "20260621-145221",
+      "djName": "Synthia",
+      "trackCount": 3,
+      "playlist": "shows/afternoon-drive-time-in-the-snow-slow-dark-minimal-20260621-145221/playlist.json",
+      "mixFile": "audio/frost-memory-valve-control-deep-layer-edge-cases-decay-pattern-afternoon-drive-time-in-the-snow-slow-dark-minimal-techno.mp3",
+      "mixCues": "audio/frost-memory-valve-control-deep-layer-edge-cases-decay-pattern-afternoon-drive-time-in-the-snow-slow-dark-minimal-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-in-the-snow-slow-dark-minimal-20260621-154919",
+      "name": "Static Frost Descent",
+      "showName": "Static Frost Descent",
+      "timestamp": "20260621-154919",
+      "djName": "Synthia",
+      "trackCount": 6,
+      "playlist": "shows/afternoon-drive-time-in-the-snow-slow-dark-minimal-20260621-154919/playlist.json",
+      "mixFile": "audio/frost-memory-valve-control-deep-layer-edge-cases-decay-pattern-afternoon-drive-time-in-the-snow-slow-dark-minimal-techno.mp3",
+      "mixCues": "audio/frost-memory-valve-control-deep-layer-edge-cases-decay-pattern-afternoon-drive-time-in-the-snow-slow-dark-minimal-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-lonely-berlin-minimal-lofi-ar-20260617-055953",
+      "name": "Berlin Afternoon Ghost",
+      "showName": "Berlin Afternoon Ghost",
+      "timestamp": "20260617-055953",
+      "djName": "Blade",
+      "trackCount": 1,
+      "playlist": "shows/afternoon-drive-time-lonely-berlin-minimal-lofi-ar-20260617-055953/playlist.json",
+      "mixFile": "audio/firmware-echo-circuit-grave-grid-nerve-signal-drift-radar-hail-afternoon-drive-time-lonely-berlin-minimal-lofi-arp-techno.mp3",
+      "mixCues": "audio/firmware-echo-circuit-grave-grid-nerve-signal-drift-radar-hail-afternoon-drive-time-lonely-berlin-minimal-lofi-arp-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-lonely-berlin-minimal-lofi-ar-20260617-062929",
+      "name": "Empty U-Bahn Signal",
+      "showName": "Empty U-Bahn Signal",
+      "timestamp": "20260617-062929",
+      "djName": "Circuit",
+      "trackCount": 6,
+      "playlist": "shows/afternoon-drive-time-lonely-berlin-minimal-lofi-ar-20260617-062929/playlist.json",
+      "mixFile": "audio/firmware-echo-circuit-grave-grid-nerve-signal-drift-radar-hail-afternoon-drive-time-lonely-berlin-minimal-lofi-arp-techno.mp3",
+      "mixCues": "audio/firmware-echo-circuit-grave-grid-nerve-signal-drift-radar-hail-afternoon-drive-time-lonely-berlin-minimal-lofi-arp-techno.cues.json"
+    },
+    {
+      "id": "afternoon-drive-time-lonely-slomo-disco-20260617-051100",
+      "name": "Monochrome Disco Drift",
+      "showName": "Monochrome Disco Drift",
+      "timestamp": "20260617-051100",
+      "djName": "Static",
+      "trackCount": 6,
+      "playlist": "shows/afternoon-drive-time-lonely-slomo-disco-20260617-051100/playlist.json",
+      "mixFile": "audio/static-bureau-grid-failure-waveform-decay-terminal-7-datacorp-fm-afternoon-drive-time-lonely-slomo-disco.mp3",
+      "mixCues": "audio/static-bureau-grid-failure-waveform-decay-terminal-7-datacorp-fm-afternoon-drive-time-lonely-slomo-disco.cues.json"
+    },
+    {
+      "id": "electronic-robots-rock-n-roll-friday-night-20260622-124110",
+      "name": "Robot Synth Friday",
+      "showName": "Robot Synth Friday",
+      "timestamp": "20260622-124110",
+      "djName": "Neon",
+      "trackCount": 6,
+      "playlist": "shows/electronic-robots-rock-n-roll-friday-night-20260622-124110/playlist.json",
+      "mixFile": "audio/the-archive-sync-the-void-projection-celeste-damp-cipher-core-nox-nexus-electronic-robots-rock-n-roll-friday-night.mp3",
+      "mixCues": "audio/the-archive-sync-the-void-projection-celeste-damp-cipher-core-nox-nexus-electronic-robots-rock-n-roll-friday-night.cues.json"
+    },
+    {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260614-180406",
       "name": "Late Night Ambient Cinematic Slomo Folk Disco",
       "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
@@ -34,15 +122,37 @@
       "mixCues": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.cues.json"
     },
     {
+      "id": "late-night-ambient-melancholic-cinematic-slomo-dis-20260616-223340",
+      "name": "Neon Womb Drift",
+      "showName": "Neon Womb Drift",
+      "timestamp": "20260616-223340",
+      "djName": "Neon",
+      "trackCount": 6,
+      "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-dis-20260616-223340/playlist.json",
+      "mixFile": "audio/static-bureau-grid-failure-terminal-7-waveform-decay-cold-storage-late-night-ambient-melancholic-cinematic-slomo-disco.mp3",
+      "mixCues": "audio/static-bureau-grid-failure-terminal-7-waveform-decay-cold-storage-late-night-ambient-melancholic-cinematic-slomo-disco.cues.json"
+    },
+    {
       "id": "late-night-ambient-melancholic-cinematic-slomo-fol-20260616-205718",
       "name": "Lunar Echoes Fade",
       "showName": "Lunar Echoes Fade",
       "timestamp": "20260616-205718",
       "djName": "Ghost",
-      "trackCount": 1,
+      "trackCount": 10,
       "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-fol-20260616-205718/playlist.json",
-      "mixFile": null,
-      "mixCues": null
+      "mixFile": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.cues.json"
+    },
+    {
+      "id": "late-night-ambient-melancholic-cinematic-slomo-fol-20260616-215031",
+      "name": "Static Velvet Echoes",
+      "showName": "Static Velvet Echoes",
+      "timestamp": "20260616-215031",
+      "djName": "Blade",
+      "trackCount": 2,
+      "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-fol-20260616-215031/playlist.json",
+      "mixFile": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.cues.json"
     },
     {
       "id": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757",
@@ -100,6 +210,50 @@
       "mixCues": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.cues.json"
     },
     {
+      "id": "slow-sunday-folk-20260703-233249",
+      "name": "Digital Campfire Requiem",
+      "showName": "Digital Campfire Requiem",
+      "timestamp": "20260703-233249",
+      "djName": "Password123",
+      "trackCount": 1,
+      "playlist": "shows/slow-sunday-folk-20260703-233249/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
+      "id": "slow-sunday-folk-20260704-101237",
+      "name": "Echoes of Dawn",
+      "showName": "Echoes of Dawn",
+      "timestamp": "20260704-101237",
+      "djName": "Blade",
+      "trackCount": 1,
+      "playlist": "shows/slow-sunday-folk-20260704-101237/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
+      "id": "slow-sunday-folk-20260704-102500",
+      "name": "Mechanical Meadow",
+      "showName": "Mechanical Meadow",
+      "timestamp": "20260704-102500",
+      "djName": "Pixel",
+      "trackCount": 1,
+      "playlist": "shows/slow-sunday-folk-20260704-102500/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
+      "id": "sunrise-drive-time-lonely-berlin-minimal-lofi-arp-20260617-191548",
+      "name": "Empty Arp Sunrise",
+      "showName": "Empty Arp Sunrise",
+      "timestamp": "20260617-191548",
+      "djName": "Pixel",
+      "trackCount": 1,
+      "playlist": "shows/sunrise-drive-time-lonely-berlin-minimal-lofi-arp-20260617-191548/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
       "id": "sunrise-slow-deep-disco-20260616-110423",
       "name": "Sunrise Slow Deep Disco",
       "showName": "Sunrise Slow Deep Disco",
@@ -107,8 +261,8 @@
       "djName": "M3gacity",
       "trackCount": 7,
       "playlist": "shows/sunrise-slow-deep-disco-20260616-110423/playlist.json",
-      "mixFile": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.mp3",
-      "mixCues": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.cues.json"
+      "mixFile": null,
+      "mixCues": null
     }
   ]
 }

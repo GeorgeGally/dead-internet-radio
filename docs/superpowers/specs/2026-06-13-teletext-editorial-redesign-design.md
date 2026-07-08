@@ -1,8 +1,9 @@
 # Dead Internet Radio Teletext Editorial Redesign
 
 **Date:** 2026-06-13  
-**Status:** Approved design  
-**Primary reference:** Teletext Hotline advertisement
+**Status:** Archived  
+**Primary reference:** Teletext Hotline advertisement  
+**Note (2026-07-05):** This redesign was never implemented. `pages.json` generation was removed from `build_site.py` since the teletext frontend was never built.
 
 ## Objective
 

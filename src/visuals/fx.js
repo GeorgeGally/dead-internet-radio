@@ -166,9 +166,7 @@ const fxPipeline = (() => {
     gl.vertexAttribPointer(prog.loc.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(prog.loc.uTex, 0);
     gl.uniform2f(prog.loc.uRes, canvas.width, canvas.height);
-    // Dial value -> block size, matching the old CPU pixelate mapping.
-    const threshold = window.ledThreshold || 40;
-    gl.uniform1f(prog.loc.uBlock, Math.max(4, Math.round(threshold / 3)));
+    gl.uniform1f(prog.loc.uBlock, Math.max(4, window._pixelBlockSize || 16));
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 

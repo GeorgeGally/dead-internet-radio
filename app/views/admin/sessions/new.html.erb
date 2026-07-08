@@ -1,0 +1,15 @@
+<% if @error %>
+  <div class="error"><%= @error %></div>
+<% end %>
+
+<%= form_tag admin_login_path do %>
+  <div class="field">
+    <%= label_tag :username %>
+    <%= text_field_tag :username, nil, autofocus: true, autocomplete: "username" %>
+  </div>
+  <div class="field">
+    <%= label_tag :password %>
+    <%= password_field_tag :password, nil, autocomplete: "current-password" %>
+  </div>
+  <%= submit_tag "Sign in", class: "submit-btn" %>
+<% end %>

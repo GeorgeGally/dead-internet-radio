@@ -1,4 +1,6 @@
 # Dead Internet Radio — Website Requirements
+
+> **Note (2026-07-05):** The `pages.json` generation described below was removed from `build_site.py` because the teletext page rendering was never implemented in the frontend. `build_site.py` still produces `playlist.json`, `shows.json`, per-show playlists, and copies static assets.
 **Date:** 2026-06-13
 
 ---

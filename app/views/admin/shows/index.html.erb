@@ -1,0 +1,16 @@
+<h2>Shows</h2>
+
+<table>
+  <tr><th>Name</th><th>Slot</th><th>DJ</th><th>Tracks</th><th>Status</th><th>Generated</th><th></th></tr>
+  <% @shows.each do |show| %>
+    <tr>
+      <td><a href="/admin/shows/<%= show.id %>"><%= show.name || show.slot %></a></td>
+      <td><%= show.slot %></td>
+      <td><%= show.dj_name %></td>
+      <td><%= show.track_count %></td>
+      <td><span class="status-badge status-<%= show.status %>"><%= show.status %></span></td>
+      <td><%= show.generated_at&.strftime("%Y-%m-%d %H:%M") %></td>
+      <td><%= button_to "Delete", admin_show_path(show), method: :delete, data: { confirm: "Delete this show?" } %></td>
+    </tr>
+  <% end %>
+</table>

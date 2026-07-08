@@ -6,6 +6,8 @@ const visuals = (() => {
   let currentId = null;
   let onChange = null;
   const _thumbnails = new Map();
+  let prewarmToken = 0;
+  let prewarmSavedOnChange = null;
 
   let notifEl = null;
 
@@ -30,27 +32,44 @@ const visuals = (() => {
     order.push(id);
   }
 
+  function removeP5Canvases() {
+    document.querySelectorAll('canvas.p5Canvas').forEach((c) => c.remove());
+  }
+
+  function startArtwork(id, artwork) {
+    try {
+      if (artwork.start) artwork.start();
+      return true;
+    } catch (e) {
+      console.warn('Visual artwork start failed:', id, e);
+      removeP5Canvases();
+      return false;
+    }
+  }
+
   function activate(id) {
     const artwork = registry.get(id);
     if (!artwork) {
       console.warn(`Unknown visual artwork: '${id}'`);
-      return;
+      return false;
     }
-    if (currentId === id) return;
+    if (currentId === id) return true;
     if (currentId) {
       const prev = registry.get(currentId);
       if (prev.stop) prev.stop();
     }
+    currentId = null;
     // Defensive: remove orphaned p5 canvases left by an interrupted start
     // (rapid prewarm cycling of WebGL sketches can freeze a canvas in the DOM
     // with a dead draw loop). Otherwise a zombie renders over the real visual.
-    document.querySelectorAll('canvas.p5Canvas').forEach((c) => c.remove());
+    removeP5Canvases();
+    if (!startArtwork(id, artwork)) return false;
     currentId = id;
-    if (artwork.start) artwork.start();
     showNotification(artwork.name || id);
     if (onChange) onChange(id);
 
     setTimeout(() => captureThumbnail(id), 600);
+    return true;
   }
 
   function next() {
@@ -80,42 +99,87 @@ const visuals = (() => {
     }
   }
 
-  function captureThumbnail(id) {
-    try {
-      const canvases = document.querySelectorAll('canvas');
-      let found = false;
-      for (const c of canvases) {
-        if (c.id === 'block-canvas' || c.id === 'overlay-canvas' || c.id === 'fx-canvas' || c.id === 'wave') continue;
-        const display = getComputedStyle(c).display;
-        if (display === 'none') continue;
-        _thumbnails.set(id, c.toDataURL('image/jpeg', 0.3));
-        found = true;
-        break;
-      }
-      if (found) return;
-      const block = document.getElementById('block-canvas');
+  // Each visual renders through one of a few known surfaces. Guessing at
+  // "whichever canvas looks visible right now" (the old approach) is racy
+  // during rapid prewarm cycling and can silently attribute one visual's
+  // stale frame to a completely different id. Resolve deliberately instead.
+  function captureVisualCanvas(id) {
+    // Giphy composites a transparent overlay canvas over a background <img>;
+    // capturing the overlay alone yields a black JPEG (no alpha), so flatten
+    // both onto an offscreen canvas first.
+    if (id === 'giphy') {
+      const img = document.getElementById('gif-bg');
       const overlay = document.getElementById('overlay-canvas');
-      const gif = document.getElementById('gif-bg');
-      const target = (block && block.style.display !== 'none') ? block
-        : (overlay && overlay.style.display !== 'none') ? overlay
-        : gif;
-      if (target) {
-        if (target.tagName === 'CANVAS') {
-          _thumbnails.set(id, target.toDataURL('image/jpeg', 0.3));
-        } else if (target.tagName === 'IMG' && target.src) {
-          _thumbnails.set(id, target.src);
-        }
+      if (!img || !img.complete || !img.naturalWidth) return null;
+      const w = (overlay && overlay.width) || img.naturalWidth;
+      const h = (overlay && overlay.height) || img.naturalHeight;
+      const tmp = document.createElement('canvas');
+      tmp.width = w;
+      tmp.height = h;
+      const ctx = tmp.getContext('2d');
+      try {
+        ctx.drawImage(img, 0, 0, w, h);
+        if (overlay) ctx.drawImage(overlay, 0, 0, w, h);
+        return tmp.toDataURL('image/jpeg', 0.4);
+      } catch (e) {
+        return null;
       }
-    } catch (e) {}
+    }
+
+    // p5-based sketches each own a dedicated <canvas class="p5Canvas">.
+    const p5c = document.querySelector('canvas.p5Canvas');
+    if (p5c && p5c.width > 50 && p5c.height > 50 && getComputedStyle(p5c).display !== 'none') {
+      try {
+        return p5c.toDataURL('image/jpeg', 0.4);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Visuals (blocks, grid, ...) that draw straight onto the shared canvas.
+    const block = document.getElementById('block-canvas');
+    if (block && block.width > 50 && getComputedStyle(block).display !== 'none') {
+      try {
+        return block.toDataURL('image/jpeg', 0.4);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  function captureThumbnail(id) {
+    const url = captureVisualCanvas(id);
+    if (url) _thumbnails.set(id, url);
   }
 
   function random() {
     if (!order.length) return;
-    activate(order[Math.floor(Math.random() * order.length)]);
+    const startIdx = Math.floor(Math.random() * order.length);
+    for (let offset = 0; offset < order.length; offset++) {
+      if (activate(order[(startIdx + offset) % order.length])) return true;
+    }
+    return false;
+  }
+
+  function cancelPrewarm() {
+    prewarmToken++;
+    if (onChange === null) onChange = prewarmSavedOnChange;
+    prewarmSavedOnChange = null;
+    document.body.classList.remove('prewarming');
+    if (currentId) {
+      const artwork = registry.get(currentId);
+      if (artwork && artwork.stop) artwork.stop();
+    }
+    currentId = null;
+    removeP5Canvases();
   }
 
   function prewarmThumbnails() {
+    const token = ++prewarmToken;
     const savedOnChange = onChange;
+    prewarmSavedOnChange = savedOnChange;
     onChange = null;
     const savedId = currentId;
     currentId = null;
@@ -127,11 +191,13 @@ const visuals = (() => {
     let idx = 0;
 
     function next() {
+      if (token !== prewarmToken) return;
       if (idx >= order.length) {
         if (onChange === null) onChange = savedOnChange;
+        prewarmSavedOnChange = null;
         document.body.classList.remove('prewarming');
         const randId = savedId || order[Math.floor(Math.random() * order.length)];
-        activate(randId);
+        if (!activate(randId)) random();
         return;
       }
 
@@ -155,22 +221,26 @@ const visuals = (() => {
       }
       // Remove orphaned p5 canvases so we snapshot the real visual, not a
       // zombie left by a previous interrupted (WebGL) start.
-      document.querySelectorAll('canvas.p5Canvas').forEach((c) => c.remove());
+      removeP5Canvases();
       currentId = id;
       // A single failing sketch must not abort the whole prewarm chain.
       try {
         artwork.start();
       } catch (e) {
         console.warn('prewarm start failed:', id, e);
+        currentId = null;
+        removeP5Canvases();
         setTimeout(next, 10);
         return;
       }
 
       // Let the sketch render several frames before snapshotting — most are
-      // blank on frame 1 and accumulate detail over time.
+      // blank on frame 1, and sparse/particle sketches need real time to
+      // accumulate enough trail detail to read as a recognizable thumbnail.
       let frames = 0;
       const settle = () => {
-        if (frames++ < 12) { requestAnimationFrame(settle); return; }
+        if (token !== prewarmToken) return;
+        if (frames++ < 30) { requestAnimationFrame(settle); return; }
         captureThumbnail(id);
         setTimeout(next, 10);
       };
@@ -225,5 +295,5 @@ const visuals = (() => {
     ctx.restore();
   }
 
-  return { register, activate, next, prev, random, prewarmThumbnails, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  return { register, activate, next, prev, random, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
 })();

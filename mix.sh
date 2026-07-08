@@ -7,7 +7,7 @@ mix_show() {
   local show_name
   show_name=$(basename "$show_dir")
   echo "  Mixing: $show_name"
-  python3 "$DIR/djmix.py" "$show_dir" --no-opening
+  python3 "$DIR/djmix.py" "$show_dir"
 }
 
 if [ $# -eq 0 ]; then

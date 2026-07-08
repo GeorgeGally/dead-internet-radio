@@ -116,26 +116,27 @@ def get_duration(path: Path) -> float:
 
 
 def crossfade_chain(tracks: list[Path], output: Path, duration: float):
-    """Iteratively cross-fade a list of tracks into a single mix."""
+    """Cross-fade tracks with WAV intermediates."""
     if len(tracks) == 1:
-        shutil.copy2(tracks[0], output)
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(tracks[0]),
+            "-c:a", "pcm_s16le", "-ar", "44100", str(output),
+        ], check=True, capture_output=True)
         return
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-        current = tracks[0]
 
+        current = tracks[0]
         for i, track in enumerate(tracks[1:], 1):
-            next_out = tmp / f"step_{i:03d}.mp3"
-            cmd = [
+            next_out = tmp / f"step_{i:03d}.wav"
+            subprocess.run([
                 "ffmpeg", "-y",
-                "-i", str(current),
-                "-i", str(track),
-                "-filter_complex", f"acrossfade=d={duration}:c1=tri:c2=tri",
-                "-c:a", "libmp3lame", "-q:a", "2",
-                str(next_out),
-            ]
-            subprocess.run(cmd, check=True, capture_output=True)
+                "-i", str(current), "-i", str(track),
+                "-filter_complex",
+                f"acrossfade=d={duration}:c1=hsin:c2=hsin",
+                "-c:a", "pcm_s16le", "-ar", "44100", str(next_out),
+            ], check=True, capture_output=True)
             current = next_out
 
         shutil.copy2(current, output)
@@ -143,8 +144,11 @@ def crossfade_chain(tracks: list[Path], output: Path, duration: float):
 
 def overlay_voices(mix_path: Path, voices: list[tuple[float, Path]],
                    output_path: Path, voice_gain: float,
-                   reverb_decay: float = 0):
-    """Overlay voices onto a mix at absolute timestamps using a single ffmpeg pass."""
+                   reverb_decay: float = 0, pre_gain_db: float = 0):
+    """Overlay voices onto a mix at absolute timestamps using a single ffmpeg pass.
+    
+    pre_gain_db: boost voice audio BEFORE mixing (compensates for amix normalization).
+    """
     if not voices:
         shutil.copy2(mix_path, output_path)
         return
@@ -160,9 +164,13 @@ def overlay_voices(mix_path: Path, voices: list[tuple[float, Path]],
         inputs.extend(["-i", str(vpath)])
         delay_ms = int(start_sec * 1000)
         tag = i + 1
-        chain = f"adelay={delay_ms}|{delay_ms}"
+        chain = ""
+        if pre_gain_db > 0:
+            chain += f"volume={pre_gain_db}dB,"
+        chain += f"adelay={delay_ms}|{delay_ms}"
         if reverb_decay > 0:
             chain += f",aecho=1:1:20|40:{reverb_decay * 0.3}|{reverb_decay * 0.15}"
+        chain += ",aformat=sample_rates=44100:channel_layouts=stereo"
         filters.append(f"[{tag}]{chain}[v{tag}]")
         mix_labels.append(f"[v{tag}]")
         mix_weights.append(str(voice_gain))
@@ -172,11 +180,11 @@ def overlay_voices(mix_path: Path, voices: list[tuple[float, Path]],
         mix_filter = ";".join(filters) + ";"
     else:
         mix_filter = ""
-    mix_filter += "".join(mix_labels) + f"amix=inputs={num}:duration=first:weights={' '.join(mix_weights)}"
+    mix_filter += "".join(mix_labels) + f"amix=inputs={num}:duration=first:dropout_transition=2:normalize=false:weights={' '.join(mix_weights)}"
 
     cmd = inputs + [
         "-filter_complex", mix_filter,
-        "-c:a", "libmp3lame", "-q:a", "2",
+        "-c:a", "pcm_s16le", "-ar", "44100",
         str(output_path),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
@@ -240,8 +248,8 @@ def main():
     parser.add_argument(
         "--station-id-gain",
         type=float,
-        default=0.6,
-        help="Station ID volume during mix (default: 0.6)",
+        default=0.7,
+        help="Station ID volume during mix (default: 0.7)",
     )
     parser.add_argument(
         "--no-opening",
@@ -331,79 +339,116 @@ def main():
     # Phase 1: Build music-only cross-faded mix (no voices, no opening)
     print("Phase 1: Cross-fading tracks...")
     with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
+        tmp = Path(tmpdir)
 
-            if len(track_nums) == 1:
-                music_mix = music[track_nums[0]]
-            else:
-                music_mix = tmp / "music_mix.mp3"
-                crossfade_chain([music[n] for n in track_nums], music_mix, cf)
+        music_mix = tmp / "music_mix.wav"
+        if len(track_nums) == 1:
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(music[track_nums[0]]),
+                "-c:a", "pcm_s16le", "-ar", "44100",
+                str(music_mix),
+            ], check=True, capture_output=True)
+        else:
+            crossfade_chain([music[n] for n in track_nums], music_mix, cf)
 
-            # Pad start of music mix so music enters at opening_offset
-            if opening_offset > 0:
-                padded = tmp / "padded_music.mp3"
-                delay_ms = int(opening_offset * 1000)
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", str(music_mix),
-                    "-af", f"adelay={delay_ms}|{delay_ms}",
-                    "-c:a", "libmp3lame", "-q:a", "2",
-                    str(padded),
-                ], check=True, capture_output=True)
-                music_mix = padded
+        # Pad start of music mix so music enters at opening_offset
+        if opening_offset > 0:
+            padded = tmp / "padded_music.wav"
+            delay_ms = int(opening_offset * 1000)
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(music_mix),
+                "-af", f"adelay={delay_ms}|{delay_ms}",
+                "-c:a", "pcm_s16le", "-ar", "44100",
+                str(padded),
+            ], check=True, capture_output=True)
+            music_mix = padded
 
-            # Phase 2: Overlay DJ voices on the padded music mix
-            print("Phase 2: Overlaying DJ voices...")
-            voice_placements = []
+        # Phase 2: Overlay DJ voices on the padded music mix
+        print("Phase 2: Overlaying DJ voices...")
+        voice_placements = []
 
-            if opening_path and not args.no_opening:
-                voice_placements.append((0.0, opening_path))
-                print(f"  Opening at 0.0s (music starts at {opening_offset:.0f}s)")
+        if opening_path and not args.no_opening:
+            voice_placements.append((0.0, opening_path))
+            print(f"  Opening at 0.0s (music starts at {opening_offset:.0f}s)")
 
-            for vn in sorted(voices.keys()):
-                if vn in mix_start:
-                    start = mix_start[vn] + args.offset
-                    voice_placements.append((start, voices[vn]))
-                    print(f"  Voice track {vn:02d} at {start:.1f}s")
+        for vn in sorted(voices.keys()):
+            if vn in mix_start:
+                start = mix_start[vn] + args.offset
+                voice_placements.append((start, voices[vn]))
+                print(f"  Voice track {vn:02d} at {start:.1f}s")
 
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            if voice_placements:
-                with_voices = tmp / "with_voices.mp3"
-                overlay_voices(music_mix, voice_placements, with_voices,
-                               args.voice_gain, args.voice_reverb)
-            else:
-                with_voices = music_mix
+        if voice_placements:
+            with_voices = tmp / "with_voices.wav"
+            overlay_voices(music_mix, voice_placements, with_voices,
+                           args.voice_gain, args.voice_reverb, pre_gain_db=5)
+        else:
+            with_voices = music_mix
 
-            # Phase 3: Overlay station IDs over the mix at lower gain
-            print("Phase 3: Overlaying station IDs...")
-            id_placements = []
-            if STATION_IDS_DIR.is_dir():
-                id_wavs = sorted(STATION_IDS_DIR.glob("*.wav"))
-                id_wavs = [f for f in id_wavs if f.stem.startswith("id-") or f.stem.startswith("jingle-")]
-                if id_wavs and mix_duration > 60:
-                    num_ids = min(random.randint(1, 3), len(id_wavs))
-                    chosen = random.sample(id_wavs, num_ids)
-                    for wav in chosen:
-                        id_dur = get_duration(wav)
-                        latest_start = max(mix_duration - id_dur - 10, mix_duration * 0.15)
-                        if latest_start <= mix_duration * 0.15:
-                            continue
-                        start = random.uniform(mix_duration * 0.15, latest_start)
-                        id_placements.append((start, wav))
-                        print(f"  Station ID at {start:.1f}s: {wav.name}")
+        # Phase 3: Overlay station IDs — during crossfades without VOs, and in
+        # quiet gaps between DJ voiceovers
+        print("Phase 3: Overlaying station IDs...")
+        id_placements = []
+        if STATION_IDS_DIR.is_dir():
+            id_wavs = sorted(STATION_IDS_DIR.glob("*.wav"))
+            id_wavs = [f for f in id_wavs if f.stem.startswith("id-") or f.stem.startswith("jingle-")]
+            if id_wavs and mix_duration > 60:
+                all_vo_times = sorted({t for t, _ in voice_placements})
 
-            if id_placements:
-                overlay_voices(with_voices, id_placements, output_path,
-                               args.station_id_gain, args.voice_reverb)
-            else:
-                shutil.copy2(with_voices, output_path)
+                def _vo_near(t: float, window: float = 2.0) -> bool:
+                    return any(abs(t - vt) < window for vt in all_vo_times)
 
-            write_id3(output_path, mix_title)
+                placements: list[tuple[float, Path]] = []
 
-            # Write cues JSON alongside the mix
-            cues_path = output_path.with_suffix(".cues.json")
-            cues_data = meta.cues(mix_start, music)
-            cues_path.write_text(json.dumps(cues_data, indent=2))
-            print(f"  Cues: {cues_path.name} ({len(cues_data)} tracks)")
+                # --- Place station IDs in crossfade windows without DJ VOs ---
+                for n in track_nums[1:]:
+                    cf_start = mix_start[n]
+                    cf_end = cf_start + cf
+                    id_mid = (cf_start + cf_end) / 2
+                    if not _vo_near(id_mid, window=cf + 2):
+                        wav = random.choice(id_wavs)
+                        placements.append((id_mid, wav))
+                        print(f"  Crossfade ID at {id_mid:.1f}s: {wav.name}")
+
+                # --- Place additional IDs randomly through the mix body ---
+                extra = random.randint(1, 3)
+                for _ in range(extra):
+                    wav = random.choice(id_wavs)
+                    id_dur = get_duration(wav)
+                    latest = max(mix_duration - id_dur - 10, mix_duration * 0.15)
+                    if latest <= mix_duration * 0.15:
+                        continue
+                    for attempt in range(20):
+                        t = random.uniform(mix_duration * 0.15, latest)
+                        if not _vo_near(t, window=id_dur + 1):
+                            placements.append((t, wav))
+                            print(f"  Station ID at {t:.1f}s: {wav.name}")
+                            break
+
+                id_placements = placements
+
+        if id_placements:
+            with_ids = tmp / "with_ids.wav"
+            overlay_voices(with_voices, id_placements, with_ids,
+                           args.station_id_gain, args.voice_reverb, pre_gain_db=0)
+        else:
+            with_ids = with_voices
+
+        # Final encode to MP3
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(with_ids),
+            "-af", "loudnorm=I=-14:TP=-1.5:LRA=7",
+            "-c:a", "libmp3lame", "-q:a", "2",
+            str(output_path),
+        ], check=True, capture_output=True)
+
+        write_id3(output_path, mix_title)
+
+        # Write cues JSON alongside the mix
+        cues_path = output_path.with_suffix(".cues.json")
+        cues_data = meta.cues(mix_start, music)
+        cues_path.write_text(json.dumps(cues_data, indent=2))
+        print(f"  Cues: {cues_path.name} ({len(cues_data)} tracks)")
 
     final_dur = get_duration(output_path)
     mins = int(final_dur // 60)

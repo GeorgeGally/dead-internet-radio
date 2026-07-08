@@ -40,3 +40,10 @@ The LLM bot responsible for generating the spoken text for DJ Drops. Driven by t
 
 ### Seed Prompt File
 A static, human-authored Markdown file in `prompts/` that defines a bot's system prompt. Seed prompt files are read-only within the pipeline — the pipeline must never write generated output back to them. Generated artifacts (Briefs, set notes) go to the Show's output directory instead.
+
+---
+
+## Player Controls
+
+### audioInputGain
+A global (`window.audioInputGain`, 0-100, default 100) that scales the raw frequency analysis data before it reaches visual sketches. Controlled by the **sensitivity** knob in the deck. Reduces visual reactivity to audio without affecting playback volume. All audio-driven visuals (LED grid, blocks, grid, giphy, sound investigations) read this value.

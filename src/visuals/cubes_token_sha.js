@@ -74,16 +74,16 @@ visuals.register('cubes_token_sha', (() => {
         if (b.z >= s / 2 || b.z <= -s / 2) b.sz *= -1;
       }
 
-      function drawBall(p) {
-        const b = p.ball;
-        p.fill(p.c);
+      function drawBall(cube) {
+        const b = cube.ball;
+        p.fill(cube.c);
         p.noStroke();
         p.translate(b.x, b.y, b.z);
         p.sphere(3);
       }
 
-      function drawCube(p) {
-        if (p.b === 1) {
+      function drawCube(cube) {
+        if (cube.b === 1) {
           p.stroke(240);
           p.noFill();
         } else {

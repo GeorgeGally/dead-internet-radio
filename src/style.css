@@ -70,12 +70,12 @@ body.prewarming #block-canvas {
   left: 0;
   right: 0;
   height: 36px;
-  background: #000;
+  background: linear-gradient(#e9e6df, #d8d4cb);
   font-family: "IBM Plex Mono", "Courier New", monospace;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.7);
+  color: #1a1a1a;
   z-index: 10;
-  transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -87,6 +87,21 @@ body.prewarming #block-canvas {
   border-bottom: 1px solid #b9b4a8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
   color: #1a1a1a;
+}
+
+#deck.ejected {
+  height: 100vh;
+  background: linear-gradient(#e9e6df, #d8d4cb);
+  border-bottom: 1px solid #b9b4a8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+  color: #1a1a1a;
+  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+#deck.ejected.closing {
+  transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .deck-hit-zone {
@@ -186,22 +201,23 @@ body.prewarming #block-canvas {
 }
 
 .mini-track {
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
   font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.6);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #817a69;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mini-dot {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: #ff5a1f;
+  background: rgba(0, 0, 0, 0.4);
   flex-shrink: 0;
-  box-shadow: 0 0 5px rgba(255, 90, 31, 0.8);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
 }
 
 /* ---- Expanded content (fades in on expand) ----
@@ -221,14 +237,40 @@ body.prewarming #block-canvas {
   pointer-events: none;
 }
 
-#deck.expanded .deck-content {
+#deck.expanded .deck-content,
+#deck.ejected .deck-content {
   opacity: 1;
 }
 
-/* Only the actual control clusters are interactive, and only while expanded;
-   the empty centered gutter passes clicks through to the logo underneath. */
-#deck.expanded .deck-content > * {
+#deck.ejected .deck-content {
+  height: 138px;
+  bottom: auto;
+}
+
+/* Stagger the three control clusters (transport, npd-stack, display) on expand */
+#deck.expanded .deck-content > *,
+#deck.ejected .deck-content > * {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: auto;
+}
+
+#deck.expanded .deck-content > *,
+#deck.ejected .deck-content > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#deck.expanded .deck-content > .deck-transport { transition-delay: 0.02s; }
+#deck.expanded .deck-content > .npd-stack     { transition-delay: 0.06s; }
+#deck.expanded .deck-content > .deck-display   { transition-delay: 0.1s; }
+
+#deck:not(.expanded):not(.ejected) .deck-content > * {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition-delay: 0s !important;
 }
 
 .deck-transport {
@@ -302,6 +344,7 @@ body.prewarming #block-canvas {
 #btn-prev    { --c: #545251; --txt: #f0ede6; }
 #btn-play    { --c: #ec6a1f; --txt: #fff; }
 #btn-next   { --c: #2f2d2b; --txt: #f0ede6; }
+#btn-gallery { --c: #8d9aa6; --txt: #fff; }
 
 /* ---- Display controls (knob + gallery) ---- */
 .display-ctrl {
@@ -483,12 +526,12 @@ body.prewarming #block-canvas {
 #np-display {
   flex: 0 0 auto;
   width: 720px;
-  height: 96px;
+  height: 76px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 22px;
-  padding: 10px 18px;
+  padding: 8px 18px;
   background: linear-gradient(160deg, #1c1c1c 0%, #101010 45%, #060606 100%);
   border-radius: 6px;
   box-shadow:
@@ -564,7 +607,7 @@ body.prewarming #block-canvas {
 .npd-line {
   position: relative;
   padding-left: 52px;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
@@ -605,14 +648,14 @@ body.prewarming #block-canvas {
   font-size: 16px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: #ff5a1f;
+  color: #c94814;
 }
 
 .npd-artist {
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
+  color: #fff;
 }
 
 .npd-artwork {
@@ -644,38 +687,37 @@ body.prewarming #block-canvas {
 
 /* ---- Gallery Drawer ---- */
 
-.gallery-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
 
-.gallery-backdrop.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.gallery-panel {
-  position: fixed;
-  top: 110px;
+.deck-gallery {
+  position: absolute;
+  top: 138px;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 21;
-  background: #d8d4cb;
-  transform: translateY(100%);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  padding: 16px 0 20px;
   overflow: hidden;
+  background: #d8d4cb;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-20px);
+  transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0s 0.3s;
+  pointer-events: none;
 }
 
-.gallery-panel.open {
+#deck.ejected .deck-gallery {
+  opacity: 1;
+  visibility: visible;
   transform: translateY(0);
+  pointer-events: auto;
+  transition: opacity 0.35s ease 0.15s, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s, visibility 0s 0s;
+}
+
+#deck.ejected.closing .deck-gallery {
+  opacity: 0;
+  transform: translateY(-16px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s ease, visibility 0s 0.25s;
 }
 
 .gallery-header {
@@ -685,6 +727,22 @@ body.prewarming #block-canvas {
   flex-shrink: 0;
   padding: 0 32px 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#deck.ejected .gallery-header {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+
+#deck.ejected.closing .gallery-header {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition-delay: 0s;
+  transition-duration: 0.15s;
 }
 
 .gallery-title {
@@ -711,19 +769,71 @@ body.prewarming #block-canvas {
   color: rgba(0, 0, 0, 0.7);
 }
 
+.gallery-section-label {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.3);
+  padding: 24px 32px 0;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#deck.ejected .gallery-section-label {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.25s;
+}
+
+#deck.ejected .gallery-section-label--art {
+  transition-delay: 0.3s;
+}
+
+#deck.ejected.closing .gallery-section-label {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition-delay: 0s;
+  transition-duration: 0.12s;
+}
+
+.gallery-section-label--art {
+  padding-top: 120px;
+  padding-bottom: 32px;
+}
+
 /* ---- Filter row ---- */
 
 .gallery-filter-row {
   display: flex;
   align-items: stretch;
-  gap: 10px;
+  gap: 32px;
   flex-shrink: 0;
-  padding: 16px 32px;
+  padding: 16px 40px;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
   -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#deck.ejected .gallery-filter-row {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.3s;
+}
+
+#deck.ejected.closing .gallery-filter-row {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition-delay: 0s;
+  transition-duration: 0.15s;
 }
 
 .gallery-filter-row::after {
@@ -732,28 +842,25 @@ body.prewarming #block-canvas {
 }
 
 .gallery-filter-card {
-  flex: 0 0 110px;
-  height: 90px;
+  flex: 0 0 168px;
+  height: 168px;
   background: none;
-  border: none;
+  border: 8px solid #fff;
   cursor: pointer;
   padding: 0;
   overflow: hidden;
   position: relative;
-  outline: 1px solid rgba(0, 0, 0, 0.1);
-  outline-offset: -1px;
-  transition: outline-color 0.25s ease, transform 0.2s ease;
-  border-radius: 6px;
+  border-radius: 4px;
+  transition: transform 0.2s ease;
 }
 
 .gallery-filter-card:hover {
-  outline-color: rgba(0, 0, 0, 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.02);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .gallery-filter-card.active {
-  outline: 2px solid #ff5a1f;
-  outline-offset: -2px;
+  border-color: #ff5a1f;
 }
 
 .gfc-pattern {
@@ -778,71 +885,98 @@ body.prewarming #block-canvas {
 
 .gfc-name {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.75);
-  padding: 14px 6px 5px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65) 30%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  line-height: 1.3;
   transition: color 0.2s ease;
+  width: 100%;
+  padding: 0 10px;
 }
 
 .gallery-filter-card.active .gfc-name {
   color: #ff5a1f;
 }
 
+.gallery-filter-card[data-text="dark"] .gfc-name {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.gallery-filter-card[data-text="dark"].active .gfc-name {
+  color: #c94814;
+}
+
 /* ---- Card grid ---- */
 
 .gallery-grid {
   display: flex;
-  gap: 10px;
-  flex: 1;
+  align-items: flex-start;
+  gap: 80px;
+  padding: 0 40px 40px;
   overflow-x: auto;
   overflow-y: hidden;
-  flex-wrap: nowrap;
-  padding: 0 32px;
+  flex-shrink: 0;
+  flex: none;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
   -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.gallery-grid::after {
-  content: '';
-  flex: 0 0 1px;
+#deck.ejected .gallery-grid {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.35s;
+}
+
+#deck.ejected.closing .gallery-grid {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition-delay: 0s;
+  transition-duration: 0.15s;
 }
 
 .gallery-card {
-  flex: 0 0 130px;
-  height: 160px;
-  border: none;
+  flex: 0 0 288px;
+  width: 288px;
+  height: 208px;
+  border: 14px solid #fff;
   font-family: "IBM Plex Mono", "Courier New", monospace;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  background: hsl(var(--card-hue), 35%, 18%);
-  outline: 1px solid rgba(0, 0, 0, 0.1);
-  outline-offset: -1px;
-  transition: outline-color 0.25s ease, transform 0.25s ease;
+  background: hsl(var(--card-hue), 30%, 10%);
+  transition: transform 0.25s ease;
   padding: 0;
   text-align: left;
   line-height: 1.3;
-  border-radius: 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: gallery-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .gallery-card:hover {
-  outline-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
 .gallery-card.active {
-  outline: 2px solid #ff5a1f;
-  outline-offset: -2px;
+  border-color: #ff5a1f;
+}
+
+@keyframes gallery-card-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .gallery-card-art {
@@ -863,15 +997,16 @@ body.prewarming #block-canvas {
   left: 0;
   right: 0;
   z-index: 1;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7) 30%);
-  padding: 20px 8px 7px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.35) 20%);
+  padding: 40px 14px 16px;
 }
 
 .gallery-card-name {
-  font-size: 10px;
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-size: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   transition: color 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
@@ -879,13 +1014,14 @@ body.prewarming #block-canvas {
 }
 
 .gallery-card-track {
-  font-size: 8px;
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-size: 13px;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.35);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-top: 1px;
+  padding-top: 2px;
   transition: color 0.2s ease;
 }
 
@@ -1180,6 +1316,70 @@ body.prewarming #block-canvas {
 @keyframes signal-drift {
   0% { background-position: 0 0, 0 0, 0 0; }
   100% { background-position: 0 6px, 0 0, 0 0; }
+}
+
+/* ---- Welcome Splash ---- */
+#welcome-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.8s ease;
+}
+
+#welcome-splash.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+
+
+#welcome-noise {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.welcome-letterbox {
+  --welcome-type-size: clamp(16px, calc(56vw / 13), 56px);
+  position: absolute;
+  left: clamp(24px, 8vw, 96px);
+  bottom: clamp(48px, 16vh, 120px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  color: #fff;
+  text-align: left;
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+#welcome-dir {
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-size: var(--welcome-type-size);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.45), 0 0 2px #fff;
+}
+
+.welcome-prompt {
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-size: var(--welcome-type-size);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

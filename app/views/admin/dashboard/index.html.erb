@@ -1,0 +1,78 @@
+<h2>Dashboard</h2>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="num"><%= @show_count %></div>
+    <div class="label">Shows</div>
+  </div>
+  <div class="stat-card">
+    <div class="num"><%= @track_count %></div>
+    <div class="label">Tracks</div>
+  </div>
+</div>
+
+<p style="margin-bottom:24px;">
+  <a href="/admin/generation/new" class="btn" style="display:inline-block;text-decoration:none;">New Mix</a>
+  <%= button_to "Build Site", admin_build_site_path, method: :post, class: "btn", style: "display:inline;margin-left:8px;", data: { confirm: "Run build_site.py to rebuild dist/?" } %>
+</p>
+
+<div class="ace-step-status">
+  <h3>ACE-Step</h3>
+  <span id="ace-step-indicator" class="status-dot unknown">○</span>
+  <span id="ace-step-text">Checking...</span>
+  <span id="ace-step-pid" style="margin-left:8px;opacity:0.6;"></span>
+  <%= button_to "Toggle", admin_ace_step_toggle_path, method: :post, class: "btn btn-sm", style: "margin-left:12px;", id: "ace-step-toggle" %>
+</div>
+
+<script>
+fetch("/admin/ace_step/status.json")
+  .then(r => r.json())
+  .then(s => {
+    const dot = document.getElementById("ace-step-indicator");
+    const txt = document.getElementById("ace-step-text");
+    const pid = document.getElementById("ace-step-pid");
+    if (s.running) {
+      dot.textContent = "●";
+      dot.className = "status-dot running";
+      txt.textContent = "Running";
+      pid.textContent = `(PID ${s.pid})`;
+    } else {
+      dot.textContent = "○";
+      dot.className = "status-dot stopped";
+      txt.textContent = "Stopped";
+      pid.textContent = "";
+    }
+  })
+  .catch(() => {
+    document.getElementById("ace-step-indicator").textContent = "?";
+    document.getElementById("ace-step-text").textContent = "Unreachable";
+  });
+</script>
+
+<h3>Recent Shows</h3>
+<table>
+  <tr><th>Name</th><th>Slot</th><th>DJ</th><th>Tracks</th><th>Status</th><th>Generated</th></tr>
+  <% @recent_shows.each do |show| %>
+    <tr>
+      <td><a href="/admin/shows/<%= show.id %>"><%= show.name || show.slot %></a></td>
+      <td><%= show.slot %></td>
+      <td><%= show.dj_name %></td>
+      <td><%= show.track_count %></td>
+      <td><span class="status-badge status-<%= show.status %>"><%= show.status %></span></td>
+      <td><%= show.generated_at&.strftime("%Y-%m-%d %H:%M") %></td>
+    </tr>
+  <% end %>
+</table>
+
+<h3 style="margin-top:24px;">Recent Jobs</h3>
+<table>
+  <tr><th>Slot</th><th>Tracks</th><th>Status</th><th>Started</th></tr>
+  <% @recent_jobs.each do |job| %>
+    <tr>
+      <td><a href="/admin/generation/<%= job.id %>"><%= job.slot %></a></td>
+      <td><%= job.track_count %></td>
+      <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
+      <td><%= job.started_at&.strftime("%H:%M") %></td>
+    </tr>
+  <% end %>
+</table>

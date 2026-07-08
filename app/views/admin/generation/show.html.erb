@@ -1,0 +1,38 @@
+<% if @job.running? %>
+  <meta http-equiv="refresh" content="5">
+  <script>window.addEventListener('load', function() { var el = document.getElementById('output-log'); if (el) el.scrollTop = el.scrollHeight; });</script>
+<% end %>
+
+<h2>Job: <%= @job.slot %></h2>
+
+<p class="meta">
+  Status: <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
+  &middot; Tracks: <%= @job.track_count %>
+  <% if @job.dj_name %>&middot; DJ: <%= @job.dj_name %><% end %>
+  <% if @job.dry_run? %>&middot; Dry run<% end %>
+  <% if @job.running? %><span style="margin-left:8px;animation:pulse 1s infinite;">&#9679;</span><% end %>
+  &middot; Started: <%= @job.started_at&.strftime("%Y-%m-%d %H:%M:%S") %>
+  &middot; Completed: <%= @job.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %>
+</p>
+
+<% if @job.running? %>
+  <p class="meta" style="color:#ff5a1f;">Running… auto-refreshing every 5s</p>
+<% end %>
+
+<% if @job.show %>
+  <p style="margin-top:12px;">
+    SHOW: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>
+  </p>
+<% end %>
+
+<% if @job.output_log.present? %>
+  <h3 style="margin:20px 0 8px;">Output</h3>
+  <pre id="output-log"><%= @job.output_log %></pre>
+<% end %>
+
+<p style="margin-top:20px;">
+  <a href="/admin/generation">Back</a>
+  <% if @job.done? %>
+    &middot; <a href="/admin/generation/new">New generation</a>
+  <% end %>
+</p>

@@ -7,3 +7,19 @@ __pycache__/
 # Compound Engineering local config
 .compound-engineering/*.local.yaml
 static.mp4
+
+# Rails
+log/
+tmp/
+vendor/bundle/
+.bundle/
+*.sqlite3
+storage/
+public/assets/
+public/packs/
+node_modules/
+.yarn/
+.yarnrc.yml
+docker-compose*.override.yml
+.gstack/
+.DS_Store

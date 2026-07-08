@@ -1,0 +1,24 @@
+<h2>Trigger Generation</h2>
+
+<%= form_tag admin_generation_index_path, method: :post do %>
+  <label for="slot">Slot (mood/description)</label>
+  <%= text_field_tag :slot, params[:slot], placeholder: "late night slow techno synths", required: true %>
+
+  <label for="track_count">Track count</label>
+  <%= number_field_tag :track_count, params[:track_count] || 4, min: 1, max: 20 %>
+
+  <label for="dj_name">DJ name (leave blank for random)</label>
+  <%= text_field_tag :dj_name, params[:dj_name], placeholder: "Kode Red" %>
+
+  <label for="crossfade">Crossfade (seconds)</label>
+  <%= number_field_tag :crossfade, params[:crossfade] || 10, min: 1, max: 30 %>
+
+  <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+    <%= check_box_tag :dry_run, "1", params[:dry_run] == "1" %>
+    Dry run (prompts only, skip ACE-Step and mixing)
+  </label>
+
+  <%= submit_tag "Generate", class: "btn" %>
+<% end %>
+
+<p class="meta">This runs the full Python pipeline (Producer, DJ, ACE-Step music, Kokoro TTS, crossfade mix). Check the job page for progress.</p>
