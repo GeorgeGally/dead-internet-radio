@@ -95,25 +95,19 @@ class AceStepManager
     end
 
     def startup_command
-      macos_script = ACE_STEP_DIR.join('start_api_server_macos.sh')
-      linux_script = ACE_STEP_DIR.join('start_api_server.sh')
-
-      if macos_script.exist? && RUBY_PLATFORM.include?('darwin')
-        [macos_script.to_s]
-      elsif linux_script.exist?
-        [linux_script.to_s]
-      else
-        ['uv', 'run', 'acestep-api', '--port', ace_step_port.to_s]
-      end
+      # Skip shell scripts — they have interactive prompts (git update check)
+      # that hang when stdin is /dev/null. Use uv directly.
+      ['uv', 'run', 'acestep-api', '--port', ace_step_port.to_s]
     end
 
     def spawn_process(cmd)
+      logfile = Rails.root.join('log', 'ace_step.log').to_s
       pid = Process.spawn(
         { 'ACESTEP_NO_INIT' => 'true', 'CHECK_UPDATE' => 'false' },
         *cmd,
         chdir: ACE_STEP_DIR.to_s,
         pgroup: true,
-        %i[out err] => '/dev/null'
+        %i[out err] => [logfile, 'a']
       )
       Process.detach(pid)
       pid
