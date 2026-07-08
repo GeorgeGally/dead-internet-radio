@@ -1,36 +1,38 @@
-<div class="tx-form">
-  <h2>Trigger Generation</h2>
+<div class="tx-page">
+  <div class="tx-form">
+    <h2>Trigger Generation</h2>
 
-  <%= form_tag admin_generation_index_path, method: :post do %>
-    <div class="field">
-      <%= label_tag :slot, "Slot (mood/description)" %>
-      <%= text_field_tag :slot, params[:slot], placeholder: "late night slow techno synths", required: true %>
-    </div>
-
-    <div class="field-row">
+    <%= form_tag admin_generation_index_path, method: :post do %>
       <div class="field">
-        <%= label_tag :track_count, "Tracks" %>
-        <%= number_field_tag :track_count, params[:track_count] || 4, min: 1, max: 20 %>
+        <%= label_tag :slot, "Slot (mood/description)" %>
+        <%= text_field_tag :slot, params[:slot], placeholder: "late night slow techno synths", required: true %>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <%= label_tag :track_count, "Tracks" %>
+          <%= number_field_tag :track_count, params[:track_count] || 4, min: 1, max: 20 %>
+        </div>
+
+        <div class="field">
+          <%= label_tag :crossfade, "Crossfade (s)" %>
+          <%= number_field_tag :crossfade, params[:crossfade] || 10, min: 1, max: 30 %>
+        </div>
       </div>
 
       <div class="field">
-        <%= label_tag :crossfade, "Crossfade (s)" %>
-        <%= number_field_tag :crossfade, params[:crossfade] || 10, min: 1, max: 30 %>
+        <%= label_tag :dj_name, "DJ name (leave blank for random)" %>
+        <%= text_field_tag :dj_name, params[:dj_name], placeholder: "Kode Red" %>
       </div>
-    </div>
 
-    <div class="field">
-      <%= label_tag :dj_name, "DJ name (leave blank for random)" %>
-      <%= text_field_tag :dj_name, params[:dj_name], placeholder: "Kode Red" %>
-    </div>
+      <label class="field-check">
+        <%= check_box_tag :dry_run, "1", params[:dry_run] == "1" %>
+        Dry run — prompts only, skip ACE-Step and mixing
+      </label>
 
-    <label class="field-check">
-      <%= check_box_tag :dry_run, "1", params[:dry_run] == "1" %>
-      Dry run — prompts only, skip ACE-Step and mixing
-    </label>
+      <%= submit_tag "TRANSMIT", class: "btn btn-submit" %>
+    <% end %>
 
-    <%= submit_tag "TRANSMIT", class: "btn btn-submit" %>
-  <% end %>
-
-  <p class="meta">This runs the full Python pipeline (Producer, DJ, ACE-Step music, Kokoro TTS, crossfade mix). Check the job page for progress.</p>
+    <p class="meta">This runs the full Python pipeline (Producer, DJ, ACE-Step music, Kokoro TTS, crossfade mix). Check the job page for progress.</p>
+  </div>
 </div>

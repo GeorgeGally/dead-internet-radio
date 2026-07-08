@@ -169,65 +169,75 @@
     .meta { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 6px; }
     code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(0,0,0,0.06); padding: 1px 6px; border-radius: 3px; font-size: 13px; }
 
+    .tx-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 80px);
+    }
     .tx-form {
-      max-width: 520px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: 600px;
     }
     .tx-form h2 {
       color: #1a1a1a;
-      margin-bottom: 28px;
+      margin-bottom: 36px;
       text-align: center;
+      font-size: 28px;
     }
     .tx-form form { margin: 0; }
     .tx-form label {
       color: rgba(0,0,0,0.45);
       display: block;
-      font-size: 13px;
+      font-size: 15px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .tx-form input, .tx-form select, .tx-form textarea {
       background: #e9e6df;
       border: 1px solid rgba(0,0,0,0.12);
       color: #1a1a1a;
       width: 100%;
-      font-size: 16px;
-      padding: 12px 14px;
+      font-size: 20px;
+      padding: 14px 16px;
     }
     .tx-form input:focus, .tx-form select:focus, .tx-form textarea:focus {
       outline: none;
       border-color: #ff5a1f;
       background: #e9e6df;
     }
-    .tx-form .field { margin-bottom: 18px; }
+    .tx-form .field { margin-bottom: 22px; }
     .tx-form .field-row {
       display: flex;
-      gap: 16px;
+      gap: 20px;
     }
     .tx-form .field-row .field { flex: 1; }
     .tx-form .field-check {
       display: flex !important;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 24px;
+      gap: 10px;
+      margin-bottom: 28px;
       cursor: pointer;
       color: rgba(0,0,0,0.5) !important;
-      font-size: 14px !important;
+      font-size: 16px !important;
     }
-    .tx-form .field-check input[type="checkbox"] { width: auto; }
+    .tx-form .field-check input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
     .btn-submit {
       display: block;
       width: 100%;
-      padding: 16px;
-      font-size: 16px;
+      padding: 18px;
+      font-size: 18px;
       letter-spacing: 0.15em;
       background: #1a1a1a;
       color: #d8d4cb;
       font-weight: 600;
     }
     .btn-submit:hover { opacity: 0.85; }
-    .tx-form .meta { text-align: center; color: rgba(0,0,0,0.3); font-size: 13px; }
+    .tx-form .meta { text-align: center; color: rgba(0,0,0,0.3); font-size: 15px; margin-top: 12px; }
   </style>
 </head>
 <body>
