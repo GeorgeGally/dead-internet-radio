@@ -3,36 +3,43 @@
   <script>window.addEventListener('load', function() { var el = document.getElementById('output-log'); if (el) el.scrollTop = el.scrollHeight; });</script>
 <% end %>
 
-<h2>Job: <%= @job.slot %></h2>
+<div class="tx-page">
+  <div class="job-detail">
+    <h2>Job: <%= @job.slot %></h2>
 
-<p class="meta">
-  Status: <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
-  &middot; Tracks: <%= @job.track_count %>
-  <% if @job.dj_name %>&middot; DJ: <%= @job.dj_name %><% end %>
-  <% if @job.dry_run? %>&middot; Dry run<% end %>
-  <% if @job.running? %><span style="margin-left:8px;animation:pulse 1s infinite;">&#9679;</span><% end %>
-  &middot; Started: <%= @job.started_at&.strftime("%Y-%m-%d %H:%M:%S") %>
-  &middot; Completed: <%= @job.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %>
-</p>
+    <div class="job-info">
+      <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
+      <span><%= @job.track_count %> tracks</span>
+      <% if @job.dj_name %><span>DJ: <%= @job.dj_name %></span><% end %>
+      <% if @job.dry_run? %><span>Dry run</span><% end %>
+      <% if @job.running? %><span class="pulse-dot">&#9679;</span><% end %>
+    </div>
 
-<% if @job.running? %>
-  <p class="meta" style="color:#ff5a1f;">Running… auto-refreshing every 5s</p>
-<% end %>
+    <div class="job-times">
+      <span>Started: <%= @job.started_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+      <span>Completed: <%= @job.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></span>
+    </div>
 
-<% if @job.show %>
-  <p style="margin-top:12px;">
-    SHOW: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>
-  </p>
-<% end %>
+    <% if @job.running? %>
+      <p class="job-running">Running… auto-refreshing every 5s</p>
+    <% end %>
 
-<% if @job.output_log.present? %>
-  <h3 style="margin:20px 0 8px;">Output</h3>
-  <pre id="output-log"><%= @job.output_log %></pre>
-<% end %>
+    <% if @job.show %>
+      <p class="job-show-link">
+        Show: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>
+      </p>
+    <% end %>
 
-<p style="margin-top:20px;">
-  <a href="/admin/generation">Back</a>
-  <% if @job.done? %>
-    &middot; <a href="/admin/generation/new" class="btn" style="display:inline;text-decoration:none;font-size:11px;padding:6px 14px;">New generation</a>
-  <% end %>
-</p>
+    <% if @job.output_log.present? %>
+      <h3>Output</h3>
+      <pre id="output-log"><%= @job.output_log %></pre>
+    <% end %>
+
+    <div class="job-actions">
+      <a href="/admin/generation" class="btn">&larr; Back</a>
+      <% if @job.done? %>
+        <a href="/admin/generation/new" class="btn">+ New generation</a>
+      <% end %>
+    </div>
+  </div>
+</div>

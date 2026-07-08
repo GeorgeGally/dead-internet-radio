@@ -14,7 +14,7 @@ class GenerationJob < ApplicationRecord
   end
 
   def crossfade
-    options&.dig('crossfade').presence || 10
+    options&.dig('crossfade').presence || 5
   end
 
   def dry_run?
