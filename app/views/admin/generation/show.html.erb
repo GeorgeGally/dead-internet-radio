@@ -1,16 +1,89 @@
 <% if @job.running? %>
   <meta http-equiv="refresh" content="5">
-  <script>window.addEventListener('load', function() { var el = document.getElementById('output-log'); if (el) el.scrollTop = el.scrollHeight; });</script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var el = document.getElementById('output-log');
+      if (el) el.scrollTop = el.scrollHeight;
+      pollProgress();
+    });
+    function pollProgress() {
+      fetch('/admin/generation/<%= @job.id %>/progress')
+        .then(function(r) { return r.json(); })
+        .then(function(p) {
+          var showEl = document.getElementById('p-show-name');
+          var djEl = document.getElementById('p-dj-name');
+          var listEl = document.getElementById('p-track-list');
+          var voEl = document.getElementById('p-vo-list');
+          if (showEl && p.show_name) showEl.textContent = p.show_name;
+          if (djEl && p.dj_name) djEl.textContent = p.dj_name;
+          if (listEl && p.tracks) {
+            var html = '';
+            for (var i = 1; i <= (p.total_tracks || 0); i++) {
+              var t = p.tracks[i] || null;
+              if (!t) {
+                html += '<li class="track-pending"><span class="track-label">Track ' + i + '</span></li>';
+              } else if (t.status === 'generating') {
+                var pct = 0;
+                if (t.elapsed_s && t.estimated_s && t.estimated_s > 0) {
+                  pct = Math.min(95, Math.round(t.elapsed_s / t.estimated_s * 100));
+                } else if (t.elapsed_s) {
+                  pct = Math.min(95, Math.round(t.elapsed_s / 240 * 100));
+                }
+                html += '<li class="track-generating">';
+                html += '<span class="track-label">' + t.artist + ' — ' + t.title + '</span>';
+                html += '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>';
+                html += '</li>';
+              } else if (t.status === 'done') {
+                var url = t.file ? '/admin/generation/<%= @job.id %>/file/' + t.file : '';
+                html += '<li class="track-done">';
+                html += '<span class="track-label">' + t.artist + ' — ' + t.title + '</span>';
+                if (url) {
+                  html += '<button class="btn-play" data-url="' + url + '" onclick="playAudio(this)">\u25B6</button>';
+                  html += '<audio class="track-player" src="' + url + '" preload="none"></audio>';
+                }
+                html += '</li>';
+              }
+            }
+            listEl.innerHTML = html;
+          }
+          if (p.voiceovers_done && voEl) {
+            var vhtml = '';
+            p.voiceovers_done.forEach(function(v) {
+              var url = '/admin/generation/<%= @job.id %>/file/' + v.file;
+              vhtml += '<li class="vo-done">';
+              vhtml += '<span class="vo-text">"' + v.text + '"</span>';
+              vhtml += '<button class="btn-play" data-url="' + url + '" onclick="playAudio(this)">\u25B6</button>';
+              vhtml += '<audio class="track-player" src="' + url + '" preload="none"></audio>';
+              vhtml += '</li>';
+            });
+            voEl.innerHTML = vhtml;
+          }
+          if (p.status === 'running') setTimeout(pollProgress, 3000);
+        }).catch(function() { setTimeout(pollProgress, 5000); });
+    }
+    function playAudio(btn) {
+      var audio = btn.closest('li').querySelector('.track-player');
+      if (!audio) return;
+      if (audio.paused) {
+        audio.play();
+        btn.textContent = '\u23F8';
+        audio.addEventListener('ended', function() { btn.textContent = '\u25B6'; });
+      } else {
+        audio.pause();
+        btn.textContent = '\u25B6';
+      }
+    }
+  </script>
 <% end %>
 
 <div class="tx-page">
   <div class="job-detail">
-    <h2>Job: <%= @job.slot %></h2>
+    <h2>Job: <span id="p-show-name"><%= @job.options&.dig("show_name") || @job.slot %></span></h2>
 
     <div class="job-info">
       <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
       <span><%= @job.track_count %> tracks</span>
-      <% if @job.dj_name %><span>DJ: <%= @job.dj_name %></span><% end %>
+      <span>DJ: <span id="p-dj-name"><%= @job.options&.dig("dj_name") || @job.dj_name || "—" %></span></span>
       <% if @job.dry_run? %><span>Dry run</span><% end %>
       <% if @job.running? %><span class="pulse-dot">&#9679;</span><% end %>
     </div>
@@ -21,7 +94,56 @@
     </div>
 
     <% if @job.running? %>
-      <p class="job-running">Running… auto-refreshing every 5s</p>
+      <p class="job-running">Running…</p>
+      <div class="track-progress">
+        <h3>Tracks</h3>
+        <ol id="p-track-list">
+          <% if @job.options&.dig("tracks") %>
+            <% (1..@job.track_count).each do |i| %>
+              <% t = @job.options.dig("tracks", i.to_s) %>
+              <% if !t %>
+                <li class="track-pending"><span class="track-label">Track <%= i %></span></li>
+              <% elsif t["status"] == "done" && t["file"] %>
+                <li class="track-done">
+                  <span class="track-label"><%= t["artist"] %> — <%= t["title"] %></span>
+                  <button class="btn-play" data-url="/admin/generation/<%= @job.id %>/file/<%= t["file"] %>" onclick="playAudio(this)">▶</button>
+                  <audio class="track-player" src="/admin/generation/<%= @job.id %>/file/<%= t["file"] %>" preload="none"></audio>
+                </li>
+              <% else %>
+                <li class="track-<%= t["status"] %>">
+                  <span class="track-label"><%= t["artist"] || "Track #{i}" %> — <%= t["title"] || "..." %></span>
+                  <% if t["elapsed_s"] && t["estimated_s"].to_i > 0 %>
+                    <% pct = [(t["elapsed_s"].to_f / t["estimated_s"].to_f * 100).round, 95].min %>
+                  <% elsif t["elapsed_s"] %>
+                    <% pct = [(t["elapsed_s"].to_f / 240 * 100).round, 95].min %>
+                  <% else %>
+                    <% pct = 0 %>
+                  <% end %>
+                  <div class="progress-bar"><div class="progress-fill" style="width:<%= pct %>%"></div></div>
+                </li>
+              <% end %>
+            <% end %>
+          <% else %>
+            <% (1..@job.track_count).each do |i| %>
+              <li class="track-pending"><span class="track-label">Track <%= i %></span></li>
+            <% end %>
+          <% end %>
+        </ol>
+      </div>
+      <div class="track-progress">
+        <h3>Voiceovers</h3>
+        <ol id="p-vo-list">
+          <% if @job.options&.dig("voiceovers_done") %>
+            <% @job.options["voiceovers_done"].each do |v| %>
+              <li class="vo-done">
+                <span class="vo-text">"<%= v["text"] %>"</span>
+                <button class="btn-play" data-url="/admin/generation/<%= @job.id %>/file/<%= v["file"] %>" onclick="playAudio(this)">▶</button>
+                <audio class="track-player" src="/admin/generation/<%= @job.id %>/file/<%= v["file"] %>" preload="none"></audio>
+              </li>
+            <% end %>
+          <% end %>
+        </ol>
+      </div>
     <% end %>
 
     <% if @job.show %>
@@ -37,7 +159,7 @@
 
     <div class="job-actions">
       <a href="/admin/generation" class="btn">&larr; Back</a>
-      <% if @job.done? %>
+      <% if @job.done? || @job.failed? %>
         <a href="/admin/generation/new" class="btn">+ New generation</a>
       <% end %>
     </div>

@@ -25,7 +25,12 @@ Rails.application.routes.draw do
       end
     end
     resources :visuals, only: [:index, :update]
-    resources :generation, only: [:index, :new, :create, :show]
+    resources :generation, only: [:index, :new, :create, :show] do
+      member do
+        get :progress
+        get "file/*file_path", to: "generation#output", as: :output_file
+      end
+    end
     post "build_site", to: "dashboard#build_site", as: :build_site
     get "login", to: "sessions#new"
     post "login", to: "sessions#create"

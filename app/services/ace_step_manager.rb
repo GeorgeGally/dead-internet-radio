@@ -102,8 +102,13 @@ class AceStepManager
 
     def spawn_process(cmd)
       logfile = Rails.root.join('log', 'ace_step.log').to_s
+      env = {
+        'ACESTEP_NO_INIT' => 'true',
+        'CHECK_UPDATE' => 'false',
+        'ACESTEP_SAVE_MEMORY' => '1',
+      }
       pid = Process.spawn(
-        { 'ACESTEP_NO_INIT' => 'true', 'CHECK_UPDATE' => 'false' },
+        env,
         *cmd,
         chdir: ACE_STEP_DIR.to_s,
         pgroup: true,
@@ -111,6 +116,19 @@ class AceStepManager
       )
       Process.detach(pid)
       pid
+    end
+
+    def reinitialize!
+      uri = URI("#{ace_step_url}/v1/reinitialize")
+      http = Net::HTTP.new(uri.host, uri.port)
+      req = Net::HTTP::Post.new(uri)
+      req['Content-Type'] = 'application/json'
+      resp = http.request(req)
+      Rails.logger.info "[AceStepManager] Reinitialize: #{resp.code}"
+      resp.is_a?(Net::HTTPOK)
+    rescue => e
+      Rails.logger.warn "[AceStepManager] Reinitialize failed: #{e.message}"
+      false
     end
 
     def wait_for_healthy
