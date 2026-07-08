@@ -36,6 +36,13 @@ DJ_NAMES = [
 ]
 
 
+PROGRESS_MARKER = "[PROGRESS]"
+
+
+def emit_progress(data: dict):
+    print(f"{PROGRESS_MARKER} {json.dumps(data)}", flush=True)
+
+
 def random_dj_name() -> str:
     return random.choice(DJ_NAMES)
 
@@ -236,28 +243,42 @@ def call_ace_step(payload: dict) -> str:
         sys.exit(1)
 
 
-def poll_ace_step(task_id: str, poll_interval: int = 10, timeout: int = 600) -> dict:
+def query_ace_step(task_id: str, http_timeout: int = 10) -> dict | None:
+    body = {"task_id_list": [task_id]}
+    req = urllib.request.Request(
+        f"{ACE_STEP_URL}/query_result",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=http_timeout) as resp:
+            return json.loads(resp.read().decode())
+    except (urllib.error.URLError, urllib.error.HTTPError,
+            json.JSONDecodeError, KeyError):
+        return None
+
+
+def poll_ace_step(task_id: str, poll_interval: int = 15, timeout: int = 900,
+                  track_number: int = 0, total_tracks: int = 0, estimated_duration: int = 240) -> dict:
     start = time.time()
+    consecutive_errors = 0
     while True:
         elapsed = int(time.time() - start)
         if elapsed > timeout:
             print("  Timed out waiting for ACE-Step", file=sys.stderr)
             sys.exit(1)
-        body = {"task_id_list": [task_id]}
-        req = urllib.request.Request(
-            f"{ACE_STEP_URL}/query_result",
-            data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read().decode())
-        except Exception as e:
+
+        data = query_ace_step(task_id)
+        if data is None:
+            consecutive_errors += 1
             elapsed = int(time.time() - start)
-            print(f"  Poll error ({elapsed}s), retrying: {e}", flush=True)
-            time.sleep(poll_interval)
+            status = "busy" if consecutive_errors < 15 else "unreachable"
+            print(f"  ACE-Step {status} ({elapsed}s), retrying...", flush=True)
+            time.sleep(min(poll_interval, 30))
             continue
+
+        consecutive_errors = 0
         task = data["data"][0]
         status = task["status"]
         if status == 1:
@@ -267,6 +288,14 @@ def poll_ace_step(task_id: str, poll_interval: int = 10, timeout: int = 600) -> 
             sys.exit(1)
         elapsed = int(time.time() - start)
         print(f"  Generating... ({elapsed}s)", flush=True)
+        if track_number and total_tracks:
+            emit_progress({
+                "type": "track_progress",
+                "number": track_number,
+                "total": total_tracks,
+                "elapsed_s": elapsed,
+                "estimated_s": estimated_duration,
+            })
         time.sleep(poll_interval)
 
 
@@ -390,6 +419,7 @@ def main():
     show_meta["dj_name"] = dj_name
     (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
     print(f"   DJ: {dj_name}")
+    emit_progress({"type": "show", "show_name": show_name, "dj_name": dj_name, "slot": slot})
 
     if args.delay > 0:
         print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
@@ -574,16 +604,21 @@ def main():
                 print(f"  cd ACE-Step-1.5 && uv run acestep-api", file=sys.stderr)
                 sys.exit(1)
 
+        total = len(track_history)
         for t in track_history:
             i = t["number"]
             display_name = t["display_name"]
             song = t["payload"]
+            emit_progress({"type": "track_start", "number": i, "total": total,
+                           "title": t["title"], "artist": t["artist"]})
             print(f"4.{i} Sending track {i} to ACE-Step...", flush=True)
             task_id = call_ace_step(song)
             print(f"    Task ID: {task_id}")
 
             print(f"5.{i} Waiting for generation...", flush=True)
-            result = poll_ace_step(task_id)
+            estimated = song.get("duration", 240)
+            result = poll_ace_step(task_id, track_number=i, total_tracks=total,
+                                   estimated_duration=estimated)
             result_data = json.loads(result["result"])
             audio_path = result_data[0]["file"]
 
@@ -591,6 +626,10 @@ def main():
             print(f"6.{i} Downloading to {output_file}...", flush=True)
             download_audio(audio_path, output_file)
             print(f"   Track {i} saved to {output_file}")
+            rel = output_file.relative_to(Path.cwd())
+            emit_progress({"type": "track_done", "number": i, "total": total,
+                           "title": t["title"], "artist": t["artist"],
+                           "file": str(rel)})
         print()
 
         # --- BATCH voiceover generation ---
@@ -600,6 +639,7 @@ def main():
             voiceover_schedule.append(next_announce_at)
             next_announce_at += random.randint(1, 2)
 
+        emit_progress({"type": "voiceovers", "count": len(voiceover_schedule)})
         if voiceover_schedule:
             print(f"Announcer batch: {len(voiceover_schedule)} voiceovers...", flush=True)
             if args.delay > 0:
@@ -652,9 +692,16 @@ def main():
                 print(f"  [{atype}] \"{text[:120]}\"")
                 print(f"  Generating TTS...", flush=True)
                 generate_announcement(text, wav, intensity=0.2 + random.random() * 0.2)
+                final_file = None
                 if wav.exists() and wav.stat().st_size > 100:
-                    if not wav_to_mp3(wav, mp3):
-                        print(f"   ffmpeg not found, keeping wav", flush=True)
+                    if wav_to_mp3(wav, mp3):
+                        final_file = mp3
+                    else:
+                        final_file = wav
+                if final_file:
+                    rel = final_file.relative_to(Path.cwd())
+                    emit_progress({"type": "vo_done", "number": track_num,
+                                   "text": text[:80], "file": str(rel)})
             print()
 
     tracks_md = "\n".join(
@@ -689,6 +736,8 @@ def main():
     total_duration = sum(
         t["duration"] for t in track_history if isinstance(t.get("duration"), (int, float))
     )
+    emit_progress({"type": "complete", "show_dir": str(show_dir),
+                   "tracks": args.tracks, "total_duration_s": total_duration})
     print(f"\nDone! {args.tracks} tracks generated (~{total_duration // 60} min total)")
 
 

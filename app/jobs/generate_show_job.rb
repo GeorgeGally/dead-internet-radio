@@ -30,8 +30,8 @@ class GenerateShowJob < ApplicationJob
       cmd1 += ['--dry-run'] if gen_job.dry_run?
 
       append_log(log, gen_job, 'Running: generate.py')
-      output1 = run_and_stream(log, gen_job, cmd1, chdir: root)
-      append_log(log, gen_job, "Exit: #{$CHILD_STATUS.exitstatus}")
+      output1, exit1 = run_and_stream(log, gen_job, cmd1, chdir: root)
+      append_log(log, gen_job, "Exit: #{exit1}")
 
       show_dir = nil
       output1.each_line do |line|
@@ -39,10 +39,12 @@ class GenerateShowJob < ApplicationJob
       end
 
       if show_dir && !gen_job.dry_run?
+        # Free GPU memory between generation and mixing
+        AceStepManager.reinitialize!
         cmd2 = ['python3', 'djmix.py', show_dir, '--crossfade', gen_job.crossfade.to_s]
         append_log(log, gen_job, 'Running: djmix.py')
-        run_and_stream(log, gen_job, cmd2, chdir: root)
-        append_log(log, gen_job, "Exit: #{$CHILD_STATUS.exitstatus}")
+        _output2, exit2 = run_and_stream(log, gen_job, cmd2, chdir: root)
+        append_log(log, gen_job, "Exit: #{exit2}")
 
         append_log(log, gen_job, 'Importing into database...')
         import_show(show_dir, gen_job)
@@ -63,17 +65,19 @@ class GenerateShowJob < ApplicationJob
   def run_and_stream(log, gen_job, cmd, chdir:)
     output = +''
     line_count = 0
+    exit_status = nil
     Open3.popen2e(*cmd, chdir: chdir) do |_stdin, stdout_err, wait_thr|
       stdout_err.each_line do |line|
         output << line
         log << line.chomp
+        ProgressParser.parse(gen_job, line)
         line_count += 1
         flush_log(gen_job, log) if line_count % 3 == 0
       end
       flush_log(gen_job, log)
-      wait_thr.value
+      exit_status = wait_thr.value.exitstatus
     end
-    output
+    [output, exit_status]
   end
 
   def append_log(log, gen_job, msg)
