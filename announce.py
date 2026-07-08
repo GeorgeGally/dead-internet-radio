@@ -29,11 +29,19 @@ def apply_lofi(audio: np.ndarray, sr: int, intensity: float = 0.3) -> np.ndarray
     return audio
 
 
-def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.4) -> np.ndarray:
-    """Ring-modulator vocoder for robotic voice character."""
-    carrier_freq = 75.0
+def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.08) -> np.ndarray:
+    """Ring-modulator vocoder for robotic voice character. Applied ~15% of the time."""
+    if random.random() > 0.15:
+        return audio
+
+    carrier_freq = random.uniform(55, 95)
     t = np.arange(len(audio)) / sr
-    carrier = np.sin(2 * np.pi * carrier_freq * t)
+    carrier = (
+        np.sin(2 * np.pi * carrier_freq * t) * 0.5
+        + np.sin(2 * np.pi * carrier_freq * 2 * t) * 0.25
+        + np.sin(2 * np.pi * carrier_freq * 3 * t) * 0.125
+    )
+    carrier = carrier / np.max(np.abs(carrier))
 
     modulated = audio * carrier
 
@@ -46,7 +54,7 @@ def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.4) -> np.ndarray:
     emphasis = np.zeros_like(audio)
     emphasis[1:] = audio[1:] - 0.9 * audio[:-1]  # simple pre-emphasis
 
-    wet = modulated * 0.65 + emphasis * 0.35
+    wet = modulated * 0.6 + emphasis * 0.4
     max_wet = np.max(np.abs(wet))
     if max_wet > 0:
         wet = wet / max_wet * 0.95
@@ -54,7 +62,26 @@ def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.4) -> np.ndarray:
     return audio * (1 - mix) + wet * mix
 
 
-def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.25, decay: float = 0.4) -> np.ndarray:
+def apply_delay(audio: np.ndarray, sr: int, delay_ms: float = 400, feedback: float = 0.3, mix: float = 0.4) -> np.ndarray:
+    """Simple delay/echo effect."""
+    delay_samples = int(sr * delay_ms / 1000)
+    if delay_samples < 1:
+        return audio
+    wet = np.zeros_like(audio)
+    wet[delay_samples:] = audio[:-delay_samples]
+    if feedback > 0:
+        for i in range(1, 6):
+            tap = delay_samples * (i + 1)
+            if tap >= len(audio):
+                break
+            wet[tap:] += audio[:-tap] * (feedback ** i)
+    max_wet = np.max(np.abs(wet))
+    if max_wet > 0:
+        wet = wet / max_wet * 0.95
+    return audio * (1 - mix) + wet * mix
+
+
+def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.75, decay: float = 0.65) -> np.ndarray:
     """Simple Schroeder-style reverb using comb-like delays."""
     delays_ms = [29.7, 37.1, 41.3, 43.7]
     wet = np.zeros_like(audio)
@@ -67,7 +94,7 @@ def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.25, decay: float = 0
     return audio * (1 - mix) + wet * mix
 
 
-def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path):
+def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path, reverb_mix: float = 0.75, reverb_decay: float = 0.65, delay_ms: float = 70, delay_feedback: float = 0.15, delay_mix: float = 0.18, vocoder_mix: float = 0.08):
     model = KModel(repo_id="hexgrad/Kokoro-82M").to("cpu").eval()
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M", model=model)
 
@@ -83,8 +110,11 @@ def generate_announcement(text: str, voice: str, speed: float, intensity: float,
     audio = np.concatenate(all_audio)
 
     audio = apply_lofi(audio, 24000, intensity)
-    audio = apply_vocoder(audio, 24000)
-    audio = apply_reverb(audio, 24000)
+    if vocoder_mix > 0:
+        audio = apply_vocoder(audio, 24000, mix=vocoder_mix)
+    if delay_ms > 0:
+        audio = apply_delay(audio, 24000, delay_ms=delay_ms, feedback=delay_feedback, mix=delay_mix)
+    audio = apply_reverb(audio, 24000, mix=reverb_mix, decay=reverb_decay)
 
     max_val = np.max(np.abs(audio))
     if max_val > 0:
@@ -101,10 +131,16 @@ def main():
     parser.add_argument("--voice", "-v", help="Kokoro voice (default: bm_george)")
     parser.add_argument("--speed", "-s", type=float, default=1.0)
     parser.add_argument("--intensity", "-i", type=float, default=0.3)
+    parser.add_argument("--reverb", "-r", type=float, default=0.75, help="Reverb wet mix 0-1 (default: 0.75)")
+    parser.add_argument("--reverb-decay", "-rd", type=float, default=0.65, help="Reverb decay 0-1 (default: 0.65)")
+    parser.add_argument("--delay-ms", "-dm", type=float, default=70, help="Delay time in ms (default: 70, 0 = off)")
+    parser.add_argument("--delay-feedback", "-df", type=float, default=0.15, help="Delay feedback/gain 0-1 (default: 0.15)")
+    parser.add_argument("--delay-mix", "-dx", type=float, default=0.18, help="Delay wet mix 0-1 (default: 0.18)")
+    parser.add_argument("--vocoder-mix", "-vm", type=float, default=0.08, help="Vocoder mix 0-1 (0 = off, default: 0.08)")
     args = parser.parse_args()
 
     voice = args.voice or "bm_george"
-    generate_announcement(args.text, voice, args.speed, args.intensity, args.output)
+    generate_announcement(args.text, voice, args.speed, args.intensity, args.output, reverb_mix=args.reverb, reverb_decay=args.reverb_decay, delay_ms=args.delay_ms, delay_feedback=args.delay_feedback, delay_mix=args.delay_mix, vocoder_mix=args.vocoder_mix)
 
 
 if __name__ == "__main__":

@@ -5,12 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#000000">
   <title>Dead Internet Radio</title>
-   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <img id="gif-bg" alt="" aria-hidden="true">
+  <div id="welcome-splash">
+    <canvas id="welcome-noise" aria-hidden="true"></canvas>
+    <div class="welcome-letterbox">
+      <div id="welcome-dir">/D.I.R.</div>
+      <div class="welcome-prompt">SLICK TO START</div>
+    </div>
+    <audio id="welcome-audio" preload="auto"></audio>
+  </div>
+  <img id="gif-bg" alt="" aria-hidden="true" crossorigin="anonymous">
   <canvas id="overlay-canvas"></canvas>
   <canvas id="fx-canvas"></canvas>
   <canvas id="block-canvas"></canvas>
@@ -25,44 +35,47 @@
       <span class="mini-track" id="mini-track">—</span>
       <span class="mini-dot"></span>
     </div>
-    <div class="deck-content">
-      <div class="deck-transport">
-        <span class="ctrl"><span class="led" id="led-prev"></span><button id="btn-prev" class="abtn" title="Previous track">⏮</button></span>
-        <span class="ctrl"><span class="led" id="led-play"></span><button id="btn-play" class="abtn" title="Play / Pause">▶</button></span>
-        <span class="ctrl"><span class="led" id="led-next"></span><button id="btn-next" class="abtn" title="Next track">⏭</button></span>
-      </div>
-      <div class="npd-stack">
-        <div id="np-display">
-          <div class="npd-group">
-            <div class="npd-navpair">
-              <button class="npd-nav" id="npd-song-prev" title="Previous song">▴</button>
-              <button class="npd-nav" id="npd-song-next" title="Next song">▾</button>
-            </div>
-            <div class="npd-lines">
-              <div class="npd-line npd-track"></div>
-              <div class="npd-line npd-artist"></div>
-            </div>
-          </div>
-          <div class="npd-group">
-            <div class="npd-navpair">
-              <button class="npd-nav" id="npd-art-prev" title="Previous visual">▴</button>
-              <button class="npd-nav" id="npd-art-next" title="Next visual">▾</button>
-            </div>
-            <div class="npd-lines">
-              <div class="npd-line npd-artwork"></div>
-              <div class="npd-line npd-show"></div>
-            </div>
-          </div>
-          <canvas id="wave" class="npd-wave"></canvas>
+      <div class="deck-content">
+        <div class="deck-transport">
+          <span class="ctrl"><span class="led" id="gallery-led"></span><button id="btn-gallery" class="abtn" title="Visual gallery (g)">⏏</button></span>
+          <span class="ctrl"><span class="led" id="led-play"></span><button id="btn-play" class="abtn" title="Play / Pause">▶</button></span>
+          <span class="ctrl"><span class="led" id="led-prev"></span><button id="btn-prev" class="abtn" title="Previous track">⏮</button></span>
+          <span class="ctrl"><span class="led" id="led-next"></span><button id="btn-next" class="abtn" title="Next track">⏭</button></span>
         </div>
-        <div id="dial-readout" class="dial-readout"></div>
+        <div class="npd-stack">
+          <div id="np-display">
+            <div class="npd-group">
+              <div class="npd-navpair">
+                <button class="npd-nav" id="npd-song-prev" title="Previous song">▴</button>
+                <button class="npd-nav" id="npd-song-next" title="Next song">▾</button>
+              </div>
+              <div class="npd-lines">
+                <div class="npd-line npd-track"></div>
+                <div class="npd-line npd-artist"></div>
+              </div>
+            </div>
+            <div class="npd-group">
+              <div class="npd-navpair">
+                <button class="npd-nav" id="npd-art-prev" title="Previous visual">▴</button>
+                <button class="npd-nav" id="npd-art-next" title="Next visual">▾</button>
+              </div>
+              <div class="npd-lines">
+                <div class="npd-line npd-artwork"></div>
+                <div class="npd-line npd-show"></div>
+              </div>
+            </div>
+            <canvas id="wave" class="npd-wave"></canvas>
+          </div>
+          <div id="dial-readout" class="dial-readout"></div>
+        </div>
+        <div class="deck-display">
+          <span class="ctrl"><span class="led" id="knob-led"></span><div id="threshold-knob" class="rams-knob" title="LED cutoff"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">cutoff</div></span>
+          <span class="ctrl"><span class="led" id="sens-led"></span><div id="sensitivity-knob" class="rams-knob" title="Resonance"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">resonance</div></span>
+          <span class="ctrl"><span class="led" id="strength-led"></span><div id="strength-knob" class="rams-knob" title="Filter alpha"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">alpha</div></span>
+          <span class="ctrl"><span class="led" id="input-gain-led"></span><div id="input-gain-knob" class="rams-knob" title="Audio input gain"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">sensitivity</div></span>
+        </div>
       </div>
-      <div class="deck-display">
-        <span class="ctrl"><span class="led" id="knob-led"></span><div id="threshold-knob" class="rams-knob" title="LED threshold"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">threshold</div></span>
-        <span class="ctrl"><span class="led" id="sens-led"></span><div id="sensitivity-knob" class="rams-knob" title="Sound reactiveness"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">reactivity</div></span>
-        <span class="ctrl"><span class="led" id="gallery-led"></span><div id="gallery-toggle" class="rams-pushbtn" title="Visual gallery (g)"><div class="pushbtn-face"><span class="pushbtn-dot"></span></div></div></span>
-      </div>
-    </div>
+    <div class="deck-gallery"></div>
   </header>
 
   <audio id="player" preload="auto"></audio>

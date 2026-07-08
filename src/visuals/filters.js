@@ -11,9 +11,9 @@ const canvasFilters = (() => {
     4: { side: 'A', track: 4, colors: ['#1a3a5a', '#e06060', '#60c0e0'], pattern: 'rgb' },
     5: { side: 'B', track: 1, colors: ['#1a2a4a', '#6a8aba'], pattern: 'bars-v' },
     6: { side: 'B', track: 2, colors: ['#c04040', '#f0c040', '#40a040'], pattern: 'blocks' },
-    7: { side: 'B', track: 3, colors: ['#103030', '#40a0a0'], pattern: 'grid' },
+     7: { side: 'B', track: 3, colors: ['#666666', '#999999', '#bbbbbb'], pattern: 'blocks' },
     8: { side: 'B', track: 4, colors: ['#eeeeee', '#111111'], pattern: 'negate' },
-    9: { side: 'B', track: 5, colors: ['#1a0a00', '#e08030'], pattern: 'dots' },
+     9: { side: 'B', track: 5, colors: ['#ece4dc', '#3a1e0e'], pattern: 'dots' },
   };
 
   function coverStyles(key, w, h) {
@@ -37,7 +37,7 @@ const canvasFilters = (() => {
       case 'negate':
         return `linear-gradient(45deg, ${c1} 25%, ${c2} 25%, ${c2} 50%, ${c1} 50%, ${c1} 75%, ${c2} 75%)`;
       case 'dots':
-        return `radial-gradient(${c2} 1px, transparent 1px) 0 0 / 8px 8px, radial-gradient(${c2} 2px, transparent 2px) 4px 4px / 16px 16px, linear-gradient(${c1}, ${c1})`;
+        return `radial-gradient(${c2} 0.75px, transparent 0.75px) 0 0 / 6px 6px, radial-gradient(${c2} 1.5px, transparent 1.5px) 3px 3px / 12px 12px, linear-gradient(${c1}, ${c1})`;
       default:
         return `linear-gradient(135deg, ${c1}, ${c2})`;
     }
@@ -63,10 +63,10 @@ const canvasFilters = (() => {
   }
 
   function toggleActive(key) {
-    if (activeKeys.has(key)) {
-      activeKeys.delete(key);
+    if (activeKeys.has(key) && activeKeys.size === 1) {
+      activeKeys = new Set();
     } else {
-      activeKeys.add(key);
+      activeKeys = new Set([key]);
     }
     notifyChange();
   }
@@ -83,13 +83,36 @@ const canvasFilters = (() => {
     shaderKeys = new Set(keys);
   }
 
+  let filterStrength = 100;
+  let targetStrength = 100;
+  function setStrength(val) {
+    targetStrength = val;
+    window.filterStrength = val;
+  }
+
   function apply(ctx, w, h, frame) {
     if (!activeKeys.size) return;
+    filterStrength += (targetStrength - filterStrength) * 0.12;
+    if (Math.abs(targetStrength - filterStrength) < 0.05) filterStrength = targetStrength;
     const sorted = [...activeKeys].sort((a, b) => a - b);
+    const strength = Math.max(0, Math.min(100, filterStrength)) / 100;
+    const blend = strength < 1;
+    const before = blend ? ctx.getImageData(0, 0, w, h) : null;
     for (const key of sorted) {
       if (shaderKeys.has(key)) continue;
       const filter = registry.get(key);
       if (filter) filter.fn(ctx, w, h, frame);
+    }
+    if (blend) {
+      const after = ctx.getImageData(0, 0, w, h);
+      const b = before.data, a = after.data;
+      for (let i = 0; i < a.length; i += 4) {
+        a[i] = b[i] + (a[i] - b[i]) * strength;
+        a[i + 1] = b[i + 1] + (a[i + 1] - b[i + 1]) * strength;
+        a[i + 2] = b[i + 2] + (a[i + 2] - b[i + 2]) * strength;
+        a[i + 3] = b[i + 3] + (a[i + 3] - b[i + 3]) * strength;
+      }
+      ctx.putImageData(after, 0, 0);
     }
   }
 
@@ -201,27 +224,33 @@ const canvasFilters = (() => {
     }
     ctx.restore();
     ctx.save();
+    const resonance = (window.soundSensitivity ?? 50) / 100;
+    const vignetteAlpha = 0.08 + resonance * 0.6;
     const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(1, `rgba(0,0,0,${vignetteAlpha.toFixed(3)})`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   });
 
   register(2, 'Circle Sampling', (ctx, w, h, frame) => {
-    const block = Math.max(6, Math.round(currentThreshold / 2));
+    const resonance = (window.soundSensitivity ?? 50) / 100;
+    const cutoff = currentThreshold / 255;
+    const block = Math.max(4, Math.round(6 + cutoff * 54));
+    const brightnessMin = 15 + Math.round(resonance * 200);
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
     for (let y = 0; y < h; y += block) {
       for (let x = 0; x < w; x += block) {
         const i = (Math.round(y) * w + Math.round(x)) * 4;
         if (i >= data.length - 4) continue;
         const r = data[i], g = data[i + 1], b = data[i + 2];
-        if (r + g + b < 15) continue;
+        if (r + g + b < brightnessMin) continue;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.beginPath();
         ctx.arc(x + block / 2, y + block / 2, block * 0.42, 0, Math.PI * 2);
@@ -233,21 +262,34 @@ const canvasFilters = (() => {
 
   register(3, 'Static Noise', (ctx, w, h, frame) => {
     const intensity = Math.max(10, currentThreshold);
-    const imageData = ctx.getImageData(0, 0, w, h);
+    const noiseMax = Math.min(255, intensity * 2);
+    const resonance = (window.soundSensitivity ?? 50) / 100;
+    const grain = Math.max(1, Math.round(1 + resonance * 5));
+    const imageData = ctx.createImageData(w, h);
     const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const v = Math.floor(Math.random() * intensity * 0.5);
-      const a = 10 + Math.floor(Math.random() * intensity * 0.3);
-      const blend = a / 255;
-      data[i] = data[i] * (1 - blend) + v * blend;
-      data[i + 1] = data[i + 1] * (1 - blend) + v * blend;
-      data[i + 2] = data[i + 2] * (1 - blend) + v * blend;
+    for (let y = 0; y < h; y += grain) {
+      for (let x = 0; x < w; x += grain) {
+        const v = Math.floor(Math.random() * noiseMax);
+        const maxDy = Math.min(grain, h - y);
+        const maxDx = Math.min(grain, w - x);
+        for (let dy = 0; dy < maxDy; dy++) {
+          const row = (y + dy) * w;
+          for (let dx = 0; dx < maxDx; dx++) {
+            const i = (row + x + dx) * 4;
+            data[i] = data[i + 1] = data[i + 2] = v;
+            data[i + 3] = 255;
+          }
+        }
+      }
     }
     ctx.putImageData(imageData, 0, 0);
   });
 
   register(4, 'Chromatic Aberration', (ctx, w, h, frame) => {
-    const shift = Math.max(1, Math.round(currentThreshold / 20)) + Math.sin(frame * 0.02) * 2;
+    const resonance = (window.soundSensitivity ?? 50) / 100;
+    const baseShift = Math.max(1, Math.round(currentThreshold / 10));
+    const wobble = Math.sin(frame * 0.02) * (2 + resonance * 10);
+    const shift = baseShift + wobble;
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
     const temp = ctx.getImageData(0, 0, w, h);
@@ -267,17 +309,37 @@ const canvasFilters = (() => {
   });
 
   register(5, 'VHS Tracking', (ctx, w, h, frame) => {
-    const bandH = Math.max(2, Math.round(currentThreshold / 15)) + Math.floor(Math.sin(frame * 0.003) * 3);
-    const offset = (frame * 0.7) % (h + bandH);
-    ctx.save();
-    for (let y = -bandH + offset; y < h + bandH; y += bandH * 2 + Math.sin(frame * 0.01 + y * 0.01) * 2) {
-      const bw = w * (0.5 + Math.sin(frame * 0.005 + y * 0.02) * 0.3);
-      const bx = (w - bw) / 2;
-      ctx.globalAlpha = Math.min(0.25, 0.04 + Math.sin(frame * 0.01 + y) * 0.03 + currentThreshold / 2000);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(bx, y, bw, bandH);
+    const resonance = (window.soundSensitivity ?? 50) / 100;
+    const bandH = Math.max(4, Math.round(currentThreshold / 8));
+    const maxJitter = Math.max(2, Math.round(currentThreshold / 6));
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const src = new Uint8ClampedArray(data);
+    for (let y = 0; y < h; y += bandH) {
+      const noise = Math.sin(y * 0.3 + frame * 0.4) + Math.sin(y * 0.07 - frame * 0.15);
+      const jitter = Math.round(noise * maxJitter * (0.3 + resonance * 0.7));
+      const rowsInBand = Math.min(bandH, h - y);
+      for (let dy = 0; dy < rowsInBand; dy++) {
+        const yy = y + dy;
+        for (let x = 0; x < w; x++) {
+          const sx = Math.min(w - 1, Math.max(0, x - jitter));
+          const di = (yy * w + x) * 4;
+          const si = (yy * w + sx) * 4;
+          data[di] = src[si];
+          data[di + 1] = src[si + 1];
+          data[di + 2] = src[si + 2];
+        }
+      }
+      if (Math.random() < 0.02 + resonance * 0.08) {
+        for (let x = 0; x < w; x++) {
+          const di = (y * w + x) * 4;
+          data[di] = 255;
+          data[di + 1] = 255;
+          data[di + 2] = 255;
+        }
+      }
     }
-    ctx.restore();
+    ctx.putImageData(imageData, 0, 0);
   });
 
   register(6, 'Posterize', (ctx, w, h, frame) => {
@@ -369,7 +431,7 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold };
+  return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };
 })();
 
 canvasFilters.setupKeybindings();

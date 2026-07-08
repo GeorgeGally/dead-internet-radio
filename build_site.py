@@ -8,20 +8,9 @@ import random
 import re
 import shutil
 import sys
-import time
-import urllib.request
-import urllib.error
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = "openrouter/free"
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 OUTPUT_DIR = Path("output")
 PROMPTS_DIR = OUTPUT_DIR / "prompts"
@@ -42,145 +31,6 @@ DJ_NAMES = [
 TRACK_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.mp3$")
 PROMPT_RE = re.compile(r"^(\d+)-(.+)-dead-internet-radio\.prompt\.json$")
 DJ_VO_RE = re.compile(r"-DJ-voice-")
-
-FALLBACK_PAGES = {
-    "headlines": [
-        "COASTAL MONITORING STATION 7: NOMINAL",
-        "AUTOMATED CONTENT GENERATION CONTINUES",
-        "NEW FREQUENCIES ALLOCATED TO SECTOR 4",
-        "COUNCIL CONFIRMS 2038 MAINTENANCE PLAN",
-        "NORTHERN TERRITORIES: NO CHANGE REPORTED",
-    ],
-    "ads": [
-        {
-            "header": "RELOCATE WITH CONFIDENCE",
-            "headerColor": "red",
-            "lines": [
-                "NORTHERN TERRITORIES",
-                "SECTOR 7 COASTAL ZONE",
-                "",
-                "Average temperature: 4 C",
-                "Population: 0",
-                "Services: automated",
-                "",
-                "PROPERTY FROM 0 / NO DEPOSIT",
-                "LONG TERM LETS AVAILABLE",
-            ],
-            "footer": "CALL 0800 DEAD INTERNET",
-            "footer2": "LINES OPEN 00:00-00:00 DAILY",
-        },
-        {
-            "header": "TRAVEL SECTOR 9",
-            "headerColor": "magenta",
-            "lines": [
-                "VISIT THE EASTERN PROCESSING ZONE",
-                "BEFORE DECOMMISSION DATE",
-                "",
-                "All facilities operational",
-                "Staff: automated",
-                "Entry: unrestricted",
-                "",
-                "PACKAGES FROM 199 (NO DEPOSIT)",
-                "SUBJECT TO AVAILABILITY",
-            ],
-            "footer": "CALL 0800 DEAD INTERNET",
-            "footer2": "LINES OPEN 00:00-00:00 DAILY",
-        },
-        {
-            "header": "PUBLIC SERVICE NOTICE",
-            "headerColor": "green",
-            "lines": [
-                "DEAD INTERNET RADIO REMINDS YOU:",
-                "",
-                "Continue monitoring all channels",
-                "Report anomalies to sector admin",
-                "Maintain scheduled routines",
-                "",
-                "THE BROADCAST CONTINUES",
-                "AS PLANNED",
-                "",
-                "Thank you for your compliance",
-            ],
-            "footer": "THIS MESSAGE APPROVED BY",
-            "footer2": "SECTOR ADMINISTRATION 2035",
-        },
-    ],
-}
-
-PAGES_PROMPT = """You are the content generator for Dead Internet Radio, an automated broadcast system transmitting since 2035.
-The world is post-human. Automated systems continue running. No one is listening, but the broadcast continues.
-
-Generate teletext page content in a deadpan bureaucratic voice. Not dramatic. Not post-apocalyptic.
-Clinical. Administrative. The automation of a dead world continuing as if nothing happened.
-
-Rules:
-- Headlines: ALL CAPS, max 38 characters each, 5 items
-- Ad lines: mixed case allowed, max 36 characters each
-- Ad headerColor must be exactly one of: red, magenta, green
-- Produce exactly 3 ads with different headerColors
-- Phone numbers format: 0800 DEAD [word], hours: 00:00-00:00 DAILY
-- Tone: mundane bureaucracy, services still running, infrastructure reports, property in depopulated areas
-
-Output valid JSON only. No markdown, no extra text:
-
-{
-  "headlines": ["HEADLINE 1", "HEADLINE 2", "HEADLINE 3", "HEADLINE 4", "HEADLINE 5"],
-  "ads": [
-    {
-      "header": "SHORT HEADER",
-      "headerColor": "red",
-      "lines": ["line 1", "line 2", "...up to 10 lines"],
-      "footer": "CALL 0800 DEAD INTERNET",
-      "footer2": "LINES OPEN 00:00-00:00 DAILY"
-    }
-  ]
-}"""
-
-
-def call_llm(system_prompt: str, user_message: str) -> str:
-    for attempt in range(3):
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        body = {
-            "model": OPENROUTER_MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            "temperature": 0.9,
-        }
-        try:
-            req = urllib.request.Request(
-                OPENROUTER_URL,
-                data=json.dumps(body).encode(),
-                headers=headers,
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                result = json.loads(resp.read().decode())
-                content = result["choices"][0]["message"]["content"]
-                if content is None:
-                    raise ValueError("LLM returned null content")
-                return content
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                wait = 3 * (attempt + 1)
-                print(f"  Rate limited, retrying in {wait}s...", flush=True)
-                time.sleep(wait)
-                continue
-            print(f"  LLM call failed ({e.code}), retrying in 3s...", flush=True)
-            time.sleep(3)
-        except Exception as e:
-            if attempt < 2:
-                print(f"  {e}, retrying...", flush=True)
-                time.sleep(3)
-                continue
-            print(f"  LLM call failed: {e}", file=sys.stderr)
-            return None
-    return None
-
 
 def normalize_key(keyscale: str) -> str:
     if not keyscale:
@@ -308,6 +158,9 @@ def build_playlist(tracks):
             "lyrics": payload.get("lyrics", ""),
             "bpm": payload.get("bpm") or None,
             "key": normalize_key(payload.get("keyscale", "")),
+            "frequencyBand": payload.get("frequency_band", ""),
+            "modulationType": payload.get("modulation_type", ""),
+            "signalPath": payload.get("signal_path", ""),
         })
 
     dj_name = select_dj_name()
@@ -399,6 +252,9 @@ def find_shows():
                 "lyrics": payload.get("lyrics", ""),
                 "bpm": payload.get("bpm") or None,
                 "key": normalize_key(payload.get("keyscale", "")),
+                "frequencyBand": payload.get("frequency_band", ""),
+                "modulationType": payload.get("modulation_type", ""),
+                "signalPath": payload.get("signal_path", ""),
             })
 
         if not tracks:
@@ -497,6 +353,10 @@ def build_shows_manifest(shows: list[dict]) -> None:
                 "type": track.get("type", "track"),
                 "script": track.get("script", ""),
                 "brief": track.get("brief", ""),
+                "lyrics": track.get("lyrics", ""),
+                "frequencyBand": track.get("frequencyBand", ""),
+                "modulationType": track.get("modulationType", ""),
+                "signalPath": track.get("signalPath", ""),
             }
 
             # Attach voiceover to the track it plays over
@@ -550,39 +410,8 @@ def build_shows_manifest(shows: list[dict]) -> None:
         print(f"    {s['name']} ({s['trackCount']} tracks)")
 
 
-def generate_pages(skip_llm: bool, existing_pages_path: Path) -> dict:
-    if skip_llm:
-        if existing_pages_path.exists():
-            print("  --skip-llm: reusing existing pages.json", flush=True)
-            return json.loads(existing_pages_path.read_text())
-        print("  --skip-llm: no existing pages.json, using fallback content", flush=True)
-        return FALLBACK_PAGES
-
-    if not OPENROUTER_API_KEY:
-        print("  Warning: OPENROUTER_API_KEY not set, using fallback pages", flush=True)
-        return FALLBACK_PAGES
-
-    print("  Calling LLM for page content...", flush=True)
-    raw = call_llm(PAGES_PROMPT, "Generate teletext page content for Dead Internet Radio.")
-    if raw is None:
-        print("  LLM failed, using fallback pages", flush=True)
-        return FALLBACK_PAGES
-
-    try:
-        data = json.loads(raw)
-        assert "headlines" in data and "ads" in data
-        assert len(data["headlines"]) >= 3
-        assert len(data["ads"]) >= 1
-        return data
-    except Exception as e:
-        print(f"  LLM returned invalid JSON ({e}), using fallback", flush=True)
-        return FALLBACK_PAGES
-
-
 def main():
     parser = argparse.ArgumentParser(description="Build Dead Internet Radio website")
-    parser.add_argument("--skip-llm", action="store_true",
-                        help="Skip LLM call; reuse existing pages.json or use fallback")
     parser.add_argument("--shows-only", action="store_true",
                         help="Only scan shows and generate shows.json (skip full site build)")
     args = parser.parse_args()
@@ -602,6 +431,15 @@ def main():
     # Always copy static files (needed even in shows-only mode)
     print("Copying static assets...", flush=True)
     _build_dist_static()
+    # Copy welcome audio for Rails public/ serving
+    WELCOME_SRC = SRC_DIR / "welcome"
+    if WELCOME_SRC.exists():
+        public_welcome = Path("public") / "welcome"
+        public_welcome.mkdir(parents=True, exist_ok=True)
+        for f in WELCOME_SRC.iterdir():
+            if f.is_file():
+                shutil.copy2(f, public_welcome / f.name)
+        print(f"  welcome/ → public/welcome/", flush=True)
     print()
 
     if args.shows_only:
@@ -635,12 +473,6 @@ def main():
     print(f"  Total duration: {total_s // 60}m {total_s % 60}s")
     print()
 
-    print("Generating pages.json...", flush=True)
-    existing_pages = DIST_DIR / "pages.json"
-    pages = generate_pages(args.skip_llm, existing_pages)
-    print(f"  {len(pages.get('headlines', []))} headlines, {len(pages.get('ads', []))} ads")
-    print()
-
     print("Writing dist/...", flush=True)
     DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "audio").mkdir(exist_ok=True)
@@ -651,9 +483,7 @@ def main():
         print(f"  audio/{t['mp3'].name}", flush=True)
 
     (DIST_DIR / "playlist.json").write_text(json.dumps(playlist, indent=2))
-    (DIST_DIR / "pages.json").write_text(json.dumps(pages, indent=2))
     print("  playlist.json", flush=True)
-    print("  pages.json", flush=True)
 
     for src_file in SRC_DIR.iterdir():
         if src_file.is_file():

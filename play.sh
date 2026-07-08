@@ -10,9 +10,19 @@ echo "--- GENERATE ---"
 python3 "$DIR/generate.py" "$@"
 echo
 
+# Mix the latest show
+echo "--- MIX ---"
+LATEST=$(ls -dt "$DIR/output"/*-????????-??????/ 2>/dev/null | head -1)
+if [ -n "$LATEST" ]; then
+  python3 "$DIR/djmix.py" "$LATEST"
+else
+  echo "  No shows found to mix"
+fi
+echo
+
 # Build site
 echo "--- BUILD SITE ---"
 python3 "$DIR/build_site.py" --shows-only
 echo
 
-echo "Done. dist/ is ready."
+echo "Done. dist/ and mixes/ are ready."

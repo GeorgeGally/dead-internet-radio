@@ -1,6 +1,81 @@
 'use strict';
 
 const EPOCH = 2051222400000;
+let _welcomeActive = true;
+
+let _welcomeNoiseRaf = null;
+
+function startWelcomeNoise() {
+  const canvas = document.getElementById('welcome-noise');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let w = 0, h = 0, frame = 0;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function frameLoop() {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, w, h);
+    canvasFilters.setActive(1);
+    canvasFilters.apply(ctx, w, h, frame);
+    canvasFilters.setActive(3);
+    canvasFilters.apply(ctx, w, h, frame);
+    frame++;
+    _welcomeNoiseRaf = requestAnimationFrame(frameLoop);
+  }
+  _welcomeNoiseRaf = requestAnimationFrame(frameLoop);
+}
+
+function stopWelcomeNoise() {
+  if (_welcomeNoiseRaf) {
+    cancelAnimationFrame(_welcomeNoiseRaf);
+    _welcomeNoiseRaf = null;
+  }
+  canvasFilters.clearActive();
+}
+
+function showWelcome() {
+  const splash = document.getElementById('welcome-splash');
+  const audio = document.getElementById('welcome-audio');
+  if (!splash || !audio) return;
+
+  startWelcomeNoise();
+
+  const n = Math.floor(Math.random() * 4) + 1;
+
+  audio.src = 'welcome/welcome-' + n + '.wav';
+  audio.play().catch(() => {});
+
+  let dismissed = false;
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    stopWelcomeNoise();
+    audio.volume = 0;
+    audio.pause();
+    splash.classList.add('fade-out');
+    _welcomeActive = false;
+    setTimeout(() => {
+      visuals.cancelPrewarm();
+      visuals.random();
+      splash.style.display = 'none';
+      if (playlist && playlist.tracks.length > 0) {
+        setupAudio();
+        updateTrackInfo();
+      }
+    }, 900);
+  }
+
+  splash.addEventListener('click', dismiss, { once: true });
+  audio.addEventListener('ended', dismiss, { once: true });
+  audio.addEventListener('error', dismiss, { once: true });
+  setTimeout(dismiss, 10000);
+}
 
 const LOCAL_PREVIEW_PLAYLIST = {
   epoch: EPOCH,
@@ -95,7 +170,7 @@ function setupAudio(noSeek) {
   audio.addEventListener('ended', onTrackEnd);
 
   const tryPlay = (e) => {
-    if (e && e.target && e.target.closest && e.target.closest('.transport')) {
+    if (e && e.target && e.target.closest && (e.target.closest('.transport') || e.target.closest('.deck-transport') || e.target.closest('#btn-gallery'))) {
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       return;
     }
@@ -192,21 +267,13 @@ function updateTrackInfo() {
     }
 
     if (miniEl) {
-      const trackParts = [];
-      if (track.title) trackParts.push(track.title);
-      if (track.artist) trackParts.push(track.artist);
-      const miniParts = [];
-      if (trackParts.length) {
-        miniParts.push(trackParts.join(' · '));
-      } else {
-        miniParts.push(track.caption || track.file || '—');
-      }
-      const artworkName = track.caption || track.brief || '';
-      if (artworkName) miniParts.push(artworkName);
-      if (visName) miniParts.push(`visual: ${visName}`);
-      if (filtName && filtName !== 'none') miniParts.push(`fx: ${filtName}`);
-      miniParts.push('dir');
-      miniEl.textContent = miniParts.join('  /  ');
+      const showName = currentShowName() || '—';
+      const show = showsList.find(s => s.id === currentShowId);
+      const djName = (show && show.djName) || (playlist && playlist.djName) || '—';
+      const trackName = track.title || track.caption || track.file || '—';
+      const artistName = track.artist || '—';
+      const vName = visName || '—';
+      miniEl.textContent = `SHOW: ${showName}  · DJ: ${djName}  · TRACK: ${trackName} · ${artistName}  · VISUAL: ${vName}`;
     }
 }
 
@@ -217,11 +284,13 @@ function setupDeckRetraction() {
 
   function expand() {
     if (cooldown) return;
+    if (deck.classList.contains('ejected')) return;
     deck.classList.add('expanded');
     clearTimeout(idleTimer);
   }
 
   function scheduleRetract() {
+    if (deck.classList.contains('ejected')) return;
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       deck.classList.remove('expanded');
@@ -419,10 +488,9 @@ function setupControls() {
   const artNext = document.getElementById('npd-art-next');
   if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
   if (artNext) artNext.addEventListener('click', () => { visuals.next(); });
-  const galleryToggle = document.getElementById('gallery-toggle');
+  const galleryBtn = document.getElementById('btn-gallery');
   const galleryLed = document.getElementById('gallery-led');
-  galleryToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
+  galleryBtn.addEventListener('click', () => {
     gallery.toggle();
   });
   const origToggle = gallery.toggle;
@@ -430,10 +498,8 @@ function setupControls() {
     origToggle.call(gallery);
     const panel = document.querySelector('.gallery-panel');
     if (panel && panel.classList.contains('open')) {
-      galleryToggle.classList.add('active');
       if (galleryLed) galleryLed.classList.add('on');
     } else {
-      galleryToggle.classList.remove('active');
       if (galleryLed) galleryLed.classList.remove('on');
     }
   };
@@ -442,10 +508,8 @@ function setupControls() {
       requestAnimationFrame(() => {
         const panel = document.querySelector('.gallery-panel');
         if (panel && panel.classList.contains('open')) {
-          galleryToggle.classList.add('active');
           if (galleryLed) galleryLed.classList.add('on');
         } else {
-          galleryToggle.classList.remove('active');
           if (galleryLed) galleryLed.classList.remove('on');
         }
       });
@@ -454,10 +518,10 @@ function setupControls() {
 
   const knob = document.getElementById('threshold-knob');
   const knobLed = document.getElementById('knob-led');
-  const knobLabel = knob.parentElement.querySelector('.knob-label');
   const dialReadout = document.getElementById('dial-readout');
   let dialReadoutTimer;
-  let knobVal = 40;
+  let knobVal = 130;
+  window._cutoffVal = knobVal;
   updateKnob(knobVal);
   let knobDragging = false;
 
@@ -472,27 +536,14 @@ function setupControls() {
     'Posterize': 'levels',
     'Pixelate': 'size',
     'Color Invert': '—',
-    'LED Grid': 'threshold',
+    'LED Grid': 'cutoff',
   };
   function activeFilter() {
     const fx = canvasFilters.getActiveName ? canvasFilters.getActiveName() : 'none';
-    if (!fx || fx === 'none') return { name: null, param: 'threshold' };
+    if (!fx || fx === 'none') return { name: null, param: 'cutoff' };
     const first = fx.split(' + ')[0].split(' · ')[0];
     return { name: first, param: FILTER_PARAM[first] || 'amount' };
   }
-
-  // Persistent label under the knob always shows the active filter's param.
-  let lastFxLabel = null;
-  function syncDialLabel() {
-    const { name, param } = activeFilter();
-    const text = name ? param : 'threshold';
-    if (text === lastFxLabel) return;
-    lastFxLabel = text;
-    if (knobLabel) knobLabel.textContent = text;
-  }
-  syncDialLabel();
-  // Catches every path that changes the filter (keyboard, gallery, toggle).
-  setInterval(syncDialLabel, 200);
 
   // Transient readout under the LED screen: what the dial is affecting + amount.
   function showDialReadout() {
@@ -506,6 +557,8 @@ function setupControls() {
   }
   function updateKnob(val) {
     knobVal = Math.max(5, Math.min(255, val));
+    window._cutoffVal = knobVal;
+    window._pixelBlockSize = Math.round(knobVal * 0.3 + 4);
     const deg = ((knobVal - 5) / 250) * 300 - 150;
     knob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
     canvasFilters.setThreshold(knobVal);
@@ -514,6 +567,7 @@ function setupControls() {
     } else {
       knobLed.classList.remove('on');
     }
+    gallery.saveCurrentPreset();
   }
   knob.addEventListener('pointerdown', (e) => {
     knobDragging = true;
@@ -535,15 +589,26 @@ function setupControls() {
     updateKnob(knobVal + Math.sign(e.deltaY) * -3);
     showDialReadout();
   }, { passive: false });
+  knob.addEventListener('dblclick', () => {
+    updateKnob(130);
+    showDialReadout();
+  });
+
+  window._restoreCutoff = function(val) {
+    updateKnob(val);
+    showDialReadout();
+  };
 
   const sensKnob = document.getElementById('sensitivity-knob');
   const sensLed = document.getElementById('sens-led');
   let sensVal = 50;
+  window._resonanceVal = sensVal;
   window.soundSensitivity = sensVal;
   updateSensKnob(sensVal);
   let sensDragging = false;
   function updateSensKnob(val) {
     sensVal = Math.max(0, Math.min(100, val));
+    window._resonanceVal = sensVal;
     const deg = (sensVal / 100) * 300 - 150;
     sensKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
     window.soundSensitivity = sensVal;
@@ -552,6 +617,7 @@ function setupControls() {
     } else {
       sensLed.classList.remove('on');
     }
+    gallery.saveCurrentPreset();
   }
   sensKnob.addEventListener('pointerdown', (e) => {
     sensDragging = true;
@@ -571,16 +637,129 @@ function setupControls() {
     e.preventDefault();
     updateSensKnob(sensVal + Math.sign(e.deltaY) * -3);
   }, { passive: false });
+  sensKnob.addEventListener('dblclick', () => {
+    updateSensKnob(50);
+  });
+
+  window._restoreResonance = function(val) {
+    updateSensKnob(val);
+  };
+
+  const strengthKnob = document.getElementById('strength-knob');
+  const strengthLed = document.getElementById('strength-led');
+  let strengthVal = 100;
+  window._filterStrengthVal = strengthVal;
+  canvasFilters.setStrength(strengthVal);
+  updateStrengthKnob(strengthVal);
+  let strengthDragging = false;
+  function updateStrengthKnob(val) {
+    strengthVal = Math.max(0, Math.min(100, val));
+    window._filterStrengthVal = strengthVal;
+    const deg = (strengthVal / 100) * 300 - 150;
+    strengthKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
+    canvasFilters.setStrength(strengthVal);
+    if (strengthVal > 5) {
+      strengthLed.classList.add('on');
+    } else {
+      strengthLed.classList.remove('on');
+    }
+    gallery.saveCurrentPreset();
+  }
+  strengthKnob.addEventListener('pointerdown', (e) => {
+    strengthDragging = true;
+    strengthKnob.setPointerCapture(e.pointerId);
+    strengthKnob.classList.add('dragging');
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!strengthDragging) return;
+    updateStrengthKnob(strengthVal - e.movementY * 0.5);
+  });
+  window.addEventListener('pointerup', () => {
+    if (!strengthDragging) return;
+    strengthDragging = false;
+    strengthKnob.classList.remove('dragging');
+  });
+  strengthKnob.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    updateStrengthKnob(strengthVal + Math.sign(e.deltaY) * -3);
+  }, { passive: false });
+  strengthKnob.addEventListener('dblclick', () => {
+    updateStrengthKnob(100);
+  });
+
+  window._restoreStrength = function(val) {
+    updateStrengthKnob(val);
+  };
+
+  const inputGainKnob = document.getElementById('input-gain-knob');
+  const inputGainLed = document.getElementById('input-gain-led');
+  let inputGainVal = 100;
+  window.audioInputGain = inputGainVal;
+  updateInputGainKnob(inputGainVal);
+  let inputGainDragging = false;
+  function updateInputGainKnob(val) {
+    inputGainVal = Math.max(0, Math.min(100, val));
+    window.audioInputGain = inputGainVal;
+    const deg = (inputGainVal / 100) * 300 - 150;
+    inputGainKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
+    if (inputGainVal > 5) {
+      inputGainLed.classList.add('on');
+    } else {
+      inputGainLed.classList.remove('on');
+    }
+    gallery.saveCurrentPreset();
+  }
+  inputGainKnob.addEventListener('pointerdown', (e) => {
+    inputGainDragging = true;
+    inputGainKnob.setPointerCapture(e.pointerId);
+    inputGainKnob.classList.add('dragging');
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!inputGainDragging) return;
+    updateInputGainKnob(inputGainVal - e.movementY * 0.5);
+  });
+  window.addEventListener('pointerup', () => {
+    if (!inputGainDragging) return;
+    inputGainDragging = false;
+    inputGainKnob.classList.remove('dragging');
+  });
+  inputGainKnob.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    updateInputGainKnob(inputGainVal + Math.sign(e.deltaY) * -3);
+  }, { passive: false });
+  inputGainKnob.addEventListener('dblclick', () => {
+    updateInputGainKnob(100);
+  });
+
+  function syncFilterLeds() {
+    const hasFilter = canvasFilters.getActiveKeys().size > 0;
+    if (!hasFilter) {
+      knobLed.classList.remove('on');
+      sensLed.classList.remove('on');
+      strengthLed.classList.remove('on');
+    } else {
+      if (knobVal > 20) knobLed.classList.add('on');
+      if (sensVal > 5) sensLed.classList.add('on');
+      if (strengthVal > 5) strengthLed.classList.add('on');
+    }
+  }
 
   const origSetActive = canvasFilters.setActive;
   const origClearActive = canvasFilters.clearActive;
+  const origToggleActive = canvasFilters.toggleActive;
   canvasFilters.setActive = function(k) {
     origSetActive.call(canvasFilters, k);
     updateNowPlaying();
+    syncFilterLeds();
   };
   canvasFilters.clearActive = function() {
     origClearActive.call(canvasFilters);
     updateNowPlaying();
+    syncFilterLeds();
+  };
+  canvasFilters.toggleActive = function(k) {
+    origToggleActive.call(canvasFilters, k);
+    syncFilterLeds();
   };
 
   const audio = document.getElementById('player');
@@ -848,29 +1027,38 @@ let audioAnalysisReady = false;
   visuals.prewarmThumbnails();
   const origActivate = visuals.activate;
   visuals.activate = function(id) {
+    gallery.saveCurrentPreset();
     origActivate.call(visuals, id);
     updateTrackInfo();
+    gallery.loadPreset(id);
   };
   const origSetFilter = canvasFilters.setActive;
   canvasFilters.setActive = function(id) {
     origSetFilter.call(canvasFilters, id);
     updateTrackInfo();
+    gallery.saveCurrentPreset();
   };
   const origClearFilter = canvasFilters.clearActive;
   canvasFilters.clearActive = function() {
     origClearFilter.call(canvasFilters);
     updateTrackInfo();
+    gallery.saveCurrentPreset();
   };
   updateNowPlaying();
   setupControls();
+  gallery.saveCurrentPreset();
   setupDeckRetraction();
   setupLogoHover();
+
+  showWelcome();
 
   try {
     playlist = await loadBroadcastData();
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {
-      setupAudio();
       updateTrackInfo();
+      if (!_welcomeActive) {
+        setupAudio();
+      }
     }
   } catch (error) {
     console.warn('No playlist found');

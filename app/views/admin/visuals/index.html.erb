@@ -1,0 +1,13 @@
+<h2>Visual Modules</h2>
+
+<table>
+  <tr><th>Name</th><th>Slug</th><th>Active</th><th>Thumbnail</th></tr>
+  <% @visuals.each do |v| %>
+    <tr>
+      <td><%= v.name %></td>
+      <td><%= v.slug %></td>
+      <td><%= v.active ? "Yes" : "No" %></td>
+      <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
+    </tr>
+  <% end %>
+</table>

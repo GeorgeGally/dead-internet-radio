@@ -397,7 +397,7 @@ def main():
 
     dj_announce = call_llm(
         announcer_prompt,
-        f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, time slot, and DJ name. The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
+        f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
     ).strip().strip('"').strip("'").strip()
     print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
 
@@ -520,7 +520,7 @@ def main():
 
     # --- Process tracks (shared between batch and per-track) ---
     for i, song in enumerate(songs, 1):
-        song["duration"] = max(song.get("duration", 240), 30)
+        song["duration"] = min(max(song.get("duration", 180), 60), 360)
         track_prompt = song.pop("_prompt", dj_input)
 
         title = song.get("title", "").strip() or "Untitled"
@@ -595,10 +595,10 @@ def main():
 
         # --- BATCH voiceover generation ---
         voiceover_schedule = []
-        next_announce_at = random.randint(2, 3)
+        next_announce_at = random.randint(1, 2)
         while next_announce_at < args.tracks:
             voiceover_schedule.append(next_announce_at)
-            next_announce_at += random.randint(2, 3)
+            next_announce_at += random.randint(1, 2)
 
         if voiceover_schedule:
             print(f"Announcer batch: {len(voiceover_schedule)} voiceovers...", flush=True)
@@ -616,6 +616,7 @@ def main():
                 )
 
             vo_input = (
+                f"Show: \"{show_name}\"\n"
                 f"Slot: {slot}\n\n"
                 f"DJ name: {dj_name}\n\n"
                 f"Program brief:\n\n{brief}\n\n"

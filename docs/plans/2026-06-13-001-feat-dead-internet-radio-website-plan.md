@@ -1,8 +1,9 @@
 ---
 title: "feat: Dead Internet Radio — Teletext Broadcast Website"
-status: active
+status: archived
 date: 2026-06-13
 origin: docs/brainstorms/2026-06-13-website-requirements.md
+archived: 2026-07-05 — pages.json generation removed (frontend never implemented)
 ---
 
 ## Summary

@@ -1,0 +1,48 @@
+<h2><%= @show.name || @show.slot %></h2>
+
+<p class="meta">
+  Slot: <%= @show.slot %>
+  &middot; DJ: <%= @show.dj_name %>
+  &middot; Tracks: <%= @show.track_count %>
+  &middot; Status: <span class="status-badge status-<%= @show.status %>"><%= @show.status %></span>
+  <% if @show.mix_file %>&middot; Mix: ready<% end %>
+</p>
+
+<p style="margin:16px 0;">
+  <%= button_to "Remix", remix_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-run djmix.py on this show?" } %>
+  <%= button_to "Re‑import", reimport_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-read filesystem data into DB?" } %>
+  <%= button_to "Delete", admin_show_path(@show), method: :delete, class: "btn", style: "display:inline;background:#cc0000;", data: { confirm: "Delete this show?" } %>
+</p>
+
+<% if @show.directory %>
+  <p class="meta">Directory: <code><%= @show.directory %></code></p>
+<% end %>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Title</th>
+    <th>Artist</th>
+    <th>BPM</th>
+    <th>Key</th>
+    <th>Duration</th>
+    <th>Mix-in</th>
+  </tr>
+  <% @tracks.each do |track| %>
+    <tr>
+      <td><%= track.position %></td>
+      <td><%= track.title %></td>
+      <td><%= track.artist %></td>
+      <td><%= track.bpm %></td>
+      <td><%= track.key %></td>
+      <td><%= track.duration_ms.present? ? "#{(track.duration_ms / 1000).to_i}s" : "" %></td>
+      <td>
+        <% if track.cue_seconds %>
+          <%= "#{track.cue_seconds.round(1)}s" %>
+        <% else %>
+          —
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
+</table>
