@@ -693,7 +693,7 @@ function setupControls() {
 
   const inputGainKnob = document.getElementById('input-gain-knob');
   const inputGainLed = document.getElementById('input-gain-led');
-  let inputGainVal = 100;
+  let inputGainVal = 50;
   window.audioInputGain = inputGainVal;
   updateInputGainKnob(inputGainVal);
   let inputGainDragging = false;
@@ -702,7 +702,7 @@ function setupControls() {
     window.audioInputGain = inputGainVal;
     const deg = (inputGainVal / 100) * 300 - 150;
     inputGainKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
-    if (inputGainVal > 5) {
+    if (inputGainVal !== 50) {
       inputGainLed.classList.add('on');
     } else {
       inputGainLed.classList.remove('on');
@@ -728,7 +728,7 @@ function setupControls() {
     updateInputGainKnob(inputGainVal + Math.sign(e.deltaY) * -3);
   }, { passive: false });
   inputGainKnob.addEventListener('dblclick', () => {
-    updateInputGainKnob(100);
+    updateInputGainKnob(50);
   });
 
   function syncFilterLeds() {
