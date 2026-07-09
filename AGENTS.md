@@ -39,6 +39,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 - FFmpeg `amix` defaults to `normalize=true`. For controlled overlays use `normalize=false`, then normalize final output with `loudnorm=I=-14:TP=-1.5:LRA=7`.
 - Keep intermediate mix audio at 44100 Hz, stereo, `pcm_s16le`.
 - Station IDs and DJ voiceovers should be checked in context with music, not as isolated WAVs.
+- Before touching `amix`/`loudnorm` parameters, check history first (`git log -p -- <file>`) — see Inter-Agent Workflow.
 
 ## Verification Commands
 
@@ -75,7 +76,9 @@ git worktree prune && git branch -d feat/my-feature
 - PR descriptions are the primary handoff. Include problem, affected files, verification steps, and open questions.
 - Squash-merge PRs, use PR description as merge commit body.
 - Before starting, check `git worktree list`, `gh pr list --state open`, and recent `git log`.
+- Orient with `git log --oneline -15` before starting unfamiliar work; use `git log -p -- <file>` or `git blame <file>` before editing code with non-obvious parameters.
 - Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.
+- When a commit resolves something documented in `docs/solutions/`, mention the doc's path in the commit body (e.g., "See docs/solutions/logic-errors/ffmpeg-amix-normalize-low-volume-2026-06-20.md") so `git log --grep` can find it later.
 
 ## Design Principles
 
