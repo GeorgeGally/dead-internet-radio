@@ -22,7 +22,7 @@ function cssDeclaration(block, property) {
   return match && match[1].trim();
 }
 
-for (const directory of ['src', 'public']) {
+for (const directory of ['public']) {
   test(`${directory} welcome splash keeps DIR and click prompt readable above noise canvas`, () => {
     const html = read(`${directory}/index.html`);
     const css = read(`${directory}/style.css`);
@@ -34,7 +34,7 @@ for (const directory of ['src', 'public']) {
     assert.match(html, /id="welcome-splash"/);
     assert.match(html, /id="welcome-noise"/);
     assert.match(html, /id="welcome-dir">\/D\.I\.R\.<\/div>/);
-    assert.match(html, /class="welcome-prompt">SLICK TO START<\/div>/);
+    assert.match(html, /class="welcome-prompt">CLICK TO START<\/div>/);
 
     assert.match(letterbox, /z-index:\s*2/);
     assert.doesNotMatch(letterbox, /display:\s*none/);

@@ -53,7 +53,7 @@ class AceStepManager
     end
 
     def release(session)
-      session&.destroy!
+      session&.destroy
       Rails.logger.info "[AceStepManager] Released session ##{session&.id}"
       AceStepCleanupJob.set(wait: IDLE_TIMEOUT.seconds).perform_later
     end
@@ -82,6 +82,19 @@ class AceStepManager
       pid = read_pid
       sessions = AceStepSession.count
       { running: running, pid: pid, sessions: sessions }
+    end
+
+    def reinitialize!
+      uri = URI("#{ace_step_url}/v1/reinitialize")
+      http = Net::HTTP.new(uri.host, uri.port)
+      req = Net::HTTP::Post.new(uri)
+      req['Content-Type'] = 'application/json'
+      resp = http.request(req)
+      Rails.logger.info "[AceStepManager] Reinitialize: #{resp.code}"
+      resp.is_a?(Net::HTTPOK)
+    rescue => e
+      Rails.logger.warn "[AceStepManager] Reinitialize failed: #{e.message}"
+      false
     end
 
     private
@@ -118,19 +131,6 @@ class AceStepManager
       pid
     end
 
-    def reinitialize!
-      uri = URI("#{ace_step_url}/v1/reinitialize")
-      http = Net::HTTP.new(uri.host, uri.port)
-      req = Net::HTTP::Post.new(uri)
-      req['Content-Type'] = 'application/json'
-      resp = http.request(req)
-      Rails.logger.info "[AceStepManager] Reinitialize: #{resp.code}"
-      resp.is_a?(Net::HTTPOK)
-    rescue => e
-      Rails.logger.warn "[AceStepManager] Reinitialize failed: #{e.message}"
-      false
-    end
-
     def wait_for_healthy
       STARTUP_TIMEOUT.step(0, -HEALTH_POLL_INTERVAL) do |remaining|
         return true if healthy?
@@ -156,7 +156,10 @@ class AceStepManager
     end
 
     def cache_pid(pid)
-      Rails.cache.write('ace_step_pid', pid, expires_in: 1.hour)
+      # No expiry — the server is designed to idle indefinitely between jobs.
+      # ponytail: memory-store cache loses the pid on restart; close_api_server.sh
+      # (port-based kill) covers that case.
+      Rails.cache.write('ace_step_pid', pid)
     end
 
     def read_pid

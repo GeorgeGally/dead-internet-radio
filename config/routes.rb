@@ -24,9 +24,11 @@ Rails.application.routes.draw do
         post :reimport
       end
     end
+    resources :tracks, only: [:destroy]
     resources :visuals, only: [:index, :update]
     resources :generation, only: [:index, :new, :create, :show] do
       member do
+        post :retry
         get :progress
         get "file/*file_path", to: "generation#output", as: :output_file
       end

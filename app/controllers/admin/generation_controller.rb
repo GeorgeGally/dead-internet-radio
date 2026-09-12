@@ -30,6 +30,19 @@ module Admin
       end
     end
 
+    def retry
+      @job = GenerationJob.find(params[:id])
+      if @job.failed? || (@job.running? && @job.started_at < 1.hour.ago)
+        @job.update!(status: :pending, started_at: nil, completed_at: nil, output_log: nil)
+        GenerateShowJob.perform_later(@job.id)
+        redirect_to admin_generation_path(@job), notice: 'Generation restarted (resuming from existing state)'
+      elsif @job.running?
+        redirect_to admin_generation_path(@job), alert: 'Job is still running'
+      else
+        redirect_to admin_generation_path(@job), alert: 'Can only retry failed jobs'
+      end
+    end
+
     def show
       @job = GenerationJob.find(params[:id])
     end
@@ -52,8 +65,9 @@ module Admin
     end
 
     def output
-      path = File.absolute_path(File.join(Rails.root, params[:file_path]))
-      return head :forbidden unless path.start_with?(Rails.root.to_s)
+      root = "#{Rails.root}/"
+      path = File.absolute_path(File.join(root, params[:file_path]))
+      return head :forbidden unless path.start_with?(root)
 
       if File.exist?(path)
         ext = File.extname(path).downcase

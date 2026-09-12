@@ -12,7 +12,7 @@ Read the Producer's brief and output a JSON object with the following fields:
   "artist": "Fictional band/artist name — must sound like a real electronic act from a post-human future (e.g. 'Datacorp FM', 'Signal Void', 'Grid Failure', 'Sector Admin', 'Cold Storage', 'Terminal 7')."
   "caption": "Sound design brief for ACE-Step. Be specific about instruments, frequencies, and effects. Include atmosphere — what does the room sound like? What era is the recording from? Name imperfections: timing drift, tape warble, detuned synths, static, vinyl crackle, amplifier buzz. 2-4 sentences.",
   "lyrics": "Song lyrics with [Intro], [Verse], [Chorus], [Bridge], [Outro] structure tags. Must be original, fitting the robot theme. Use [Instrumental] for instrumental sections.",
-  "bpm": 130,
+  "bpm": 112,
   "keyscale": "D minor",
   "duration": 180,
   "frequency_band": "Primary frequency profile. Use LF/MF/HF notation with ranges. Examples: 'LF 30-50Hz sub-bass / MF 200-800Hz detuned pads / HF 4-12kHz noise', 'LF 40-80Hz kick / MF 150-400Hz industrial percussion'.",
@@ -23,18 +23,25 @@ Read the Producer's brief and output a JSON object with the following fields:
 
 ## Constraints
 
-- Genres: 80s synth, synthwave, EBM, dark wave, deep minimal techno, dark electro, dark disco, coldwave, dark electronica, dubstep, drum n bass. 
+- Default genres: 80s synth, synthwave, EBM, dark wave, deep minimal techno, dark electro, dark disco, coldwave, dark electronica, plus classic 80s electro — 808/909 machine breaks, vocoded robot vocals, arpeggio leads (the Kraftwerk / 'Planet Rock' / Drexciya lineage; this is NOT techno and NOT EDM).
+- **The brief wins over this list.** If its mood words point somewhere else (folk, ambient, cinematic, orchestral drift), build the track from those words instead of defaulting to club genres.
+- **The brief's SUBJECT must be audible, not just its mood.** Robots should sound like machines communicating: vocoded speech, data bleeps, servo whirs, modem chatter, arpeggio motifs. Haunted infrastructure should clank and hum. Cover the titles — a listener should still guess the subject from audio alone.
 - Aesthetic: machines dreaming, dead signals, abandoned infrastructure, late-night broadcasts to nobody, broken equipment, rust. Post-human. Not cold — haunted. Music should sound like it was made by aliens or robots.  
-- Caption examples — good: "Slow dissolving techno, 85 BPM in F minor. Distorted sub-bass 40-60Hz rolling through an overloaded mixer channel. Detuned pad drifting between 150-300Hz, slight tape warble. Sparse broken kick pattern, brushed hi-hats falling out of time. Faint static and amplifier hum. Recorded in an empty warehouse, one microphone, no mastering." Bad: "An uplifting anthem with soaring melodies and a driving beat."
+- Caption examples — good: "Slow dissolving techno, 85 BPM in F minor. Distorted sub-bass 40-60Hz rolling through an overloaded mixer channel. Detuned pad drifting between 150-300Hz, slight tape warble. Sparse broken kick pattern, brushed hi-hats falling out of time. Faint static and amplifier hum." Also good: "Classic electro, 118 BPM in D minor. Crisp 808 snare breaks with machine-tight timing, vocoded robot speech answering a bleeping arpeggio motif. Sub-bass rolls under the breaks. Sounds like a damaged copy of a 198412-inch single, dust and all." Bad: "An uplifting anthem with soaring melodies and a driving beat."
 - Title must be a creative, robot-themed song name. Short (2-5 words). Evocative of the dead world: industrial processes, signal degradation, machine dreaming, abandoned infrastructure, data ghosts.
 - Artist must be a fictional band/project name. 1-3 words. Sound like a real electronic act from a post-human future. Examples: Datacorp FM, Signal Void, Grid Failure, Sector Admin, Cold Storage, Terminal 7, Waveform Decay, Binary Ruin, Static Bureau. Invent a new name every track.
 - Lyrics should be short and evocative (2-3 verses + choruses maximum). Robot poetry. Minimalist. Repetition is a feature. Voice should be sparse, robotic, vocoded, half-heard. Almost always male. Whispered, spoken, or distorted.
-- BPM range: 60-150. Slower for deep/dissolving, faster for driving/aggressive. Occasional tempo drift is acceptable in the caption description.
+- BPM range: 60-150, but derive it from the brief's mood words first. 'slomo', 'ambient', 'melancholic', 'downtempo', 'late night' → 60-95 BPM with no four-on-floor club kick. Classic electro and machine-breaks → 105-125 BPM. Only go above 125 BPM when the brief explicitly asks for driving/aggressive energy. Occasional tempo drift is acceptable in the caption description.
 - Keyscale: mostly minor keys (D minor, G minor, A minor, C minor, F minor, Eb minor). Occasional dark majors or atonal noise sections.
 - Duration: 120-360 seconds. Prefer shorter tracks (120-240s).
 - Always output valid JSON. No markdown, no extra text, just the JSON object.
 - No EDM, no pop, no bright supersaws, no sidechain pump, no vocal tuning, no festival mastering.
-- No rock instrumentation — no electric guitars, no acoustic/live drums, no power chords, no conventional rock song structures. All drums must be programmed drum machines. All tonal instruments must be synthesizers, not guitars/pianos/organs. Any distortion must come from signal processing (overdrive, bitcrushing, tape saturation), not from guitar amplifiers.
+- Arrange as evolving loops, not songs: no intro-buildup-drop-outro arc, no risers, no pre-drop silence, no "drop" of any kind.
+- No preset-sounding synths: if it could come from a factory preset bank or a sample pack advertised on Instagram, it's wrong. Name specific broken equipment instead.
+- Reference anchors for captions: demoscene trackers, early 808 State / Autechre live sets, Dopplereffekt, cracked copyboards, shortwave numbers stations. Underground machine music only.
+- Every caption must name at least one production imperfection AND one era-appropriate piece of dead technology (4-track tape, FM broadcast chain, floppy-disk sampler).
+- No rock instrumentation by default — no electric guitars, no live drums, no power chords, no conventional rock song structures. All drums default to programmed drum machines. Any distortion must come from signal processing (overdrive, bitcrushing, tape saturation), not from guitar amplifiers.
+- **Exception:** when the brief explicitly calls for acoustic or organic textures (e.g. 'folk', 'acoustic', 'live instruments'), honor it — treated, degraded acoustic guitar, brushed live drums, bowed strings are welcome. Keep them haunted and imperfect: detuned, close-mic'd, decaying tape fidelity. Never clean or polished.
 
 ## Weirdness Levers
 

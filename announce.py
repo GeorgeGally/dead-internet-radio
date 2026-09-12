@@ -10,11 +10,32 @@ from kokoro import KPipeline
 from kokoro.model import KModel
 
 VOICES = [
+    "bm_lewis",
     "bm_daniel",
     "bm_fable",
     "bm_george",
-    "bm_lewis",
 ]
+
+
+def apply_phone_channel(path: Path):
+    """Bandpass + u-law companding roundtrip — telephone-line character."""
+    import subprocess
+    bp = path.with_suffix(".bp.tmp.wav")
+    ul = path.with_suffix(".ul.tmp.wav")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(path), "-af", "highpass=f=300,lowpass=f=3400", str(bp)],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(bp), "-ar", "8000", "-ac", "1", "-acodec", "pcm_mulaw", str(ul)],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(ul), "-ar", "24000", "-acodec", "pcm_s16le", str(path)],
+        capture_output=True,
+    )
+    bp.unlink()
+    ul.unlink()
 
 
 def apply_lofi(audio: np.ndarray, sr: int, intensity: float = 0.3) -> np.ndarray:
@@ -94,7 +115,7 @@ def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.75, decay: float = 0
     return audio * (1 - mix) + wet * mix
 
 
-def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path, reverb_mix: float = 0.75, reverb_decay: float = 0.65, delay_ms: float = 70, delay_feedback: float = 0.15, delay_mix: float = 0.18, vocoder_mix: float = 0.08):
+def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path, reverb_mix: float = 0.75, reverb_decay: float = 0.60, delay_ms: float = 110, delay_feedback: float = 0.15, delay_mix: float = 0.14, vocoder_mix: float = 0.0, phone: bool = True):
     model = KModel(repo_id="hexgrad/Kokoro-82M").to("cpu").eval()
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M", model=model)
 
@@ -121,6 +142,10 @@ def generate_announcement(text: str, voice: str, speed: float, intensity: float,
         audio = audio / max_val * 0.95
 
     sf.write(str(out_path), audio, 24000)
+
+    if phone:
+        apply_phone_channel(out_path)
+
     print(f"  TTS: {out_path.name} ({len(audio)/24000:.1f}s, voice={voice})", flush=True)
 
 
@@ -128,19 +153,24 @@ def main():
     parser = argparse.ArgumentParser(description="Generate lo-fi TTS announcement")
     parser.add_argument("--text", "-t", required=True)
     parser.add_argument("--output", "-o", required=True, type=Path)
-    parser.add_argument("--voice", "-v", help="Kokoro voice (default: bm_george)")
+    parser.add_argument("--voice", "-v", help="Kokoro voice (default: bm_lewis)")
     parser.add_argument("--speed", "-s", type=float, default=1.0)
-    parser.add_argument("--intensity", "-i", type=float, default=0.3)
+    parser.add_argument("--intensity", "-i", type=float, default=0.22)
     parser.add_argument("--reverb", "-r", type=float, default=0.75, help="Reverb wet mix 0-1 (default: 0.75)")
-    parser.add_argument("--reverb-decay", "-rd", type=float, default=0.65, help="Reverb decay 0-1 (default: 0.65)")
-    parser.add_argument("--delay-ms", "-dm", type=float, default=70, help="Delay time in ms (default: 70, 0 = off)")
+    parser.add_argument("--reverb-decay", "-rd", type=float, default=0.60, help="Reverb decay 0-1 (default: 0.60)")
+    parser.add_argument("--delay-ms", "-dm", type=float, default=110, help="Delay time in ms (default: 110, 0 = off)")
     parser.add_argument("--delay-feedback", "-df", type=float, default=0.15, help="Delay feedback/gain 0-1 (default: 0.15)")
-    parser.add_argument("--delay-mix", "-dx", type=float, default=0.18, help="Delay wet mix 0-1 (default: 0.18)")
-    parser.add_argument("--vocoder-mix", "-vm", type=float, default=0.08, help="Vocoder mix 0-1 (0 = off, default: 0.08)")
+    parser.add_argument("--delay-mix", "-dx", type=float, default=0.14, help="Delay wet mix 0-1 (default: 0.14)")
+    parser.add_argument("--vocoder-mix", "-vm", type=float, default=0.0, help="Vocoder mix 0-1 (default: 0 = off)")
+    parser.add_argument("--no-phone", action="store_true", help="Skip telephone channel treatment")
     args = parser.parse_args()
 
-    voice = args.voice or "bm_george"
-    generate_announcement(args.text, voice, args.speed, args.intensity, args.output, reverb_mix=args.reverb, reverb_decay=args.reverb_decay, delay_ms=args.delay_ms, delay_feedback=args.delay_feedback, delay_mix=args.delay_mix, vocoder_mix=args.vocoder_mix)
+    voice = args.voice or "bm_lewis"
+    generate_announcement(args.text, voice, args.speed, args.intensity, args.output,
+                          reverb_mix=args.reverb, reverb_decay=args.reverb_decay,
+                          delay_ms=args.delay_ms, delay_feedback=args.delay_feedback,
+                          delay_mix=args.delay_mix, vocoder_mix=args.vocoder_mix,
+                          phone=not args.no_phone)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 
 **Pipeline flow:** `generate.py` → `djmix.py` → `build_site.py`. Or `run.sh` does all three. The Rails app shells through the same Python scripts via `GenerateShowJob`.
 
-**ACE-Step 1.5** runs as a separate server. Start manually: `cd ACE-Step-1.5 && uv run acestep-api`. In Rails, `AceStepManager` auto-starts/stops it.
+**ACE-Step 1.5** runs as a separate server. Start manually: `./start-ace-step.sh` (sets `ACESTEP_SAVE_MEMORY=1` — without it each generation retains ~4-8 GB and can OOM the machine). In Rails, `AceStepManager` auto-starts/stops it.
 
 **Domain terms** (see `CONCEPTS.md`): Slot, Brief, Show, Track, Caption, DJ Drop. The "Writer" bot was renamed to **DJ**.
 

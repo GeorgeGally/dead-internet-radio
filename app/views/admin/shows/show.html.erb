@@ -27,6 +27,7 @@
     <th>Key</th>
     <th>Duration</th>
     <th>Mix-in</th>
+    <th></th>
   </tr>
   <% @tracks.each do |track| %>
     <tr>
@@ -42,6 +43,9 @@
         <% else %>
           —
         <% end %>
+      </td>
+      <td>
+        <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn", style: "background:#cc0000;", data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
       </td>
     </tr>
   <% end %>

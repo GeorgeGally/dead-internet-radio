@@ -5,8 +5,25 @@ dist/
 __pycache__/
 
 # Compound Engineering local config
-.compound-engineering/*.local.yaml
+.compound-engineering/
 static.mp4
+
+# Vendored ACE-Step runtime + model checkpoints (multi-GB, machine-local)
+ACE-Step-1.5/
+
+# Local agent tooling
+.commandcode/
+.mimocode/
+.superpowers/
+opencode.json
+
+# Generated static serving copies (media served via MediaController)
+public/audio/
+public/shows/
+public/playlist.json
+public/shows.json
+public/app.js.backup
+station-ids/.tmp-*
 
 # Rails
 log/

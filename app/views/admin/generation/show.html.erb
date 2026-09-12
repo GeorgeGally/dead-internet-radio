@@ -82,6 +82,11 @@
 
     <div class="job-info">
       <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
+      <% if @job.failed? %>
+        <%= form_tag retry_admin_generation_path(@job), style: "display:inline" do %>
+          <button type="submit" class="btn-sm">↻</button>
+        <% end %>
+      <% end %>
       <span><%= @job.track_count %> tracks</span>
       <span>DJ: <span id="p-dj-name"><%= @job.options&.dig("dj_name") || @job.dj_name || "—" %></span></span>
       <% if @job.dry_run? %><span>Dry run</span><% end %>

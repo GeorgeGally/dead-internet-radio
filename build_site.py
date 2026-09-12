@@ -15,7 +15,7 @@ from pathlib import Path
 OUTPUT_DIR = Path("output")
 PROMPTS_DIR = OUTPUT_DIR / "prompts"
 MIXES_DIR = Path("mixes")
-SRC_DIR = Path("src")
+SRC_DIR = Path("public")
 DIST_DIR = Path("dist")
 
 EPOCH_MS = 2051222400000  # 2035-01-01T00:00:00Z
@@ -168,14 +168,17 @@ def build_playlist(tracks):
 
 
 def _build_dist_static():
-    """Copy static src/ assets to dist/."""
+    """Copy static player assets from public/ to dist/."""
     DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "audio").mkdir(exist_ok=True)
-    for src_file in SRC_DIR.iterdir():
+    for name in ("index.html", "app.js", "style.css", "fonts", "visuals", "welcome"):
+        src_file = SRC_DIR / name
+        if not src_file.exists():
+            continue
         if src_file.is_file():
-            shutil.copy2(src_file, DIST_DIR / src_file.name)
-        elif src_file.is_dir():
-            dest_dir = DIST_DIR / src_file.name
+            shutil.copy2(src_file, DIST_DIR / name)
+        else:
+            dest_dir = DIST_DIR / name
             if dest_dir.exists():
                 shutil.rmtree(dest_dir)
             shutil.copytree(src_file, dest_dir)
@@ -431,15 +434,6 @@ def main():
     # Always copy static files (needed even in shows-only mode)
     print("Copying static assets...", flush=True)
     _build_dist_static()
-    # Copy welcome audio for Rails public/ serving
-    WELCOME_SRC = SRC_DIR / "welcome"
-    if WELCOME_SRC.exists():
-        public_welcome = Path("public") / "welcome"
-        public_welcome.mkdir(parents=True, exist_ok=True)
-        for f in WELCOME_SRC.iterdir():
-            if f.is_file():
-                shutil.copy2(f, public_welcome / f.name)
-        print(f"  welcome/ → public/welcome/", flush=True)
     print()
 
     if args.shows_only:
@@ -485,16 +479,7 @@ def main():
     (DIST_DIR / "playlist.json").write_text(json.dumps(playlist, indent=2))
     print("  playlist.json", flush=True)
 
-    for src_file in SRC_DIR.iterdir():
-        if src_file.is_file():
-            shutil.copy2(src_file, DIST_DIR / src_file.name)
-            print(f"  {src_file.name}", flush=True)
-        elif src_file.is_dir():
-            dest_dir = DIST_DIR / src_file.name
-            if dest_dir.exists():
-                shutil.rmtree(dest_dir)
-            shutil.copytree(src_file, dest_dir)
-            print(f"  {src_file.name}/", flush=True)
+    _build_dist_static()
 
     print()
     print(f"Done! dist/ ready for deployment.")

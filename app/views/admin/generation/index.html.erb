@@ -8,7 +8,14 @@
     <tr>
       <td><a href="/admin/generation/<%= job.id %>"><%= job.slot %></a></td>
       <td><%= job.track_count %></td>
-      <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
+      <td>
+        <span class="status-badge status-<%= job.status %>"><%= job.status %></span>
+        <% if job.failed? %>
+          <%= form_tag retry_admin_generation_path(job), style: "display:inline" do %>
+            <button type="submit" class="btn-sm">↻</button>
+          <% end %>
+        <% end %>
+      </td>
       <td><%= job.started_at&.strftime("%Y-%m-%d %H:%M") %></td>
       <td><%= job.completed_at&.strftime("%Y-%m-%d %H:%M") %></td>
     </tr>

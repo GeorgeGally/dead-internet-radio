@@ -6,9 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'src/index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
-const js = fs.readFileSync(path.join(root, 'src/app.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'public/style.css'), 'utf8');
+const js = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
 
 test('HTML has the radio player shell', () => {
   assert.match(html, /id="gif-bg"/);

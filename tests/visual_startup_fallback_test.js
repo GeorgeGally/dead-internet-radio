@@ -74,7 +74,7 @@ function loadVisualsEngine(dir) {
   return { visuals, sandbox };
 }
 
-for (const dir of ['src', 'public']) {
+for (const dir of ['public']) {
   test(`${dir} skips failed startup visuals and falls back`, () => {
     const { visuals, sandbox } = loadVisualsEngine(dir);
     let goodStarted = false;
@@ -112,7 +112,7 @@ for (const dir of ['src', 'public']) {
   });
 }
 
-for (const dir of ['src', 'public']) {
+for (const dir of ['public']) {
   test(`${dir} cancels hidden startup prewarm for first visible visual`, () => {
     const { visuals, sandbox } = loadVisualsEngine(dir);
     let stopCount = 0;

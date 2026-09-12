@@ -18,6 +18,8 @@ class ProgressParser
 
   def self.apply_progress(data, opts)
     case data["type"]
+    when "show_dir"
+      opts["show_dir"] = data["path"]
     when "show"
       opts["show_name"] = data["show_name"]
       opts["dj_name"] = data["dj_name"]

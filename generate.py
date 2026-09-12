@@ -206,6 +206,33 @@ def call_llm(system_prompt: str, user_message: str) -> str:
     sys.exit(1)
 
 
+def wait_for_memory(threshold_pct=25, max_wait_s=600):
+    """Block until macOS reports enough free memory (backpressure between tracks).
+
+    ACE-Step on MPS keeps the whole model stack resident; submitting the next
+    long-track task while swap is filling is what hard-freezes the machine.
+    Best-effort: returns immediately on non-macOS or if parsing fails.
+    """
+    import subprocess
+    deadline = time.time() + max_wait_s
+    while True:
+        try:
+            out = subprocess.run(["memory_pressure"], capture_output=True, text=True, timeout=15).stdout
+            m = re.search(r"System-wide memory free percentage:\s*(\d+)%", out)
+            if not m:
+                return
+            free = int(m.group(1))
+            if free >= threshold_pct:
+                return
+            print(f"  Memory low ({free}% free) — waiting for pressure to drop...", flush=True)
+        except Exception:
+            return
+        if time.time() >= deadline:
+            print("  WARNING: memory still low — continuing anyway", flush=True)
+            return
+        time.sleep(30)
+
+
 def check_ace_step_health():
     try:
         req = urllib.request.Request(f"{ACE_STEP_URL}/health")
@@ -359,6 +386,8 @@ def main():
                         help="Disable batch mode — use per-track LLM calls instead")
     parser.add_argument("--dj-name", type=str, default="",
                         help="DJ name for announcements (default: random)")
+    parser.add_argument("--resume-dir", type=str, default="",
+                        help="Resume from an existing show directory (skips producer, announcer, DJ phases)")
     args = parser.parse_args()
 
     if not OPENROUTER_API_KEY:
@@ -366,230 +395,332 @@ def main():
         sys.exit(1)
 
     slot = " ".join(args.slot)
-    show_dir = OUTPUT_DIR / f"{slugify(slot)}-{time.strftime('%Y%m%d-%H%M%S')}"
-    show_prompts_dir = show_dir / "prompts"
-    show_dir.mkdir(parents=True, exist_ok=True)
-    show_prompts_dir.mkdir(exist_ok=True)
-    print(f"Show folder: {show_dir}")
 
-    producer_prompt = load_prompt(PRODUCER_PROMPT_PATH)
-    dj_prompt = load_prompt(DJ_PROMPT_PATH)
+    # ── Resume check & state loading ───────────────────────────
+    track_history = []
+    ace_healthy = None
+    voiceover_schedule = []
 
-    print(f"Dead Internet Radio — {slot}")
-    print()
+    if args.resume_dir:
+        show_dir = Path(args.resume_dir)
+        if not show_dir.exists():
+            print(f"Error: resume directory {show_dir} not found", file=sys.stderr)
+            sys.exit(1)
+        state_path = show_dir / ".resume_state.json"
+        if not state_path.exists():
+            print(f"Error: no resume state found in {show_dir}", file=sys.stderr)
+            sys.exit(1)
+        state = json.loads(state_path.read_text())
 
-    print("1. Producer writing show name and program brief...", flush=True)
-    raw = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a program brief for this slot.")
-    try:
-        result = extract_json(raw)
-        show_name = result.get("show_name", "").strip()
-        brief = result.get("brief", "").strip()
-    except (ValueError, json.JSONDecodeError, AttributeError):
-        show_name = ""
-        brief = ""
-    if not show_name or not brief or "User Safety:" in brief or len(brief) < 20:
-        print("  Producer output malformed or moderated, retrying with different model...", flush=True)
-        raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
+        show_name = state["show_name"]
+        brief = state.get("brief", "")
+        dj_name = state["dj_name"]
+        args.tracks = state.get("track_count", args.tracks)
+        track_history = state["track_history"]
+        voiceover_schedule = state.get("voiceover_schedule", [])
+
+        completed_nums: set[int] = set()
+        for f in show_dir.iterdir():
+            m = re.match(r"^(\d{2})-.+\.mp3$", f.name)
+            if m:
+                num = int(m.group(1))
+                if num != 0 and "DJ-voice" not in f.name and "opening" not in f.name:
+                    completed_nums.add(num)
+
+        total = len(track_history)
+        remaining = total - len(completed_nums)
+        show_prompts_dir = show_dir / "prompts"
+        print(f"Resuming generation in {show_dir}")
+        print(f"  Completed tracks: {len(completed_nums)}/{total}, {remaining} remaining")
+        emit_progress({"type": "show_dir", "path": str(show_dir)})
+
+        emit_progress({
+            "type": "show", "show_name": show_name,
+            "dj_name": dj_name, "slot": slot
+        })
+        for t in track_history:
+            n = t["number"]
+            if n in completed_nums:
+                emit_progress({
+                    "type": "track_start", "number": n, "total": total,
+                    "title": t["title"], "artist": t["artist"]
+                })
+                for f in sorted(show_dir.iterdir()):
+                    if f.name.startswith(f"{n:02d}-") and f.name.endswith(".mp3") and "DJ-voice" not in f.name:
+                        emit_progress({
+                            "type": "track_done", "number": n, "total": total,
+                            "title": t["title"], "artist": t["artist"],
+                            "file": str(f)
+                        })
+                        break
+        print(f"Show: {show_name}\n{brief}\n")
+        print(f"   DJ: {dj_name}")
+
+    # ── Fresh generation: create dir, run LLM phases ────────────
+    # ── Fresh generation: create dir, run LLM phases ────────────
+    if not args.resume_dir:
+        show_dir = OUTPUT_DIR / f"{slugify(slot)}-{time.strftime('%Y%m%d-%H%M%S')}"
+        show_prompts_dir = show_dir / "prompts"
+        show_dir.mkdir(parents=True, exist_ok=True)
+        show_prompts_dir.mkdir(exist_ok=True)
+        print(f"Show folder: {show_dir}")
+        emit_progress({"type": "show_dir", "path": str(show_dir)})
+
+        producer_prompt = load_prompt(PRODUCER_PROMPT_PATH)
+        dj_prompt = load_prompt(DJ_PROMPT_PATH)
+
+        print(f"Dead Internet Radio — {slot}")
+        print()
+
+        print("1. Producer writing show name and program brief...", flush=True)
+        raw = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a program brief for this slot.")
+
         try:
-            result2 = extract_json(raw2)
-            show_name = result2.get("show_name", "").strip()
-            brief = result2.get("brief", "").strip()
+            result = extract_json(raw)
+            show_name = result.get("show_name", "").strip()
+            brief = result.get("brief", "").strip()
         except (ValueError, json.JSONDecodeError, AttributeError):
             show_name = ""
             brief = ""
-        if not show_name or not brief:
-            show_name = slot
-            brief = "A late-night broadcast from Dead Internet Radio."
-    print(f"\nShow: {show_name}\n{brief}\n")
+        if not show_name or not brief or "User Safety:" in brief or len(brief) < 20:
+            print("  Producer output malformed or moderated, retrying with different model...", flush=True)
+            raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
+            try:
+                result2 = extract_json(raw2)
+                show_name = result2.get("show_name", "").strip()
+                brief = result2.get("brief", "").strip()
+            except (ValueError, json.JSONDecodeError, AttributeError):
+                show_name = ""
+                brief = ""
+            if not show_name or not brief:
+                show_name = slot
+                brief = "A late-night broadcast from Dead Internet Radio."
+        print(f"\nShow: {show_name}\n{brief}\n")
 
-    # Save show metadata
-    show_meta = {
-        "show_name": show_name,
-        "slot": slot,
-        "dj_name": args.dj_name or "",
-    }
-    (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
+        # Save show metadata
+        show_meta = {
+            "show_name": show_name,
+            "slot": slot,
+            "dj_name": args.dj_name or "",
+        }
+        (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
 
-    # 2. DJ Opening Announcement
-    print("2. Announcer writing DJ opening announcement...", flush=True)
-    announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
+        # 2. DJ Opening Announcement
+        print("2. Announcer writing DJ opening announcement...", flush=True)
+        announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
 
-    dj_name = args.dj_name or random_dj_name()
-    # Update show metadata with actual DJ name
-    show_meta["dj_name"] = dj_name
-    (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
-    print(f"   DJ: {dj_name}")
-    emit_progress({"type": "show", "show_name": show_name, "dj_name": dj_name, "slot": slot})
+        dj_name = args.dj_name or random_dj_name()
+        # Update show metadata with actual DJ name
+        show_meta["dj_name"] = dj_name
+        (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
+        print(f"   DJ: {dj_name}")
+        emit_progress({"type": "show", "show_name": show_name, "dj_name": dj_name, "slot": slot})
 
-    if args.delay > 0:
-        print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
-        time.sleep(args.delay)
-
-    dj_announce = call_llm(
-        announcer_prompt,
-        f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
-    ).strip().strip('"').strip("'").strip()
-    print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
-
-    if not args.dry_run:
-        announce_wav = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.wav"
-        announce_mp3 = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.mp3"
-        print("   Generating TTS...", flush=True)
-        generate_announcement(dj_announce, announce_wav, intensity=0.3)
-        if announce_wav.exists() and announce_wav.stat().st_size > 100:
-            if not wav_to_mp3(announce_wav, announce_mp3):
-                print(f"   ffmpeg not found, keeping wav", flush=True)
-            print(f"   Opening announcement saved → {announce_mp3.name}")
-        else:
-            print(f"   TTS produced empty file, skipping announcement", flush=True)
-
-    # Save intro prompt log
-    intro_prompt_file = show_prompts_dir / "00-dead-internet-radio-opening-dead-internet-radio.prompt.json"
-    intro_prompt_data = {
-        "track": 0,
-        "slot": slot,
-        "brief": brief,
-        "type": "dj_announce",
-        "text": dj_announce,
-        "payload": {
-            "title": "Opening Broadcast",
-            "artist": "Dead Internet Radio",
-            "caption": "Dead Internet Radio — Opening Broadcast",
-            "bpm": None,
-            "keyscale": "",
-            "duration": 0,
-        },
-    }
-    intro_prompt_file.write_text(json.dumps(intro_prompt_data, indent=2))
-    print(f"  Announce prompt log → {intro_prompt_file}\n")
-
-    track_history = []
-    ace_healthy = None
-
-    # --- BATCH MODE: compose all tracks in one LLM call ---
-    if not args.no_batch:
-        print(f"3. DJ composing {args.tracks} tracks (batch)...", flush=True)
         if args.delay > 0:
             print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
             time.sleep(args.delay)
 
-        dj_input = (
-            f"Program brief:\n\n{brief}\n\n"
-            f"Compose {args.tracks} tracks for this DJ set. "
-            f"Return a JSON array of exactly {args.tracks} objects.\n\n"
-            f"CONSTRAINTS — all tracks must be distinct:\n"
-            f"- Different keys — no repeats across all {args.tracks} tracks\n"
-            f"- BPM range 80-150, cohesive but varied\n"
-            f"- Different synth palettes, drum patterns, and structures\n"
-            f"- Different genre angles (coldwave, industrial, deep techno, dark electro, synthwave)\n\n"
-            f"Guidance:\n"
-            f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
-            f"- When vocals are present, sparse and atmospheric.\n"
-            f"- Focus on atmosphere, texture, evolving narrative.\n"
-            f"- Vary the sonic palette across the set.\n"
-            f"- The set should feel like a journey through different rooms of the same dead factory.\n\n"
-            f"Output a JSON array of {args.tracks} objects, each with: "
-            f"title, artist, caption, lyrics, bpm, keyscale, duration."
-        )
+        dj_announce = call_llm(
+            announcer_prompt,
+            f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
+        ).strip().strip('"').strip("'").strip()
+        print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
 
-        song_json = call_llm(dj_prompt, dj_input)
-        songs = extract_json_array(song_json)
+        if not args.dry_run:
+            announce_wav = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.wav"
+            announce_mp3 = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.mp3"
+            print("   Generating TTS...", flush=True)
+            generate_announcement(dj_announce, announce_wav, intensity=0.3)
+            if announce_wav.exists() and announce_wav.stat().st_size > 100:
+                if not wav_to_mp3(announce_wav, announce_mp3):
+                    print(f"   ffmpeg not found, keeping wav", flush=True)
+                print(f"   Opening announcement saved → {announce_mp3.name}")
+            else:
+                print(f"   TTS produced empty file, skipping announcement", flush=True)
 
-        if len(songs) < 2:
-            print(f"  WARNING: Batch returned only {len(songs)} tracks, falling back to per-track mode",
-                  flush=True)
-            args.no_batch = True
+        # Save intro prompt log
+        intro_prompt_file = show_prompts_dir / "00-dead-internet-radio-opening-dead-internet-radio.prompt.json"
+        intro_prompt_data = {
+            "track": 0,
+            "slot": slot,
+            "brief": brief,
+            "type": "dj_announce",
+            "text": dj_announce,
+            "payload": {
+                "title": "Opening Broadcast",
+                "artist": "Dead Internet Radio",
+                "caption": "Dead Internet Radio — Opening Broadcast",
+                "bpm": None,
+                "keyscale": "",
+                "duration": 0,
+            },
+        }
+        intro_prompt_file.write_text(json.dumps(intro_prompt_data, indent=2))
+        print(f"  Announce prompt log → {intro_prompt_file}\n")
 
-    # --- FALLBACK: per-track mode ---
-    if args.no_batch:
-        print(f"3. DJ composing {args.tracks} tracks (per-track)...", flush=True)
-        songs = []
-        for i in range(1, args.tracks + 1):
-            if i > 1 and args.delay > 0:
+        ace_healthy = None
+
+        # --- BATCH MODE: compose all tracks in one LLM call ---
+        if not args.no_batch:
+            print(f"3. DJ composing {args.tracks} tracks (batch)...", flush=True)
+            if args.delay > 0:
                 print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
                 time.sleep(args.delay)
 
-            if i == 1:
-                dj_input = (
-                    f"Program brief:\n\n{brief}\n\n"
-                    f"This is track 1 of {args.tracks}. Compose the opening track for this DJ set."
-                )
-            else:
-                prev_summary = "\n".join(
-                    f"Track {t['number']}: {t['artist']} — \"{t['title']}\" "
-                    f"({t['bpm']} BPM, {t['keyscale']})"
-                    for t in track_history
-                )
-                prev_keys = [t["keyscale"] for t in track_history if t["keyscale"]]
-                prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
-                dj_input = (
-                    f"Program brief:\n\n{brief}\n\n"
-                    f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
-                    f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
-                    f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
-                    f"This is track {i} of {args.tracks}. "
-                    f"Make this track SOUND DISTINCT from all previous tracks — "
-                    f"different key, different tempo range, different synth palette, different drum pattern."
-                )
-
-            dj_input += (
-                "\n\nGuidance:\n"
-                "- Keep vocals to a minimum. Not all tracks need vocals.\n"
-                "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
-                "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
-                "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+            dj_input = (
+                f"Program brief:\n\n{brief}\n\n"
+                f"Compose {args.tracks} tracks for this DJ set. "
+                f"Return a JSON array of exactly {args.tracks} objects.\n\n"
+                f"CONSTRAINTS — all tracks must be distinct:\n"
+                f"- Different keys — no repeats across all {args.tracks} tracks\n"
+                f"- Tempo follows the brief's mood words: 'slomo'/'ambient'/'melancholic'/'late night' means 60-100 BPM with no driving club rhythms or four-on-floor kicks; classic electro/breaks can sit at 100-130; otherwise stay within 80-150\n"
+                f"- Genre palette must follow the brief's mood words too — do not default to club genres (techno, electro-pop, synthwave) when the brief points elsewhere\n"
+                f"- Different synth palettes, drum patterns, and structures\n"
+                f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n\n"
+                f"Guidance:\n"
+                f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
+                f"- When vocals are present, sparse and atmospheric.\n"
+                f"- Focus on atmosphere, texture, evolving narrative.\n"
+                f"- Vary the sonic palette across the set.\n\n"
+                f"Output a JSON array of {args.tracks} objects, each with: "
+                f"title, artist, caption, lyrics, bpm, keyscale, duration."
             )
 
-            print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
             song_json = call_llm(dj_prompt, dj_input)
-            song = extract_json(song_json)
-            if isinstance(song, list):
-                song = song[0]
-            song["_prompt"] = dj_input
-            songs.append(song)
+            songs = extract_json_array(song_json)
 
-    # --- Process tracks (shared between batch and per-track) ---
-    for i, song in enumerate(songs, 1):
-        song["duration"] = min(max(song.get("duration", 180), 60), 360)
-        track_prompt = song.pop("_prompt", dj_input)
+            if len(songs) < 2:
+                print(f"  WARNING: Batch returned only {len(songs)} tracks, falling back to per-track mode",
+                      flush=True)
+                args.no_batch = True
 
-        title = song.get("title", "").strip() or "Untitled"
-        artist = song.get("artist", "").strip() or "Unknown Artist"
-        display_name = f"{artist} - {title}"
-        caption = song.get("caption", "Untitled")
-        print(f"  Track {i}: {display_name}")
-        print(f"         {song.get('bpm', '?')} BPM, {song.get('keyscale', '?')}, "
-              f"{song.get('duration', '?')}s")
+        # --- FALLBACK: per-track mode ---
+        if args.no_batch:
+            print(f"3. DJ composing {args.tracks} tracks (per-track)...", flush=True)
+            songs = []
+            for i in range(1, args.tracks + 1):
+                if i > 1 and args.delay > 0:
+                    print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
+                    time.sleep(args.delay)
 
-        track_history.append({
-            "number": i,
-            "title": title,
-            "artist": artist,
-            "display_name": display_name,
-            "caption": caption,
-            "bpm": song.get("bpm", "?"),
-            "keyscale": song.get("keyscale", ""),
-            "duration": song.get("duration", 0),
-            "payload": song,
-            "prompt": track_prompt,
-        })
+                if i == 1:
+                    dj_input = (
+                        f"Program brief:\n\n{brief}\n\n"
+                        f"This is track 1 of {args.tracks}. Compose the opening track for this DJ set."
+                    )
+                else:
+                    prev_summary = "\n".join(
+                        f"Track {t['number']}: {t['artist']} — \"{t['title']}\" "
+                        f"({t['bpm']} BPM, {t['keyscale']})"
+                        for t in track_history
+                    )
+                    prev_keys = [t["keyscale"] for t in track_history if t["keyscale"]]
+                    prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
+                    dj_input = (
+                        f"Program brief:\n\n{brief}\n\n"
+                        f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
+                        f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
+                        f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
+                        f"This is track {i} of {args.tracks}. "
+                        f"Make this track SOUND DISTINCT from all previous tracks — "
+                        f"different key, different tempo range, different synth palette, different drum pattern."
+                    )
 
-        if args.dry_run:
-            song_file = show_prompts_dir / f"dry-run-track-{i:02d}-{slugify(display_name)}.json"
-            song_file.write_text(json.dumps(song, indent=2))
-            print(f"  Song data saved to {song_file}")
-        prompt_file = show_prompts_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.prompt.json"
-        prompt_data = {
-            "track": i,
-            "slot": slot,
+                dj_input += (
+                    "\n\nGuidance:\n"
+                    "- Keep vocals to a minimum. Not all tracks need vocals.\n"
+                    "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
+                    "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
+                    "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+                )
+
+                print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
+                song_json = call_llm(dj_prompt, dj_input)
+                song = extract_json(song_json)
+                if isinstance(song, list):
+                    song = song[0]
+                song["_prompt"] = dj_input
+                songs.append(song)
+
+        # --- Process tracks (shared between batch and per-track) ---
+        for i, song in enumerate(songs, 1):
+            song["duration"] = min(max(song.get("duration", 180), 60), 360)
+            track_prompt = song.pop("_prompt", dj_input)
+
+            title = song.get("title", "").strip() or "Untitled"
+            artist = song.get("artist", "").strip() or "Unknown Artist"
+            display_name = f"{artist} - {title}"
+            caption = song.get("caption", "Untitled")
+            print(f"  Track {i}: {display_name}")
+            print(f"         {song.get('bpm', '?')} BPM, {song.get('keyscale', '?')}, "
+                  f"{song.get('duration', '?')}s")
+
+            track_history.append({
+                "number": i,
+                "title": title,
+                "artist": artist,
+                "display_name": display_name,
+                "caption": caption,
+                "bpm": song.get("bpm", "?"),
+                "keyscale": song.get("keyscale", ""),
+                "duration": song.get("duration", 0),
+                "payload": song,
+                "prompt": track_prompt,
+            })
+
+            if args.dry_run:
+                song_file = show_prompts_dir / f"dry-run-track-{i:02d}-{slugify(display_name)}.json"
+                song_file.write_text(json.dumps(song, indent=2))
+                print(f"  Song data saved to {song_file}")
+            prompt_file = show_prompts_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.prompt.json"
+            prompt_data = {
+                "track": i,
+                "slot": slot,
+                "brief": brief,
+                "system_prompt": dj_prompt,
+                "user_prompt": dj_input,
+                "payload": song,
+            }
+            prompt_file.write_text(json.dumps(prompt_data, indent=2))
+            print(f"  Prompt log → {prompt_file}")
+        print()
+
+        # ── Save resume state ────────────────────────────────────────
+        voiceover_schedule = []
+        next_announce_at = random.randint(1, 2)
+        while next_announce_at < args.tracks:
+            voiceover_schedule.append(next_announce_at)
+            next_announce_at += random.randint(1, 2)
+
+        resume_state = {
+            "show_name": show_name,
             "brief": brief,
-            "system_prompt": dj_prompt,
-            "user_prompt": dj_input,
-            "payload": song,
+            "dj_name": dj_name,
+            "track_count": args.tracks,
+            "voiceover_schedule": voiceover_schedule,
+            "track_history": [
+                {
+                    "number": t["number"],
+                    "title": t["title"],
+                    "artist": t["artist"],
+                    "display_name": t["display_name"],
+                    "caption": t["caption"],
+                    "bpm": t["bpm"],
+                    "keyscale": t["keyscale"],
+                    "duration": t["duration"],
+                    "prompt": t.get("prompt", ""),
+                    "payload": t["payload"],
+                }
+                for t in track_history
+            ],
         }
-        prompt_file.write_text(json.dumps(prompt_data, indent=2))
-        print(f"  Prompt log → {prompt_file}")
-    print()
+        (show_dir / ".resume_state.json").write_text(json.dumps(resume_state, indent=2))
+
+        # Extend show.json with brief, voiceover_schedule, track_count
+        show_meta["brief"] = brief
+        show_meta["voiceover_schedule"] = voiceover_schedule
+        show_meta["track_count"] = args.tracks
+        (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
 
     if args.dry_run:
         # Skip ACE-Step and voiceovers in dry-run
@@ -601,7 +732,7 @@ def main():
             if not ace_healthy:
                 print(f"Warning: ACE-Step at {ACE_STEP_URL} not reachable ({err})", file=sys.stderr)
                 print("Start it in another terminal:", file=sys.stderr)
-                print(f"  cd ACE-Step-1.5 && uv run acestep-api", file=sys.stderr)
+                print("  ./start-ace-step.sh", file=sys.stderr)
                 sys.exit(1)
 
         total = len(track_history)
@@ -609,8 +740,18 @@ def main():
             i = t["number"]
             display_name = t["display_name"]
             song = t["payload"]
+
+            # In resume mode, skip tracks whose MP3 already exists on disk
+            if args.resume_dir:
+                expected = show_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.mp3"
+                if expected.exists():
+                    print(f"  Track {i} already exists, skipping ACE-Step", flush=True)
+                    continue
+
             emit_progress({"type": "track_start", "number": i, "total": total,
                            "title": t["title"], "artist": t["artist"]})
+            if i > 1:
+                wait_for_memory()
             print(f"4.{i} Sending track {i} to ACE-Step...", flush=True)
             task_id = call_ace_step(song)
             print(f"    Task ID: {task_id}")
@@ -626,19 +767,13 @@ def main():
             print(f"6.{i} Downloading to {output_file}...", flush=True)
             download_audio(audio_path, output_file)
             print(f"   Track {i} saved to {output_file}")
-            rel = output_file.relative_to(Path.cwd())
             emit_progress({"type": "track_done", "number": i, "total": total,
                            "title": t["title"], "artist": t["artist"],
-                           "file": str(rel)})
+                           "file": str(output_file)})
         print()
 
         # --- BATCH voiceover generation ---
-        voiceover_schedule = []
-        next_announce_at = random.randint(1, 2)
-        while next_announce_at < args.tracks:
-            voiceover_schedule.append(next_announce_at)
-            next_announce_at += random.randint(1, 2)
-
+        # Schedule was already set during fresh generate (save-state) or loaded from resume state
         emit_progress({"type": "voiceovers", "count": len(voiceover_schedule)})
         if voiceover_schedule:
             print(f"Announcer batch: {len(voiceover_schedule)} voiceovers...", flush=True)
@@ -689,6 +824,12 @@ def main():
 
                 wav = show_dir / f"{track_num:02d}-DJ-voice-{slugify(t['display_name'])}-dead-internet-radio.wav"
                 mp3 = show_dir / f"{track_num:02d}-DJ-voice-{slugify(t['display_name'])}-dead-internet-radio.mp3"
+
+                # In resume mode, skip if voiceover file already exists
+                if args.resume_dir and mp3.exists():
+                    print(f"  Voiceover for track {track_num} already exists, skipping", flush=True)
+                    continue
+
                 print(f"  [{atype}] \"{text[:120]}\"")
                 print(f"  Generating TTS...", flush=True)
                 generate_announcement(text, wav, intensity=0.2 + random.random() * 0.2)
@@ -699,9 +840,8 @@ def main():
                     else:
                         final_file = wav
                 if final_file:
-                    rel = final_file.relative_to(Path.cwd())
                     emit_progress({"type": "vo_done", "number": track_num,
-                                   "text": text[:80], "file": str(rel)})
+                                   "text": text[:80], "file": str(final_file)})
             print()
 
     tracks_md = "\n".join(

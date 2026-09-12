@@ -1,92 +1,83 @@
 # frozen_string_literal: true
 
-require 'English'
-require 'open3'
 class GenerateShowJob < ApplicationJob
   include ShowImporter
+  include SubprocessRunner
 
   queue_as :default
+  limits_concurrency key: 'generation', duration: 30.minutes
 
   def perform(job_id)
     gen_job = GenerationJob.find(job_id)
     return unless gen_job.pending?
 
     gen_job.update!(status: :running, started_at: Time.current, output_log: '')
-    log = []
-    ace_session = nil
+    @gen_job = gen_job
+    @buffer = +''
+    @show_dir = nil
 
     begin
       root = Rails.root.to_s
-      slot = gen_job.slot
-      count = gen_job.track_count
 
       # Step 1: Acquire ACE-Step + Run generate.py
       unless gen_job.dry_run?
-        ace_session = AceStepManager.acquire
+        @ace_session = AceStepManager.acquire
       end
 
-      cmd1 = ['python3', 'generate.py', slot, '--tracks', count.to_s]
+      resume_dir = detect_resume_dir(gen_job, root)
+
+      cmd1 = ['python3', 'generate.py', gen_job.slot, '--tracks', gen_job.track_count.to_s]
       cmd1 += ['--dj-name', gen_job.dj_name] if gen_job.dj_name
       cmd1 += ['--dry-run'] if gen_job.dry_run?
+      cmd1 += ['--resume-dir', resume_dir] if resume_dir
 
-      append_log(log, gen_job, 'Running: generate.py')
-      output1, exit1 = run_and_stream(log, gen_job, cmd1, chdir: root)
-      append_log(log, gen_job, "Exit: #{exit1}")
+      say(resume_dir ? "Resuming in #{resume_dir}" : 'Running: generate.py')
+      exit1 = run_and_stream(cmd1, chdir: root) { |line| capture_show_dir(line) }
+      say("Exit: #{exit1}")
+      raise "generate.py failed with exit #{exit1}" if exit1 != 0
 
-      show_dir = nil
-      output1.each_line do |line|
-        show_dir = ::Regexp.last_match(1).strip if line =~ /Show\s+folder:\s+(.+)/
-      end
-
-      if show_dir && !gen_job.dry_run?
+      if @show_dir && !gen_job.dry_run?
         # Free GPU memory between generation and mixing
-        AceStepManager.reinitialize!
-        cmd2 = ['python3', 'djmix.py', show_dir, '--crossfade', gen_job.crossfade.to_s]
-        append_log(log, gen_job, 'Running: djmix.py')
-        _output2, exit2 = run_and_stream(log, gen_job, cmd2, chdir: root)
-        append_log(log, gen_job, "Exit: #{exit2}")
+        unless AceStepManager.reinitialize!
+          say('WARNING: ACE-Step reinitialize failed — GPU memory may still be held for djmix')
+        end
+        cmd2 = ['python3', 'djmix.py', @show_dir, '--crossfade', gen_job.crossfade.to_s]
+        say('Running: djmix.py')
+        exit2 = run_and_stream(cmd2, chdir: root)
+        say("Exit: #{exit2}")
 
-        append_log(log, gen_job, 'Importing into database...')
-        import_show(show_dir, gen_job)
-        append_log(log, gen_job, 'Import complete.')
+        say('Importing into database...')
+        import_show(@show_dir, gen_job)
+        say('Import complete.')
       end
 
-      gen_job.update!(status: :done, completed_at: Time.current, output_log: log.join("\n"))
+      gen_job.update!(status: :done, completed_at: Time.current)
     rescue StandardError => e
-      log << "ERROR: #{e.message}"
-      gen_job.update!(status: :failed, completed_at: Time.current, output_log: log.join("\n"))
+      say("ERROR: #{e.message}")
+      gen_job.update!(status: :failed, completed_at: Time.current)
     ensure
-      AceStepManager.release(ace_session) if ace_session
+      AceStepManager.release(@ace_session) if @ace_session
     end
   end
 
   private
 
-  def run_and_stream(log, gen_job, cmd, chdir:)
-    output = +''
-    line_count = 0
-    exit_status = nil
-    Open3.popen2e(*cmd, chdir: chdir) do |_stdin, stdout_err, wait_thr|
-      stdout_err.each_line do |line|
-        output << line
-        log << line.chomp
-        ProgressParser.parse(gen_job, line)
-        line_count += 1
-        flush_log(gen_job, log) if line_count % 3 == 0
-      end
-      flush_log(gen_job, log)
-      exit_status = wait_thr.value.exitstatus
+  def capture_show_dir(line)
+    if line =~ /Show\s+folder:\s+(.+)/ || line =~ /Resuming\s+generation\s+in\s+(.+)/
+      @show_dir = ::Regexp.last_match(1).strip
     end
-    [output, exit_status]
   end
 
-  def append_log(log, gen_job, msg)
-    log << msg
-    flush_log(gen_job, log)
-  end
+  def detect_resume_dir(gen_job, root)
+    resume_dir = gen_job.options&.dig('show_dir')
+    if resume_dir.blank? && gen_job.options&.dig('tracks').present?
+      first_file = gen_job.options['tracks'].values.find { |t| t['file'].present? }
+      resume_dir = File.dirname(first_file['file']) if first_file
+    end
+    return nil if resume_dir.blank?
+    return nil unless Dir.exist?(File.join(root, resume_dir))
 
-  def flush_log(gen_job, log)
-    gen_job.update_column(:output_log, log.join("\n"))
+    resume_dir
   end
 
   def import_show(show_dir, gen_job)
@@ -100,12 +91,14 @@ class GenerateShowJob < ApplicationJob
     data = JSON.parse(File.read(playlist_path))
     return unless data['tracks'].is_a?(Array)
 
-    show = Show.create!(
+    show = Show.find_or_create_by!(directory: show_dir) do |s|
+      s.slot = gen_job.slot
+    end
+    show.update!(
       slot: gen_job.slot,
       name: data['showName'],
       dj_name: data['djName'],
       track_count: data['tracks'].length,
-      directory: show_dir,
       status: :complete,
       generated_at: Time.current
     )
