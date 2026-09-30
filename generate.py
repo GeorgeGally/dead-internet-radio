@@ -17,7 +17,7 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_URL = os.getenv("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions")
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
 
@@ -388,7 +388,13 @@ def main():
                         help="DJ name for announcements (default: random)")
     parser.add_argument("--resume-dir", type=str, default="",
                         help="Resume from an existing show directory (skips producer, announcer, DJ phases)")
+    parser.add_argument("--only-track", type=int, default=0,
+                        help="In resume mode, render only this track number (and its voiceover) then exit")
     args = parser.parse_args()
+
+    if args.only_track and not args.resume_dir:
+        print("Error: --only-track requires --resume-dir", file=sys.stderr)
+        sys.exit(1)
 
     if not OPENROUTER_API_KEY:
         print("Error: OPENROUTER_API_KEY not set in .env", file=sys.stderr)
@@ -426,6 +432,19 @@ def main():
                 num = int(m.group(1))
                 if num != 0 and "DJ-voice" not in f.name and "opening" not in f.name:
                     completed_nums.add(num)
+
+        if args.only_track:
+            track_numbers = [t["number"] for t in track_history]
+            if args.only_track not in track_numbers:
+                print(f"No-op: track {args.only_track} is not in this show's track list "
+                      f"({track_numbers})", flush=True)
+                sys.exit(0)
+            if args.only_track in completed_nums:
+                print(f"No-op: track {args.only_track} is already complete — nothing to render",
+                      flush=True)
+                sys.exit(0)
+            print(f"--only-track {args.only_track}: rendering just this track, "
+                  f"leaving the other {len(track_numbers) - 1} untouched", flush=True)
 
         total = len(track_history)
         remaining = total - len(completed_nums)
@@ -738,6 +757,8 @@ def main():
         total = len(track_history)
         for t in track_history:
             i = t["number"]
+            if args.only_track and i != args.only_track:
+                continue
             display_name = t["display_name"]
             song = t["payload"]
 
@@ -774,6 +795,9 @@ def main():
 
         # --- BATCH voiceover generation ---
         # Schedule was already set during fresh generate (save-state) or loaded from resume state
+        if args.only_track:
+            # A single-track render carries only its own voiceover
+            voiceover_schedule = [n for n in voiceover_schedule if n == args.only_track]
         emit_progress({"type": "voiceovers", "count": len(voiceover_schedule)})
         if voiceover_schedule:
             print(f"Announcer batch: {len(voiceover_schedule)} voiceovers...", flush=True)
