@@ -135,7 +135,13 @@ function setupAudio(noSeek) {
 
   let seekSeconds = 0;
 
-  if (noSeek) {
+  if (playlist.live) {
+    // Shared timeline: play whatever segment covers server-now. The 500ms
+    // slack stops an early 'ended' from replaying the tail of the same track.
+    const now = liveNow() + 500;
+    currentTrack = Math.max(0, tracks.findIndex((t) => now < t.startsAt + t.durationMs));
+    seekSeconds = Math.max(0, liveNow() - tracks[currentTrack].startsAt) / 1000;
+  } else if (noSeek) {
     currentTrack = 0;
   } else {
     const rawOffset = Date.now() - (playlist.epoch || EPOCH);
@@ -187,13 +193,18 @@ function setupAudio(noSeek) {
     document.addEventListener('click', tryPlay, true);
   });
 
-  startVoiceoverIfNeeded();
+  // Joining mid-track: the DJ drop belongs to the top of the track.
+  if (seekSeconds < 5) startVoiceoverIfNeeded();
 }
 
 let trackChangeInProgress = false;
 
 function onTrackEnd() {
   if (trackChangeInProgress) return;
+  if (playlist && playlist.live) {
+    goLive(true);
+    return;
+  }
   if (playlist && playlist.tracks.length < 2 && showsList.length > 1) {
     nextStation();
     return;
@@ -223,6 +234,10 @@ function updateNowPlaying() {
 }
 
 function currentShowName() {
+  if (playlist && playlist.live) {
+    const seg = playlist.tracks[currentTrack];
+    return (seg && seg.showName) || 'D.I.R.';
+  }
   if (playlist && playlist.showName) return playlist.showName;
   const show = showsList.find(s => s.id === currentShowId);
   return show ? (show.name || show.djName || '') : '';
@@ -391,6 +406,10 @@ function playAudio() {
 function prevTrack() {
   stopVoiceover();
   if (!playlist) return;
+  if (playlist.live) {
+    goLive();  // live radio can't rewind; resync instead
+    return;
+  }
   currentTrack = (currentTrack - 1 + playlist.tracks.length) % playlist.tracks.length;
   visuals.notify('trackChange');
   updateTrackInfo();
@@ -863,13 +882,54 @@ function apiUrl(path) {
   return `${location.protocol}//${host}${port}/api/v1${path}`;
 }
 
+// Server clock minus local clock, so every listener agrees on "now".
+let serverOffsetMs = 0;
+
+function liveNow() {
+  return Date.now() + serverOffsetMs;
+}
+
+async function fetchLive() {
+  const sent = Date.now();
+  const data = await fetchJson(apiUrl('/broadcast'));
+  serverOffsetMs = data.serverTime - (sent + Date.now()) / 2;
+  if (!Array.isArray(data.segments) || !data.segments.length) throw new Error('dead air');
+  return { live: true, tracks: data.segments };
+}
+
+// Tune to the shared timeline (also used to resync after each segment).
+async function goLive(fromTrackEnd) {
+  let next;
+  try {
+    next = await fetchLive();
+  } catch (e) {
+    return;
+  }
+  stopVoiceover();
+  playlist = next;
+  playlistBase = '';
+  currentShowId = null;
+  if (fromTrackEnd) visuals.next();
+  visuals.notify('trackChange');
+  setupAudio();
+  updateTrackInfo();
+  updatePlayBtn();
+}
+
 async function loadBroadcastData() {
   // Use the Rails API whenever served over http(s). Static json fallback is
   // only for file:// previews of the exported dist/ bundle.
   if (location.protocol !== 'file:') {
     try {
-      const data = await fetchJson(apiUrl('/playlist'));
+      const data = await fetchLive();
       playlistBase = '';  // API returns root-absolute /media/... urls
+      return data;
+    } catch (e) {
+      // No broadcast timeline yet; try the old single-show playlist.
+    }
+    try {
+      const data = await fetchJson(apiUrl('/playlist'));
+      playlistBase = '';
       return data;
     } catch (e) {
       // API not available (e.g. static Netlify deploy), fall back to files
@@ -903,6 +963,7 @@ async function loadShows() {
       if (Array.isArray(data) && data.length > 0) {
         showsList = data;
         showsBase = '';
+        if (playlist && playlist.live) return;  // already tuned to the broadcast
         const initialShow = showsList.find(s => s.trackCount > 1) || showsList[0];
         selectShow(initialShow.id);
         return;
@@ -936,6 +997,11 @@ async function loadShows() {
 function nextStation() {
   if (!showsList.length) return;
   const idx = showsList.findIndex(s => s.id === currentShowId);
+  // Archive shows cycle back round to the live broadcast (API only).
+  if (idx === showsList.length - 1 && !showsBase && location.protocol !== 'file:') {
+    goLive();
+    return;
+  }
   const next = showsList[(idx + 1) % showsList.length];
   selectShow(next.id);
 }

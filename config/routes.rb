@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       resources :visuals, only: [:index]
       get "playlist", to: "playlist#show"
       get "now_playing", to: "now_playing#show"
+      get "broadcast", to: "broadcast#show"
     end
   end
 
