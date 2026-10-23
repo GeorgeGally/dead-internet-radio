@@ -408,4 +408,4 @@ visuals.register('giphy', (() => {
   }
 
   return { name: 'Giphy Feed', start, stop, resetTimer, onEvent };
-})();
+})());

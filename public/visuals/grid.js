@@ -225,4 +225,4 @@ visuals.register('grid', (() => {
   }
 
   return { name: 'Grid', start, stop, onEvent };
-})();
+})());

@@ -88,4 +88,4 @@ visuals.register('sound_investigation1', (() => {
   }
 
   return { name: 'Sound Investigation 1', start, stop };
-})();
+})());

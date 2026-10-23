@@ -487,4 +487,4 @@ visuals.register('blocks', (() => {
   }
 
   return { name: 'Generative Blocks', start, stop, onEvent };
-})();
+})());
