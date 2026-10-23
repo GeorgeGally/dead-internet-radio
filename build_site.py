@@ -171,7 +171,7 @@ def _build_dist_static():
     """Copy static player assets from public/ to dist/."""
     DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "audio").mkdir(exist_ok=True)
-    for name in ("index.html", "app.js", "style.css", "fonts", "visuals", "welcome"):
+    for name in ("index.html", "app.js", "ident.js", "style.css", "fonts", "visuals", "welcome"):
         src_file = SRC_DIR / name
         if not src_file.exists():
             continue

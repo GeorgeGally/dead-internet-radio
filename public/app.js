@@ -110,6 +110,7 @@ function setupAudioAnalysis() {
 }
 
 function setupAudio(noSeek) {
+  idents.stop();
   const tracks = playlist.tracks;
   const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
   if (totalMs === 0 || tracks.every((track) => !track.file)) return;
@@ -199,6 +200,7 @@ function onTrackEnd() {
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
+    idents.play();
     const audio = document.getElementById('player');
     audio.volume = 1;
     audio.src = playlistBase + playlist.tracks[currentTrack].file;
@@ -390,6 +392,7 @@ function playAudio() {
 function prevTrack() {
   stopVoiceover();
   if (!playlist) return;
+  idents.stop();
   if (playlist.live) {
     goLive();  // live radio can't rewind; resync instead
     return;
@@ -409,6 +412,7 @@ function prevTrack() {
 function nextTrack() {
   if (!playlist) return;
   onTrackEnd();
+  idents.stop();
 }
 
 let voiceoverEndedHandler = null;
@@ -1145,6 +1149,7 @@ let audioAnalysisReady = false;
   startEqLoop();
   window.addEventListener('resize', initWave);
   visuals.init();
+  idents.init();
   gallery.init();
   visuals.prewarmThumbnails();
   // engine.next/prev/random route through visuals.activate, so this wrapper
