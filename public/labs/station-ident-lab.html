@@ -691,24 +691,46 @@ V.push({
   },
 });
 
-// V12 — spectrogram
+// V12 — spectrogram: the letters are partials in the signal, not a fill
 V.push({
   name: 'Spectrogram', seed: 'ff8af36f6e8c39d2ad378fc3', L: 10,
-  idea: 'The station signal as a scrolling spectrogram. Hidden in the frequencies, the way Aphex Twin hid a face in a track, DIR scrolls into view and the waterfall stops on it.',
-  init(S) { S.wf = document.createElement('canvas'); S.wf.width = 320; S.wf.height = 128; S.img = S.wf.getContext('2d').createImageData(320, 128); S.m = mask('DIR', 150, 64); },
+  idea: 'The station signal as a scrolling spectrogram: bass, kicks, a pad of stacked harmonics, hats. Hidden in it, the way Aphex Twin hid a face, DIR is drawn by the harmonics themselves, and the waterfall stops on it.',
+  init(S) {
+    S.W = 320; S.H = 160;
+    S.wf = document.createElement('canvas'); S.wf.width = S.W; S.wf.height = S.H; S.img = S.wf.getContext('2d').createImageData(S.W, S.H);
+    S.m = mask('DIR', 150, 64);
+    // a 2px halo around the letters, so the partials sit in a faint energy field
+    S.halo = new Uint8Array(150 * 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 150; x++) { let on = 0; for (let dy = -2; dy <= 2 && !on; dy++) for (let dx = -2; dx <= 2; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < 150 && Y < 64 && S.m.on[Y * 150 + X]) { on = 1; break; } } S.halo[y * 150 + x] = on; }
+  },
   draw(c, w, h, t, S) {
-    const u = h / 100, W = 320, H = 128, KS = 329, K = Math.min(Math.floor(t * 70), KS), fr = Math.floor(t * 24);
-    const stops = [[0, [5, 6, 8]], [.3, [27, 31, 74]], [.62, [255, 90, 31]], [1, [255, 243, 224]]];
-    const cmap = v => { v = clamp(v); for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) { const [a, A] = stops[i - 1], [b, B] = stops[i], k = (v - a) / (b - a); return A.map((x, j) => x + (B[j] - x) * k); } return stops[3][1]; };
-    const d = S.img.data;
+    const u = h / 100, W = S.W, H = S.H, KS = 329, K = Math.min(Math.floor(t * 70), KS), fr = Math.floor(t * 24);
+    const stops = [[0, [6, 4, 10]], [.22, [40, 10, 60]], [.48, [150, 40, 70]], [.72, [255, 90, 31]], [1, [255, 236, 200]]];
+    const cmap = v => { v = clamp(v); for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) { const [a, A] = stops[i - 1], [b, B] = stops[i], k = (v - a) / (b - a); return A.map((x, j) => x + (B[j] - x) * k); } return stops[4][1]; };
+    const rnd = n => (h32(n) % 1000) / 1000;
+    const d = S.img.data, seed = K >= KS ? fr * 7919 : 0;
     for (let x = 0; x < W; x++) {
-      const k = K - (W - 1) + x, mc = k - 95;
+      const k = K - (W - 1) + x, mc = k - 95, swell = .5 + .5 * Math.sin(k * .035), kk = ((k % 28) + 28) % 28;
       for (let r = 0; r < H; r++) {
-        let v = (h32(k * 131 + r * 7 + (K >= KS ? fr * 7919 : 0)) % 1000) / 1000 * .16 + (r / H) * .14;
-        if (r > 94 && r < 108 && r % 4 === 0) v += .3 * (.5 + .5 * Math.sin(k * .09 + r));
-        if (k % 8 < 2 && r > 14 && r < 30) v += .28;
-        if (k % 16 < 3 && r > 112) v += .45;
-        if (mc >= 0 && mc < 150 && r >= 32 && r < 96 && S.m.on[(r - 32) * 150 + mc]) v = .74 + (h32(k * 31 + r) % 100) / 100 * .24;
+        const fy = 1 - r / H;
+        // pink noise floor, louder in the lows
+        let v = .04 + fy * fy * .2 * (.6 + .4 * rnd(k * 131 + r * 7 + seed));
+        // bass fundamental and two overtones
+        for (let j = 0; j < 3; j++) { const rr = H * .9 - j * 9; if (Math.abs(r - rr) <= 1) v += (.42 - j * .12) * (.75 + .25 * Math.sin(k * .07 + j)); }
+        // kicks every 28 columns, decaying, low end only
+        if (kk < 5 && r > H * .8) v += .4 * (1 - kk / 5);
+        // a pad: harmonic stack, every 6 rows up from its fundamental, swelling slowly
+        for (let j = 0; j < 8; j++) if (r === Math.round(H * .62 - j * 6)) v += (.38 / (1 + j * .35)) * swell;
+        // hats: thin ticks at the top
+        if (k % 7 === 0 && r < H * .14) v += .28 * (1 - r / (H * .14));
+        // the letters: partials every third row through the mask, rippling and dropping out
+        if (mc >= 0 && mc < 150 && r >= 40 && r < 104) {
+          const mi = (r - 40) * 150 + mc;
+          if (S.m.on[mi]) {
+            const drop = rnd(k * 31 + r * 17) < .12 ? .3 : 1;
+            v += r % 3 === 0 ? (.55 + .3 * Math.sin(mc * .11 + r * .4)) * (1 - (104 - r) / 64 * .35) * drop : .12 * drop;
+          } else if (S.halo[mi]) v += .07;
+        }
         const [R, G, B] = cmap(v), o = (r * W + x) * 4;
         d[o] = R; d[o + 1] = G; d[o + 2] = B; d[o + 3] = 255;
       }
@@ -894,28 +916,34 @@ V.push({
 });
 
 
-// V19 — numbers station II: sixteen tight columns, the broadcast never stops scrolling
+// V19 — numbers station II: sixteen tight columns scrolling up; the sheet stops on the message row
 V.push({
   name: 'Numbers station II · scroll', seed: 'af8298a15fd0873997534bd8', L: 11,
-  idea: 'The V6 cipher sheet, with sixteen tight columns. New groups arrive at the bottom and the whole sheet scrolls up without stopping. Four groups decode to orange as they pass the middle and ride off the top.',
-  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => [6 + k * 3, Math.floor(S.r() * 16)]); },
+  idea: 'The V6 cipher sheet with sixteen tight columns, scrolling up as new groups arrive. When the message row reaches the middle the sheet stops, the four groups decode to orange, hold, turn back into numbers, and the scroll carries on.',
+  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); },
   draw(c, w, h, t, S) {
-    const u = h / 100, v = 2.2, pos = t * v;
+    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    const pos0 = Math.ceil((bot - top) / rh); if (S.row === undefined) S.row = pos0 + 4;
+    const P = S.row + Math.round((bot - readY) / rh), T1 = (P - pos0) / v, HOLD = 2.6;
+    // scroll clock: starts with a full sheet, stops dead when the message row is on the read line, then resumes
+    const pos = pos0 + (t < T1 ? t * v : t < T1 + HOLD ? P - pos0 : P - pos0 + (t - T1 - HOLD) * v);
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
     c.font = MONO(2.9 * u); const gw = c.measureText('00000').width;
-    const x0 = 6 * u, stepX = (w - 12 * u - gw) / (S.cols - 1), rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    const x0 = 6 * u, stepX = (w - 12 * u - gw) / (S.cols - 1);
     hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `LINE ${String(Math.floor(pos)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+    const res = Math.floor(ramp(t, T1, .7) * 6), back = Math.floor(ramp(t, T1 + HOLD - .35, .3) * 6);
+    const hold = ramp(t, T1, .5) * (1 - ramp(t, T1 + HOLD - .35, .3));
     for (let r = Math.floor(pos); r >= 0; r--) {
       const y = bot - (pos - r) * rh; if (y < top) break;
-      const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u)), k = S.at.findIndex(([rr]) => rr === r);
+      const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
       for (let col = 0; col < S.cols; col++) {
         let s = '', hot = false;
-        if (k >= 0 && S.at[k][1] === col) {
-          const res = Math.floor((readY - y) / (1.1 * u));
-          for (let i = 0; i < 5; i++) s += i < res ? PAD_WORDS[k][i] : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
-          hot = res > 0;
+        const k = r === S.row ? S.at.indexOf(col) : -1;
+        if (k >= 0) {
+          for (let i = 0; i < 5; i++) s += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? String(h32(r * 977 + col * 31 + i) % 10) : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
+          hot = res > 0 && back < 5;
         } else for (let i = 0; i < 5; i++) s += h32(r * 977 + col * 31 + i) % 10;
-        c.globalAlpha = edge * (hot ? 1 : .5); c.fillStyle = hot ? ORANGE : '#e8e4da';
+        c.globalAlpha = edge * (hot ? 1 : .5 - .2 * hold); c.fillStyle = hot ? ORANGE : '#e8e4da';
         c.fillText(s, x0 + col * stepX, y);
       }
     }
