@@ -139,7 +139,7 @@ const V = [];
 // V1 — EBU test card
 V.push({
   name: 'Test card', seed: '40eaaaeda98b51ace3bf9812', L: 9,
-  idea: 'EBU colour bars drain to grey one at a time. One bar keeps the station orange, and a slate locked to the bar grid fades up with the ident.',
+  idea: 'EBU colour bars drain to grey one at a time. One bar keeps the station orange, and the station ID fades up straight onto the bars.',
   init(S) { S.keep = 1; },
   draw(c, w, h, t, S) {
     const u = h / 100, bw = w / 7;
@@ -154,14 +154,8 @@ V.push({
       c.fillStyle = mix(rev[i], grey(rev[i], .3), kOf(6 - i)); c.fillRect(x, h * .67, xw, h * .08);
       c.fillStyle = mix(ramp7[i], grey(ramp7[i], .3), kOf(i)); c.fillRect(x, h * .75, xw, h * .25);
     }
-    // slate occupies whole bar cells 2–4, from 20% down to the bar break
-    const bx = Math.round(2 * bw), bW = Math.round(5 * bw) - bx, by = h * .2, bH = h * .47;
-    c.save(); c.globalAlpha = ramp(t, 3.1, .5); c.fillStyle = '#000'; c.fillRect(bx, by, bW, bH); c.restore();
-    const p = 4 * u;
-    txt(c, 'P100  88.8 MHz', bx + p, by + p + 2.4 * u, MONO(2.5 * u), 'rgba(242,238,230,.6)', ramp(t, 3.4, .6));
-    txt(c, clock(), bx + bW - p, by + p + 2.4 * u, MONO(2.5 * u), 'rgba(242,238,230,.6)', ramp(t, 3.4, .6), 'right');
-    ident(c, w, h, t, 3.6, bx + p, by + bH - 19 * u, { size: 11 * u });
-    txt(c, `NOW  ${DATA.title} · ${DATA.artist}`, bx + p, h * .9, MONO(2.8 * u), CREAM, ramp(t, 4.6, .7));
+    // station ID straight onto the drained bars, hung off the orange bar's right edge
+    ident(c, w, h, t, 3.4, Math.round(2 * bw) + 4 * u, h * .44, { size: 14 * u, prompt: false });
     noise(c, w, h, .05 + .5 * (1 - ramp(t, 0, .7)));
     scan(c, w, h, .12);
   },
@@ -194,7 +188,7 @@ V.push({
       c.fillStyle = `rgba(255,255,255,${.7 * (1 - ramp(t, .55, .6))})`; c.fillRect(0, 0, w, h);
       hud(c, w, h, t, 2.4, '88.8 MHz', clock());
       txt(c, 'ON AIR', 6 * u, 12 * u, MONO(2.6 * u, 500), ORANGE, ramp(t, 3, .6));
-      ident(c, w, h, t, 2.6, 6 * u, h - 31 * u, { size: 15 * u, accent: ORANGE });
+      ident(c, w, h, t, 2.6, 6 * u, h - 22 * u, { size: 15 * u, prompt: false });
       c.restore();
     }
     const g = c.createRadialGradient(w / 2, h / 2, h * .38, w / 2, h / 2, w * .64);
