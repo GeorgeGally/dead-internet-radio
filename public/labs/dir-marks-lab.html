@@ -29,7 +29,7 @@ body.solo .frame { padding: 0; border-radius: 0; }
 <body>
 <header>
   <h1>DIR marks</h1>
-  <p>Logos for Dead Internet Radio: ten wordmarks, ten marks with no letters, then two from the cassette label. Each is just the logo on a flat ground; the band under it shows it at 36px on the deck cream and on black.</p>
+  <p>Logos for Dead Internet Radio: wordmarks, one mark with no letters, and the cassette set. Each is just the logo on a flat ground; the band under it shows it at 36px on the deck cream and on black.</p>
 </header>
 <main id="lab"></main>
 <script>
@@ -46,13 +46,30 @@ function D(s = .26, w = .84) {
   return { p, w };
 }
 function I(s = .26) { const p = new Path2D(); p.rect(0, 0, s, 1); return { p, w: s }; }
-function R(s = .26, rb = .33, w = .84) {
-  const p = new Path2D(), cx = w - rb;
+function R(s = .26, H = .7, w = .86) {
+  const p = new Path2D(), rb = H / 2, cx = w - rb, lw = .3, k = (w - cx) / (1 - H);
+  const yl = 1 - (w - lw - s) / k; // where the leg's inner edge meets the stem
   p.moveTo(0, 0); p.lineTo(cx, 0); p.arc(cx, rb, rb, -PI / 2, PI / 2);
-  p.lineTo(.44, 2 * rb); p.lineTo(w, 1); p.lineTo(.56, 1); p.lineTo(s, .72); p.lineTo(s, 1); p.lineTo(0, 1); p.closePath();
-  p.moveTo(s, s); p.lineTo(s, 2 * rb - s); p.arc(cx, rb, rb - s, PI / 2, -PI / 2, true); p.closePath();
+  p.lineTo(w, 1); p.lineTo(w - lw, 1); p.lineTo(s, yl); p.lineTo(s, 1); p.lineTo(0, 1); p.closePath();
+  p.moveTo(s, s); p.lineTo(s, H - s); p.lineTo(cx, H - s); p.arc(cx, rb, rb - s, PI / 2, -PI / 2, true); p.closePath();
   return { p, w };
 }
+// A D whose stem is the slash: one slanted stroke, bowl hung off it.
+function slashD(s = .26, lean = .3, w = 1.12) {
+  const p = new Path2D(), r = .5, cx = w - r, at = y => lean * (1 - y);
+  p.moveTo(0, 1); p.lineTo(lean, 0); p.lineTo(cx, 0); p.arc(cx, .5, r, -PI / 2, PI / 2); p.closePath();
+  p.moveTo(s + at(1 - s), 1 - s); p.lineTo(cx, 1 - s); p.arc(cx, .5, r - s, PI / 2, -PI / 2, true); p.lineTo(s + at(s), s); p.closePath();
+  return { p, w };
+}
+// Paint fill() only inside shape(), on its own layer, so the ground stays clean.
+function inside(ctx, w, shape, fill) {
+  const sc = Math.max(1, ctx.getTransform().a), off = document.createElement('canvas');
+  off.width = Math.ceil((w + .2) * sc); off.height = Math.ceil(1.2 * sc);
+  const o = off.getContext('2d'); o.scale(sc, sc); o.translate(.1, .1);
+  shape(o); o.globalCompositeOperation = 'source-atop'; fill(o);
+  ctx.drawImage(off, -.1, -.1, off.width / sc, off.height / sc);
+}
+const TDK = ['#ffb000', '#ff5a1f', '#e0262e', '#9b1b4b'];
 function slash(s = .24, lean = .3) { const p = new Path2D(); p.moveTo(lean, 0); p.lineTo(lean + s, 0); p.lineTo(s, 1); p.lineTo(0, 1); p.closePath(); return { p, w: lean + s }; }
 function dot(s = .26) { const p = new Path2D(); p.rect(0, 1 - s, s, s); return { p, w: s }; }
 function zero(ctx, x, y, h, color, w = .56, s = .2) {
@@ -131,16 +148,8 @@ const V = [
     },
   },
   {
-    name: 'Slash stem', idea: 'The D has no stem: the slash is its stem. The URL mark and the letter become one shape.',
-    ground: INK, draw(ctx, c) {
-      const sl = slash(.26, .28); ctx.fillStyle = c.ink; ctx.fill(sl.p);
-      // bowl of a D hung off the slash's top-right corner
-      const p = new Path2D(), x0 = .54, cx = x0 + .3, r = .5; p.moveTo(x0 - .3, 0); p.lineTo(cx, 0); p.arc(cx, .5, r, -PI / 2, PI / 2); p.lineTo(x0 - .3 + .0, 1);
-      p.lineTo(x0 - .3 + .3, 1); p.lineTo(x0 - .3 + .3, .74); p.arc(cx, .5, r - .26, PI / 2, -PI / 2, true); p.lineTo(x0 - .3 + .3, .26); p.lineTo(x0 - .3 + .3 - .3, .26); p.closePath();
-      ctx.save(); ctx.translate(0, 0); ctx.fill(p); ctx.restore();
-      const ir = line([I(), R()]); ctx.save(); ctx.translate(cx + r + .09, 0); fillLine(ctx, ir, c.ink); ctx.restore();
-      return cx + r + .09 + ir.w;
-    },
+    name: 'Slash stem', idea: 'The D has no upright: the slash is its stem, and the bowl hangs off it. The URL mark and the letter are one shape.',
+    ground: INK, draw(ctx, c) { const L = line([slashD(), I(), R()]); fillLine(ctx, L, c.ink); return L.w; },
   },
   {
     name: 'Readout', idea: 'D.I.R. as a fourteen-segment display, so the R gets a real diagonal leg. Lit segments only, no ghost.',
@@ -163,10 +172,10 @@ const V = [
   },
   {
     name: 'Tube', idea: 'The block cut with every corner rounded off, like the glass of a CRT.',
-    ground: INK, draw(ctx, c) { const L = line([D(), I(), R()], .2); strokeLine(ctx, L, c.ink, .08, 'round'); fillLine(ctx, L, c.ink); return L.w; },
+    ground: INK, draw(ctx, c) { const L = line([D(), I(), R()], .12); strokeLine(ctx, L, c.ink, .06, 'round'); fillLine(ctx, L, c.ink); return L.w; },
   },
   {
-    name: 'Lowercase', idea: 'dir, set low and heavy with round bowls: a path name, said quietly.',
+    hidden: true, name: 'Lowercase', idea: 'dir, set low and heavy with round bowls: a path name, said quietly.',
     ground: INK, draw(ctx, c) {
       const s = .22, p = new Path2D();
       // d: ring + right stem
@@ -192,16 +201,16 @@ const V = [
 
   // ---------- marks: no letters ----------
   {
-    name: 'Signal D', idea: 'A stem, two arcs and a half dot. It is a D and it is the broadcast symbol; one shape says both.',
+    name: 'Signal D', idea: 'A stem, two arcs and a half dot, drawn thin, each in its own tape colour. It is a D and it is the broadcast symbol.',
     ground: INK, draw(ctx, c) {
-      ctx.fillStyle = c.ink; ctx.fillRect(0, 0, .22, 1);
-      ctx.strokeStyle = c.ink; ctx.lineWidth = .12; ctx.lineCap = 'butt';
-      for (const r of [.44, .255]) { ctx.beginPath(); ctx.arc(.22, .5, r, -PI / 2, PI / 2); ctx.stroke(); }
-      ctx.beginPath(); ctx.arc(.22, .5, .12, -PI / 2, PI / 2); ctx.fill(); return .72;
+      ctx.fillStyle = c.ink; ctx.fillRect(0, 0, .1, 1);
+      ctx.lineWidth = .07; ctx.lineCap = 'butt';
+      [[.44, TDK[0]], [.31, TDK[1]], [.18, TDK[2]]].forEach(([r, col]) => { ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(.1, .5, r, -PI / 2, PI / 2); ctx.stroke(); });
+      ctx.fillStyle = TDK[3]; ctx.beginPath(); ctx.arc(.1, .5, .07, -PI / 2, PI / 2); ctx.fill(); return .58;
     },
   },
   {
-    name: 'One bar', idea: 'The phone signal icon with one bar left, in orange. Dead internet, still broadcasting.',
+    hidden: true, name: 'One bar', idea: 'The phone signal icon with one bar left, in orange. Dead internet, still broadcasting.',
     ground: INK, draw(ctx, c) {
       const n = 5, bw = .16, g = .07;
       for (let i = 0; i < n; i++) {
@@ -213,7 +222,7 @@ const V = [
     },
   },
   {
-    name: 'Flatline', idea: 'A carrier wave that goes flat. One thick stroke with round ends.',
+    hidden: true, name: 'Flatline', idea: 'A carrier wave that goes flat. One thick stroke with round ends.',
     ground: DECK, draw(ctx, c) {
       ctx.strokeStyle = c.ink; ctx.lineWidth = .2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
       const L = 1.5; ctx.moveTo(.1, .5);
@@ -222,7 +231,7 @@ const V = [
     },
   },
   {
-    name: 'Dead pixel', idea: 'Nine pixels. One of them is stuck on.',
+    hidden: true, name: 'Dead pixel', idea: 'Nine pixels. One of them is stuck on.',
     ground: INK, draw(ctx, c) {
       const s = .28, g = .08;
       for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) { ctx.fillStyle = x === 2 && y === 0 ? c.accent : c.ink; ctx.fillRect(x * (s + g), y * (s + g), s, s); }
@@ -230,7 +239,7 @@ const V = [
     },
   },
   {
-    name: 'Torn image', idea: 'The broken-image icon as a mark: a page with a folded corner, torn down the middle, the halves out of register.',
+    hidden: true, name: 'Torn image', idea: 'The broken-image icon as a mark: a page with a folded corner, torn down the middle, the halves out of register.',
     ground: INK, draw(ctx, c) {
       const W = .86, f = .2, tx = .42, teeth = [[tx, 0], [tx + .07, .2], [tx - .05, .42], [tx + .06, .64], [tx - .04, .84], [tx + .03, 1]];
       ctx.fillStyle = c.ink;
@@ -241,7 +250,7 @@ const V = [
     },
   },
   {
-    name: 'Stuck', idea: 'A loading ring that never finishes. The last sixth is orange.',
+    hidden: true, name: 'Stuck', idea: 'A loading ring that never finishes. The last sixth is orange.',
     ground: INK, draw(ctx, c) {
       const a = -PI / 2, r = .41;
       ctx.lineCap = 'butt'; ctx.lineWidth = .18;
@@ -250,7 +259,7 @@ const V = [
     },
   },
   {
-    name: 'Tube', idea: 'A screen and the last line on it as the tube collapses. An outline and one orange stroke.',
+    hidden: true, name: 'Tube', idea: 'A screen and the last line on it as the tube collapses. An outline and one orange stroke.',
     ground: INK, draw(ctx, c) {
       const W = 1.3; ctx.strokeStyle = c.ink; ctx.lineWidth = .11; ctx.lineJoin = 'round';
       ctx.beginPath(); ctx.roundRect(.055, .055, W - .11, 1 - .11, .12); ctx.stroke();
@@ -258,7 +267,7 @@ const V = [
     },
   },
   {
-    name: 'Off the dial', idea: 'A tuning dial and a needle that points past its edge, where the station is.',
+    hidden: true, name: 'Off the dial', idea: 'A tuning dial and a needle that points past its edge, where the station is.',
     ground: INK, draw(ctx, c) {
       ctx.lineCap = 'butt'; ctx.strokeStyle = c.ink; ctx.lineWidth = .12; ctx.beginPath(); ctx.arc(.5, .5, .36, 0, 2 * PI); ctx.stroke();
       ctx.save(); ctx.translate(.5, .5); ctx.rotate(PI / 4);
@@ -267,7 +276,7 @@ const V = [
     },
   },
   {
-    name: 'Bot', idea: 'The thing that runs the dead internet: a square head, two slot eyes, one of them stuck orange.',
+    hidden: true, name: 'Bot', idea: 'The thing that runs the dead internet: a square head, two slot eyes, one of them stuck orange.',
     ground: INK, draw(ctx, c) {
       ctx.fillStyle = c.ink; ctx.beginPath(); ctx.roundRect(0, .14, 1, .86, .1); ctx.fill(); ctx.fillRect(.46, 0, .08, .16);
       ctx.fillStyle = c.ground; ctx.fillRect(.2, .42, .2, .22); ctx.fillRect(.3, .78, .4, .06);
@@ -275,7 +284,7 @@ const V = [
     },
   },
   {
-    name: 'Ghost', idea: 'A ghost in the signal: dome, three scallops, slot eyes. Drawn flat on orange.',
+    hidden: true, name: 'Ghost', idea: 'A ghost in the signal: dome, three scallops, slot eyes. Drawn flat on orange.',
     ground: ORANGE, draw(ctx, c) {
       const W = .9, r = W / 2, n = 3, sw = W / n;
       ctx.fillStyle = c.ink; ctx.beginPath(); ctx.moveTo(0, r); ctx.arc(r, r, r, PI, 0); ctx.lineTo(W, 1);
@@ -315,6 +324,17 @@ const V = [
       return W;
     },
   },
+  {
+    name: 'Tube · 80s', idea: 'The V7 letters with a TDK stripe running through them: four bars, yellow to plum, across the lower half.',
+    ground: INK, draw(ctx, c) {
+      const L = line([D(), I(), R()], .12);
+      inside(ctx, L.w, o => { strokeLine(o, L, '#fff', .06, 'round'); fillLine(o, L, '#fff'); }, o => {
+        o.fillStyle = c.ink; o.fillRect(-.1, -.1, L.w + .2, 1.2);
+        TDK.forEach((col, i) => { o.fillStyle = col; o.fillRect(-.1, .5 + i * .115, L.w + .2, .085); });
+      });
+      return L.w;
+    },
+  },
 ];
 
 // ---------- page ----------
@@ -344,7 +364,7 @@ function render(v, cv) {
 }
 
 V.forEach((v, i) => {
-  if (ONLY !== null && i !== ONLY) return;
+  if (ONLY !== null ? i !== ONLY : v.hidden) return;
   const sec = document.createElement('section');
   sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p><div class="frame"><div class="stage"><canvas></canvas></div></div>`;
   document.getElementById('lab').appendChild(sec);
