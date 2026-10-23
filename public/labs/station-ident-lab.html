@@ -214,64 +214,69 @@ V.push({
   },
 });
 
-// V3 — Ceefax page 100
-V.push({
-  name: 'Teletext P100', seed: '129ad417529105fb98413c1c', L: 10,
-  idea: 'The page counter searches until it lands on 100, then a 4:3 teletext page arrives row by row on a strict 40×25 grid: a sextant-mosaic D.I.R. and the show on air.',
-  init(S) {
-    S.col = CREAM;
-    S.err = Array.from({ length: 22 }, () => [2 + Math.floor(S.r() * 36), 2 + Math.floor(S.r() * 20), 2.6 + S.r() * 2.2, Math.floor(S.r() * 7)]);
-  },
-  draw(c, w, h, t, S) {
-    // the page lives in a 4:3 picture, pillarboxed like teletext on a 16:9 set
-    const cols = 40, rows = 25, pw = Math.min(w, h * 4 / 3), cw = pw / cols, ch = h / rows;
-    c.fillStyle = '#08090b'; c.fillRect(0, 0, w, h);
-    c.save(); c.translate((w - pw) / 2, 0);
-    c.fillStyle = '#0e0f12'; c.fillRect(0, 0, pw, h);
-    if (!S.m) S.m = mask('D.I.R.', 72, 27);
-    const TT = [ORANGE, '#7d838c', '#c9ccd3', '#5b6cff', CREAM];
-    const put = (col, row, s, fg, bg, dbl) => {
-      const rh = ch * (dbl ? 2 : 1);
-      if (bg) { c.fillStyle = bg; c.fillRect(col * cw, row * ch, s.length * cw + .5, rh + .5); }
-      c.save(); c.font = `${rh * .92}px VT100`; c.textBaseline = 'top'; c.fillStyle = fg;
-      const mw = c.measureText('M').width; c.translate(col * cw, row * ch + rh * .06); c.scale(cw / mw, 1); c.fillText(s, 0, 0); c.restore();
-    };
-    const vis = r => t > 2.3 + r * .06;
-    const searching = t < 2.2;
-    const pn = searching ? '1' + String((Math.floor(t * 23) * 7) % 100).padStart(2, '0') : '100';
-    const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).replace(',', '');
-    // header: page, service, date, clock spread across the 40 columns
-    put(2, 0, `P${pn}`, searching ? ORANGE : '#c9ccd3');
-    put(8, 0, 'D.I.R.', '#c9ccd3');
-    put(19, 0, date, '#c9ccd3');
-    put(30, 0, clock(), ORANGE);
-    if (vis(2)) { put(0, 2, ' '.repeat(40), '#fff', ORANGE, true); if (Math.floor(t * 1.4) % 2 === 0) put(2, 2, 'ON AIR', '#0e0f12', null, true); put(30, 2, '88.8 MHz', '#0e0f12', null, true); }
-    for (let cy = 0; cy < 9; cy++) {
-      if (!vis(5 + cy)) continue;
-      for (let cx = 0; cx < 36; cx++) for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 2; sx++) {
-        if (!S.m.on[(cy * 3 + sy) * 72 + cx * 2 + sx]) continue;
-        c.fillStyle = S.col;
-        c.fillRect((2 + cx) * cw + sx * cw / 2, (5 + cy) * ch + sy * ch / 3, cw / 2 + .5, ch / 3 + .5);
+// V3 / V17 / V18 — Ceefax page 100, one page, three palettes
+function teletextPage(P) {
+  return {
+    init(S) {
+      S.err = Array.from({ length: 22 }, () => [2 + Math.floor(S.r() * 36), 2 + Math.floor(S.r() * 20), 2.6 + S.r() * 2.2, Math.floor(S.r() * 7)]);
+    },
+    draw(c, w, h, t, S) {
+      // the page lives in a 4:3 picture, pillarboxed like teletext on a 16:9 set
+      const cols = 40, rows = 25, pw = Math.min(w, h * 4 / 3), cw = pw / cols, ch = h / rows;
+      c.fillStyle = P.outer; c.fillRect(0, 0, w, h);
+      c.save(); c.translate((w - pw) / 2, 0);
+      c.fillStyle = P.page; c.fillRect(0, 0, pw, h);
+      if (!S.m) S.m = mask('D.I.R.', 72, 27);
+      const put = (col, row, s, fg, bg, dbl) => {
+        const rh = ch * (dbl ? 2 : 1);
+        if (bg) { c.fillStyle = bg; c.fillRect(col * cw, row * ch, s.length * cw + .5, rh + .5); }
+        c.save(); c.font = `${rh * .92}px VT100`; c.textBaseline = 'top'; c.fillStyle = fg;
+        const mw = c.measureText('M').width; c.translate(col * cw, row * ch + rh * .06); c.scale(cw / mw, 1); c.fillText(s, 0, 0); c.restore();
+      };
+      const vis = r => t > 2.3 + r * .06;
+      const searching = t < 2.2;
+      const pn = searching ? '1' + String((Math.floor(t * 23) * 7) % 100).padStart(2, '0') : '100';
+      const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).replace(',', '');
+      // header: page, service, date, clock spread across the 40 columns
+      put(2, 0, `P${pn}`, searching ? P.clock : P.head);
+      put(8, 0, 'D.I.R.', P.head);
+      put(19, 0, date, P.date);
+      put(30, 0, clock(), P.clock);
+      if (vis(2)) { put(0, 2, ' '.repeat(40), '#fff', P.band, true); if (Math.floor(t * 1.4) % 2 === 0) put(2, 2, 'ON AIR', P.bandText, null, true); put(30, 2, '88.8 MHz', P.bandMhz, null, true); }
+      for (let cy = 0; cy < 9; cy++) {
+        if (!vis(5 + cy)) continue;
+        for (let cx = 0; cx < 36; cx++) for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 2; sx++) {
+          if (!S.m.on[(cy * 3 + sy) * 72 + cx * 2 + sx]) continue;
+          c.fillStyle = P.mosaic;
+          c.fillRect((2 + cx) * cw + sx * cw / 2, (5 + cy) * ch + sy * ch / 3, cw / 2 + .5, ch / 3 + .5);
+        }
       }
-    }
-    if (vis(16)) put(2, 16, 'Dead Internet Radio.', CREAM);
-    if (vis(17)) put(2, 17, 'Music made by machines.', CREAM);
-    const row = (r, label, value) => { if (vis(r)) { put(2, r, label, '#7d838c'); put(8, r, value.slice(0, 30), CREAM); } };
-    row(20, 'SHOW', DATA.show); row(21, 'DJ', DATA.dj);
-    for (const [col, r, until, ci] of S.err) if (vis(r) && t < until && (r < 5 || r > 13)) {
-      put(col, r, String.fromCharCode(33 + h32(col * 99 + r + Math.floor(t * 8)) % 90), TT[ci % TT.length], '#0e0f12');
-    }
-    // raster: 10 scan lines per character row, so lines never beat against the glyphs
-    c.fillStyle = 'rgba(0,0,0,.22)';
-    for (let i = 0; i < rows * 10; i++) c.fillRect(0, (i + .6) * ch / 10, pw, ch / 25);
-    c.restore();
-  },
+      if (vis(16)) put(2, 16, 'Dead Internet Radio.', P.body);
+      if (vis(17)) put(2, 17, 'Music made by machines.', P.body);
+      const row = (r, label, value) => { if (vis(r)) { put(2, r, label, P.label); put(8, r, value.slice(0, 30), P.value); } };
+      row(20, 'SHOW', DATA.show); row(21, 'DJ', DATA.dj);
+      for (const [col, r, until, ci] of S.err) if (vis(r) && t < until && (r < 5 || r > 13)) {
+        put(col, r, String.fromCharCode(33 + h32(col * 99 + r + Math.floor(t * 8)) % 90), P.err[ci % P.err.length], P.page);
+      }
+      // raster: 10 scan lines per character row, so lines never beat against the glyphs
+      c.fillStyle = 'rgba(0,0,0,.22)';
+      for (let i = 0; i < rows * 10; i++) c.fillRect(0, (i + .6) * ch / 10, pw, ch / 25);
+      c.restore();
+    },
+  };
+}
+const TT_IDEA = 'The page counter searches until it lands on 100, then a 4:3 teletext page arrives row by row on a strict 40×25 grid: a sextant-mosaic D.I.R. and the show on air.';
+
+// V3 — orange band, cream mosaic, quiet greys
+V.push({
+  name: 'Teletext P100', seed: '129ad417529105fb98413c1c', L: 10, idea: TT_IDEA + ' Orange band, cream mosaic.',
+  ...teletextPage({ outer: '#08090b', page: '#0e0f12', head: '#c9ccd3', date: '#c9ccd3', clock: ORANGE, band: ORANGE, bandText: '#0e0f12', bandMhz: '#0e0f12', mosaic: CREAM, body: CREAM, label: '#7d838c', value: CREAM, err: [ORANGE, '#7d838c', '#c9ccd3', '#5b6cff', CREAM] }),
 });
 
 // V4 — analogue tuning dial
 V.push({
   name: 'Tuning dial', seed: '7ba3f37c1d32c9ab3cf7f679', L: 9,
-  idea: 'The dial owns the screen. The needle sweeps past the other D.I.R. shows, runs off the end of the FM scale into the static, and finds the station out there, off the dial.',
+  idea: 'The dial is the whole screen. The needle sweeps past the other D.I.R. shows, runs off the end of the FM scale into the static, and finds the station out there, off the dial.',
   init(S) { S.np = .6 + S.r() * .08; },
   draw(c, w, h, t, S) {
     const u = h / 100, lockT = 4.3;
@@ -284,9 +289,8 @@ V.push({
     fq.forEach(([q]) => sig = Math.max(sig, .7 * Math.exp(-Math.pow((f - q) * 3, 2))));
     if (t > lockT) sig = 1;
     // header row: mark left, readout right
-    txt(c, '/D.I.R.', 6 * u, 17 * u, JK(800, 9 * u), CREAM, ramp(t, lockT + .2, .7));
     // dial window: the hero
-    const x0 = 6 * u, x1 = w - 6 * u, y0 = 26 * u, y1 = h - 14 * u, nx = w * S.np, ppm = w / 7;
+    const x0 = 0, x1 = w, y0 = 0, y1 = h, nx = w * S.np, ppm = w / 7;
     c.fillStyle = '#0d0c0b'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
     c.save(); c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip();
     noise(c, x1 - x0, y1 - y0, (1 - sig) * .28 + .03, 0, 160, x0, y0);
@@ -307,8 +311,8 @@ V.push({
     c.fillStyle = ORANGE; c.fillRect(nx - u * .2, y0, u * .4, y1 - y0);
     // meter: shows the actual level
     const lit = Math.round(sig * 10);
-    for (let i = 0; i < 10; i++) { c.fillStyle = i < lit ? ORANGE : '#3a3836'; c.fillRect(x0 + i * 1.5 * u, h - 8.2 * u, .7 * u, 2.6 * u); }
-    txt(c, `SIGNAL ${String(lit * 10).padStart(3, ' ')}%`, x0 + 16 * u, h - 5.8 * u, MONO(2.4 * u), 'rgba(217,212,202,.65)');
+    for (let i = 0; i < 10; i++) { c.fillStyle = i < lit ? ORANGE : '#3a3836'; c.fillRect(6 * u + i * 1.5 * u, h - 8.2 * u, .7 * u, 2.6 * u); }
+    txt(c, `SIGNAL ${String(lit * 10).padStart(3, ' ')}%`, 22 * u, h - 5.8 * u, MONO(2.4 * u), 'rgba(217,212,202,.65)');
   },
 });
 
@@ -844,6 +848,49 @@ V.push({
     }
     c.globalAlpha = 1;
     hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `PAD 0423 · LINE ${String(381 + Math.min(cur, total - 1)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+  },
+});
+
+
+// V17 — teletext, electric: Klein-blue band, orange mosaic, one acid accent
+V.push({
+  name: 'Teletext P100 · electric', seed: '129ad417529105fb98413c1c', L: 10, idea: TT_IDEA + ' Electric blue band, brand-orange mosaic, acid lime for the live data.',
+  ...teletextPage({ outer: '#07070a', page: '#0b0b0f', head: '#ffffff', date: '#8a8f9a', clock: '#c8ff3d', band: '#2233ff', bandText: '#ffffff', bandMhz: '#c8ff3d', mosaic: ORANGE, body: '#ffffff', label: '#c8ff3d', value: '#ffffff', err: [ORANGE, '#2233ff', '#c8ff3d', '#ffffff'] }),
+});
+
+// V18 — teletext, soft Ceefax: the original colour logic with today's hues
+V.push({
+  name: 'Teletext P100 · soft Ceefax', seed: '129ad417529105fb98413c1c', L: 10, idea: TT_IDEA + ' The real Ceefax colour logic (blue band, yellow mosaic, green labels, cyan values) with the hues softened.',
+  ...teletextPage({ outer: '#07070a', page: '#0a0a0c', head: '#ffffff', date: '#d6d8dd', clock: '#ffd166', band: '#3a5bff', bandText: '#ffffff', bandMhz: '#ffd166', mosaic: '#ffd166', body: '#ffffff', label: '#4ade80', value: '#67e8f9', err: [ORANGE, '#4ade80', '#ffd166', '#3a5bff', '#67e8f9', '#ffffff'] }),
+});
+
+
+// V19 — numbers station II: sixteen tight columns, the broadcast never stops scrolling
+V.push({
+  name: 'Numbers station II · scroll', seed: 'af8298a15fd0873997534bd8', L: 11,
+  idea: 'The V6 cipher sheet, with sixteen tight columns. New groups arrive at the bottom and the whole sheet scrolls up without stopping. Four groups decode to orange as they pass the middle and ride off the top.',
+  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => [6 + k * 3, Math.floor(S.r() * 16)]); },
+  draw(c, w, h, t, S) {
+    const u = h / 100, v = 2.2, pos = t * v;
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    c.font = MONO(2.9 * u); const gw = c.measureText('00000').width;
+    const x0 = 6 * u, stepX = (w - 12 * u - gw) / (S.cols - 1), rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `LINE ${String(Math.floor(pos)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+    for (let r = Math.floor(pos); r >= 0; r--) {
+      const y = bot - (pos - r) * rh; if (y < top) break;
+      const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u)), k = S.at.findIndex(([rr]) => rr === r);
+      for (let col = 0; col < S.cols; col++) {
+        let s = '', hot = false;
+        if (k >= 0 && S.at[k][1] === col) {
+          const res = Math.floor((readY - y) / (1.1 * u));
+          for (let i = 0; i < 5; i++) s += i < res ? PAD_WORDS[k][i] : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
+          hot = res > 0;
+        } else for (let i = 0; i < 5; i++) s += h32(r * 977 + col * 31 + i) % 10;
+        c.globalAlpha = edge * (hot ? 1 : .5); c.fillStyle = hot ? ORANGE : '#e8e4da';
+        c.fillText(s, x0 + col * stepX, y);
+      }
+    }
+    c.globalAlpha = 1;
   },
 });
 
