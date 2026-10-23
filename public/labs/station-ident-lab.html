@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station Ident Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: VT100; src: url(../fonts/vt100-regular/vt100-regular.otf.woff2) format('woff2'); }
+:root { --bg: #0e0e0d; --ink: #ece8df; --dim: #9a958c; --frame: #191918; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 'Plus Jakarta Sans', sans-serif; }
+header, section { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 64px; padding-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: 0; }
+header p { margin: 0; color: var(--dim); max-width: 640px; }
+section { margin-bottom: 80px; }
+.tag { margin: 0 0 16px; max-width: 760px; }
+.tag b { font-weight: 700; }
+.frame { background: var(--frame); padding: 12px; border-radius: 6px; }
+.stage { position: relative; aspect-ratio: 16 / 9; background: #000; cursor: pointer; overflow: hidden; border-radius: 2px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* ?only=N : one stage, full viewport (screenshots) */
+body.solo header, body.solo .tag { display: none; }
+body.solo section { max-width: none; padding: 0; margin: 0; }
+body.solo .frame { padding: 0; border-radius: 0; }
+/* keeps the Giphy <img> animating without ever showing it */
+#gifhold { position: fixed; left: -10px; top: -10px; width: 2px; height: 2px; overflow: hidden; opacity: 0; pointer-events: none; }
+#gifhold img { width: 2px; height: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Station ident</h1>
+  <p>Ten animated versions of the intro that plays while D.I.R. loads. Click any one to replay it with a station voice.</p>
+</header>
+<main id="lab"></main>
+<div id="gifhold"></div>
+<script>
+'use strict';
+
+// ---------- live station data (falls back to known shows) ----------
+const DATA = {
+  title: 'Ghost Platform', artist: 'Signal Void', show: 'Berlin Grid Hours', dj: 'Echo',
+  next: 'Railway Scrape', startsAt: Date.now() - 60000, durationMs: 180000,
+  shows: ['Berlin Grid Hours', 'Empty U-Bahn Signal', 'Winter Transit Loop', 'Static Frost Descent', 'Monochrome Disco Drift', 'Robot Synth Friday', 'Empty Arp Sunrise'],
+};
+fetch('/api/v1/broadcast').then(r => r.json()).then(d => {
+  const [s, n] = d.segments || [];
+  if (s) Object.assign(DATA, { title: s.title, artist: s.artist, show: s.showName, dj: s.djName, startsAt: s.startsAt + (Date.now() - d.serverTime), durationMs: s.durationMs });
+  if (n) DATA.next = n.title;
+}).catch(() => {});
+fetch('/api/v1/shows').then(r => r.json()).then(a => {
+  const names = [...new Set(a.map(s => s.name).filter(n => n && n.length > 4))];
+  if (names.length > 3) DATA.shows = names.slice(0, 7);
+}).catch(() => {});
+const progress = () => clamp((Date.now() - DATA.startsAt) / DATA.durationMs);
+
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const ramp = (t, s, d) => clamp((t - s) / d);
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const TAU = Math.PI * 2;
+function rng(hex) {
+  let a = parseInt(hex.slice(0, 8), 16) >>> 0;
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function h32(n) { n = Math.imul(n ^ n >>> 16, 0x45d9f3b); n = Math.imul(n ^ n >>> 16, 0x45d9f3b); return (n ^ n >>> 16) >>> 0; }
+const hx = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+const mix = (a, b, k) => { const A = hx(a), B = hx(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; };
+const grey = (a, f) => { const [r, g, b] = hx(a); const l = Math.round((.3 * r + .59 * g + .11 * b) * f); return '#' + [l, l, l].map(v => v.toString(16).padStart(2, '0')).join(''); };
+const rgba = (hex, a) => { const [r, g, b] = hx(hex); return `rgba(${r},${g},${b},${a})`; };
+const JK = (wt, px) => `${wt} ${px}px 'Plus Jakarta Sans', sans-serif`;
+const MONO = (px, wt = 400) => `${wt} ${px}px 'IBM Plex Mono', monospace`;
+const ORANGE = '#ff5a1f', CREAM = '#f2eee6';
+const CTA = '▶ Tune in';
+const clock = () => new Date().toTimeString().slice(0, 8);
+
+const NZ = document.createElement('canvas'); NZ.width = 256; NZ.height = 144;
+const nzx = NZ.getContext('2d'); const nzImg = nzx.createImageData(256, 144);
+function noise(ctx, w, h, alpha, lo = 0, hi = 255, x = 0, y = 0) {
+  if (alpha <= 0) return;
+  const d = nzImg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = lo + Math.random() * (hi - lo); d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  nzx.putImageData(nzImg, 0, 0);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false; ctx.drawImage(NZ, x, y, w, h); ctx.restore();
+}
+function scan(ctx, w, h, a = .18) {
+  ctx.save(); ctx.fillStyle = `rgba(0,0,0,${a})`;
+  const s = Math.max(2, Math.round(h / 240));
+  for (let y = 0; y < h; y += s * 2) ctx.fillRect(0, y, w, s);
+  ctx.restore();
+}
+function txt(ctx, s, x, y, font, color, alpha = 1, align = 'left', base = 'alphabetic') {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillText(s, x, y); ctx.restore();
+}
+function fitFont(ctx, s, wt, px, maxW, fam = JK) { ctx.font = fam(wt, px); const m = ctx.measureText(s).width; return m > maxW ? px * maxW / m : px; }
+// Rasterise text into an on/off grid (letters as data for mosaics and blips).
+function mask(text, W, H, weight = 800) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  let px = H * .95; x.font = JK(weight, px);
+  const m = x.measureText(text).width; if (m > W * .96) { px *= W * .96 / m; x.font = JK(weight, px); }
+  x.fillText(text, W / 2, H / 2 + px * .04);
+  const d = x.getImageData(0, 0, W, H).data; const on = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) on[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+  return { W, H, on };
+}
+// Mark, caption tight beneath it, a clear step, then the one action.
+function ident(ctx, w, h, t, t0, x, y, o = {}) {
+  const u = h / 100, size = o.size || 13 * u;
+  txt(ctx, '/D.I.R.', x, y, JK(800, size), o.color || CREAM, ramp(t, t0, .7));
+  txt(ctx, o.sub || 'Dead Internet Radio', x, y + 3.2 * u + size * .18, MONO(3.1 * u), o.dim || 'rgba(242,238,230,.8)', ramp(t, t0 + .4, .7));
+  if (o.prompt !== false) txt(ctx, CTA, x, y + 11 * u + size * .18, MONO(3.1 * u, 500), o.accent || CREAM, ramp(t, t0 + 1, .7));
+}
+// Broadcast furniture: two readouts on the top margin.
+function hud(ctx, w, h, t, t0, left, right, color = 'rgba(242,238,230,.7)') {
+  const u = h / 100;
+  txt(ctx, left, 6 * u, 7 * u, MONO(2.6 * u), color, ramp(t, t0, .6));
+  txt(ctx, right, w - 6 * u, 7 * u, MONO(2.6 * u), color, ramp(t, t0, .6), 'right');
+}
+
+// ---------- the ten versions ----------
+const V = [];
+
+// V1 — EBU test card
+V.push({
+  name: 'Test card', seed: '40eaaaeda98b51ace3bf9812', L: 9,
+  idea: 'EBU colour bars drain to grey one at a time. One bar keeps the station orange, and a slate locked to the bar grid fades up with the ident.',
+  init(S) { S.keep = [0, 1, 5, 6][Math.floor(S.r() * 4)]; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, bw = w / 7;
+    const bars = ['#bfbfbf', '#bfbf00', '#00bfbf', '#00bf00', '#bf00bf', '#bf0000', '#0000bf'];
+    const rev = ['#0000bf', '#131313', '#bf00bf', '#131313', '#00bfbf', '#131313', '#bfbfbf'];
+    const ramp7 = ['#ebebeb', '#bfbfbf', '#939393', '#686868', '#3c3c3c', '#1d1d1d', '#090909'];
+    const kOf = i => ease(ramp(t, 1.6 + i * .14, .6));
+    for (let i = 0; i < 7; i++) {
+      const k = kOf(i), x = Math.round(i * bw), xw = Math.round((i + 1) * bw) - x;
+      c.fillStyle = i === S.keep ? mix(bars[i], ORANGE, k) : mix(bars[i], grey(bars[i], .3), k);
+      c.fillRect(x, 0, xw, h * .67);
+      c.fillStyle = mix(rev[i], grey(rev[i], .3), kOf(6 - i)); c.fillRect(x, h * .67, xw, h * .08);
+      c.fillStyle = mix(ramp7[i], grey(ramp7[i], .3), kOf(i)); c.fillRect(x, h * .75, xw, h * .25);
+    }
+    // slate occupies whole bar cells 2–4, from 20% down to the bar break
+    const bx = Math.round(2 * bw), bW = Math.round(5 * bw) - bx, by = h * .2, bH = h * .47;
+    c.save(); c.globalAlpha = ramp(t, 3.1, .5); c.fillStyle = '#000'; c.fillRect(bx, by, bW, bH); c.restore();
+    const p = 4 * u;
+    txt(c, 'P100  88.8 MHz', bx + p, by + p + 2.4 * u, MONO(2.5 * u), 'rgba(242,238,230,.6)', ramp(t, 3.4, .6));
+    txt(c, clock(), bx + bW - p, by + p + 2.4 * u, MONO(2.5 * u), 'rgba(242,238,230,.6)', ramp(t, 3.4, .6), 'right');
+    ident(c, w, h, t, 3.6, bx + p, by + bH - 18 * u, { size: 11 * u });
+    noise(c, w, h, .05 + .5 * (1 - ramp(t, 0, .7)));
+    scan(c, w, h, .12);
+  },
+});
+
+// V2 — CRT power-on
+V.push({
+  name: 'Tube warm-up', seed: '73ccda790679333bed3a2b35', L: 8.5,
+  idea: 'A cold CRT switches on: a white line opens into a raster of snow, the vertical hold settles, and the ident and the channel readouts come through the static.',
+  draw(c, w, h, t) {
+    const u = h / 100;
+    c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    const a = ease(ramp(t, .15, .35)), b = ease(ramp(t, .55, .45));
+    if (t < .55) {
+      const lw = w * a; c.fillStyle = '#fff'; c.fillRect((w - lw) / 2, h / 2 - u * .35, lw, u * .7);
+    } else {
+      const rh = Math.max(u, h * b), y0 = (h - rh) / 2;
+      c.save(); c.beginPath(); c.rect(0, y0, w, rh); c.clip();
+      const settle = ramp(t, 1.2, 2.4);
+      c.fillStyle = '#161616'; c.fillRect(0, 0, w, h);
+      noise(c, w, h, 1 - settle * .84, 20, 235);
+      // line jitter: a few rows slip sideways while the hold settles
+      for (let k = 0; k < 6; k++) { const yy = (h32(k + Math.floor(t * 20)) % 1000) / 1000 * h; c.drawImage(c.canvas, 0, yy, w, u * .6, (1 - settle) * 3 * u, yy, w, u * .6); }
+      const roll = 1 - settle;
+      if (roll > 0) {
+        const yy = ((t * .9) % 1) * h * 1.3 - h * .15;
+        c.fillStyle = `rgba(0,0,0,${.6 * roll})`; c.fillRect(0, yy, w, h * .12);
+        c.fillStyle = `rgba(255,255,255,${.12 * roll})`; c.fillRect(0, yy + h * .12, w, h * .015);
+      }
+      c.fillStyle = `rgba(255,255,255,${.7 * (1 - ramp(t, .55, .6))})`; c.fillRect(0, 0, w, h);
+      hud(c, w, h, t, 2.4, 'CH 88.8 MHz', clock());
+      ident(c, w, h, t, 2.6, 6 * u, h - 30 * u, { size: 15 * u, sub: 'Dead Internet Radio · on air' });
+      c.restore();
+    }
+    const g = c.createRadialGradient(w / 2, h / 2, h * .38, w / 2, h / 2, w * .64);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.8)');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    scan(c, w, h, .22);
+  },
+});
+
+// V3 — Ceefax page 100
+V.push({
+  name: 'Teletext P100', seed: '129ad417529105fb98413c1c', L: 10,
+  idea: 'The page counter searches until it lands on 100, then the page arrives row by row on a strict 40×25 grid: a sextant-mosaic D.I.R., then the live now-playing data.',
+  init(S) {
+    S.col = ['#ffff00', '#00ffff', '#ffffff'][Math.floor(S.r() * 3)];
+    S.err = Array.from({ length: 26 }, () => [1 + Math.floor(S.r() * 38), 2 + Math.floor(S.r() * 20), 2.6 + S.r() * 2.2, Math.floor(S.r() * 7)]);
+  },
+  draw(c, w, h, t, S) {
+    const cols = 40, rows = 25, cw = w / cols, ch = h / rows;
+    c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    if (!S.m) S.m = mask('D.I.R.', 72, 27);
+    const TT = ['#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff', '#ffffff'];
+    const put = (col, row, s, fg, bg, dbl) => {
+      const rh = ch * (dbl ? 2 : 1);
+      if (bg) { c.fillStyle = bg; c.fillRect(col * cw, row * ch, s.length * cw + .5, rh + .5); }
+      c.save(); c.font = `${rh * .92}px VT100`; c.textBaseline = 'top'; c.fillStyle = fg;
+      const mw = c.measureText('M').width; c.translate(col * cw, row * ch + rh * .06); c.scale(cw / mw, 1); c.fillText(s, 0, 0); c.restore();
+    };
+    const vis = r => t > 2.3 + r * .06;
+    const searching = t < 2.2;
+    const pn = searching ? '1' + String((Math.floor(t * 23) * 7) % 100).padStart(2, '0') : '100';
+    const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).replace(',', '');
+    put(1, 0, 'P100', '#ffffff');
+    put(6, 0, `D.I.R. ${pn}`, searching ? '#00ff00' : '#ffffff');
+    put(18, 0, date, '#ffffff');
+    put(31, 0, clock(), '#ffff00');
+    if (vis(2)) { put(0, 2, ' '.repeat(40), '#fff', '#0000ff', true); put(2, 2, 'ON AIR', '#ffffff', null, true); put(30, 2, '88.8 MHz', '#ffff00', null, true); }
+    for (let cy = 0; cy < 9; cy++) {
+      if (!vis(5 + cy)) continue;
+      for (let cx = 0; cx < 36; cx++) for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 2; sx++) {
+        if (!S.m.on[(cy * 3 + sy) * 72 + cx * 2 + sx]) continue;
+        c.fillStyle = S.col;
+        c.fillRect((2 + cx) * cw + sx * cw / 2, (5 + cy) * ch + sy * ch / 3, cw / 2 + .5, ch / 3 + .5);
+      }
+    }
+    const cut = (s, n) => s.length > n ? s.slice(0, n) : s;
+    if (vis(15)) put(2, 15, 'Dead Internet Radio. Music made by', '#ffffff');
+    if (vis(16)) put(2, 16, 'machines, on air all day and night.', '#ffffff');
+    const row = (r, label, value) => { if (vis(r)) { put(2, r, label, '#00ff00'); put(8, r, cut(value, 30), '#00ffff'); } };
+    row(18, 'NOW', DATA.title); row(19, 'BY', DATA.artist); row(20, 'SHOW', `${DATA.show} with ${DATA.dj}`); row(21, 'NEXT', DATA.next);
+    if (vis(23)) {
+      put(2, 23, ' Tune in ', '#ffffff', '#ff0000');
+      put(13, 23, 'Click anywhere on the page', '#ffffff');
+    }
+    for (const [col, r, until, ci] of S.err) if (vis(r) && t < until && (r < 5 || r > 13)) {
+      put(col, r, String.fromCharCode(33 + h32(col * 99 + r + Math.floor(t * 8)) % 90), TT[ci], '#000');
+    }
+    scan(c, w, h, .16);
+  },
+});
+
+// V4 — analogue tuning dial
+V.push({
+  name: 'Tuning dial', seed: '7ba3f37c1d32c9ab3cf7f679', L: 9,
+  idea: 'The dial owns the screen. The needle sweeps past the other D.I.R. shows through static, locks on 88.8, the meter reads full and the station starts talking.',
+  init(S) { S.np = .3 + S.r() * .14; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, lockT = 3.8;
+    c.fillStyle = '#1c1b1a'; c.fillRect(0, 0, w, h);
+    const f = 88.8 + 14.9 * Math.exp(-1.05 * t) * Math.cos(1.85 * t) * (1 - ease(ramp(t, 2.6, 1.2)));
+    const fq = DATA.shows.map((n, i) => [90.6 + i * 2.55, n]);
+    let sig = Math.exp(-Math.pow((f - 88.8) * 3, 2));
+    fq.forEach(([q]) => sig = Math.max(sig, .7 * Math.exp(-Math.pow((f - q) * 3, 2))));
+    if (t > lockT) sig = 1;
+    // header row: mark left, readout right
+    txt(c, '/D.I.R.', 6 * u, 17 * u, JK(800, 9 * u), CREAM, ramp(t, lockT + .2, .7));
+    fq.forEach(([q, n]) => { const s = Math.exp(-Math.pow((f - q) * 3, 2)); if (s > .05 && t < lockT) txt(c, n, 6 * u, 17 * u, JK(700, 6 * u), CREAM, s * .45); });
+    txt(c, `Now  ${DATA.title} · ${DATA.artist}`, w - 6 * u, 10 * u, MONO(2.8 * u), 'rgba(242,238,230,.75)', ramp(t, lockT + .6, .7), 'right');
+    txt(c, CTA, w - 6 * u, 16 * u, MONO(2.8 * u, 500), CREAM, ramp(t, lockT + 1.2, .7), 'right');
+    // dial window: the hero
+    const x0 = 6 * u, x1 = w - 6 * u, y0 = 26 * u, y1 = h - 14 * u, nx = w * S.np, ppm = w / 7;
+    c.fillStyle = '#0d0c0b'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+    c.save(); c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip();
+    noise(c, x1 - x0, y1 - y0, (1 - sig) * .28 + .03, 0, 160, x0, y0);
+    const base = y0 + (y1 - y0) * .42;
+    for (let q = 860; q <= 1100; q += 1) {
+      const x = nx + (q / 10 - f) * ppm, mhz = q % 10 === 0, half = q % 5 === 0;
+      const len = mhz ? 5 * u : half ? 3 * u : 1.6 * u;
+      c.fillStyle = mhz ? 'rgba(217,212,202,.9)' : half ? 'rgba(217,212,202,.5)' : 'rgba(217,212,202,.25)';
+      c.fillRect(x, base - len, Math.max(1, u * .16), len);
+      if (mhz) txt(c, String(q / 10), x, base - 7 * u, MONO((q / 10) % 2 ? 2.2 * u : 3 * u), `rgba(217,212,202,${(q / 10) % 2 ? .5 : .9})`, 1, 'center');
+    }
+    c.fillStyle = 'rgba(217,212,202,.25)'; c.fillRect(x0, base, x1 - x0, 1);
+    const station = (q, n, col) => { const x = nx + (q - f) * ppm; c.fillStyle = col; c.fillRect(x, base, Math.max(1, u * .16), 3 * u); txt(c, n, x + .8 * u, base + 7 * u, MONO(2.4 * u), col); };
+    fq.forEach(([q, n]) => station(q, n, 'rgba(217,212,202,.6)'));
+    station(88.8, 'Dead Internet Radio', ORANGE);
+    c.restore();
+    c.fillStyle = ORANGE; c.fillRect(nx - u * .2, y0, u * .4, y1 - y0);
+    // meter: shows the actual level
+    const lit = Math.round(sig * 10);
+    for (let i = 0; i < 10; i++) { c.fillStyle = i < lit ? CREAM : '#3a3836'; c.fillRect(x0 + i * 2.4 * u, h - 8 * u, 1.6 * u, 2.6 * u); }
+    txt(c, `SIGNAL ${String(lit * 10).padStart(3, ' ')}%   ${f.toFixed(1)} MHz`, x0 + 26 * u, h - 5.6 * u, MONO(2.4 * u), 'rgba(217,212,202,.65)');
+  },
+});
+
+// V5 — X-Y oscilloscope
+V.push({
+  name: 'Oscilloscope', seed: '8f319517b496af6bb2153d61', L: 10,
+  idea: 'A phosphor beam runs a sine sweep, folds into a Lissajous figure, then writes DIR as one continuous stroke, with faint retrace between letters.',
+  init(S) { S.hue = S.r() < .5 ? '#a6ffb4' : '#ffc46b'; },
+  build(S) {
+    // single-stroke letters, x 0..1 per glyph, y 0..1 up; null = beam retrace
+    const arc = (cx, cy, rx, ry, a0, a1, n = 24) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + rx * Math.sin(a), cy + ry * Math.cos(a)]; });
+    const D = [[0, 0], [0, 1], [.18, 1], ...arc(.18, .5, .42, .5, 0, Math.PI), [0, 0]];
+    const I = [[.0, 0], [.0, 1]];
+    const R = [[0, 0], [0, 1], [.24, 1], ...arc(.24, .74, .28, .26, 0, Math.PI), [0, .48], [.2, .48], [.52, 0]];
+    const glyphs = [[D, 0], [I, .82], [R, 1.12]];
+    const segs = [];
+    glyphs.forEach(([g, ox]) => segs.push(g.map(([x, y]) => [x + ox, y])));
+    // resample to even arc length; mark retrace hops
+    const pts = []; const step = .012;
+    segs.forEach((s, si) => {
+      if (si) pts.push(null);
+      for (let i = 1; i < s.length; i++) {
+        const [ax, ay] = s[i - 1], [bx, by] = s[i], L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(L / step));
+        for (let k = 0; k < n; k++) pts.push([ax + (bx - ax) * k / n, ay + (by - ay) * k / n]);
+      }
+    });
+    const W = 1.64;
+    S.P = pts.map(p => p && [(p[0] / W) * 2 - 1, (p[1] - .5) * (2 / W)]);
+    S.acc = document.createElement('canvas');
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100;
+    if (!S.P) this.build(S);
+    if (S.acc.width !== w || S.acc.height !== h) { S.acc.width = w; S.acc.height = h; }
+    const a = S.acc.getContext('2d');
+    a.fillStyle = 'rgba(5,9,6,.3)'; a.fillRect(0, 0, w, h);
+    const N = S.P.length, p1 = ease(ramp(t, 1.2, 1.3)), p2 = ease(ramp(t, 2.8, 1.8));
+    const cx = w / 2, cy = h * .46, sx = w * .26, sy = w * .26;
+    let lp = null;
+    const pos = i => {
+      const s = i / N, q = S.P[i] || lp; if (S.P[i]) lp = S.P[i];
+      let x = -1 + 2 * s, y = .3 * Math.sin(TAU * 3 * s + t * 4) * (h / w) * 1.4;
+      const lx = .9 * Math.sin(TAU * 3 * s + t * .7), ly = .48 * Math.sin(TAU * 2 * s);
+      x += (lx - x) * p1; y += (ly - y) * p1;
+      const wob = .006 * Math.sin(t * 9 + s * 40);
+      x += (q[0] - x) * p2; y += (q[1] + wob - y) * p2;
+      return [cx + x * sx, cy - y * sy];
+    };
+    lp = S.P[0];
+    a.save(); a.strokeStyle = S.hue; a.lineCap = 'round'; a.lineJoin = 'round'; a.shadowColor = S.hue;
+    // retrace (faint) then the lit trace
+    a.lineWidth = .14 * u; a.globalAlpha = .18 + .5 * (1 - p2); a.beginPath();
+    let prev = null;
+    for (let i = 0; i < N; i++) { const [X, Y] = pos(i); if (!prev) a.moveTo(X, Y); else if (!S.P[i] && p2 > .5) { a.moveTo(prev[0], prev[1]); a.lineTo(X, Y); } prev = [X, Y]; }
+    a.stroke();
+    a.lineWidth = .28 * u; a.globalAlpha = 1; a.shadowBlur = 1.6 * u; a.beginPath(); prev = null;
+    for (let i = 0; i < N; i++) {
+      const [X, Y] = pos(i);
+      if (!prev || (!S.P[i] && p2 > .5) || (prev && !S.P[i - 1] && p2 > .5)) a.moveTo(X, Y); else a.lineTo(X, Y);
+      prev = [X, Y];
+    }
+    a.stroke(); a.restore();
+    c.fillStyle = '#050906'; c.fillRect(0, 0, w, h);
+    c.drawImage(S.acc, 0, 0);
+    const gx = 6 * u, gy = 10 * u, gw = w - 12 * u, gh = h - 26 * u;
+    c.strokeStyle = rgba(S.hue, .09); c.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) { c.beginPath(); c.moveTo(gx + gw * i / 10, gy); c.lineTo(gx + gw * i / 10, gy + gh); c.stroke(); }
+    for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(gx, gy + gh * i / 8); c.lineTo(gx + gw, gy + gh * i / 8); c.stroke(); }
+    c.strokeStyle = rgba(S.hue, .22);
+    for (let i = 0; i <= 50; i++) { const x = gx + gw * i / 50; c.beginPath(); c.moveTo(x, gy + gh / 2 - .6 * u); c.lineTo(x, gy + gh / 2 + .6 * u); c.stroke(); }
+    for (let i = 0; i <= 40; i++) { const y = gy + gh * i / 40; c.beginPath(); c.moveTo(gx + gw / 2 - .6 * u, y); c.lineTo(gx + gw / 2 + .6 * u, y); c.stroke(); }
+    const ro = MONO(2.6 * u), dim = rgba(S.hue, .6);
+    txt(c, 'CH1   0.5 V/div    X–Y', gx, gy - 2 * u, ro, dim);
+    txt(c, `88.8 MHz    ${clock()}`, gx + gw, gy - 2 * u, ro, dim, 1, 'right');
+    txt(c, 'STN   Dead Internet Radio', gx, h - 8 * u, ro, rgba(S.hue, .85), ramp(t, 5, .7));
+    txt(c, CTA, gx + gw, h - 8 * u, MONO(2.6 * u, 500), S.hue, ramp(t, 5.6, .7), 'right');
+  },
+});
+
+// V6 — numbers station
+V.push({
+  name: 'Numbers station', seed: 'af8298a15fd0873997534bd8', L: 10,
+  idea: 'Cipher groups fill the screen like a shortwave numbers broadcast. Four groups on a falling diagonal decode, in orange, into DEAD INTER NET RADIO.',
+  init(S) {
+    S.cols = 6 + Math.floor(S.r() * 3); S.rows = 8; const n = S.cols * S.rows;
+    S.settle = Array.from({ length: n }, (_, i) => .4 + i * .03 + S.r() * .5);
+    S.msg = new Map([0, 1, 2, 3].map(k => [(1 + 2 * k) * S.cols + Math.round(k * (S.cols - 1) / 3), k]));
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, words = ['DEAD·', 'INTER', 'NET··', 'RADIO'];
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    const n = S.cols * S.rows, sent = Math.min(n, Math.floor(ramp(t, .15, n * .025) * n));
+    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `GROUP ${String(sent).padStart(2, '0')}/${n}`, 'rgba(232,228,218,.6)');
+    c.font = MONO(4 * u); const gw = c.measureText('00000').width;
+    const x0 = 6 * u, y0 = 18 * u, stepX = (w - 12 * u - gw) / (S.cols - 1), rh = (h - 40 * u) / (S.rows - 1);
+    const fade = 1 - .82 * ramp(t, 5.2, 1);
+    for (let i = 0; i < n; i++) {
+      const al = ramp(t, .15 + i * .025, .25); if (!al) continue;
+      const x = x0 + (i % S.cols) * stepX, y = y0 + Math.floor(i / S.cols) * rh, tick = Math.floor(t * 12);
+      let s = ''; const k = S.msg.get(i);
+      if (k !== undefined && t > 3.2 + k * .45) {
+        const ds = 3.2 + k * .45, wd = words[k];
+        for (let j = 0; j < 5; j++) s += t > ds + j * .12 ? wd[j] : String.fromCharCode(65 + h32(i * 31 + j + tick) % 26);
+        c.globalAlpha = al; c.fillStyle = ORANGE;
+      } else {
+        const seed = t < S.settle[i] ? tick : 9999;
+        for (let j = 0; j < 5; j++) s += h32(i * 131 + j * 7 + seed) % 10;
+        c.globalAlpha = al * fade; c.fillStyle = '#e8e4da';
+      }
+      c.fillText(s, x, y);
+    }
+    c.globalAlpha = 1;
+    txt(c, '/D.I.R.  Dead Internet Radio', x0, h - 8 * u, MONO(3.1 * u, 500), CREAM, ramp(t, 6.2, .7));
+    txt(c, CTA, w - 6 * u, h - 8 * u, MONO(3.1 * u, 500), CREAM, ramp(t, 6.8, .7), 'right');
+  },
+});
+
+// V7 — radar sweep
+V.push({
+  name: 'Radar sweep', seed: '42309bb21c4fb86efdeebeda', L: 10,
+  idea: 'A radar sweep finds clutter first. On later passes the returns settle into a dot-matrix DIR, the contact the sweep keeps re-lighting, and the readout locks on.',
+  init(S) {
+    S.col = S.r() < .5 ? '#ffb020' : ORANGE;
+    S.clutter = Array.from({ length: 46 }, () => [S.r() * TAU, .15 + S.r() * .8]);
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, cx = w * .62, cy = h * .5, R = h * .43, om = 1.7;
+    if (!S.pts) {
+      const m = mask('DIR', 120, 46); S.pts = [];
+      for (let y = 0; y < m.H; y += 3) for (let x = 0; x < m.W; x += 3) if (m.on[y * m.W + x]) {
+        const dx = (x / m.W - .5) * 1.1, dy = (y / m.H - .5) * 1.1 * m.H / m.W;
+        S.pts.push([Math.atan2(dy, dx), Math.hypot(dx, dy)]);
+      }
+    }
+    c.fillStyle = '#070809'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, .035);
+    c.strokeStyle = rgba(S.col, .2); c.lineWidth = 1;
+    for (let i = 1; i <= 4; i++) { c.beginPath(); c.arc(cx, cy, R * i / 4, 0, TAU); c.stroke(); }
+    c.beginPath(); c.moveTo(cx - R, cy); c.lineTo(cx + R, cy); c.moveTo(cx, cy - R); c.lineTo(cx, cy + R); c.stroke();
+    for (let d = 0; d < 360; d += 5) {
+      const a = d * Math.PI / 180 - Math.PI / 2, l = d % 30 ? (d % 10 ? .8 : 1.4) * u : 2.4 * u;
+      c.beginPath(); c.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.lineTo(cx + Math.cos(a) * (R - l), cy + Math.sin(a) * (R - l)); c.stroke();
+      if (d % 30 === 0) txt(c, String(d).padStart(3, '0'), cx + Math.cos(a) * (R + 3 * u), cy + Math.sin(a) * (R + 3 * u), MONO(1.9 * u), rgba(S.col, .55), 1, 'center', 'middle');
+    }
+    const sweep = t * om, th = sweep - Math.PI / 2;
+    const g = c.createConicGradient(th - 1.2, cx, cy);
+    g.addColorStop(0, rgba(S.col, 0)); g.addColorStop(1.2 / TAU * .7, rgba(S.col, .05)); g.addColorStop(1.2 / TAU, rgba(S.col, .3)); g.addColorStop(1.2 / TAU + .001, rgba(S.col, 0)); g.addColorStop(1, rgba(S.col, 0));
+    c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill();
+    const lum = a => { const a0 = ((a + Math.PI / 2) % TAU + TAU) % TAU; if (sweep < a0) return 0; return Math.exp(-(((sweep - a0) % TAU) / om) * 1.4); };
+    const floor = ease(ramp(t, 4.2, 2.5)) * .38, gone = 1 - ramp(t, 3.4, 1);
+    c.fillStyle = S.col; const br = .42 * u;
+    const dot = (a, r, b) => { c.globalAlpha = b; c.beginPath(); c.arc(cx + Math.cos(a) * r * R, cy + Math.sin(a) * r * R, br, 0, TAU); c.fill(); };
+    for (const [a, r] of S.clutter) { const b = lum(a) * gone; if (b > .02) dot(a, r, b); }
+    for (const [a, r] of S.pts) { const b = sweep > TAU ? Math.max(lum(a), floor) : 0; if (b > .02) dot(a, r, b); }
+    c.globalAlpha = 1;
+    c.strokeStyle = rgba(S.col, .9); c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(th) * R, cy + Math.sin(th) * R); c.stroke();
+    // HUD column, one mono voice
+    const brg = String(Math.floor(((sweep * 180 / Math.PI) % 360))).padStart(3, '0'), x = 6 * u;
+    const line = (y, k, v, t0, strong) => { txt(c, k, x, y, MONO(2.6 * u), rgba(S.col, .55), ramp(t, t0, .5)); txt(c, v, x + 12 * u, y, MONO(2.6 * u, strong ? 500 : 400), strong ? S.col : rgba(S.col, .85), ramp(t, t0, .5)); };
+    line(h * .34, 'SCAN', '88.8 MHz', 0);
+    line(h * .34 + 4.4 * u, 'BRG', `${brg}°`, 0);
+    line(h * .34 + 8.8 * u, 'TIME', clock(), 0);
+    line(h * .34 + 15 * u, 'CONTACT', 'Dead Internet Radio', 5.2, true);
+    line(h * .34 + 19.4 * u, 'NOW', DATA.title, 5.6);
+    txt(c, CTA, x, h * .34 + 27 * u, MONO(2.6 * u, 500), S.col, ramp(t, 6.2, .6));
+  },
+});
+
+// V8 — the internet inside the letters (live Giphy)
+V.push({
+  name: 'Inside the letters', seed: 'f5186700bfcf877c463d5f3d', L: 9,
+  idea: 'A live Giphy feed, the same source the VJ set uses, tears and decays, then the screen goes dark and only the shape of /D.I.R. keeps the picture.',
+  init(S) {
+    const terms = ['crt tv static', 'vhs glitch', 'analog tv', 'old computer', 'dial up internet'];
+    S.term = terms[Math.floor(S.r() * terms.length)];
+    S.off = document.createElement('canvas'); S.let = document.createElement('canvas');
+    fetch(`https://api.giphy.com/v1/gifs/search?api_key=23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5&q=${encodeURIComponent(S.term)}&limit=25&rating=pg-13`)
+      .then(r => r.json()).then(d => {
+        const g = d.data[Math.floor(S.r() * d.data.length)]; if (!g) return;
+        const img = new Image(); img.crossOrigin = 'anonymous'; img.src = g.images.downsized_large?.url || g.images.original.url;
+        img.onload = () => { S.img = img; }; document.getElementById('gifhold').appendChild(img);
+      }).catch(() => {});
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100;
+    for (const cv of [S.off, S.let]) if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const o = S.off.getContext('2d');
+    if (S.img) {
+      const iw = S.img.naturalWidth, ih = S.img.naturalHeight, sc = Math.max(w / iw, h / ih);
+      o.filter = 'grayscale(1) contrast(1.7) brightness(1.1)';
+      o.drawImage(S.img, (w - iw * sc) / 2, (h - ih * sc) / 2, iw * sc, ih * sc);
+      o.filter = 'none';
+      scan(o, w, h, .3);
+    } else { o.fillStyle = '#222'; o.fillRect(0, 0, w, h); noise(o, w, h, 1); }
+    const tear = ramp(t, 1.4, 2.2), knock = ease(ramp(t, 3.6, 1.3)), fr = Math.floor(t * 14);
+    c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    c.save(); c.globalAlpha = 1 - knock;
+    const bands = 28, bh = h / bands;
+    for (let b = 0; b < bands; b++) {
+      const r = h32(b * 977 + fr) / 4294967296, dx = r > .62 ? (h32(b + fr * 31) / 4294967296 - .5) * w * .16 * tear : 0;
+      c.drawImage(S.off, 0, b * bh, w, bh + 1, dx, b * bh, w, bh + 1);
+    }
+    c.restore();
+    noise(c, w, h, tear * .28 * (1 - knock));
+    const l = S.let.getContext('2d');
+    l.globalCompositeOperation = 'source-over'; l.clearRect(0, 0, w, h); l.drawImage(S.off, 0, 0);
+    l.globalCompositeOperation = 'destination-in'; l.font = JK(800, 27 * u); l.fillStyle = '#fff'; l.fillText('/D.I.R.', 5 * u, h * .62);
+    l.globalCompositeOperation = 'source-over';
+    c.save(); c.globalAlpha = knock; c.drawImage(S.let, 0, 0); c.restore();
+    hud(c, w, h, t, 4.6, '88.8 MHz', clock());
+    txt(c, 'Dead Internet Radio', 6 * u, h * .62 + 8 * u, MONO(3.1 * u), 'rgba(242,238,230,.8)', ramp(t, 5, .7));
+    txt(c, CTA, 6 * u, h * .62 + 15 * u, MONO(3.1 * u, 500), ORANGE, ramp(t, 5.6, .7));
+    txt(c, `Now  ${DATA.title} · ${DATA.artist}`, w - 6 * u, h - 8 * u, MONO(2.6 * u), 'rgba(242,238,230,.6)', ramp(t, 5.6, .7), 'right');
+  },
+});
+
+// V9 — station clock
+V.push({
+  name: 'Station clock', seed: '424390b8822efa3f7dc003aa', L: 10,
+  idea: 'The pre-programme clock from broadcast TV, set to real time. Its outer ring fills to show how far the current track has played, and the column beside it names what is on air.',
+  init(S) { S.bg = S.r() < .5 ? '#0b1220' : '#14110f'; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, cx = w * .3, cy = h * .5, R = h * .32, ca = ramp(t, 0, .7);
+    c.fillStyle = S.bg; c.fillRect(0, 0, w, h);
+    c.save(); c.globalAlpha = ca;
+    const lit = ease(ramp(t, .4, 2.4)) * progress() * 60;
+    for (let i = 0; i < 60; i++) {
+      const a = i / 60 * TAU - Math.PI / 2, ca2 = Math.cos(a), sa = Math.sin(a);
+      c.fillStyle = CREAM;
+      if (i % 15 === 0) { c.save(); c.translate(cx + ca2 * R, cy + sa * R); c.rotate(a); c.fillRect(-1.6 * u, -.45 * u, 3.2 * u, .9 * u); c.restore(); }
+      else { c.beginPath(); c.arc(cx + ca2 * R, cy + sa * R, i % 5 ? .32 * u : .8 * u, 0, TAU); c.fill(); }
+      c.fillStyle = i < lit ? ORANGE : 'rgba(255,255,255,.07)'; c.beginPath(); c.arc(cx + ca2 * R * 1.14, cy + sa * R * 1.14, .5 * u, 0, TAU); c.fill();
+    }
+    const d = new Date(), s = d.getSeconds() + d.getMilliseconds() / 1000, m = d.getMinutes() + s / 60, hr = (d.getHours() % 12) + m / 60;
+    // tapered hands: wide at the hub, fine at the tip, with a short tail
+    const hand = (ang, len, wd, col, tail) => {
+      c.save(); c.translate(cx, cy); c.rotate(ang); c.fillStyle = col; c.beginPath();
+      c.moveTo(-wd / 2, tail); c.lineTo(-wd * .18, -len); c.lineTo(wd * .18, -len); c.lineTo(wd / 2, tail); c.closePath(); c.fill(); c.restore();
+    };
+    hand(hr / 12 * TAU, R * .52, 2.2 * u, CREAM, 2.4 * u);
+    hand(m / 60 * TAU, R * .84, 1.6 * u, CREAM, 2.4 * u);
+    hand(s / 60 * TAU, R * .92, .5 * u, ORANGE, 6 * u);
+    c.fillStyle = CREAM; c.beginPath(); c.arc(cx, cy, 1.5 * u, 0, TAU); c.fill();
+    c.fillStyle = S.bg; c.beginPath(); c.arc(cx, cy, .5 * u, 0, TAU); c.fill();
+    c.restore();
+    // column hangs off the dial: mark on its top edge, show on its centre line, action on its bottom edge
+    const x = w * .58, maxW = w * .36;
+    txt(c, '/D.I.R.', x, cy - R + 7 * u, JK(800, 8 * u), CREAM, ramp(t, .8, .7));
+    txt(c, `Now on air · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, x, cy - 6.5 * u, MONO(2.8 * u), 'rgba(242,238,230,.72)', ramp(t, 1.4, .7));
+    txt(c, DATA.show, x, cy + 1.6 * u, JK(700, fitFont(c, DATA.show, 700, 5.4 * u, maxW)), CREAM, ramp(t, 1.8, .7));
+    txt(c, `with DJ ${DATA.dj}  ·  ${DATA.title}`, x, cy + 7.6 * u, MONO(2.8 * u), 'rgba(242,238,230,.72)', ramp(t, 2.2, .7));
+    txt(c, CTA, x, cy + R, MONO(3 * u, 500), CREAM, ramp(t, 5.4, .7));
+  },
+});
+
+// V10 — the dead internet
+V.push({
+  name: 'Lights out', seed: '82694d7f231c6245095aa28d', L: 11,
+  idea: 'A wall of dead web pages, error after error, switches off one by one. The last one left, bottom left, is the station: still broadcasting.',
+  init(S) {
+    const errs = ['404 Not Found', '502 Bad Gateway', '503 Service Unavailable', 'ERR_NAME_NOT_RESOLVED', 'This site can’t be reached', 'Server not found', 'Connection timed out', 'This account has been suspended', 'DNS_PROBE_FINISHED_NXDOMAIN', '410 Gone', 'Domain for sale', 'ERR_CONNECTION_REFUSED', '500 Internal Server Error', 'Bandwidth limit exceeded', 'This video is no longer available', 'Last updated 2009', 'Under construction', 'Comments are closed', 'User deleted', 'Content removed', 'Link expired', 'Certificate expired', 'No posts yet', 'Forum archived', 'Page moved', 'Nobody is here', 'Hit counter: 000014', 'Guestbook offline', 'Webring broken', 'Mirror unavailable'];
+    S.cols = 5 + Math.floor(S.r() * 3); S.rows = 4; const n = S.cols * S.rows;
+    S.surv = (S.rows - 1) * S.cols;
+    const ord = [...Array(n).keys()].filter(i => i !== S.surv).sort(() => S.r() - .5);
+    S.offT = new Array(n); ord.forEach((c, k) => S.offT[c] = 2.4 + k * 3.4 / (n - 2));
+    S.onT = Array.from({ length: n }, () => .1 + S.r() * 1.3);
+    S.txt = Array.from({ length: n }, (_, i) => errs[(i * 7 + Math.floor(S.r() * 5)) % errs.length]);
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, gap = 1.2 * u, x0 = 6 * u, y0 = 6 * u, aw = w - 12 * u, ah = h - 24 * u;
+    const cw = (aw - gap * (S.cols - 1)) / S.cols, ch = (ah - gap * (S.rows - 1)) / S.rows;
+    c.fillStyle = '#0b0b0b'; c.fillRect(0, 0, w, h);
+    const fr = Math.floor(t * 20);
+    for (let i = 0; i < S.cols * S.rows; i++) {
+      const x = x0 + (i % S.cols) * (cw + gap), y = y0 + Math.floor(i / S.cols) * (ch + gap);
+      const surv = i === S.surv;
+      let al = ramp(t, S.onT[i], .3) * (surv ? 1 : 1 - ramp(t, S.offT[i], .3));
+      if (!surv && t > S.offT[i] - .3 && t < S.offT[i]) al *= h32(i * 13 + fr) % 3 ? 1 : .25;
+      if (al <= 0) continue;
+      const lit = surv ? ease(ramp(t, 6.3, .8)) : 0;
+      c.save(); c.globalAlpha = al;
+      c.fillStyle = mix('#141413', ORANGE, lit); c.fillRect(x, y, cw, ch);
+      if (!lit) { c.strokeStyle = '#2b2b29'; c.lineWidth = 1; c.strokeRect(x + .5, y + .5, cw - 1, ch - 1); }
+      c.restore();
+      c.save(); c.beginPath(); c.rect(x, y, cw, ch); c.clip();
+      const words = S.txt[i].split(' '); let line = '', ly = y + 4.4 * u; c.font = MONO(2.3 * u);
+      c.globalAlpha = al * (surv ? 1 - ramp(t, 6, .4) : 1); c.fillStyle = '#8d887f';
+      for (const wd of words) { const tst = line ? line + ' ' + wd : wd; if (c.measureText(tst).width > cw - 3 * u && line) { c.fillText(line, x + 1.6 * u, ly); line = wd; ly += 3.2 * u; } else line = tst; }
+      c.fillText(line, x + 1.6 * u, ly);
+      c.restore();
+      if (surv) {
+        const fs = fitFont(c, '/D.I.R.', 800, ch * .34, cw - 3.2 * u);
+        txt(c, '/D.I.R.', x + 1.6 * u, y + ch - 1.6 * u, JK(800, fs), '#0b0b0b', ramp(t, 6.8, .7));
+      }
+    }
+    txt(c, `Dead Internet Radio is still broadcasting. Now: ${DATA.title}.`, x0, h - 8 * u, MONO(3 * u), 'rgba(242,238,230,.8)', ramp(t, 7.4, .7));
+    txt(c, CTA, w - 6 * u, h - 8 * u, MONO(3 * u, 500), CREAM, ramp(t, 8, .7), 'right');
+  },
+});
+
+// ---------- engine ----------
+const params = new URLSearchParams(location.search);
+const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
+const FREEZE = params.has('t') ? Number(params.get('t')) : null;
+if (ONLY !== null) document.body.classList.add('solo');
+let voice = null;
+
+const stages = [];
+V.forEach((v, i) => {
+  if (ONLY !== null && i !== ONLY) return;
+  const sec = document.createElement('section');
+  sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p><div class="frame"><div class="stage"><canvas></canvas></div></div>`;
+  document.getElementById('lab').appendChild(sec);
+  const stage = sec.querySelector('.stage'), cv = sec.querySelector('canvas');
+  const S = { r: rng(v.seed), start: performance.now(), visible: ONLY !== null };
+  if (v.init) v.init(S);
+  const st = { v, S, cv, ctx: cv.getContext('2d') };
+  new ResizeObserver(() => {
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    cv.width = Math.round(stage.clientWidth * dpr); cv.height = Math.round(stage.clientHeight * dpr);
+  }).observe(stage);
+  new IntersectionObserver(([e]) => { S.visible = e.isIntersecting || ONLY !== null; }, { rootMargin: '100px' }).observe(stage);
+  stage.addEventListener('click', () => {
+    S.start = performance.now();
+    if (voice) voice.pause();
+    voice = new Audio(`../welcome/welcome-${1 + Math.floor(Math.random() * 4)}.wav`);
+    voice.play().catch(() => {});
+  });
+  stages.push(st);
+});
+
+function frame(now) {
+  for (const { v, S, cv, ctx } of stages) {
+    if (!S.visible || !cv.width) continue;
+    let t = FREEZE !== null ? FREEZE : (now - S.start) / 1000;
+    if (FREEZE === null && t > v.L) { S.start = now; t = 0; }
+    const w = cv.width, h = cv.height;
+    ctx.save(); v.draw(ctx, w, h, t, S); ctx.restore();
+    if (FREEZE === null && t > v.L - .6) { ctx.fillStyle = `rgba(0,0,0,${ramp(t, v.L - .6, .6)})`; ctx.fillRect(0, 0, w, h); }
+  }
+  requestAnimationFrame(frame);
+}
+
+Promise.all([
+  document.fonts.load(JK(800, 40)), document.fonts.load(JK(700, 40)), document.fonts.load(JK(400, 40)),
+  document.fonts.load(MONO(20)), document.fonts.load(MONO(20, 500)), document.fonts.load('20px VT100'),
+]).catch(() => {}).then(() => { stages.forEach(s => s.S.start = performance.now()); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
