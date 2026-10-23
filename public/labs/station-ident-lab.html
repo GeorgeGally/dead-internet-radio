@@ -723,18 +723,33 @@ V.push({
   },
 });
 
-// V13 — vector monitor, extruded and rotating in
+// V13 — vector monitor: bold DIR, extruded deep, faceted, rotating in
+// Heavy letterforms as closed contours (outer silhouette + counters), y 0..1 up.
+function boldGlyphs() {
+  const arc = (cx, cy, rx, ry, a0, a1, n = 20) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + rx * Math.sin(a), cy + ry * Math.cos(a)]; });
+  const s = .2;
+  const D = [[[0, 0], [0, 1], [.22, 1], ...arc(.22, .5, .5, .5, 0, Math.PI), [0, 0]],
+             [[s, s], [s, 1 - s], [.22, 1 - s], ...arc(.22, .5, .5 - s, .5 - s, 0, Math.PI), [s, s]]];
+  const I = [[[0, 0], [0, 1], [s, 1], [s, 0], [0, 0]]];
+  const R = [[[0, 0], [0, 1], [.3, 1], ...arc(.3, .72, .32, .28, 0, Math.PI), [.36, .44], [.64, 0], [.4, 0], [s, .36], [s, 0], [0, 0]],
+             [[s, 1 - s], [.3, 1 - s], ...arc(.3, .72, .32 - s, .28 - s, 0, Math.PI), [s, .64], [s, 1 - s]]];
+  const segs = []; [[D, 0], [I, .84], [R, 1.16]].forEach(([g, ox]) => g.forEach(cont => segs.push(cont.map(([x, y]) => [x + ox, y]))));
+  return { segs, W: 1.8 };
+}
 V.push({
   name: 'Vector rotate', seed: 'dab0fe0ed7afdf5f4842f28d', L: 9,
-  idea: 'A vector-monitor DIR, extruded in depth, tumbles in edge-on and lands flat to camera in cold white phosphor. The back face fades once it settles, and it keeps breathing.',
+  idea: 'A vector-monitor DIR in a heavy cut, extruded deep and faceted along every edge, tumbles in and settles at a slight angle in cold white phosphor, still breathing.',
   draw(c, w, h, t, S) {
     const u = h / 100, col = '#d6ecff';
-    if (!S.g) { S.g = beamGlyphs(false); S.F = resample(S.g.segs, .02); S.links = []; S.g.segs.forEach(sg => sg.forEach((q, i) => { if (i % 6 === 0 || i === sg.length - 1) S.links.push(q); })); S.acc = document.createElement('canvas'); }
+    if (!S.g) { S.g = boldGlyphs(); S.F = resample(S.g.segs, .02); S.links = resample(S.g.segs, .045).filter(Boolean); S.acc = document.createElement('canvas'); }
     if (S.acc.width !== w || S.acc.height !== h) { S.acc.width = w; S.acc.height = h; }
     const a = S.acc.getContext('2d');
-    a.fillStyle = 'rgba(4,6,10,.28)'; a.fillRect(0, 0, w, h);
-    const k = ease(ramp(t, .3, 3.6)), ang = (1 - k) * TAU * 1.25 + Math.sin(t * .8) * .06 * k, tilt = .4 * (1 - k) + Math.sin(t * .6) * .03 * k, dz = .14;
-    const cx = w / 2, cy = h * .47, sc = w * .5 / S.g.W;
+    a.fillStyle = 'rgba(4,6,10,.4)'; a.fillRect(0, 0, w, h);
+    const k = ease(ramp(t, .3, 3.6));
+    // settles off-axis so the depth and facets stay visible at rest
+    const ang = (1 - k) * TAU * 1.25 + (-.42 + Math.sin(t * .7) * .1) * k, tilt = .5 * (1 - k) + (.16 + Math.sin(t * .55) * .04) * k;
+    const dz = .34, NZ = 6;
+    const cx = w / 2, cy = h * .47, sc = w * .46 / S.g.W;
     const proj = ([x, y], z) => {
       const X = x - S.g.W / 2, Y = y - .5;
       const x1 = X * Math.cos(ang) - z * Math.sin(ang), z1 = X * Math.sin(ang) + z * Math.cos(ang);
@@ -742,9 +757,17 @@ V.push({
       const pp = 3 / (3 + z2); return [cx + x1 * sc * pp, cy - y2 * sc * pp];
     };
     a.save(); a.strokeStyle = col; a.shadowColor = col; a.lineCap = 'round'; a.lineJoin = 'round'; a.shadowBlur = 1.2 * u;
-    a.lineWidth = .2 * u; a.globalAlpha = .85 - .6 * ramp(t, 4, 1); beamPath(a, S.F, q => proj(q, dz));
-    a.beginPath(); S.links.forEach(q => { const [x1, y1] = proj(q, -dz), [x2, y2] = proj(q, dz); a.moveTo(x1, y1); a.lineTo(x2, y2); }); a.stroke();
-    a.globalAlpha = 1; a.lineWidth = .28 * u; beamPath(a, S.F, q => proj(q, -dz));
+    // depth slices, back to front, dimmer at the back
+    for (let i = 0; i < NZ; i++) {
+      const z = dz - 2 * dz * i / NZ;
+      a.lineWidth = (.16 + .1 * i / NZ) * u; a.globalAlpha = .22 + .4 * i / NZ;
+      beamPath(a, S.F, q => proj(q, z));
+    }
+    // facet edges: one line from front to back at every point along the outline
+    a.lineWidth = .14 * u; a.globalAlpha = .4; a.beginPath();
+    S.links.forEach(q => { const [x1, y1] = proj(q, -dz), [x2, y2] = proj(q, dz); a.moveTo(x1, y1); a.lineTo(x2, y2); }); a.stroke();
+    // front face, brightest and heaviest
+    a.lineWidth = .36 * u; a.globalAlpha = 1; beamPath(a, S.F, q => proj(q, -dz));
     a.restore();
     c.fillStyle = '#04060a'; c.fillRect(0, 0, w, h); c.drawImage(S.acc, 0, 0);
     hud(c, w, h, t, 0, 'VECTOR   ROT Y', '88.8 MHz', 'rgba(214,236,255,.5)');
@@ -820,34 +843,40 @@ V.push({
   },
 });
 
-// V16 — numbers: one-time pad, typed line by line
+// V16 — numbers: one-time pad, typed line by line, full width
 V.push({
-  name: 'Numbers · one-time pad', seed: '99ec69c4090d7e9a708a477b', L: 10,
-  idea: 'A one-time pad types itself line by line, the sheet jumping up with every line feed. The last lines carry the message, typed straight out in orange.',
-  init(S) { S.cols = 10 + Math.floor(S.r() * 3); S.at = [0, 1, 2, 3].map(() => Math.floor(S.r() * S.cols)); },
+  name: 'Numbers · one-time pad', seed: '99ec69c4090d7e9a708a477b', L: 10.5,
+  idea: 'A one-time pad types itself line by line across the full width, the sheet jumping up with every line feed. One line carries the message in orange: the typing stops on it, holds, then the words turn back into numbers and the pad carries on.',
+  init(S) { S.pick = [0, 1, 2, 3].map(() => S.r()); },
   draw(c, w, h, t, S) {
-    const u = h / 100, lf = .1, total = 44;
+    const u = h / 100, lf = .1, T1 = 4, SLOW = .55, T2 = 7.4, MSG = Math.round(T1 / lf);
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
-    const typed = Math.min(total, t / lf), cur = Math.floor(typed), part = typed - cur;
-    c.font = MONO(2.6 * u); const gw = c.measureText('00000').width, gap = 1.5 * u, step = gw + gap, lnW = c.measureText('0000').width + 3 * u;
-    const bw = lnW + S.cols * step - gap, x0 = (w - bw) / 2, rh = 3.9 * u, bot = h - 12 * u, vis = Math.floor((bot - 14 * u) / rh);
-    const dim = 1 - .55 * ramp(t, 4.8, 1);
+    // typing clock: steady, slows right down on the message line, holds, then resumes
+    const typed = t < T1 ? t / lf : t < T1 + SLOW ? MSG + (t - T1) / SLOW : t < T2 ? MSG + 1 : MSG + 1 + (t - T2) / lf;
+    const cur = Math.floor(typed), part = typed - cur;
+    c.font = MONO(2.6 * u); const gw = c.measureText('00000').width, lnW = c.measureText('0000').width + 3 * u;
+    // columns fill the page: as many groups as fit, then spread to the right margin
+    const x0 = 6 * u, span = w - 12 * u - lnW, cols = Math.max(8, Math.floor((span + 1.5 * u) / (gw + 1.5 * u))), step = (span - gw) / (cols - 1);
+    if (!S.at || S.cols !== cols) { S.cols = cols; S.at = S.pick.map((r, k) => Math.floor((k + r) * cols / 4)); }
+    const rh = 3.9 * u, bot = h - 10 * u, vis = Math.floor((bot - 14 * u) / rh);
+    const hold = ramp(t, T1 + SLOW, .5) * (1 - ramp(t, T2, .4)), dim = 1 - .45 * hold;
     for (let j = 0; j <= vis; j++) {
       const r = cur - j; if (r < 0) break;
-      if (r === cur && cur >= total) continue;
-      const y = bot - j * rh, chars = r === cur ? Math.floor(part * S.cols * 5) : S.cols * 5;
+      const y = bot - j * rh, chars = r === cur ? Math.floor(part * cols * 5) : cols * 5;
       c.globalAlpha = .3 * dim; c.fillStyle = '#e8e4da'; c.fillText(String(381 + r).padStart(4, '0'), x0, y);
-      const kk = (r - (total - 7)) / 2;
-      for (let col = 0; col < S.cols; col++) {
+      for (let col = 0; col < cols; col++) {
         const n = Math.max(0, Math.min(5, chars - col * 5)); if (!n) break;
-        const hot = Number.isInteger(kk) && kk >= 0 && kk < 4 && S.at[kk] === col;
-        let s = ''; for (let i = 0; i < n; i++) s += hot ? PAD_WORDS[kk][i] : h32(r * 977 + col * 31 + i) % 10;
+        const k = r === MSG ? S.at.indexOf(col) : -1;
+        // after the hold the word flips back to digits, one character at a time
+        const back = k >= 0 ? Math.floor(ramp(t, T2, .3) * 6) : 0;
+        let s = ''; for (let i = 0; i < n; i++) s += k >= 0 && i >= back ? PAD_WORDS[k][i] : h32(r * 977 + col * 31 + i) % 10;
+        const hot = k >= 0 && back < 5;
         c.globalAlpha = hot ? 1 : .55 * dim; c.fillStyle = hot ? ORANGE : '#e8e4da';
         c.fillText(s, x0 + lnW + col * step, y);
       }
     }
     c.globalAlpha = 1;
-    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `PAD 0423 · LINE ${String(381 + Math.min(cur, total - 1)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `PAD 0423 · LINE ${String(381 + cur).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
   },
 });
 
