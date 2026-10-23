@@ -254,46 +254,45 @@ V.push({
 // V4 — analogue tuning dial
 V.push({
   name: 'Tuning dial', seed: '7ba3f37c1d32c9ab3cf7f679', L: 9,
-  idea: 'The dial owns the screen. The needle sweeps past the other D.I.R. shows through static, locks on 88.8, the meter reads full and the station starts talking.',
-  init(S) { S.np = .3 + S.r() * .14; },
+  idea: 'The dial owns the screen. The needle sweeps past the other D.I.R. shows, runs off the end of the FM scale into the static, and finds the station out there, off the dial.',
+  init(S) { S.np = .6 + S.r() * .08; },
   draw(c, w, h, t, S) {
-    const u = h / 100, lockT = 3.8;
+    const u = h / 100, lockT = 4.3;
     c.fillStyle = '#1c1b1a'; c.fillRect(0, 0, w, h);
-    const f = 88.8 + 14.9 * Math.exp(-1.05 * t) * Math.cos(1.85 * t) * (1 - ease(ramp(t, 2.6, 1.2)));
+    const T = 110.5; // past the 108 end stop: the station is off the dial
+    // steady sweep through the band, a small overshoot past the station, then settle
+    const f = 89 + (T - 89) * ease(ramp(t, .3, 3)) + (t > 3.3 ? 1.4 * Math.sin((t - 3.3) * 4) * Math.exp(-(t - 3.3) * 2.2) : 0);
     const fq = DATA.shows.map((n, i) => [90.6 + i * 2.55, n]);
-    let sig = Math.exp(-Math.pow((f - 88.8) * 3, 2));
+    let sig = Math.exp(-Math.pow((f - T) * 3, 2));
     fq.forEach(([q]) => sig = Math.max(sig, .7 * Math.exp(-Math.pow((f - q) * 3, 2))));
     if (t > lockT) sig = 1;
     // header row: mark left, readout right
     txt(c, '/D.I.R.', 6 * u, 17 * u, JK(800, 9 * u), CREAM, ramp(t, lockT + .2, .7));
     fq.forEach(([q, n]) => { const s = Math.exp(-Math.pow((f - q) * 3, 2)); if (s > .05 && t < lockT) txt(c, n, 6 * u, 17 * u, JK(700, 6 * u), CREAM, s * .45); });
-    txt(c, `Now  ${DATA.title} · ${DATA.artist}`, w - 6 * u, 10 * u, MONO(2.8 * u), 'rgba(242,238,230,.75)', ramp(t, lockT + .6, .7), 'right');
-    key(c, w - 6 * u, 17 * u, u, ramp(t, lockT + 1.2, .7), { align: 'right', bg: ORANGE });
     // dial window: the hero
     const x0 = 6 * u, x1 = w - 6 * u, y0 = 26 * u, y1 = h - 14 * u, nx = w * S.np, ppm = w / 7;
     c.fillStyle = '#0d0c0b'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
     c.save(); c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip();
     noise(c, x1 - x0, y1 - y0, (1 - sig) * .28 + .03, 0, 160, x0, y0);
     const base = y0 + (y1 - y0) * .5;
-    for (let q = 860; q <= 1100; q += 1) {
+    for (let q = 875; q <= 1080; q += 1) {
       const x = nx + (q / 10 - f) * ppm, mhz = q % 10 === 0, half = q % 5 === 0;
       const len = mhz ? 5 * u : half ? 3 * u : 1.6 * u;
       c.fillStyle = mhz ? 'rgba(217,212,202,.9)' : half ? 'rgba(217,212,202,.5)' : 'rgba(217,212,202,.25)';
       c.fillRect(x, base - len, Math.max(1, u * .16), len);
       if (mhz) txt(c, String(q / 10), x, base - 7 * u, MONO((q / 10) % 2 ? 2.2 * u : 3 * u), `rgba(217,212,202,${(q / 10) % 2 ? .5 : .9})`, 1, 'center');
     }
-    c.fillStyle = 'rgba(217,212,202,.25)'; c.fillRect(x0, base, x1 - x0, 1);
+    { const xa = nx + (87.5 - f) * ppm, xb = nx + (108 - f) * ppm; c.fillStyle = 'rgba(217,212,202,.25)'; c.fillRect(xa, base, xb - xa, 1); c.fillStyle = 'rgba(217,212,202,.9)'; c.fillRect(xb, base - 7 * u, u * .3, 7 * u); }
     for (const q of [89.4, 92.1, 95.2, 97.6, 99.9, 103.4, 105.7]) { const x = nx + (q - f) * ppm; c.fillStyle = 'rgba(217,212,202,.18)'; c.fillRect(x - .25 * u, base + 1.2 * u, .5 * u, .5 * u); }
     const station = (q, n, col) => { const x = nx + (q - f) * ppm; c.fillStyle = col; c.beginPath(); c.moveTo(x, base + .6 * u); c.lineTo(x - .9 * u, base + 2.2 * u); c.lineTo(x + .9 * u, base + 2.2 * u); c.fill(); txt(c, n, x, base + 6.5 * u, MONO(2.4 * u), col, 1, 'center'); };
     fq.forEach(([q, n]) => station(q, n, 'rgba(217,212,202,.6)'));
-    station(88.8, 'Dead Internet Radio', ORANGE);
+    station(T, 'Dead Internet Radio', ORANGE);
     c.restore();
     c.fillStyle = ORANGE; c.fillRect(nx - u * .2, y0, u * .4, y1 - y0);
     // meter: shows the actual level
     const lit = Math.round(sig * 10);
     for (let i = 0; i < 10; i++) { c.fillStyle = i < lit ? CREAM : '#3a3836'; c.fillRect(x0 + i * 1.5 * u, h - 8.2 * u, .7 * u, 2.6 * u); }
     txt(c, `SIGNAL ${String(lit * 10).padStart(3, ' ')}%`, x0 + 16 * u, h - 5.8 * u, MONO(2.4 * u), 'rgba(217,212,202,.65)');
-    txt(c, `${f.toFixed(1)} MHz`, x1, h - 5.2 * u, MONO(4.4 * u, 500), CREAM, 1, 'right');
   },
 });
 
