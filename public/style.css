@@ -135,7 +135,7 @@ body.prewarming #block-canvas {
   background-size: 7px 7px;
   background-position: center;
   opacity: 0.55;
-  transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease, height 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease, height 0.3s ease, margin-top 0.3s ease;
 }
 
 .deck-logo:hover .speaker {
@@ -146,6 +146,9 @@ body.prewarming #block-canvas {
 #deck.expanded .speaker {
   width: 80px;
   height: 80px;
+  /* .deck-logo stays 36px tall; centre the grille in the 138px deck instead */
+  align-self: flex-start;
+  margin-top: 29px;
   background-image: radial-gradient(circle at center, #2a2a2a 0 1.3px, transparent 1.7px);
   background-size: 7px 7px;
   opacity: 1;
