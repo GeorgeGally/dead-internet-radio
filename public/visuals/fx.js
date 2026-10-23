@@ -123,12 +123,15 @@ const fxPipeline = (() => {
     }
   }
 
-  // The active visual's canvas (p5 default, or the blocks canvas).
+  // The active visual's canvas (p5 default, the blocks canvas, or giphy's
+  // overlay, which carries the GIF frame while a filter is on).
   function sourceCanvas() {
     const p5c = document.querySelector('canvas#defaultCanvas0');
     if (p5c && p5c.width > 0 && getComputedStyle(p5c).display !== 'none') return p5c;
     const block = document.getElementById('block-canvas');
     if (block && block.width > 0 && getComputedStyle(block).display !== 'none') return block;
+    const overlay = document.getElementById('overlay-canvas');
+    if (overlay && overlay.width > 0 && getComputedStyle(overlay).display !== 'none') return overlay;
     return null;
   }
 
@@ -170,6 +173,8 @@ const fxPipeline = (() => {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
+    // Alpha knob: fade the shader output over the untouched visual below.
+    canvas.style.opacity = String(Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100);
     if (canvas.style.display === 'none') canvas.style.display = 'block';
   }
 

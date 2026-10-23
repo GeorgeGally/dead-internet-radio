@@ -104,13 +104,13 @@ const visuals = (() => {
   function next() {
     if (order.length < 2) return;
     const idx = order.indexOf(currentId);
-    activate(order[(idx + 1) % order.length]);
+    api.activate(order[(idx + 1) % order.length]);
   }
 
   function prev() {
     if (order.length < 2) return;
     const idx = order.indexOf(currentId);
-    activate(order[(idx - 1 + order.length) % order.length]);
+    api.activate(order[(idx - 1 + order.length) % order.length]);
   }
 
   function handleKeyDown(e) {
@@ -187,7 +187,7 @@ const visuals = (() => {
     if (!order.length) return;
     const startIdx = Math.floor(Math.random() * order.length);
     for (let offset = 0; offset < order.length; offset++) {
-      if (activate(order[(startIdx + offset) % order.length])) return true;
+      if (api.activate(order[(startIdx + offset) % order.length])) return true;
     }
     return false;
   }
@@ -201,7 +201,7 @@ const visuals = (() => {
     setTimeout(() => {
       const others = order.filter(id => id !== currentId);
       const pool = others.length ? others : order;
-      activate(pool[Math.floor(Math.random() * pool.length)]);
+      api.activate(pool[Math.floor(Math.random() * pool.length)]);
     }, 0);
   }
 
@@ -239,6 +239,8 @@ const visuals = (() => {
         prewarmSavedOnChange = null;
         document.body.classList.remove('prewarming');
         const randId = savedId || order[Math.floor(Math.random() * order.length)];
+        // Internal activate: currentId is still the last prewarmed sketch, and
+        // the wrapper would save the live filter set as that sketch's preset.
         if (!activate(randId)) random();
         return;
       }
@@ -337,5 +339,8 @@ const visuals = (() => {
     ctx.restore();
   }
 
-  return { register, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  // Internal switches (next/prev/random/...) call api.activate so wrappers
+  // installed on the public method (app.js preset load/save) always run.
+  const api = { register, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  return api;
 })();

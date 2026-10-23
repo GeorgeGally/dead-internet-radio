@@ -263,12 +263,31 @@ visuals.register('giphy', (() => {
     }
   }
 
+  // Cover-fit the current GIF frame, matching #gif-bg's object-fit + CSS filter.
+  function drawGifFrame(ctx, w, h) {
+    const img = document.getElementById('gif-bg');
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    const dw = img.naturalWidth * scale;
+    const dh = img.naturalHeight * scale;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.filter = 'contrast(1.2) grayscale(1)';
+    ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    ctx.restore();
+  }
+
   function renderGiphyOverlay() {
     const ctx = overlayCtx;
     if (!ctx) return;
     const w = overlayCanvas.width;
     const h = overlayCanvas.height;
     ctx.clearRect(0, 0, w, h);
+
+    // The GIF is an <img> under this transparent canvas, so filters would only
+    // touch the text. While a filter is on, paint the GIF in first so the CPU
+    // filters (and the GPU pixelate, which samples this canvas) hit it too.
+    if (canvasFilters.getActiveKeys().size) drawGifFrame(ctx, w, h);
 
     drawTextOverlay(ctx, w, h);
 

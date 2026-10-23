@@ -18,13 +18,17 @@ function startWelcomeNoise() {
   resize();
   window.addEventListener('resize', resize);
 
+  // Run the scanline + static filters directly: going through setActive would
+  // flip the global filter set every frame (leaking into prewarm thumbnails)
+  // and save it as the current visual's preset.
+  const scanlines = canvasFilters.getFilter(1);
+  const noise = canvasFilters.getFilter(3);
+
   function frameLoop() {
     ctx.fillStyle = '#222';
     ctx.fillRect(0, 0, w, h);
-    canvasFilters.setActive(1);
-    canvasFilters.apply(ctx, w, h, frame);
-    canvasFilters.setActive(3);
-    canvasFilters.apply(ctx, w, h, frame);
+    scanlines.fn(ctx, w, h, frame);
+    noise.fn(ctx, w, h, frame);
     frame++;
     _welcomeNoiseRaf = requestAnimationFrame(frameLoop);
   }
@@ -36,7 +40,6 @@ function stopWelcomeNoise() {
     cancelAnimationFrame(_welcomeNoiseRaf);
     _welcomeNoiseRaf = null;
   }
-  canvasFilters.clearActive();
 }
 
 function showWelcome() {
@@ -556,7 +559,6 @@ function setupControls() {
     'Pixelate': 'size',
     'Color Invert': '—',
     'LED Grid': 'cutoff',
-    'Mechanical': 'reach',
   };
   function activeFilter() {
     const fx = canvasFilters.getActiveName ? canvasFilters.getActiveName() : 'none';
@@ -834,15 +836,19 @@ function setupControls() {
     origSetActive.call(canvasFilters, k);
     updateNowPlaying();
     syncFilterLeds();
+    gallery.saveCurrentPreset();
   };
   canvasFilters.clearActive = function() {
     origClearActive.call(canvasFilters);
     updateNowPlaying();
     syncFilterLeds();
+    gallery.saveCurrentPreset();
   };
   canvasFilters.toggleActive = function(k) {
     origToggleActive.call(canvasFilters, k);
+    updateNowPlaying();
     syncFilterLeds();
+    gallery.saveCurrentPreset();
   };
 
   const audio = document.getElementById('player');
@@ -1155,26 +1161,21 @@ let audioAnalysisReady = false;
   visuals.init();
   gallery.init();
   visuals.prewarmThumbnails();
+  // engine.next/prev/random route through visuals.activate, so this wrapper
+  // (and the per-visual preset) applies to every switch, not just gallery
+  // clicks. random() relies on the boolean result.
   const origActivate = visuals.activate;
   visuals.activate = function(id) {
     gallery.saveCurrentPreset();
-    origActivate.call(visuals, id);
+    const ok = origActivate.call(visuals, id);
     updateTrackInfo();
-    gallery.loadPreset(id);
-    gallery.resetSlot();
+    if (ok) {
+      gallery.loadPreset(id);
+      gallery.resetSlot();
+    }
+    return ok;
   };
-  const origSetFilter = canvasFilters.setActive;
-  canvasFilters.setActive = function(id) {
-    origSetFilter.call(canvasFilters, id);
-    updateTrackInfo();
-    gallery.saveCurrentPreset();
-  };
-  const origClearFilter = canvasFilters.clearActive;
-  canvasFilters.clearActive = function() {
-    origClearFilter.call(canvasFilters);
-    updateTrackInfo();
-    gallery.saveCurrentPreset();
-  };
+  // Filter set/clear wrappers live in setupControls (one layer, not two).
   updateNowPlaying();
   setupControls();
   gallery.saveCurrentPreset();

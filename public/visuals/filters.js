@@ -117,8 +117,9 @@ const canvasFilters = (() => {
   }
 
   // For visuals that can't be filtered in place (WebGL canvases have no 2D
-  // context): sample the source canvas onto the full-screen overlay canvas
-  // and run the filters there. Overlay is only shown when a filter is active.
+  // context, trail sketches would feed the filter back into themselves):
+  // sample the source canvas onto the full-screen overlay canvas and run the
+  // filters there. Overlay is only shown when a filter is active.
   let overlayEl = null;
   let overlayCtx = null;
   function applyToOverlay(source, frame) {
@@ -144,7 +145,11 @@ const canvasFilters = (() => {
       overlayEl.height = source.height;
     }
     overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
-    overlayCtx.clearRect(0, 0, overlayEl.width, overlayEl.height);
+    // Back the copy with the page's black: sketches that never paint a
+    // background (bugs3, word_sparks) are transparent, and invert/scanlines
+    // etc. would otherwise have nothing to act on outside the strokes.
+    overlayCtx.fillStyle = '#000';
+    overlayCtx.fillRect(0, 0, overlayEl.width, overlayEl.height);
     try {
       overlayCtx.drawImage(source, 0, 0, overlayEl.width, overlayEl.height);
     } catch (e) {
@@ -215,8 +220,10 @@ const canvasFilters = (() => {
   register(1, 'Scanlines', (ctx, w, h, frame) => {
     const spacing = Math.max(3, Math.round(currentThreshold / 5));
     const alpha = Math.min(0.65, 0.15 + currentThreshold / 400);
+    const resonance = (window.soundSensitivity ?? 50) / 100;
     ctx.save();
-    const offset = (frame * 0.5) % spacing;
+    // Resonance sets the roll speed (0.5 px/frame at the default 50).
+    const offset = (frame * resonance) % spacing;
     for (let y = -spacing + offset; y < h + spacing; y += spacing) {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = '#000000';
@@ -224,7 +231,6 @@ const canvasFilters = (() => {
     }
     ctx.restore();
     ctx.save();
-    const resonance = (window.soundSensitivity ?? 50) / 100;
     const vignetteAlpha = 0.08 + resonance * 0.6;
     const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -260,24 +266,27 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
+  // Mixes static over the picture (cutoff = amount) instead of replacing it,
+  // so the visual underneath stays readable at full filter strength.
   register(3, 'Static Noise', (ctx, w, h, frame) => {
-    const intensity = Math.max(10, currentThreshold);
-    const noiseMax = Math.min(255, intensity * 2);
+    const mix = Math.min(0.85, 0.1 + currentThreshold / 300);
     const resonance = (window.soundSensitivity ?? 50) / 100;
     const grain = Math.max(1, Math.round(1 + resonance * 5));
-    const imageData = ctx.createImageData(w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
     for (let y = 0; y < h; y += grain) {
       for (let x = 0; x < w; x += grain) {
-        const v = Math.floor(Math.random() * noiseMax);
+        const v = Math.random() * 255;
         const maxDy = Math.min(grain, h - y);
         const maxDx = Math.min(grain, w - x);
         for (let dy = 0; dy < maxDy; dy++) {
           const row = (y + dy) * w;
           for (let dx = 0; dx < maxDx; dx++) {
             const i = (row + x + dx) * 4;
-            data[i] = data[i + 1] = data[i + 2] = v;
-            data[i + 3] = 255;
+            data[i] += (v - data[i]) * mix;
+            data[i + 1] += (v - data[i + 1]) * mix;
+            data[i + 2] += (v - data[i + 2]) * mix;
+            data[i + 3] += (255 - data[i + 3]) * mix;
           }
         }
       }
@@ -431,18 +440,12 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  // Convenience for p5 visuals: run filters on the p5 canvas in pixel space,
-  // or via overlay for WebGL canvases that have no 2D context.
+  // Convenience for p5 visuals: always filter a copy on the overlay, never the
+  // p5 canvas itself. Filtering in place feeds each filtered frame back into
+  // sketches that fade instead of clearing (pulsing_squares, word_sparks, ...),
+  // so effects compound to black/grey/noise and the knobs stop registering.
   function applyToP5(p) {
-    const nativeCtx = p.canvas.getContext('2d');
-    if (nativeCtx) {
-      nativeCtx.save();
-      nativeCtx.setTransform(1, 0, 0, 1, 0, 0);
-      apply(nativeCtx, p.canvas.width, p.canvas.height, p.frameCount);
-      nativeCtx.restore();
-    } else {
-      applyToOverlay(p.canvas, p.frameCount);
-    }
+    applyToOverlay(p.canvas, p.frameCount);
   }
 
   return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };

@@ -143,7 +143,8 @@ visuals.register('grid', (() => {
     if (chance(50)) shuffleGrid();
     moveGrid();
     drawGrid();
-    canvasFilters.apply(ctx, canvas.width, canvas.height, frameCount);
+    // Grid fades instead of clearing, so filter a copy (in place would compound).
+    canvasFilters.applyToOverlay(canvas, frameCount);
   }
 
   function loop() {
