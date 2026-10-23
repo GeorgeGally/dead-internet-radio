@@ -201,14 +201,16 @@ V.push({
 // V3 — Ceefax page 100
 V.push({
   name: 'Teletext P100', seed: '129ad417529105fb98413c1c', L: 10,
-  idea: 'The page counter searches until it lands on 100, then the page arrives row by row on a strict 40×25 grid: a sextant-mosaic D.I.R., then the live now-playing data.',
+  idea: 'The page counter searches until it lands on 100, then a 4:3 teletext page arrives row by row on a strict 40×25 grid: a sextant-mosaic D.I.R. and the show on air.',
   init(S) {
     S.col = ['#ffff00', '#00ffff', '#ffffff'][Math.floor(S.r() * 3)];
-    S.err = Array.from({ length: 26 }, () => [1 + Math.floor(S.r() * 38), 2 + Math.floor(S.r() * 20), 2.6 + S.r() * 2.2, Math.floor(S.r() * 7)]);
+    S.err = Array.from({ length: 22 }, () => [2 + Math.floor(S.r() * 36), 2 + Math.floor(S.r() * 20), 2.6 + S.r() * 2.2, Math.floor(S.r() * 7)]);
   },
   draw(c, w, h, t, S) {
-    const cols = 40, rows = 25, cw = w / cols, ch = h / rows;
+    // the page lives in a 4:3 picture, pillarboxed like teletext on a 16:9 set
+    const cols = 40, rows = 25, pw = Math.min(w, h * 4 / 3), cw = pw / cols, ch = h / rows;
     c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    c.save(); c.translate((w - pw) / 2, 0);
     if (!S.m) S.m = mask('D.I.R.', 72, 27);
     const TT = ['#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff', '#ffffff'];
     const put = (col, row, s, fg, bg, dbl) => {
@@ -221,29 +223,31 @@ V.push({
     const searching = t < 2.2;
     const pn = searching ? '1' + String((Math.floor(t * 23) * 7) % 100).padStart(2, '0') : '100';
     const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).replace(',', '');
-    put(1, 0, `P${pn}`, searching ? '#00ff00' : '#ffffff');
-    put(7, 0, 'D.I.R.', '#ffffff');
-    put(18, 0, date, '#ffffff');
-    put(31, 0, clock(), '#ffff00');
-    if (vis(2)) { put(0, 2, ' '.repeat(40), '#fff', '#0000ff', true); if (Math.floor(t * 1.4) % 2 === 0) put(1, 2, 'ON AIR', '#ffffff', null, true); put(31, 2, '88.8 MHz', '#ffff00', null, true); }
+    // header: page, service, date, clock spread across the 40 columns
+    put(2, 0, `P${pn}`, searching ? '#00ff00' : '#ffffff');
+    put(8, 0, 'D.I.R.', '#ffffff');
+    put(19, 0, date, '#ffffff');
+    put(30, 0, clock(), '#ffff00');
+    if (vis(2)) { put(0, 2, ' '.repeat(40), '#fff', '#0000ff', true); if (Math.floor(t * 1.4) % 2 === 0) put(2, 2, 'ON AIR', '#ffffff', null, true); put(30, 2, '88.8 MHz', '#ffff00', null, true); }
     for (let cy = 0; cy < 9; cy++) {
       if (!vis(5 + cy)) continue;
       for (let cx = 0; cx < 36; cx++) for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 2; sx++) {
         if (!S.m.on[(cy * 3 + sy) * 72 + cx * 2 + sx]) continue;
         c.fillStyle = S.col;
-        c.fillRect((1 + cx) * cw + sx * cw / 2, (5 + cy) * ch + sy * ch / 3, cw / 2 + .5, ch / 3 + .5);
+        c.fillRect((2 + cx) * cw + sx * cw / 2, (5 + cy) * ch + sy * ch / 3, cw / 2 + .5, ch / 3 + .5);
       }
     }
-    const cut = (s, n) => s.length > n ? s.slice(0, n) : s;
-    if (vis(15)) put(1, 15, 'Dead Internet Radio. Music made by', '#ffffff');
-    if (vis(16)) put(1, 16, 'machines, on air all day and night.', '#ffffff');
-    const row = (r, label, value) => { if (vis(r)) { put(1, r, label, '#00ff00'); put(7, r, cut(value, 32), '#00ffff'); } };
-    row(18, 'NOW', DATA.title); row(19, 'BY', DATA.artist); row(20, 'SHOW', DATA.show); row(21, 'DJ', DATA.dj); row(22, 'NEXT', DATA.next);
-    if (vis(23)) put(1, 23, ' Tune in ', '#ffffff', '#ff0000');
+    if (vis(16)) put(2, 16, 'Dead Internet Radio.', '#ffffff');
+    if (vis(17)) put(2, 17, 'Music made by machines.', '#ffffff');
+    const row = (r, label, value) => { if (vis(r)) { put(2, r, label, '#00ff00'); put(8, r, value.slice(0, 30), '#00ffff'); } };
+    row(20, 'SHOW', DATA.show); row(21, 'DJ', DATA.dj);
     for (const [col, r, until, ci] of S.err) if (vis(r) && t < until && (r < 5 || r > 13)) {
       put(col, r, String.fromCharCode(33 + h32(col * 99 + r + Math.floor(t * 8)) % 90), TT[ci], '#000');
     }
-    scan(c, w, h, .16);
+    // raster: 10 scan lines per character row, so lines never beat against the glyphs
+    c.fillStyle = 'rgba(0,0,0,.22)';
+    for (let i = 0; i < rows * 10; i++) c.fillRect(0, (i + .6) * ch / 10, pw, ch / 25);
+    c.restore();
   },
 });
 
