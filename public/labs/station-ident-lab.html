@@ -191,15 +191,15 @@ V.push({
       txt(c, 'ON AIR', 6 * u, 12 * u, MONO(2.6 * u, 500), ORANGE, ramp(t, 3, .6));
       // each glyph slot spins through characters, then locks, left to right
       const mark = '/D.I.R.', size = 15 * u, SPIN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/.#%';
-      c.font = JK(800, size); c.letterSpacing = '-0.02em';
+      c.font = MONO(size, 700); c.letterSpacing = '0px';
       const widths = [...mark].map(ch => c.measureText(ch).width), total = widths.reduce((a, b) => a + b, 0);
       let gx = (w - total) / 2; const gy = h / 2 + size * .34, al = ramp(t, 2.4, .5);
       [...mark].forEach((ch, i) => {
         const lock = 3.2 + i * .22, show = t >= lock ? ch : SPIN[h32(i * 131 + Math.floor(t * 18)) % SPIN.length];
         // a spinning glyph is squashed to its slot, like a split-flap mid-turn
-        c.font = JK(800, size); const sx = t >= lock ? 1 : Math.min(1, widths[i] / c.measureText(show).width);
+        c.font = MONO(size, 700); const sx = t >= lock ? 1 : Math.min(1, widths[i] / c.measureText(show).width);
         c.save(); c.translate(gx + widths[i] / 2, 0); c.scale(sx, 1);
-        txt(c, show, 0, gy, JK(800, size), CREAM, al * (t >= lock ? 1 : .7), 'center');
+        txt(c, show, 0, gy, MONO(size, 700), CREAM, al * (t >= lock ? 1 : .7), 'center');
         c.restore();
         gx += widths[i];
       });
@@ -293,7 +293,6 @@ V.push({
     const x0 = 0, x1 = w, y0 = 0, y1 = h, nx = w * S.np, ppm = w / 7;
     c.fillStyle = '#0d0c0b'; c.fillRect(x0, y0, x1 - x0, y1 - y0);
     c.save(); c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip();
-    noise(c, x1 - x0, y1 - y0, (1 - sig) * .28 + .03, 0, 160, x0, y0);
     const base = y0 + (y1 - y0) * .5;
     for (let q = 875; q <= 1080; q += 1) {
       const x = nx + (q / 10 - f) * ppm, mhz = q % 10 === 0, half = q % 5 === 0;
@@ -835,17 +834,19 @@ V.push({
 // V15 — numbers: reels
 V.push({
   name: 'Numbers · reels', seed: '098d96eb28616ec7c3e6709f', L: 10,
-  idea: 'Tight single-digit columns stream upward at different speeds. One by one they stop, and the row they stop on spells DEAD INTERNET RADIO in orange.',
+  idea: 'A wall of single-digit columns streams upward at different speeds, edge to edge. One by one they stop, and the row they stop on spells DEAD INTERNET RADIO in orange.',
   init(S) {
-    S.msg = 'DEAD INTERNET RADIO'; S.pad = 7 + Math.floor(S.r() * 4); S.n = S.msg.length + S.pad * 2;
+    S.msg = 'DEAD INTERNET RADIO'; S.pad = 14 + Math.floor(S.r() * 5); S.n = S.msg.length + S.pad * 2;
     S.v = Array.from({ length: S.n }, () => 5 + S.r() * 6);
     S.lock = Array.from({ length: S.n }, (_, i) => { const m = i - S.pad; return m >= 0 && m < S.msg.length ? 2.2 + m * .13 + S.r() * .2 : null; });
   },
   draw(c, w, h, t, S) {
     const u = h / 100;
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
-    c.font = MONO(3.4 * u, 500); const cw = c.measureText('0').width, pitch = cw * 1.3, rh = 4.4 * u;
-    const x0 = (w - S.n * pitch) / 2, top = 10 * u, bot = h - 8 * u, lockRow = Math.round((h * .5 - top) / rh) - 1;
+    // the pitch comes off the window, so the reel wall runs edge to edge at any size
+    const pitch = (w - 6 * u) / S.n, fs = pitch / .78, rh = pitch * 1.18;
+    c.font = MONO(fs, 500);
+    const x0 = 3 * u, top = 11 * u, bot = h - 6 * u, lockRow = Math.round((h * .5 - top) / rh) - 1;
     const settle = ramp(t, 5, 1);
     for (let i = 0; i < S.n; i++) {
       const tl = S.lock[i], locked = tl !== null && t >= tl;
@@ -916,37 +917,391 @@ V.push({
 });
 
 
-// V19 — numbers station II: sixteen tight columns scrolling up; the sheet stops on the message row
+// V19 — numbers station II: sixteen tight columns scrolling up; each message column stops on its own clock
 V.push({
-  name: 'Numbers station II · scroll', seed: 'af8298a15fd0873997534bd8', L: 11,
-  idea: 'The V6 cipher sheet with sixteen tight columns, scrolling up as new groups arrive. When the message row reaches the middle the sheet stops, the four groups decode to orange, hold, turn back into numbers, and the scroll carries on.',
-  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); },
+  name: 'Numbers station II · scroll', seed: 'af8298a15fd0873997534bd8', L: 12,
+  idea: 'The V6 cipher sheet with sixteen tight columns, scrolling up as new groups arrive. Four columns carry a word each: when a word reaches the middle only that column stops, decodes to orange, holds its own length of time, turns back into numbers and scrolls on. The other columns never stop.',
+  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); S.lag = [0, 3, 1, 5]; S.hold = [2.4, 3.4, 2.0, 3.0]; },
   draw(c, w, h, t, S) {
     const u = h / 100, v = 2.6, rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
-    const pos0 = Math.ceil((bot - top) / rh); if (S.row === undefined) S.row = pos0 + 4;
-    const P = S.row + Math.round((bot - readY) / rh), T1 = (P - pos0) / v, HOLD = 2.6;
-    // scroll clock: starts with a full sheet, stops dead when the message row is on the read line, then resumes
-    const pos = pos0 + (t < T1 ? t * v : t < T1 + HOLD ? P - pos0 : P - pos0 + (t - T1 - HOLD) * v);
+    const pos0 = Math.ceil((bot - top) / rh), toRead = Math.round((bot - readY) / rh);
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
     c.font = MONO(2.9 * u); const gw = c.measureText('00000').width;
     const x0 = 6 * u, stepX = (w - 12 * u - gw) / (S.cols - 1);
-    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `LINE ${String(Math.floor(pos)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
-    const res = Math.floor(ramp(t, T1, .7) * 6), back = Math.floor(ramp(t, T1 + HOLD - .35, .3) * 6);
-    const hold = ramp(t, T1, .5) * (1 - ramp(t, T1 + HOLD - .35, .3));
-    for (let r = Math.floor(pos); r >= 0; r--) {
-      const y = bot - (pos - r) * rh; if (y < top) break;
-      const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
-      for (let col = 0; col < S.cols; col++) {
-        let s = '', hot = false;
-        const k = r === S.row ? S.at.indexOf(col) : -1;
-        if (k >= 0) {
-          for (let i = 0; i < 5; i++) s += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? String(h32(r * 977 + col * 31 + i) % 10) : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
+    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `LINE ${String(Math.floor(pos0 + t * v)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+    for (let col = 0; col < S.cols; col++) {
+      const k = S.at.indexOf(col);
+      // every column has its own clock; a message column stops dead while its word sits on the read line
+      let pos = pos0 + t * v, row = -1, res = 0, back = 0;
+      if (k >= 0) {
+        row = pos0 + 4 + S.lag[k]; const P = row + toRead, T1 = (P - pos0) / v, H = S.hold[k];
+        pos = pos0 + (t < T1 ? t * v : t < T1 + H ? P - pos0 : P - pos0 + (t - T1 - H) * v);
+        res = Math.floor(ramp(t, T1, .7) * 6); back = Math.floor(ramp(t, T1 + H - .35, .3) * 6);
+      }
+      for (let r = Math.floor(pos); r >= 0; r--) {
+        const y = bot - (pos - r) * rh; if (y < top) break;
+        const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
+        let g = '', hot = false;
+        if (r === row) {
+          for (let i = 0; i < 5; i++) g += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? String(h32(r * 977 + col * 31 + i) % 10) : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
           hot = res > 0 && back < 5;
-        } else for (let i = 0; i < 5; i++) s += h32(r * 977 + col * 31 + i) % 10;
-        c.globalAlpha = edge * (hot ? 1 : .5 - .2 * hold); c.fillStyle = hot ? ORANGE : '#e8e4da';
-        c.fillText(s, x0 + col * stepX, y);
+        } else for (let i = 0; i < 5; i++) g += h32(r * 977 + col * 31 + i) % 10;
+        c.globalAlpha = edge * (hot ? 1 : .5); c.fillStyle = hot ? ORANGE : '#e8e4da';
+        c.fillText(g, x0 + col * stepX, y);
       }
     }
+    c.globalAlpha = 1;
+  },
+});
+
+// V19b — numbers station III: the scroll as solid block mosaic, monospaced throughout
+V.push({
+  name: 'Numbers station III · blocks', seed: '5b1d8e7c40a9f263d0814c7e', L: 12,
+  idea: 'The same sixteen-column scroll, but the cipher is drawn as solid ASCII blocks rather than digits, so the sheet reads as noise made of cells. Every column is monospaced and locks to the same grid; a message column stops on its word, which flips from blocks to letters in place.',
+  init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); S.lag = [0, 3, 1, 5]; S.hold = [2.4, 3.4, 2.0, 3.0]; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    const pos0 = Math.ceil((bot - top) / rh), toRead = Math.round((bot - readY) / rh);
+    const BLOCK = '█▓▒░';
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    c.font = MONO(2.9 * u); c.letterSpacing = '0px'; const gw = c.measureText('█████').width;
+    const x0 = 6 * u, stepX = (w - 12 * u - gw) / (S.cols - 1);
+    hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `LINE ${String(Math.floor(pos0 + t * v)).padStart(4, '0')}`, 'rgba(232,228,218,.6)');
+    for (let col = 0; col < S.cols; col++) {
+      const k = S.at.indexOf(col);
+      let pos = pos0 + t * v, row = -1, res = 0, back = 0;
+      if (k >= 0) {
+        row = pos0 + 4 + S.lag[k]; const P = row + toRead, T1 = (P - pos0) / v, H = S.hold[k];
+        pos = pos0 + (t < T1 ? t * v : t < T1 + H ? P - pos0 : P - pos0 + (t - T1 - H) * v);
+        res = Math.floor(ramp(t, T1, .7) * 6); back = Math.floor(ramp(t, T1 + H - .35, .3) * 6);
+      }
+      for (let r = Math.floor(pos); r >= 0; r--) {
+        const y = bot - (pos - r) * rh; if (y < top) break;
+        const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
+        let g = '', hot = false;
+        if (r === row) {
+          for (let i = 0; i < 5; i++) g += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? BLOCK[h32(r * 977 + col * 31 + i) % 4] : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
+          hot = res > 0 && back < 5;
+        } else for (let i = 0; i < 5; i++) g += BLOCK[h32(r * 977 + col * 31 + i) % 4];
+        c.globalAlpha = edge * (hot ? 1 : .5); c.fillStyle = hot ? ORANGE : '#e8e4da';
+        c.fillText(g, x0 + col * stepX, y);
+      }
+    }
+    c.globalAlpha = 1;
+  },
+});
+
+// V20 — cassette: a TDK-era tape on red felt, playing
+V.push({
+  name: 'Cassette', seed: 'c7a1e0b94d2f6a83b5e1d7c0', L: 10,
+  idea: 'An early-80s cassette on red felt, shot from above and a little off-square. Play engages, the reels turn, the tape runs from the left pack to the right, the label is typed on, and the bottom line of the label is the lockup: DIR 90.',
+  draw(c, w, h, t, S) {
+    const u = h / 100, rr = (x, y, W, H, r) => { c.beginPath(); c.roundRect(x, y, W, H, r); };
+    c.fillStyle = '#bd232c'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, .08, 0, 110);
+    const CW = 76 * u, CH = CW / 1.575, WR = 6.4 * u, RX = 15 * u, run = Math.max(0, t - .6), k = clamp(run / 9);
+    c.save(); c.translate(w / 2, h * .52); c.rotate(-.06);
+    c.fillStyle = 'rgba(0,0,0,.32)'; rr(-CW / 2 + 1.2 * u, -CH / 2 + 1.8 * u, CW, CH, 2.4 * u); c.fill();
+    c.fillStyle = '#3a3b3e'; rr(-CW / 2, -CH / 2, CW, CH, 2.4 * u); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = .3 * u; rr(-CW / 2 + .3 * u, -CH / 2 + .3 * u, CW - .6 * u, CH - .6 * u, 2.2 * u); c.stroke();
+    // label: white, two ruled lines, a strip under the window
+    const LX = -CW / 2 + 3 * u, LY = -CH / 2 + 3 * u, LW = CW - 6 * u, LH = CH * .74;
+    c.fillStyle = '#f1eee6'; rr(LX, LY, LW, LH, .8 * u); c.fill();
+    c.fillStyle = '#1a1a1a'; for (const y of [LY + 4.4 * u, LY + 8.2 * u]) c.fillRect(LX + 8 * u, y, LW - 10 * u, .18 * u);
+    c.fillRect(LX + 1.6 * u, LY + 1.6 * u, 4.2 * u, 4.2 * u); txt(c, 'A', LX + 3.7 * u, LY + 3.7 * u, JK(800, 3.2 * u), '#f1eee6', 1, 'center', 'middle');
+    // typed on the first line
+    const line1 = 'DEAD INTERNET RADIO', n = Math.min(line1.length, Math.floor(ramp(t, 1.2, 1.6) * line1.length));
+    txt(c, line1.slice(0, n) + (t > 1.2 && t < 3.2 && Math.floor(t * 3) % 2 ? '▌' : ''), LX + 8.4 * u, LY + 3.9 * u, MONO(2.4 * u, 500), '#1a1a1a');
+    // holes and window
+    c.fillStyle = '#141416';
+    for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * RX, 0, WR + .9 * u, 0, TAU); c.fill(); }
+    rr(-RX, -WR * .55, 2 * RX, WR * 1.1, .6 * u); c.fill();
+    // tape packs: the left one empties into the right one
+    const rL = WR * (1 - .52 * k), rR = WR * (.48 + .52 * k);
+    c.fillStyle = '#3d2518'; c.beginPath(); c.arc(-RX, 0, rL, 0, TAU); c.fill(); c.beginPath(); c.arc(RX, 0, rR, 0, TAU); c.fill();
+    c.fillStyle = '#5a3824'; c.fillRect(-RX, WR * .3, 2 * RX, WR * .22);
+    // hubs: cream rings with six teeth; the take-up spins faster while its pack is small
+    c.strokeStyle = '#e8e4da'; c.fillStyle = '#e8e4da'; c.lineWidth = .9 * u;
+    for (const [sx, r] of [[-1, rL], [1, rR]]) {
+      const ang = run * 4.5 * WR / r, x = sx * RX;
+      c.beginPath(); c.arc(x, 0, 2.5 * u, 0, TAU); c.stroke();
+      for (let i = 0; i < 6; i++) { const a = ang + i * TAU / 6; c.save(); c.translate(x + Math.cos(a) * 1.9 * u, Math.sin(a) * 1.9 * u); c.rotate(a); c.fillRect(-.5 * u, -.45 * u, 1 * u, .9 * u); c.restore(); }
+    }
+    // lockup on the label's bottom strip
+    const by = LY + LH - 1.8 * u, on = ramp(t, 3.6, .7);
+    txt(c, 'DIR', LX + 2 * u, by, JK(800, 5.2 * u), '#1a1a1a', on);
+    c.font = JK(800, 5.2 * u); const dw = c.measureText('DIR').width;
+    txt(c, '90', LX + 2 * u + dw + 1.6 * u, by, JK(800, 5.2 * u), ORANGE, on);
+    txt(c, 'NORMAL BIAS · 120µs EQ · 88.8 MHz', LX + LW - 2 * u, by - .3 * u, MONO(1.9 * u), '#1a1a1a', .75 * on, 'right');
+    // the holes along the bottom edge and the screws
+    c.fillStyle = '#141416'; for (const x of [-22, -11, 0, 11, 22]) c.fillRect(x * u - 1.2 * u, CH / 2 - 4.4 * u, 2.4 * u, 1.8 * u);
+    c.fillStyle = '#1c1c1e'; for (const [x, y] of [[-CW / 2 + 1.6 * u, -CH / 2 + 1.6 * u], [CW / 2 - 1.6 * u, -CH / 2 + 1.6 * u], [-CW / 2 + 1.6 * u, CH / 2 - 1.6 * u], [CW / 2 - 1.6 * u, CH / 2 - 1.6 * u], [0, CH / 2 - 1.6 * u]]) { c.beginPath(); c.arc(x, y, .55 * u, 0, TAU); c.fill(); }
+    c.restore();
+    hud(c, w, h, t, 0, '88.8 MHz', clock(), 'rgba(242,238,230,.8)');
+    txt(c, `COUNTER ${String(Math.floor(run * 6)).padStart(4, '0')}`, 6 * u, h - 6 * u, MONO(2.6 * u), 'rgba(242,238,230,.8)', ramp(t, .6, .5));
+    txt(c, run > 0 ? '▶ PLAY' : '■ STOP', w - 6 * u, h - 6 * u, MONO(2.6 * u), 'rgba(242,238,230,.8)', 1, 'right');
+  },
+});
+
+// V21 — ASCII: a BBS banner printing at 9600 baud
+const RAMP = ' .:-=+*#%@';
+V.push({
+  name: 'ASCII', seed: '5f0c2e9a7b31d4e86a9c0f12', L: 11,
+  idea: 'A terminal connects at 9600 baud and prints the station banner: DIR drawn in ASCII density characters, then the name and a prompt. The banner never settles; a slow wave runs through the letters, cycling each cell through the ramp.',
+  draw(c, w, h, t, S) {
+    const u = h / 100, fs = 2.35 * u;
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    c.font = MONO(fs, 500); c.textBaseline = 'top';
+    const cw = c.measureText('M').width, lh = fs * 1.2, cols = Math.floor((w - 12 * u) / cw), R = 16;
+    if (!S.m || S.cols !== cols) { S.cols = cols; S.m = mask('DIR', cols * 2, R * 4); }
+    const x0 = 6 * u, y0 = 6 * u, T0 = 1.5, PER = .085;
+    const line = (i, s, col, a = 1) => { if (a > 0) { c.globalAlpha = a; c.fillStyle = col; c.fillText(s, x0, y0 + i * lh); } };
+    const dim = 'rgba(232,228,218,.75)', cream = '#e8e4da';
+    line(0, 'CONNECT 9600', dim, ramp(t, .3, .05));
+    line(1, `dir-bbs 1.0  ·  88.8 MHz  ·  ${clock()}`, dim, ramp(t, .9, .05));
+    // the banner, one row per line feed, each row typed left to right; after that a wave keeps the cells cycling
+    for (let r = 0; r < R; r++) {
+      const n = Math.floor(ramp(t, T0 + r * PER, PER) * cols); if (!n) break;
+      let s = '';
+      for (let x = 0; x < n; x++) {
+        let on = 0; for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 2; xx++) on += S.m.on[(r * 4 + yy) * S.m.W + x * 2 + xx];
+        if (!on) { s += ' '; continue; }
+        const d = on / 8 * 9 + 1.6 * Math.sin(x * .22 - t * 2.4 + r * .35);
+        s += RAMP[Math.max(1, Math.min(9, Math.round(d)))];
+      }
+      line(3 + r, s, ORANGE);
+    }
+    const T1 = T0 + R * PER;
+    line(4 + R, 'DEAD INTERNET RADIO', cream, ramp(t, T1 + .4, .05));
+    line(6 + R, '> ' + (Math.floor(t * 2) % 2 ? '▌' : ''), cream, ramp(t, T1 + 1.1, .05));
+    c.globalAlpha = 1; c.textBaseline = 'alphabetic';
+  },
+});
+
+// V23 — ASCII blocks: a wall of block glyphs that resolves into the word
+const BLK_RAMP = '█▓▒░';
+const BLK_FONT = {
+  D: ['11110', '10001', '10001', '10001', '11110'],
+  E: ['11111', '10000', '11110', '10000', '11111'],
+  A: ['01110', '10001', '11111', '10001', '10001'],
+  I: ['11111', '00100', '00100', '00100', '11111'],
+  N: ['10001', '11001', '10101', '10011', '10001'],
+  T: ['11111', '00100', '00100', '00100', '00100'],
+  R: ['11110', '10001', '11110', '10100', '10011'],
+  O: ['01110', '10001', '10001', '10001', '01110'],
+};
+const BLK_WORD = 'DEAD INTERNET RADIO';
+const BLK_COLS = BLK_WORD.length * 6 - 1;
+const BLK_MASK = [...BLK_WORD].reduce((g, ch, i) => {
+  if (BLK_FONT[ch]) BLK_FONT[ch].forEach((row, y) => { for (let x = 0; x < 5; x++) if (row[x] === '1') g[y][i * 6 + x] = 1; });
+  return g;
+}, Array.from({ length: 5 }, () => new Uint8Array(BLK_COLS)));
+
+V.push({
+  name: 'ASCII · block wall', seed: '3a7f1c9d0b5e4826fd91a74c', L: 11,
+  idea: 'The whole screen is a wall of block glyphs scrolling in independent columns on one character grid, and the five rows through the middle stop and lock into DEAD INTERNET RADIO before the wall takes them back.',
+  init(S) {
+    S.v = Array.from({ length: BLK_COLS }, () => 2.6 + S.r() * 7);
+    S.o = Array.from({ length: BLK_COLS }, () => S.r() * 977);
+    S.a = Array.from({ length: BLK_COLS }, () => .55 + S.r() * .7);
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100;
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    c.textBaseline = 'top';
+    // one cell width for the whole grid, taken from the window so the wall is always flush edge to edge
+    if (!S.aw) { c.font = MONO(100); S.aw = c.measureText(BLK_RAMP[0]).width; }
+    // row pitch equals the font size so the cells tile and the block letters stay solid
+    const cw = (w - 8 * u) / BLK_COLS, fs = 100 * cw / S.aw, rh = fs;
+    const rows = Math.max(9, Math.floor(h / rh) - 2), y0 = (h - rows * rh) / 2, x0 = (w - BLK_COLS * cw) / 2;
+    c.font = MONO(fs);
+    const band = Math.floor((rows - 5) / 2), fade = ramp(t, 0, 1.1), hold = ramp(t, 2.6, .7) * (1 - ramp(t, 7.6, .6));
+    for (let col = 0; col < BLK_COLS; col++) {
+      const p = (S.v[col] * t + S.o[col]) % 977, fr = Math.floor(p), ph = p - fr, x = x0 + col * cw, ca = S.a[col];
+      for (let r = 0; r < rows; r++) {
+        const y = y0 + (r - ph) * rh, wr = r - band;
+        const edge = Math.min(ramp(r, -.5, 3), 1 - ramp(r, rows - 2.5, 3));
+        const g = h32((r + fr) * 131 + col * 977) % 100, wa = fade * (.04 + .28 * edge) * ca * (.92 - .3 * hold);
+        // the band locks: each letter cell stops scrolling and goes solid orange
+        if (wr >= 0 && wr < 5 && BLK_MASK[wr][col]) {
+          const rv = ramp(t, 2.2 + col * .0055 + wr * .03, .22), dv = ramp(t, 7.4 + (h32(wr * 977 + col * 131) % 1000) / 1000 * .8, .18);
+          if (rv > 0 && dv < 1) {
+            c.globalAlpha = rv * (1 - dv); c.fillStyle = ORANGE; c.fillText(BLK_RAMP[0], x, y);
+            continue;
+          }
+        }
+        c.globalAlpha = wa * (g < 40 ? 1 : .62);
+        c.fillStyle = '#e8e4da';
+        c.fillText(g < 24 ? BLK_RAMP[0] : g < 56 ? BLK_RAMP[1] : g < 82 ? BLK_RAMP[2] : BLK_RAMP[3], x, y);
+      }
+    }
+    c.globalAlpha = 1; c.textBaseline = 'alphabetic';
+  },
+});
+
+// ---------- ASCII: dotted wall (block wall, letters written in dots) ----------
+V.push({
+  name: 'ASCII · dotted wall', seed: 'b41d7c2e6a903f58d2e7b140', L: 11,
+  idea: 'The same wall of block glyphs scrolling in independent columns, except the five rows that lock into DEAD INTERNET RADIO are drawn as a field of dots instead of solid blocks, so the name resolves out of punctuation rather than ink.',
+  init(S) {
+    S.v = Array.from({ length: BLK_COLS }, () => 2.6 + S.r() * 7);
+    S.o = Array.from({ length: BLK_COLS }, () => S.r() * 977);
+    S.a = Array.from({ length: BLK_COLS }, () => .55 + S.r() * .7);
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100;
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+    c.textBaseline = 'top';
+    if (!S.aw) { c.font = MONO(100); S.aw = c.measureText(BLK_RAMP[0]).width; }
+    const cw = (w - 8 * u) / BLK_COLS, fs = 100 * cw / S.aw, rh = fs;
+    const rows = Math.max(9, Math.floor(h / rh) - 2), y0 = (h - rows * rh) / 2, x0 = (w - BLK_COLS * cw) / 2;
+    c.font = MONO(fs);
+    const band = Math.floor((rows - 5) / 2), fade = ramp(t, 0, 1.1), hold = ramp(t, 2.6, .7) * (1 - ramp(t, 7.6, .6));
+    // the dot cluster that stands in for one solid block
+    const ds = cw * 0.2, gx = (cw - ds * 3) / 4, gy = (rh - ds * 3) / 4;
+    for (let col = 0; col < BLK_COLS; col++) {
+      const p = (S.v[col] * t + S.o[col]) % 977, fr = Math.floor(p), ph = p - fr, x = x0 + col * cw, ca = S.a[col];
+      for (let r = 0; r < rows; r++) {
+        const y = y0 + (r - ph) * rh, wr = r - band;
+        const edge = Math.min(ramp(r, -.5, 3), 1 - ramp(r, rows - 2.5, 3));
+        const g = h32((r + fr) * 131 + col * 977) % 100, wa = fade * (.04 + .28 * edge) * ca * (.92 - .3 * hold);
+        if (wr >= 0 && wr < 5 && BLK_MASK[wr][col]) {
+          const rv = ramp(t, 2.2 + col * .0055 + wr * .03, .22), dv = ramp(t, 7.4 + (h32(wr * 977 + col * 131) % 1000) / 1000 * .8, .18);
+          if (rv > 0 && dv < 1) {
+            c.globalAlpha = rv * (1 - dv); c.fillStyle = ORANGE;
+            for (let j = 0; j < 3; j++) {
+              for (let i = 0; i < 3; i++) {
+                c.fillRect(x + gx + i * (ds + gx), y + gy + j * (ds + gy), ds, ds);
+              }
+            }
+            continue;
+          }
+        }
+        c.globalAlpha = wa * (g < 40 ? 1 : .62);
+        c.fillStyle = '#e8e4da';
+        c.fillText(g < 24 ? BLK_RAMP[0] : g < 56 ? BLK_RAMP[1] : g < 82 ? BLK_RAMP[2] : BLK_RAMP[3], x, y);
+      }
+    }
+    c.globalAlpha = 1; c.textBaseline = 'alphabetic';
+  },
+});
+
+// ---------- schematic: the signal path ----------
+V.push({
+  name: 'Schematic · signal path', seed: '598e754f90288d123a1f27c09c37ccd0901efd21793b49b3', L: 10,
+  idea: 'The station drawn as a circuit diagram: an aerial at the left, the signal running the bus through D, I and R as components that light as it passes, and the line finishing at earth. A plate that reads like a service manual for a dead transmitter.',
+  init(S) { S.earth = 3 + Math.floor(S.r() * 2); },
+  draw(c, w, h, t, S) {
+    const u = h / 100, lw = Math.max(1, h / 520);
+    const ink = '#e8e4da', dim = 'rgba(232,228,218,.46)';
+    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+
+    // schematic dot grid
+    c.fillStyle = 'rgba(232,228,218,.07)';
+    for (let x = 4 * u; x < w; x += 4 * u) for (let y = 4 * u; y < h; y += 4 * u) c.fillRect(x, y, 1.3, 1.3);
+
+    const busY = .60 * h, ax = .085 * w, topY = .205 * h, endX = .875 * w;
+    const pitch = .16 * w, x0 = .335 * w, bw = .128 * w, bh = .195 * h;
+    const earthY = .775 * h;
+    c.strokeStyle = ink; c.lineWidth = lw; c.lineCap = 'butt'; c.lineJoin = 'miter';
+
+    const pulse = (x, y) => {
+      c.fillStyle = ORANGE;
+      c.globalAlpha = .2; c.beginPath(); c.arc(x, y, 5 * u, 0, TAU); c.fill();
+      c.globalAlpha = 1; c.beginPath(); c.arc(x, y, 2.1 * u, 0, TAU); c.fill();
+    };
+
+    // header rule and its labels
+    const hd = ramp(t, .15, .6);
+    c.globalAlpha = hd * .5; c.lineWidth = Math.max(1, lw * .6);
+    c.beginPath(); c.moveTo(.055 * w, .125 * h); c.lineTo(.945 * w, .125 * h); c.stroke();
+    c.globalAlpha = hd;
+    c.font = MONO(3.1 * u, 500); c.fillStyle = ink; c.textBaseline = 'alphabetic';
+    c.textAlign = 'left'; c.fillText('D.I.R.  STATION IDENT', .055 * w, .098 * h);
+    c.textAlign = 'right'; c.fillStyle = dim; c.fillText('SCHEMATIC  ·  88.8 MHz', .945 * w, .098 * h);
+    c.globalAlpha = 1; c.lineWidth = lw;
+
+    // aerial: mast drops, then the two legs
+    const aP = ramp(t, .35, .55);
+    if (aP > 0) {
+      c.beginPath(); c.moveTo(ax, topY); c.lineTo(ax, topY + (busY - topY) * aP); c.stroke();
+      if (aP > .5) {
+        c.globalAlpha = ramp(t, .72, .30);
+        c.beginPath();
+        c.moveTo(ax, topY); c.lineTo(ax - 3.6 * u, topY + 5 * u);
+        c.moveTo(ax, topY); c.lineTo(ax + 3.6 * u, topY + 5 * u);
+        c.stroke(); c.globalAlpha = 1;
+      }
+    }
+    // carrier waves off the tip
+    const wvA = ramp(t, .9, .4);
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * .5 + i / 3) % 1;
+      c.globalAlpha = (1 - ph) * .5 * wvA;
+      c.beginPath(); c.arc(ax, topY, (2 + ph * 5.6) * u, -.62, .62); c.stroke();
+    }
+    c.globalAlpha = 1;
+
+    // bus draws left to right
+    const bP = ramp(t, 1.05, 1.45);
+    if (bP > 0) { c.beginPath(); c.moveTo(ax, busY); c.lineTo(ax + (endX - ax) * bP, busY); c.stroke(); }
+
+    // D, I, R as components on the bus, each lighting as the pulse reaches it
+    let locked = 0;
+    ['D', 'I', 'R'].forEach((ch, i) => {
+      const cx = x0 + i * pitch;
+      const bp = ramp(t, 1.05 + (cx - ax) / (endX - ax) * 1.45, .30);
+      if (bp <= 0) return;
+      const on = ramp(t, 1.38 + (cx - ax) / (endX - ax) * 3.0, .26);
+      locked = Math.max(locked, on);
+      c.globalAlpha = bp;
+      c.strokeStyle = on > 0 ? mix(ink, ORANGE, on) : ink;
+      c.lineWidth = on > 0 ? lw * (1 + on * .5) : lw;
+      c.strokeRect(cx - bw / 2, busY - bh / 2, bw, bh);
+      c.fillStyle = on > 0 ? ORANGE : ink;
+      let fs = bh * .5; c.font = MONO(fs, 500);
+      const mw = c.measureText(ch).width;
+      if (mw > bw * .5) { fs *= bw * .5 / mw; c.font = MONO(fs, 500); }
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(ch, cx, busY + fs * .04);
+      c.lineWidth = lw; c.globalAlpha = 1;
+    });
+
+    // earth: the wire drops off the bus, then the bars
+    const eP = ramp(t, 4.3, .45);
+    if (eP > 0) {
+      c.beginPath(); c.moveTo(endX, busY); c.lineTo(endX, busY + (earthY - busY) * eP); c.stroke();
+      for (let i = 0; i < S.earth; i++) {
+        const ww = .125 * w * (1 - i / S.earth) + .018 * w;
+        const y = earthY + i * 2.4 * u;
+        c.beginPath(); c.moveTo(endX - ww / 2, y); c.lineTo(endX + ww / 2, y); c.stroke();
+      }
+    }
+
+    // the pulse: down the mast, then along the bus
+    const vp = ramp(t, .95, .4);
+    if (vp > 0 && vp < 1) pulse(ax, topY + (busY - topY) * vp);
+    const hp = ramp(t, 1.38, 2.9);
+    if (hp > 0 && hp < 1) pulse(ax + (endX - ax) * hp, busY);
+
+    // component labels under the bus
+    c.font = MONO(3.0 * u, 500); c.fillStyle = dim;
+    c.globalAlpha = ramp(t, 2.3, .5);
+    c.textAlign = 'right'; c.fillText('ANT', ax - 1.4 * u, topY + 7.4 * u);
+    c.textAlign = 'left'; c.fillText('88.8 MHz', ax + 3 * u, busY + 6.2 * u);
+    c.textAlign = 'center'; c.fillText('D', x0, busY + bh / 2 + 5.4 * u);
+    c.fillText('I', x0 + pitch, busY + bh / 2 + 5.4 * u);
+    c.fillText('R', x0 + 2 * pitch, busY + bh / 2 + 5.4 * u);
+    c.globalAlpha = ramp(t, 4.5, .5);
+    c.fillText('GND', endX, earthY + S.earth * 2.4 * u + 5 * u);
+    c.globalAlpha = 1;
+
+    // footer
+    c.textAlign = 'left'; c.font = MONO(3.4 * u, 500); c.fillStyle = ink;
+    c.globalAlpha = ramp(t, 4.8, .6);
+    c.fillText('DEAD INTERNET RADIO', .055 * w, .945 * h);
+    c.textAlign = 'right'; c.fillStyle = dim;
+    c.fillText(`${clock()}  ·  ${locked > .9 ? 'CARRIER LOCK' : 'ACQUIRING'}`, .945 * w, .945 * h);
     c.globalAlpha = 1;
   },
 });

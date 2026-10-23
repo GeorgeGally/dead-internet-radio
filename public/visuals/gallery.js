@@ -11,6 +11,8 @@ const gallery = (() => {
     7: 'Pixelate',
     8: 'Color Invert',
     9: 'LED Grid',
+    10: 'Dither',
+    11: 'Glitch',
   };
 
   // Baseline filter/cutoff/resonance every user sees on an artwork before
@@ -236,6 +238,10 @@ const gallery = (() => {
         return `linear-gradient(135deg, #111 0%, #111 50%, #ddd 50%, #ddd 100%)`;
       case 9:
         return `radial-gradient(#8a7a6a 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(#ece8e2, #ece8e2)`;
+      case 10:
+        return `radial-gradient(#1a1a1a 1px, transparent 1px) 0 0 / 8px 8px, radial-gradient(#1a1a1a 1px, transparent 1px) 4px 4px / 8px 8px, linear-gradient(#e9e6df, #e9e6df)`;
+      case 11:
+        return `repeating-linear-gradient(0deg, #161616 0px, #161616 9px, #ff2e63 9px, #ff2e63 11px, #161616 11px, #161616 20px, #22d3ee 20px, #22d3ee 22px, #161616 22px, #161616 34px)`;
       default:
         return `#111`;
     }
@@ -267,7 +273,7 @@ const gallery = (() => {
         <div class="gfc-name">${displayName}</div>
       `;
       card.dataset.filter = String(key);
-      if ([1, 2, 5, 7, 8, 9].includes(k)) {
+      if ([1, 2, 5, 7, 8, 9, 10].includes(k)) {
         card.dataset.text = 'dark';
       }
       card.addEventListener('click', () => {

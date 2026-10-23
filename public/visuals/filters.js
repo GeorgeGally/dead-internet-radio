@@ -117,9 +117,8 @@ const canvasFilters = (() => {
   }
 
   // For visuals that can't be filtered in place (WebGL canvases have no 2D
-  // context, trail sketches would feed the filter back into themselves):
-  // sample the source canvas onto the full-screen overlay canvas and run the
-  // filters there. Overlay is only shown when a filter is active.
+  // context): sample the source canvas onto the full-screen overlay canvas
+  // and run the filters there. Overlay is only shown when a filter is active.
   let overlayEl = null;
   let overlayCtx = null;
   function applyToOverlay(source, frame) {
@@ -145,11 +144,7 @@ const canvasFilters = (() => {
       overlayEl.height = source.height;
     }
     overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
-    // Back the copy with the page's black: sketches that never paint a
-    // background (bugs3, word_sparks) are transparent, and invert/scanlines
-    // etc. would otherwise have nothing to act on outside the strokes.
-    overlayCtx.fillStyle = '#000';
-    overlayCtx.fillRect(0, 0, overlayEl.width, overlayEl.height);
+    overlayCtx.clearRect(0, 0, overlayEl.width, overlayEl.height);
     try {
       overlayCtx.drawImage(source, 0, 0, overlayEl.width, overlayEl.height);
     } catch (e) {
@@ -202,8 +197,9 @@ const canvasFilters = (() => {
         clearActive();
         return;
       }
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= 9) {
+      const letter = e.ctrlKey || e.metaKey ? '' : e.key.toLowerCase();
+      const num = { d: 10, x: 11 }[letter] ?? parseInt(e.key);
+      if (num >= 1 && num <= 11) {
         const filter = registry.get(num);
         if (filter) {
           e.preventDefault();
@@ -220,10 +216,8 @@ const canvasFilters = (() => {
   register(1, 'Scanlines', (ctx, w, h, frame) => {
     const spacing = Math.max(3, Math.round(currentThreshold / 5));
     const alpha = Math.min(0.65, 0.15 + currentThreshold / 400);
-    const resonance = (window.soundSensitivity ?? 50) / 100;
     ctx.save();
-    // Resonance sets the roll speed (0.5 px/frame at the default 50).
-    const offset = (frame * resonance) % spacing;
+    const offset = (frame * 0.5) % spacing;
     for (let y = -spacing + offset; y < h + spacing; y += spacing) {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = '#000000';
@@ -231,6 +225,7 @@ const canvasFilters = (() => {
     }
     ctx.restore();
     ctx.save();
+    const resonance = (window.soundSensitivity ?? 50) / 100;
     const vignetteAlpha = 0.08 + resonance * 0.6;
     const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -266,27 +261,24 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  // Mixes static over the picture (cutoff = amount) instead of replacing it,
-  // so the visual underneath stays readable at full filter strength.
   register(3, 'Static Noise', (ctx, w, h, frame) => {
-    const mix = Math.min(0.85, 0.1 + currentThreshold / 300);
+    const intensity = Math.max(10, currentThreshold);
+    const noiseMax = Math.min(255, intensity * 2);
     const resonance = (window.soundSensitivity ?? 50) / 100;
     const grain = Math.max(1, Math.round(1 + resonance * 5));
-    const imageData = ctx.getImageData(0, 0, w, h);
+    const imageData = ctx.createImageData(w, h);
     const data = imageData.data;
     for (let y = 0; y < h; y += grain) {
       for (let x = 0; x < w; x += grain) {
-        const v = Math.random() * 255;
+        const v = Math.floor(Math.random() * noiseMax);
         const maxDy = Math.min(grain, h - y);
         const maxDx = Math.min(grain, w - x);
         for (let dy = 0; dy < maxDy; dy++) {
           const row = (y + dy) * w;
           for (let dx = 0; dx < maxDx; dx++) {
             const i = (row + x + dx) * 4;
-            data[i] += (v - data[i]) * mix;
-            data[i + 1] += (v - data[i + 1]) * mix;
-            data[i + 2] += (v - data[i + 2]) * mix;
-            data[i + 3] += (255 - data[i + 3]) * mix;
+            data[i] = data[i + 1] = data[i + 2] = v;
+            data[i + 3] = 255;
           }
         }
       }
@@ -440,12 +432,104 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  // Convenience for p5 visuals: always filter a copy on the overlay, never the
-  // p5 canvas itself. Filtering in place feeds each filtered frame back into
-  // sketches that fade instead of clearing (pulsing_squares, word_sparks, ...),
-  // so effects compound to black/grey/noise and the knobs stop registering.
+  const BAYER8 = [
+    [0, 32, 8, 40, 2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+  ].map(row => row.map(v => (v + 0.5) / 64));
+
+  const DITHER_INK = '#1a1a1a';
+  const DITHER_PAPER = '#e9e6df';
+
+  register(10, 'Dither', (ctx, w, h, frame) => {
+    const dpr = window.devicePixelRatio || 1;
+    const cell = Math.max(2, Math.round((currentThreshold / 20) * dpr));
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (let y = 0; y < h; y += cell) {
+      const rowsInCell = Math.min(cell, h - y);
+      const band = BAYER8[((y / cell) | 0) % 8];
+      for (let x = 0; x < w; x += cell) {
+        const colsInCell = Math.min(cell, w - x);
+        let sum = 0;
+        for (let dy = 0; dy < rowsInCell; dy++) {
+          let i = ((y + dy) * w + x) * 4;
+          for (let dx = 0; dx < colsInCell; dx++, i += 4) {
+            sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          }
+        }
+        const darkness = 1 - sum / (rowsInCell * colsInCell * 255);
+        ctx.fillStyle = darkness > band[((x / cell) | 0) % 8] ? DITHER_INK : DITHER_PAPER;
+        ctx.fillRect(x, y, colsInCell, rowsInCell);
+      }
+    }
+    ctx.restore();
+  });
+
+  const GLITCH_SEED = 25;
+
+  function glitchRandom(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  register(11, 'Glitch', (ctx, w, h, frame) => {
+    const amount = Math.max(0.05, Math.min(1, currentThreshold / 255));
+    const strength = Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const src = new Uint8ClampedArray(data);
+    const randomSeed = glitchRandom(GLITCH_SEED);
+    const bands = Math.round(4 + amount * 26);
+    const maxShift = Math.round(w * (0.01 + amount * 0.06) * strength);
+    for (let b = 0; b < bands; b++) {
+      const top = Math.floor(randomSeed() * h);
+      const height = Math.max(3, Math.floor((0.004 + randomSeed() * 0.035) * h));
+      const shift = Math.round((randomSeed() * 2 - 1) * maxShift);
+      const fringe = Math.max(1, Math.min(12, Math.round(Math.abs(shift) * 0.08)));
+      const chroma = Math.round(fringe * strength) * (randomSeed() < 0.5 ? -1 : 1);
+      const bottom = Math.min(h, top + height);
+      for (let y = top; y < bottom; y++) {
+        const row = y * w;
+        for (let x = 0; x < w; x++) {
+          const di = (row + x) * 4;
+          const gi = (row + Math.min(w - 1, Math.max(0, x - shift))) * 4;
+          const ri = (row + Math.min(w - 1, Math.max(0, x - shift - chroma))) * 4;
+          const bi = (row + Math.min(w - 1, Math.max(0, x - shift + chroma))) * 4;
+          data[di] = src[ri];
+          data[di + 1] = src[gi + 1];
+          data[di + 2] = src[bi + 2];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  });
+
+  // Convenience for p5 visuals: run filters on the p5 canvas in pixel space,
+  // or via overlay for WebGL canvases that have no 2D context.
   function applyToP5(p) {
-    applyToOverlay(p.canvas, p.frameCount);
+    const nativeCtx = p.canvas.getContext('2d');
+    if (nativeCtx) {
+      nativeCtx.save();
+      nativeCtx.setTransform(1, 0, 0, 1, 0, 0);
+      apply(nativeCtx, p.canvas.width, p.canvas.height, p.frameCount);
+      nativeCtx.restore();
+    } else {
+      applyToOverlay(p.canvas, p.frameCount);
+    }
   }
 
   return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };
