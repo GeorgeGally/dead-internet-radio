@@ -196,13 +196,11 @@ Three independent tasks, any order.
 │   ├── announce.py
 │   ├── build_site.py
 │   └── requirements.txt
-├── src/                                  # Player source (unchanged)
+├── public/                               # Player source, served by Rails
 │   ├── index.html
 │   ├── style.css
 │   ├── app.js
 │   └── visuals/
-├── public/                               # Built player output, served by Rails
-│   └── index.html
 ├── prompts/                              # Seed LLM prompts
 │   ├── producer.md
 │   ├── dj.md
