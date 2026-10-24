@@ -1,6 +1,6 @@
 'use strict';
 
-// GPU filter pipeline (proof: pixelate). Samples the active visual's canvas as
+// GPU filter pipeline (pixelate, dither). Samples the active visual's canvas as
 // a texture and runs a fragment shader onto #fx-canvas. This replaces the CPU
 // getImageData filters incrementally: keys ported here are registered via
 // canvasFilters.setShaderKeys() so the CPU path skips them.
@@ -25,6 +25,37 @@ const fxPipeline = (() => {
           gl_FragColor = texture2D(uTex, q / uRes);
         }
       `,
+      block: () => Math.max(4, window._pixelBlockSize || 16),
+    },
+    // Ordered (Bayer 8x8) dither in two inks, one decision per cell. The CPU
+    // version read back the whole frame every tick; here it is one pass.
+    10: {
+      name: 'Dither',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform vec2 uRes;
+        uniform float uBlock;
+        varying vec2 vUv;
+        float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+        float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+        float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+        void main() {
+          vec2 cell = floor(vUv * uRes / uBlock);
+          vec2 c = (cell + 0.5) * uBlock;
+          float d = uBlock * 0.25;
+          // Four taps per cell so a moving picture doesn't shimmer.
+          vec3 rgb = texture2D(uTex, (c + vec2(-d, -d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2( d, -d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2(-d,  d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2( d,  d)) / uRes).rgb;
+          float lum = dot(rgb * 0.25, vec3(0.299, 0.587, 0.114));
+          bool ink = (1.0 - lum) > bayer8(cell) + 0.5 / 64.0;
+          gl_FragColor = vec4(ink ? vec3(0.102, 0.102, 0.102) : vec3(0.914, 0.902, 0.875), 1.0);
+        }
+      `,
+      // Same cell size as the CPU version: the cutoff dial drives it.
+      block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
     },
   };
 
@@ -169,13 +200,14 @@ const fxPipeline = (() => {
     gl.vertexAttribPointer(prog.loc.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(prog.loc.uTex, 0);
     gl.uniform2f(prog.loc.uRes, canvas.width, canvas.height);
-    gl.uniform1f(prog.loc.uBlock, Math.max(4, window._pixelBlockSize || 16));
+    gl.uniform1f(prog.loc.uBlock, SHADERS[key].block());
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // Alpha knob: fade the shader output over the untouched visual below.
     canvas.style.opacity = String(Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100);
-    if (canvas.style.display === 'none') canvas.style.display = 'block';
+    // The stylesheet hides #fx-canvas, so the inline style starts empty, not 'none'.
+    if (canvas.style.display !== 'block') canvas.style.display = 'block';
   }
 
   function loop() {
