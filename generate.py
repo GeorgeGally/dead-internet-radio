@@ -17,6 +17,10 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+# Comma-separated list of models to try in order. A pinned model keeps the
+# station's voice consistent across tracks — `openrouter/free` picks a different
+# (usually tiny) model on every call, which is what turned sets generic.
+OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
@@ -160,50 +164,111 @@ def extract_json_array(text: str) -> list:
 
 
 def call_llm(system_prompt: str, user_message: str) -> str:
-    for attempt in range(3):
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        body = {
-            "model": OPENROUTER_MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            "temperature": 0.9,
-        }
-        try:
-            req = urllib.request.Request(
-                OPENROUTER_URL,
-                data=json.dumps(body).encode(),
-                headers=headers,
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                result = json.loads(resp.read().decode())
-                content = result["choices"][0]["message"]["content"]
-                if content is None:
-                    raise ValueError("LLM returned null content")
-                return content
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                wait = 3 * (attempt + 1)
-                print(f"  Rate limited, retrying in {wait}s...", flush=True)
-                time.sleep(wait)
-                continue
-            print(f"  LLM call failed ({e.code}), retrying in 3s...", flush=True)
-            time.sleep(3)
-        except Exception as e:
-            if attempt < 2:
-                print(f"  {e}, retrying...", flush=True)
-                time.sleep(3)
-                continue
-            print(f"  LLM call failed: {e}", file=sys.stderr)
-            sys.exit(1)
+    """Call the first model in OPENROUTER_MODELS that answers.
 
-    print("  LLM call failed after 3 attempts", file=sys.stderr)
+    Walks the list on rate limits and hard errors so one overloaded free
+    endpoint can't sink a whole show.
+    """
+    last_error = None
+    for model in OPENROUTER_MODELS:
+        for attempt in range(2):
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            body = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                "temperature": 0.9,
+            }
+            try:
+                req = urllib.request.Request(
+                    OPENROUTER_URL,
+                    data=json.dumps(body).encode(),
+                    headers=headers,
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=180) as resp:
+                    result = json.loads(resp.read().decode())
+                    content = result["choices"][0]["message"]["content"]
+                    if content is None:
+                        raise ValueError("LLM returned null content")
+                    if model != OPENROUTER_MODELS[0]:
+                        print(f"  (written by {model})", flush=True)
+                    return content
+            except urllib.error.HTTPError as e:
+                last_error = f"{model} → HTTP {e.code}"
+                if e.code == 429:
+                    wait = 3 * (attempt + 1)
+                    print(f"  {model} rate limited, retrying in {wait}s...", flush=True)
+                    time.sleep(wait)
+                    continue
+                print(f"  {model} failed ({e.code}), trying next model...", flush=True)
+                break
+            except Exception as e:
+                last_error = f"{model} → {e}"
+                if attempt < 1:
+                    print(f"  {e}, retrying...", flush=True)
+                    time.sleep(3)
+                    continue
+                print(f"  {model} failed: {e}", flush=True)
+
+    print(f"  LLM call failed on every model ({last_error})", file=sys.stderr)
     sys.exit(1)
+
+
+def already_broadcast_names() -> tuple[list[str], list[str]]:
+    """Artist names and titles this station has already used.
+
+    Read from the mix cue sheets and the per-show prompt logs, so the DJ can be
+    told what not to write again. These are the names that turned into furniture.
+    """
+    artists: set[str] = set()
+    titles: set[str] = set()
+
+    for cues in Path("mixes").glob("*.cues.json"):
+        try:
+            entries = json.loads(cues.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(entries, list):
+            continue
+        for e in entries:
+            if isinstance(e, dict):
+                if e.get("artist"):
+                    artists.add(str(e["artist"]).strip())
+                if e.get("title"):
+                    titles.add(str(e["title"]).strip())
+
+    for log in Path("output").glob("*/prompts/*.prompt.json"):
+        try:
+            data = json.loads(log.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        payload = data.get("payload") or {}
+        if isinstance(payload, dict):
+            if payload.get("artist"):
+                artists.add(str(payload["artist"]).strip())
+            if payload.get("title"):
+                titles.add(str(payload["title"]).strip())
+
+    return sorted(artists), sorted(titles)
+
+
+def avoid_block() -> str:
+    """The AVOID section appended to every DJ prompt."""
+    artists, titles = already_broadcast_names()
+    if not artists and not titles:
+        return ""
+    return (
+        "\n\nAVOID — this station has already broadcast these. Never reuse a name or "
+        "title from this list, and never reuse one twice inside the same set:\n"
+        f"Artist names already used: {', '.join(artists)}\n"
+        f"Titles already used: {', '.join(titles)}\n"
+    )
 
 
 def wait_for_memory(threshold_pct=25, max_wait_s=600):
@@ -559,6 +624,11 @@ def main():
         print(f"  Announce prompt log → {intro_prompt_file}\n")
 
         ace_healthy = None
+        avoid = avoid_block()
+        if avoid:
+            used_artists, used_titles = already_broadcast_names()
+            print(f"   Anti-reuse list: {len(used_artists)} artist names, "
+                  f"{len(used_titles)} titles from previous broadcasts", flush=True)
 
         # --- BATCH MODE: compose all tracks in one LLM call ---
         if not args.no_batch:
@@ -584,6 +654,7 @@ def main():
                 f"- Vary the sonic palette across the set.\n\n"
                 f"Output a JSON array of {args.tracks} objects, each with: "
                 f"title, artist, caption, lyrics, bpm, keyscale, duration."
+                f"{avoid}"
             )
 
             song_json = call_llm(dj_prompt, dj_input)
@@ -632,6 +703,7 @@ def main():
                     "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
                     "- Focus on atmosphere, texture, and the evolving narrative of the set.\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+                    f"{avoid}"
                 )
 
                 print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
