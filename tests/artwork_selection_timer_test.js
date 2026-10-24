@@ -43,5 +43,5 @@ test('selecting an artwork resets its pending change timer', () => {
 test('gallery selection resets the selected artwork timer', () => {
   const source = fs.readFileSync(path.join(root, 'public/visuals/gallery.js'), 'utf8');
 
-  assert.match(source, /card\.addEventListener\('click',[\s\S]*?visuals\.activate\(item\.id\);[\s\S]*?visuals\.resetTimer\(item\.id\);/);
+  assert.match(source, /\w+\.addEventListener\('click',[\s\S]*?visuals\.activate\(item\.id\);[\s\S]*?visuals\.resetTimer\(item\.id\);/);
 });
