@@ -37,7 +37,6 @@ const gallery = (() => {
 
   let panel = null;
   let wall = null;
-  let fxStrip = null;
   let isOpen = false;
   let wasExpanded = false;
   const presets = {};
@@ -72,9 +71,6 @@ const gallery = (() => {
 
     panel = container;
 
-    fxStrip = buildFxStrip();
-    panel.appendChild(fxStrip);
-
     wall = document.createElement('div');
     wall.className = 'gallery-wall';
     panel.appendChild(wall);
@@ -83,12 +79,13 @@ const gallery = (() => {
     document.addEventListener('keydown', handleKeyDown);
   }
 
-  // ---- FX strip: dry/wet, three slots, a filter dial and two parameter knobs ----
-  // Click a slot's name to focus it; the filter dial turns through the filters
-  // for the focused slot, and the two knobs set its parameters.
-  function knobHtml(cls, label) {
-    return `<span class="ctrl"><span class="led"></span><div class="rams-knob ${cls}"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">${label}</div></span>`;
-  }
+  // ---- FX unit in the menubar: dry/wet, a four-row display, a filter dial
+  // and two parameter knobs ----
+  // Rows 1-3 are the filter slots; click one to focus it, its box switches it
+  // on and off. The filter dial turns through filters for the focused slot and
+  // the two knobs set its parameters. Row A is the artwork itself: focused, the
+  // dial is its sensitivity and the knobs its cutoff and resonance.
+  let artFocus = false;
 
   // Drag up/down or scroll. A detented knob steps once per `detent` pixels.
   function bindKnob(el, { get, set, reset, detent }) {
@@ -102,11 +99,12 @@ const gallery = (() => {
     });
     el.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      if (detent) {
+      const step = detent();
+      if (step) {
         acc -= e.movementY;
-        while (Math.abs(acc) >= detent) {
+        while (Math.abs(acc) >= step) {
           set(get() + Math.sign(acc));
-          acc -= Math.sign(acc) * detent;
+          acc -= Math.sign(acc) * step;
         }
       } else {
         set(get() - e.movementY * 0.005);
@@ -117,101 +115,116 @@ const gallery = (() => {
     el.addEventListener('pointercancel', end);
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      set(get() - Math.sign(e.deltaY) * (detent ? 1 : 0.03));
+      set(get() - Math.sign(e.deltaY) * (detent() ? 1 : 0.03));
     }, { passive: false });
     if (reset) el.addEventListener('dblclick', reset);
   }
 
   const FX_KEYS = [null, ...canvasFilters.list().map((f) => f.key)];
-  const fxName = (key) => (canvasFilters.list().find((f) => f.key === key) || {}).name || '';
+  const fxInfo = (key) => canvasFilters.list().find((f) => f.key === key);
+  const ART_KNOBS = ['sensitivity', 'cutoff', 'resonance']; // filter dial, p1, p2
 
-  function buildFxStrip() {
-    const el = document.createElement('div');
-    el.className = 'fx-unit';
-    el.innerHTML = `
-      ${knobHtml('fx-wet', 'dry/wet')}
-      <div class="fx-lcd">
-        ${[0, 1, 2].map((i) => `<div class="fx-row" data-slot="${i}"><span class="fx-num">${i + 1}</span><span class="fx-name"></span><button class="fx-on" data-slot="${i}">off</button></div>`).join('')}
-      </div>
-      ${knobHtml('fx-pick', 'filter')}
-      ${knobHtml('fx-p1', '')}
-      ${knobHtml('fx-p2', '')}`;
+  function bindFxUnit() {
+    const el = document.querySelector('.deck-display');
+    if (!el || !el.querySelector('.fx-lcd')) return;
 
     el.querySelectorAll('.fx-row').forEach((row) => {
       row.addEventListener('click', (e) => {
         const i = Number(row.dataset.slot);
-        if (e.target.closest('.fx-on')) {
-          const s = canvasFilters.getSlots()[i];
-          canvasFilters.setFocus(i);
-          canvasFilters.setSlotOn(i, !s.on);
-        } else {
-          canvasFilters.setFocus(i);
+        if (i < 0) {
+          artFocus = true;
+          updateFxUnit(el);
+          return;
         }
+        artFocus = false;
+        canvasFilters.setFocus(i);
+        if (e.target.closest('.fx-on')) canvasFilters.setSlotOn(i, !canvasFilters.getSlots()[i].on);
+        updateFxUnit(el);
       });
     });
 
     const focused = () => canvasFilters.getSlots()[canvasFilters.getFocus()];
     bindKnob(el.querySelector('.fx-wet'), {
+      detent: () => 0,
       get: () => canvasFilters.getWet(),
       set: (v) => canvasFilters.setWet(v),
       reset: () => canvasFilters.setWet(1),
     });
     bindKnob(el.querySelector('.fx-pick'), {
-      detent: 14,
-      get: () => FX_KEYS.indexOf(focused().key),
-      set: (i) => {
+      detent: () => (artFocus ? 0 : 14),
+      get: () => (artFocus ? window.artDials.get(ART_KNOBS[0]) : FX_KEYS.indexOf(focused().key)),
+      set: (v) => {
+        if (artFocus) { window.artDials.set(ART_KNOBS[0], Math.max(0, Math.min(1, v))); return; }
         const f = canvasFilters.getFocus();
-        const key = FX_KEYS[Math.max(0, Math.min(FX_KEYS.length - 1, i))];
+        const key = FX_KEYS[Math.max(0, Math.min(FX_KEYS.length - 1, v))];
         canvasFilters.setSlotFilter(f, key);
         // A filter dialled in starts playing; dialling back to nothing stops it.
         if (key != null) canvasFilters.setSlotOn(f, true);
       },
+      reset: () => { if (artFocus) window.artDials.reset(ART_KNOBS[0]); },
     });
     [0, 1].forEach((j) => {
       bindKnob(el.querySelector(`.fx-p${j + 1}`), {
-        get: () => focused().p[j],
-        set: (v) => canvasFilters.setParam(canvasFilters.getFocus(), j, v),
+        detent: () => 0,
+        get: () => (artFocus ? window.artDials.get(ART_KNOBS[j + 1]) : focused().p[j]),
+        set: (v) => {
+          if (artFocus) window.artDials.set(ART_KNOBS[j + 1], Math.max(0, Math.min(1, v)));
+          else canvasFilters.setParam(canvasFilters.getFocus(), j, v);
+        },
         reset: () => {
-          const f = canvasFilters.list().find((x) => x.key === focused().key);
-          if (f) canvasFilters.setParam(canvasFilters.getFocus(), j, canvasFilters.FILTERS.find((x) => x.key === f.key).params[j][1]);
+          if (artFocus) { window.artDials.reset(ART_KNOBS[j + 1]); return; }
+          const f = canvasFilters.FILTERS.find((x) => x.key === focused().key);
+          if (f) canvasFilters.setParam(canvasFilters.getFocus(), j, f.params[j][1]);
         },
       });
     });
 
-    canvasFilters.subscribe(() => updateFxStrip(el));
-    updateFxStrip(el);
-    return el;
+    canvasFilters.subscribe(() => updateFxUnit(el));
+    window.artDials.subscribe(() => updateFxUnit(el));
+    // The A row names the playing artwork.
+    setInterval(() => updateFxUnit(el), 1000);
+    updateFxUnit(el);
   }
 
   function turn(el, frac) {
     el.querySelector('.knob-tick').style.transform = `rotate(${frac * 300 - 150}deg)`;
   }
 
-  function updateFxStrip(el) {
+  function updateFxUnit(el) {
     const slots = canvasFilters.getSlots();
     const focus = canvasFilters.getFocus();
-    el.querySelectorAll('.fx-row').forEach((row, i) => {
+    el.querySelectorAll('.fx-row').forEach((row) => {
+      const i = Number(row.dataset.slot);
+      if (i < 0) {
+        row.classList.add('on');
+        row.classList.toggle('focus', artFocus);
+        row.querySelector('.fx-name').textContent = (visuals.getCurrentName && visuals.getCurrentName()) || '\u2014';
+        return;
+      }
       const s = slots[i];
-      row.classList.toggle('focus', i === focus);
+      row.classList.toggle('focus', !artFocus && i === focus);
       row.classList.toggle('on', s.on);
-      row.querySelector('.fx-name').textContent = s.key == null ? '\u2014' : fxName(s.key);
+      row.querySelector('.fx-name').textContent = s.key == null ? '\u2014' : fxInfo(s.key).name;
       const btn = row.querySelector('.fx-on');
       btn.textContent = s.on ? 'on' : 'off';
       btn.disabled = s.key == null;
     });
     const s = slots[focus];
-    const info = canvasFilters.list().find((f) => f.key === s.key);
+    const info = fxInfo(s.key);
     const ctrl = (cls) => el.querySelector(`.${cls}`).closest('.ctrl');
+    const anyOn = slots.some((x) => x.on);
     turn(el.querySelector('.fx-wet'), canvasFilters.getWet());
-    ctrl('fx-wet').querySelector('.led').classList.toggle('on', slots.some((x) => x.on));
-    turn(el.querySelector('.fx-pick'), FX_KEYS.indexOf(s.key) / (FX_KEYS.length - 1));
-    ctrl('fx-pick').querySelector('.led').classList.toggle('on', s.on);
+    ctrl('fx-wet').querySelector('.led').classList.toggle('on', anyOn);
+    const pick = ctrl('fx-pick');
+    pick.querySelector('.knob-label').textContent = artFocus ? ART_KNOBS[0] : 'filter';
+    turn(pick.querySelector('.rams-knob'), artFocus ? window.artDials.get(ART_KNOBS[0]) : FX_KEYS.indexOf(s.key) / (FX_KEYS.length - 1));
+    pick.querySelector('.led').classList.toggle('on', artFocus || s.on);
     [0, 1].forEach((j) => {
       const c = ctrl(`fx-p${j + 1}`);
-      turn(c.querySelector('.rams-knob'), s.p[j]);
-      c.querySelector('.knob-label').textContent = info ? info.params[j] : '\u2014';
-      c.classList.toggle('idle', !info);
-      c.querySelector('.led').classList.toggle('on', s.on);
+      turn(c.querySelector('.rams-knob'), artFocus ? window.artDials.get(ART_KNOBS[j + 1]) : s.p[j]);
+      c.querySelector('.knob-label').textContent = artFocus ? ART_KNOBS[j + 1] : info ? info.params[j] : '\u2014';
+      c.classList.toggle('idle', !artFocus && !info);
+      c.querySelector('.led').classList.toggle('on', artFocus || s.on);
     });
   }
 
@@ -518,5 +531,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, bindFxUnit, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();

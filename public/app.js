@@ -265,13 +265,8 @@ function updateTrackInfo() {
     if (artistEl) artistEl.textContent = track.artist || 'Dead Internet Radio';
 
     const visName = visuals.getCurrentName ? visuals.getCurrentName() : '';
-    const filtName = canvasFilters.getActiveName ? canvasFilters.getActiveName() : '';
-
-    if (artworkEl) {
-      let txt = visName || '';
-      if (filtName && filtName !== 'none') txt += (txt ? '  ·  ' : '') + filtName;
-      artworkEl.textContent = txt;
-    }
+    // Filters show in the FX display, not here.
+    if (artworkEl) artworkEl.textContent = visName || '';
 
     if (miniEl) {
       const showName = currentShowName() || '—';
@@ -532,193 +527,57 @@ function setupControls() {
     }
   });
 
-  const knob = document.getElementById('threshold-knob');
-  const knobLed = document.getElementById('knob-led');
+  // The artwork's own dials: cutoff (5-255, rest 130), resonance (0-100, rest
+  // 50) and sensitivity (0-100, rest 50, the audio input gain). They have no
+  // knobs of their own: the FX unit's ART row turns them (gallery.js).
   const dialReadout = document.getElementById('dial-readout');
   let dialReadoutTimer;
-  let knobVal = 130;
-  window._cutoffVal = knobVal;
-  updateKnob(knobVal);
-  let knobDragging = false;
-
-  // Transient readout under the LED screen: what the dial is affecting + amount.
-  function showDialReadout() {
+  function showDialReadout(text) {
     if (!dialReadout) return;
-    const pct = Math.round(((knobVal - 5) / 250) * 100);
-    dialReadout.textContent = `cutoff ${pct}%`;
+    dialReadout.textContent = text;
     dialReadout.classList.add('show');
     clearTimeout(dialReadoutTimer);
     dialReadoutTimer = setTimeout(() => dialReadout.classList.remove('show'), 1400);
   }
-  function updateKnob(val) {
-    knobVal = Math.max(5, Math.min(255, val));
-    window._cutoffVal = knobVal;
-    window._pixelBlockSize = Math.round(knobVal * 0.3 + 4);
-    const deg = ((knobVal - 5) / 250) * 300 - 150;
-    knob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
-    canvasFilters.setThreshold(knobVal);
-    if (knobVal > 20) {
-      knobLed.classList.add('on');
-    } else {
-      knobLed.classList.remove('on');
-    }
-    gallery.saveCurrentPreset();
-  }
-  knob.addEventListener('pointerdown', (e) => {
-    knobDragging = true;
-    knob.setPointerCapture(e.pointerId);
-    knob.classList.add('dragging');
-  });
-  window.addEventListener('pointermove', (e) => {
-    if (!knobDragging) return;
-    updateKnob(knobVal - e.movementY * 0.5);
-    showDialReadout();
-  });
-  window.addEventListener('pointerup', () => {
-    if (!knobDragging) return;
-    knobDragging = false;
-    knob.classList.remove('dragging');
-  });
-  knob.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    updateKnob(knobVal + Math.sign(e.deltaY) * -3);
-    showDialReadout();
-  }, { passive: false });
-  knob.addEventListener('dblclick', () => {
-    updateKnob(130);
-    showDialReadout();
-  });
-
-  window._restoreCutoff = function(val) {
-    updateKnob(val);
-    showDialReadout();
+  const ART_DIALS = {
+    cutoff: { min: 5, max: 255, rest: 130, set: (v) => {
+      window._cutoffVal = v;
+      window._pixelBlockSize = Math.round(v * 0.3 + 4);
+      canvasFilters.setThreshold(v);
+    } },
+    resonance: { min: 0, max: 100, rest: 50, set: (v) => {
+      window._resonanceVal = v;
+      window.soundSensitivity = v;
+    } },
+    sensitivity: { min: 0, max: 100, rest: 50, set: (v) => { window.audioInputGain = v; } },
   };
-
-  const sensKnob = document.getElementById('sensitivity-knob');
-  const sensLed = document.getElementById('sens-led');
-  let sensVal = 50;
-  window._resonanceVal = sensVal;
-  window.soundSensitivity = sensVal;
-  updateSensKnob(sensVal);
-  let sensDragging = false;
-  function updateSensKnob(val) {
-    sensVal = Math.max(0, Math.min(100, val));
-    window._resonanceVal = sensVal;
-    const deg = (sensVal / 100) * 300 - 150;
-    sensKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
-    window.soundSensitivity = sensVal;
-    if (sensVal > 5) {
-      sensLed.classList.add('on');
-    } else {
-      sensLed.classList.remove('on');
-    }
-    gallery.saveCurrentPreset();
+  const artVals = {};
+  const artListeners = new Set();
+  function setArtDial(name, v, quiet) {
+    const d = ART_DIALS[name];
+    v = Math.max(d.min, Math.min(d.max, v));
+    artVals[name] = v;
+    d.set(v);
+    artListeners.forEach((fn) => fn());
+    if (!quiet) gallery.saveCurrentPreset();
   }
-  sensKnob.addEventListener('pointerdown', (e) => {
-    sensDragging = true;
-    sensKnob.setPointerCapture(e.pointerId);
-    sensKnob.classList.add('dragging');
-  });
-  window.addEventListener('pointermove', (e) => {
-    if (!sensDragging) return;
-    updateSensKnob(sensVal - e.movementY * 0.5);
-  });
-  window.addEventListener('pointerup', () => {
-    if (!sensDragging) return;
-    sensDragging = false;
-    sensKnob.classList.remove('dragging');
-  });
-  sensKnob.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    updateSensKnob(sensVal + Math.sign(e.deltaY) * -3);
-  }, { passive: false });
-  sensKnob.addEventListener('dblclick', () => {
-    updateSensKnob(50);
-  });
-
-  window._restoreResonance = function(val) {
-    updateSensKnob(val);
+  Object.keys(ART_DIALS).forEach((n) => setArtDial(n, ART_DIALS[n].rest, true));
+  // 0-1 view of the dials for the FX unit's knobs.
+  window.artDials = {
+    get: (name) => (artVals[name] - ART_DIALS[name].min) / (ART_DIALS[name].max - ART_DIALS[name].min),
+    set: (name, f) => {
+      const d = ART_DIALS[name];
+      setArtDial(name, d.min + f * (d.max - d.min));
+      showDialReadout(`${name} ${Math.round(window.artDials.get(name) * 100)}%`);
+    },
+    reset: (name) => setArtDial(name, ART_DIALS[name].rest),
+    subscribe: (fn) => artListeners.add(fn),
   };
-
-  const strengthKnob = document.getElementById('strength-knob');
-  const strengthLed = document.getElementById('strength-led');
-  let strengthVal = 100;
-  window._filterStrengthVal = strengthVal;
-  canvasFilters.setStrength(strengthVal);
-  updateStrengthKnob(strengthVal);
-  let strengthDragging = false;
-  function updateStrengthKnob(val) {
-    strengthVal = Math.max(0, Math.min(100, val));
-    window._filterStrengthVal = strengthVal;
-    const deg = (strengthVal / 100) * 300 - 150;
-    strengthKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
-    canvasFilters.setStrength(strengthVal);
-  }
-  strengthKnob.addEventListener('pointerdown', (e) => {
-    strengthDragging = true;
-    strengthKnob.setPointerCapture(e.pointerId);
-    strengthKnob.classList.add('dragging');
-  });
-  window.addEventListener('pointermove', (e) => {
-    if (!strengthDragging) return;
-    updateStrengthKnob(strengthVal - e.movementY * 0.5);
-  });
-  window.addEventListener('pointerup', () => {
-    if (!strengthDragging) return;
-    strengthDragging = false;
-    strengthKnob.classList.remove('dragging');
-  });
-  strengthKnob.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    updateStrengthKnob(strengthVal + Math.sign(e.deltaY) * -3);
-  }, { passive: false });
-  strengthKnob.addEventListener('dblclick', () => {
-    updateStrengthKnob(100);
-  });
-
-  window._restoreStrength = function(val) {
-    updateStrengthKnob(val);
-  };
-
-  const inputGainKnob = document.getElementById('input-gain-knob');
-  const inputGainLed = document.getElementById('input-gain-led');
-  let inputGainVal = 50;
-  window.audioInputGain = inputGainVal;
-  updateInputGainKnob(inputGainVal);
-  let inputGainDragging = false;
-  function updateInputGainKnob(val) {
-    inputGainVal = Math.max(0, Math.min(100, val));
-    window.audioInputGain = inputGainVal;
-    const deg = (inputGainVal / 100) * 300 - 150;
-    inputGainKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
-    if (inputGainVal !== 50) {
-      inputGainLed.classList.add('on');
-    } else {
-      inputGainLed.classList.remove('on');
-    }
-    gallery.saveCurrentPreset();
-  }
-  inputGainKnob.addEventListener('pointerdown', (e) => {
-    inputGainDragging = true;
-    inputGainKnob.setPointerCapture(e.pointerId);
-    inputGainKnob.classList.add('dragging');
-  });
-  window.addEventListener('pointermove', (e) => {
-    if (!inputGainDragging) return;
-    updateInputGainKnob(inputGainVal - e.movementY * 0.5);
-  });
-  window.addEventListener('pointerup', () => {
-    if (!inputGainDragging) return;
-    inputGainDragging = false;
-    inputGainKnob.classList.remove('dragging');
-  });
-  inputGainKnob.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    updateInputGainKnob(inputGainVal + Math.sign(e.deltaY) * -3);
-  }, { passive: false });
-  inputGainKnob.addEventListener('dblclick', () => {
-    updateInputGainKnob(50);
-  });
+  window._restoreCutoff = (v) => setArtDial('cutoff', v, true);
+  window._restoreResonance = (v) => setArtDial('resonance', v, true);
+  window._restoreStrength = (v) => canvasFilters.setStrength(v);
+  window._filterStrengthVal = 100;
+  gallery.bindFxUnit();
 
   // Slot preset knob — click or drag to change slot 0-9
   const slotKnob = document.getElementById('slot-knob');
@@ -786,20 +645,11 @@ function setupControls() {
     });
   }
 
-  // The FX unit (filters.js) calls back on every change: keys, the drawer's
-  // FX strip, slot presets. The alpha knob is the unit's dry/wet.
-  function syncFilterLeds() {
-    strengthLed.classList.toggle('on', canvasFilters.getActiveKeys().size > 0 && strengthVal > 5);
-  }
+  // The FX unit (filters.js) calls back on every change: keys, the FX knobs,
+  // slot presets.
   canvasFilters.subscribe(() => {
     updateNowPlaying();
-    const w = Math.round(canvasFilters.getWet() * 100);
-    if (w !== Math.round(strengthVal)) {
-      strengthVal = w;
-      window._filterStrengthVal = w;
-      strengthKnob.querySelector('.knob-tick').style.transform = `rotate(${(w / 100) * 300 - 150}deg)`;
-    }
-    syncFilterLeds();
+    window._filterStrengthVal = Math.round(canvasFilters.getWet() * 100);
     gallery.saveCurrentPreset();
   });
 

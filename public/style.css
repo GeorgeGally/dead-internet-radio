@@ -249,8 +249,8 @@ body.prewarming #block-canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40px;
-  padding: 0 10px;
+  gap: 28px;
+  padding: 0 16px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -527,24 +527,13 @@ body.prewarming #block-canvas {
   flex-shrink: 0;
 }
 
-#knob-led {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #b7b4ab;
-  box-shadow: inset 0 1px 1px rgba(0,0,0,.3);
-  transition: background .15s ease, box-shadow .15s ease;
-}
-
-#knob-led.on {
-  background: #ff5a1f;
-  box-shadow: 0 0 5px rgba(255,90,31,.7), inset 0 0 1px rgba(255,255,255,.5);
-}
-
 /* ---- Synth LED now-playing display ---- */
 .npd-stack {
   position: relative;
-  flex: 0 0 auto;
+  flex: 0 1 720px;
+  min-width: 0;
+  align-self: stretch;
+  justify-content: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -575,7 +564,10 @@ body.prewarming #block-canvas {
 
 #np-display {
   flex: 0 0 auto;
-  width: 720px;
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+  min-width: 0;
   height: 76px;
   display: flex;
   flex-direction: row;
@@ -592,7 +584,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-group {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -607,6 +600,7 @@ body.prewarming #block-canvas {
 
 .npd-lines {
   width: 210px;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -794,59 +788,39 @@ body.prewarming #block-canvas {
   color: rgba(0, 0, 0, 0.7);
 }
 
-/* ---- FX unit: dry/wet, three slots, filter dial, two parameter knobs ---- */
+/* ---- FX unit in the menubar: four-row display beside the knobs ---- */
 
-.fx-unit {
-  display: flex;
-  align-items: center;
-  gap: 26px;
-  flex-shrink: 0;
-  padding: 14px 24px 12px;
-  border-bottom: 1px solid #1a1a1a;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.fx-unit .knob-label {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-#deck.ejected .fx-unit {
-  opacity: 1;
-  transition-delay: 0.3s;
-}
-
-#deck.ejected.closing .fx-unit {
-  opacity: 0;
-  transition-delay: 0s;
-  transition-duration: 0.15s;
-}
-
-.fx-unit .ctrl.idle .rams-knob {
+.deck-display .ctrl.idle .rams-knob {
   opacity: 0.45;
 }
 
 .fx-lcd {
-  width: 340px;
-  padding: 8px 10px;
+  flex: 0 0 auto;
+  width: 168px;
+  height: 76px;
+  box-sizing: border-box;
+  padding: 6px 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  background: #0b0b0b;
-  border-radius: 4px;
-  box-shadow: 0 0 0 1px #1f1f1f;
+  justify-content: center;
+  gap: 1px;
+  background: linear-gradient(160deg, #1c1c1c 0%, #101010 45%, #060606 100%);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.06),
+    0 0 0 1px rgba(0,0,0,0.5);
 }
 
 .fx-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 26px;
+  gap: 7px;
+  height: 15px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 2px;
   cursor: pointer;
   font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -855,12 +829,12 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on { color: rgba(255, 255, 255, 0.92); }
-.fx-row.focus { background: rgba(255, 255, 255, 0.06); }
+.fx-row.focus { background: rgba(255, 255, 255, 0.08); }
 .fx-row.focus .fx-name { color: #ff5a1f; }
 
 .fx-num {
-  width: 10px;
-  font-size: 9px;
+  width: 8px;
+  font-size: 8px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.4);
 }
@@ -874,14 +848,16 @@ body.prewarming #block-canvas {
 }
 
 .fx-on {
-  width: 38px;
-  height: 18px;
+  width: 26px;
+  height: 12px;
+  padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 2px;
   background: none;
   cursor: pointer;
   font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 9px;
+  font-size: 7px;
+  line-height: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.5);
@@ -897,7 +873,6 @@ body.prewarming #block-canvas {
   opacity: 0.3;
   cursor: default;
 }
-
 
 /* ---- Artwork wall: square panels, crosses, artworks among black ---- */
 
