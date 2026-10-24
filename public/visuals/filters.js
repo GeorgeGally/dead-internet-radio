@@ -198,8 +198,8 @@ const canvasFilters = (() => {
         return;
       }
       const letter = e.ctrlKey || e.metaKey ? '' : e.key.toLowerCase();
-      const num = { d: 10, x: 11 }[letter] ?? parseInt(e.key);
-      if (num >= 1 && num <= 11) {
+      const num = { d: 10, x: 11, b: 12 }[letter] ?? parseInt(e.key);
+      if (num >= 1 && num <= 12) {
         const filter = registry.get(num);
         if (filter) {
           e.preventDefault();
@@ -457,6 +457,23 @@ const canvasFilters = (() => {
   let ditherSmall = null;
   let ditherSmallCtx = null;
 
+  // Contrast follows the cutoff dial; the old Giphy look (1.2) sits at its rest position.
+  function monoContrast() {
+    return 0.6 + ((window._cutoffVal ?? 130) / 255) * 1.2;
+  }
+
+  register(12, 'Black & White', (ctx, w, h) => {
+    const k = monoContrast();
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const l = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 - 128) * k + 128;
+      d[i] = d[i + 1] = d[i + 2] = l < 0 ? 0 : l > 255 ? 255 : l;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  });
+  window.monoContrast = monoContrast;
+
   register(10, 'Dither', (ctx, w, h, frame) => {
     const dpr = window.devicePixelRatio || 1;
     const cell = Math.max(2, Math.round((currentThreshold / 20) * dpr));
@@ -586,18 +603,12 @@ const canvasFilters = (() => {
     ctx.putImageData(imageData, 0, 0);
   });
 
-  // Convenience for p5 visuals: run filters on the p5 canvas in pixel space,
-  // or via overlay for WebGL canvases that have no 2D context.
+  // Convenience for p5 visuals: filter a copy on the overlay canvas, never the
+  // sketch's own canvas. Sketches that fade the last frame instead of clearing
+  // it would otherwise build on the filtered picture, so circles, scanlines and
+  // so on pile up frame after frame and the alpha knob can never fade them out.
   function applyToP5(p) {
-    const nativeCtx = p.canvas.getContext('2d');
-    if (nativeCtx) {
-      nativeCtx.save();
-      nativeCtx.setTransform(1, 0, 0, 1, 0, 0);
-      apply(nativeCtx, p.canvas.width, p.canvas.height, p.frameCount);
-      nativeCtx.restore();
-    } else {
-      applyToOverlay(p.canvas, p.frameCount);
-    }
+    applyToOverlay(p.canvas, p.frameCount);
   }
 
   return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };

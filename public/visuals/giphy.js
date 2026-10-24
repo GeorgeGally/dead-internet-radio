@@ -408,7 +408,6 @@ visuals.register('giphy', (() => {
     const dh = mh * scale;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.filter = 'contrast(1.2) grayscale(1)';
     ctx.drawImage(media, (w - dw) / 2, (h - dh) / 2, dw, dh);
     ctx.restore();
   }

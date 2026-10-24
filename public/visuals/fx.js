@@ -72,6 +72,22 @@ const fxPipeline = (() => {
       // Same cell size as the CPU version: the cutoff dial drives it.
       block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
     },
+    12: {
+      name: 'Black & White',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform float uBlock;
+        varying vec2 vUv;
+        void main() {
+          vec4 c = texture2D(uTex, vUv);
+          float l = (dot(c.rgb, vec3(0.299, 0.587, 0.114)) - 0.5) * uBlock + 0.5;
+          gl_FragColor = vec4(vec3(clamp(l, 0.0, 1.0)), c.a);
+        }
+      `,
+      // uBlock carries the contrast here (cutoff dial).
+      block: () => (window.monoContrast ? window.monoContrast() : 1.2),
+    },
   };
 
   const VERT = `

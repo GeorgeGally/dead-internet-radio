@@ -13,6 +13,7 @@ const gallery = (() => {
     9: 'LED Grid',
     10: 'Dither',
     11: 'Glitch',
+    12: 'Black & White',
   };
 
   // Baseline filter/cutoff/resonance every user sees on an artwork before
@@ -217,6 +218,8 @@ const gallery = (() => {
 
   function filterCoverBg(key) {
     switch (key) {
+      case 12:
+        return `linear-gradient(90deg, #1a1a1a 0%, #1a1a1a 33%, #777 33%, #777 66%, #e9e6df 66%)`;
       case 1:
         return `repeating-linear-gradient(0deg, #e9e6df 0px, #e9e6df 30px, #1a1a1a 30px, #1a1a1a 38px, #e9e6df 38px, #e9e6df 42px, #1a1a1a 42px, #1a1a1a 44px)`;
       case 2:
