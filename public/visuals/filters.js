@@ -446,31 +446,89 @@ const canvasFilters = (() => {
   const DITHER_INK = '#1a1a1a';
   const DITHER_PAPER = '#e9e6df';
 
+  function ditherInk(lum, cx, cy) {
+    return (1 - lum) > BAYER8[cy & 7][cx & 7];
+  }
+
+  // Browsers: downscale with drawImage, dither at cell resolution, blit back with
+  // smoothing off. The old version issued one fillRect per cell on the full-res
+  // canvas (>1M at 1440x900 dpr2), which is what stalled the frame.
+  const hasOffscreen = typeof document !== 'undefined' && typeof document.createElement === 'function';
+  let ditherSmall = null;
+  let ditherSmallCtx = null;
+
   register(10, 'Dither', (ctx, w, h, frame) => {
     const dpr = window.devicePixelRatio || 1;
     const cell = Math.max(2, Math.round((currentThreshold / 20) * dpr));
+
+    if (hasOffscreen && ctx.canvas && typeof ctx.drawImage === 'function') {
+      const sw = Math.max(1, Math.ceil(w / cell));
+      const sh = Math.max(1, Math.ceil(h / cell));
+      if (!ditherSmall) {
+        ditherSmall = document.createElement('canvas');
+        ditherSmallCtx = ditherSmall.getContext('2d', { willReadFrequently: true });
+      }
+      if (ditherSmall.width !== sw || ditherSmall.height !== sh) {
+        ditherSmall.width = sw;
+        ditherSmall.height = sh;
+      }
+      ditherSmallCtx.imageSmoothingEnabled = true;
+      ditherSmallCtx.clearRect(0, 0, sw, sh);
+      ditherSmallCtx.drawImage(ctx.canvas, 0, 0, w, h, 0, 0, sw, sh);
+
+      const imageData = ditherSmallCtx.getImageData(0, 0, sw, sh);
+      const data = imageData.data;
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const i = (y * sw + x) * 4;
+          const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+          const ink = ditherInk(lum, x, y);
+          data[i] = ink ? 0x1a : 0xe9;
+          data[i + 1] = ink ? 0x1a : 0xe6;
+          data[i + 2] = ink ? 0x1a : 0xdf;
+          data[i + 3] = 255;
+        }
+      }
+      ditherSmallCtx.putImageData(imageData, 0, 0);
+
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(ditherSmall, 0, 0, sw, sh, 0, 0, w, h);
+      ctx.restore();
+      return;
+    }
+
+    // No offscreen canvas (tests, exotic hosts): write pixels instead of fillRect.
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (let y = 0; y < h; y += cell) {
-      const rowsInCell = Math.min(cell, h - y);
-      const band = BAYER8[((y / cell) | 0) % 8];
-      for (let x = 0; x < w; x += cell) {
-        const colsInCell = Math.min(cell, w - x);
+    for (let cy = 0, y = 0; y < h; y += cell, cy++) {
+      const rows = Math.min(cell, h - y);
+      for (let cx = 0, x = 0; x < w; x += cell, cx++) {
+        const cols = Math.min(cell, w - x);
         let sum = 0;
-        for (let dy = 0; dy < rowsInCell; dy++) {
+        for (let dy = 0; dy < rows; dy++) {
           let i = ((y + dy) * w + x) * 4;
-          for (let dx = 0; dx < colsInCell; dx++, i += 4) {
+          for (let dx = 0; dx < cols; dx++, i += 4) {
             sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
           }
         }
-        const darkness = 1 - sum / (rowsInCell * colsInCell * 255);
-        ctx.fillStyle = darkness > band[((x / cell) | 0) % 8] ? DITHER_INK : DITHER_PAPER;
-        ctx.fillRect(x, y, colsInCell, rowsInCell);
+        const ink = ditherInk(sum / (rows * cols * 255), cx, cy);
+        const r = ink ? 0x1a : 0xe9;
+        const g = ink ? 0x1a : 0xe6;
+        const b = ink ? 0x1a : 0xdf;
+        for (let dy = 0; dy < rows; dy++) {
+          let i = ((y + dy) * w + x) * 4;
+          for (let dx = 0; dx < cols; dx++, i += 4) {
+            data[i] = r;
+            data[i + 1] = g;
+            data[i + 2] = b;
+            data[i + 3] = 255;
+          }
+        }
       }
     }
-    ctx.restore();
+    ctx.putImageData(imageData, 0, 0);
   });
 
   const GLITCH_SEED = 25;
@@ -491,10 +549,10 @@ const canvasFilters = (() => {
     const strength = Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100;
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
-    const src = new Uint8ClampedArray(data);
-    const randomSeed = glitchRandom(GLITCH_SEED);
+    const randomSeed = glitchRandom((GLITCH_SEED + (frame | 0) * 2654435761) >>> 0);
     const bands = Math.round(4 + amount * 26);
     const maxShift = Math.round(w * (0.01 + amount * 0.06) * strength);
+    let src = new Uint8ClampedArray(0);
     for (let b = 0; b < bands; b++) {
       const top = Math.floor(randomSeed() * h);
       const height = Math.max(3, Math.floor((0.004 + randomSeed() * 0.035) * h));
@@ -502,16 +560,26 @@ const canvasFilters = (() => {
       const fringe = Math.max(1, Math.min(12, Math.round(Math.abs(shift) * 0.08)));
       const chroma = Math.round(fringe * strength) * (randomSeed() < 0.5 ? -1 : 1);
       const bottom = Math.min(h, top + height);
-      for (let y = top; y < bottom; y++) {
-        const row = y * w;
+      const rows = bottom - top;
+      if (rows <= 0) continue;
+      const need = rows * w * 4;
+      if (src.length < need) src = new Uint8ClampedArray(need);
+      // snapshot just this band, so the read stays a straight typed-array copy
+      src.set(data.subarray(top * w * 4, bottom * w * 4));
+      for (let y = 0; y < rows; y++) {
+        const srow = y * w * 4;
+        const drow = (top + y) * w * 4;
         for (let x = 0; x < w; x++) {
-          const di = (row + x) * 4;
-          const gi = (row + Math.min(w - 1, Math.max(0, x - shift))) * 4;
-          const ri = (row + Math.min(w - 1, Math.max(0, x - shift - chroma))) * 4;
-          const bi = (row + Math.min(w - 1, Math.max(0, x - shift + chroma))) * 4;
-          data[di] = src[ri];
-          data[di + 1] = src[gi + 1];
-          data[di + 2] = src[bi + 2];
+          let g = x - shift;
+          g = g < 0 ? 0 : g >= w ? w - 1 : g;
+          let r = g - chroma;
+          r = r < 0 ? 0 : r >= w ? w - 1 : r;
+          let bl = g + chroma;
+          bl = bl < 0 ? 0 : bl >= w ? w - 1 : bl;
+          const di = drow + x * 4;
+          data[di] = src[srow + r * 4];
+          data[di + 1] = src[srow + g * 4 + 1];
+          data[di + 2] = src[srow + bl * 4 + 2];
         }
       }
     }

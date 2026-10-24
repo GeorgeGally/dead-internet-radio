@@ -3,43 +3,19 @@
 const EPOCH = 2051222400000;
 let _welcomeActive = true;
 
-let _welcomeNoiseRaf = null;
+const IDENT_COUNT = 24;          // animated versions in labs/station-ident-lab.html
+const STATION_ID_COUNT = 14;     // public/station-ids/id-NN.wav
 
-function startWelcomeNoise() {
-  const canvas = document.getElementById('welcome-noise');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  let w = 0, h = 0, frame = 0;
-
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // Run the scanline + static filters directly: going through setActive would
-  // flip the global filter set every frame (leaking into prewarm thumbnails)
-  // and save it as the current visual's preset.
-  const scanlines = canvasFilters.getFilter(1);
-  const noise = canvasFilters.getFilter(3);
-
-  function frameLoop() {
-    ctx.fillStyle = '#222';
-    ctx.fillRect(0, 0, w, h);
-    scanlines.fn(ctx, w, h, frame);
-    noise.fn(ctx, w, h, frame);
-    frame++;
-    _welcomeNoiseRaf = requestAnimationFrame(frameLoop);
-  }
-  _welcomeNoiseRaf = requestAnimationFrame(frameLoop);
+function startWelcomeIdent() {
+  const frame = document.getElementById('welcome-ident');
+  if (!frame) return;
+  const n = Math.floor(Math.random() * IDENT_COUNT) + 1;
+  frame.src = 'labs/station-ident-lab.html?only=' + n;
 }
 
-function stopWelcomeNoise() {
-  if (_welcomeNoiseRaf) {
-    cancelAnimationFrame(_welcomeNoiseRaf);
-    _welcomeNoiseRaf = null;
-  }
+function stopWelcomeIdent() {
+  const frame = document.getElementById('welcome-ident');
+  if (frame) frame.src = 'about:blank';
 }
 
 function showWelcome() {
@@ -47,18 +23,18 @@ function showWelcome() {
   const audio = document.getElementById('welcome-audio');
   if (!splash || !audio) return;
 
-  startWelcomeNoise();
+  startWelcomeIdent();
 
-  const n = Math.floor(Math.random() * 4) + 1;
+  const n = Math.floor(Math.random() * STATION_ID_COUNT) + 1;
 
-  audio.src = 'welcome/welcome-' + n + '.wav';
+  audio.src = 'station-ids/id-' + String(n).padStart(2, '0') + '.wav';
   audio.play().catch(() => {});
 
   let dismissed = false;
   function dismiss() {
     if (dismissed) return;
     dismissed = true;
-    stopWelcomeNoise();
+    stopWelcomeIdent();
     audio.volume = 0;
     audio.pause();
     splash.classList.add('fade-out');
@@ -309,6 +285,9 @@ function setupDeckRetraction() {
 
   function scheduleRetract() {
     if (deck.classList.contains('ejected')) return;
+    // the filter drawer hangs off the bar, so keep the bar up while it is open
+    const panel = document.querySelector('.gallery-panel');
+    if (panel && panel.classList.contains('open')) return;
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       deck.classList.remove('expanded');
@@ -559,6 +538,8 @@ function setupControls() {
     'Pixelate': 'size',
     'Color Invert': '—',
     'LED Grid': 'cutoff',
+    'Dither': 'cell',
+    'Glitch': 'amount',
   };
   function activeFilter() {
     const fx = canvasFilters.getActiveName ? canvasFilters.getActiveName() : 'none';
@@ -1171,7 +1152,7 @@ let audioAnalysisReady = false;
     updateTrackInfo();
     if (ok) {
       gallery.loadPreset(id);
-      gallery.resetSlot();
+      gallery.applyRandomSlot(id);
     }
     return ok;
   };

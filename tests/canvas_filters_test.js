@@ -115,7 +115,7 @@ test('Dither keeps the same dot pattern when nothing moves', () => {
   assert.deepEqual(Array.from(a.data), Array.from(b.data));
 });
 
-test('Glitch is seeded, repeatable and leaves the frame changed', () => {
+test('Glitch is seeded per frame, moves between frames and leaves the frame changed', () => {
   const { win, canvasFilters } = loadFilters();
   const glitch = canvasFilters.getFilter(11).fn;
   const frame = solid(80, 60, 90, 90, 90);
@@ -126,10 +126,13 @@ test('Glitch is seeded, repeatable and leaves the frame changed', () => {
 
   const first = stubContext(80, 60, frame);
   glitch(first, 80, 60, 0);
-  const second = stubContext(80, 60, frame);
-  glitch(second, 80, 60, 7);
+  const repeat = stubContext(80, 60, frame);
+  glitch(repeat, 80, 60, 0);
+  assert.deepEqual(Array.from(first.data), Array.from(repeat.data), 'the same frame must give the same glitch');
 
-  assert.deepEqual(Array.from(first.data), Array.from(second.data), 'same seed must give the same glitch');
+  const moved = stubContext(80, 60, frame);
+  glitch(moved, 80, 60, 7);
+  assert.notDeepEqual(Array.from(moved.data), Array.from(first.data), 'a later frame must glitch differently');
   assert.notDeepEqual(Array.from(first.data), Array.from(frame), 'glitch must change the frame');
 
   win.filterStrength = 0;

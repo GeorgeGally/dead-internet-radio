@@ -11,9 +11,12 @@ visuals.register('giphy', (() => {
     'https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif',
     'https://media.giphy.com/media/l0HlKrB02QY0R6Noc/giphy.gif',
   ];
-  const GIPHY_CACHE_KEY = 'dir_gif_cache';
+  // v2: entries are { mp4, gif } (v1 stored bare GIF urls).
+  const GIPHY_CACHE_KEY = 'dir_gif_cache_v2';
   const GIPHY_CACHE_TTL = 86400000;
   const GIPHY_REFRESH_MS = 180000;
+  const GIPHY_PRELOAD_TIMEOUT_MS = 20000;
+  const GIPHY_RETRY_MS = 1500;
 
   const GIPHY_SEARCH_TERMS = [
     'glitch art', 'cyberpunk', 'sci-fi', 'surveillance camera',
@@ -27,10 +30,22 @@ visuals.register('giphy', (() => {
     'moon landing', 'space x',
   ];
 
-  let gifUrls = [];
+  let gifItems = [];
+  let freshItems = [];
   let gifCycleTimer = null;
   let gifRefreshTimer = null;
+  let gifRetryTimer = null;
   let gifLoading = false;
+
+  // Swap only when BOTH the dwell has elapsed and the next item is fully
+  // buffered; until then the current one keeps looping. One preload at a time.
+  let running = false;
+  let loadToken = 0;
+  let currentKey = '';
+  let loadingEl = null;
+  let nextEl = null;
+  let nextKey = '';
+  let dwellDone = false;
 
   let overlayCanvas = null;
   let overlayCtx = null;
@@ -44,17 +59,33 @@ visuals.register('giphy', (() => {
   let textBlockHeight = 0;
   let textTrackIndex = 0;
 
+  function log(...args) {
+    if (window.GIPHY_DEBUG) console.log('[giphy]', ...args);
+  }
+
   function pickSearchTerm() {
     return GIPHY_SEARCH_TERMS[Math.floor(Math.random() * GIPHY_SEARCH_TERMS.length)];
+  }
+
+  function itemKey(item) {
+    return item.mp4 || item.gif;
+  }
+
+  // Prefer Giphy's mp4 rendition (a fraction of the GIF's size, decodes
+  // smoothly); keep the downsized GIF as a fallback if the video fails.
+  function itemFromGiphy(g) {
+    const im = g.images || {};
+    const mp4 = (im.original && im.original.mp4) || (im.original_mp4 && im.original_mp4.mp4) || '';
+    const gif = (im.downsized && im.downsized.url) || '';
+    return mp4 || gif ? { mp4, gif } : null;
   }
 
   async function fetchGiphyGifs(force) {
     if (gifLoading) return;
     const cached = getCachedGifs();
     if (cached.length && !force) {
-      gifUrls = cached;
-      loadGif(gifUrls[Math.floor(Math.random() * gifUrls.length)]);
-      scheduleNextGif();
+      gifItems = cached;
+      queueNext();
       scheduleGifRefresh();
       return;
     }
@@ -66,22 +97,24 @@ visuals.register('giphy', (() => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!data.data || !data.data.length) throw new Error('empty');
-      const fresh = data.data.map(g => g.images.downsized.url);
-      const existing = new Set(gifUrls);
-      for (const u of fresh) {
-        if (!existing.has(u)) gifUrls.push(u);
+      const fresh = data.data.map(itemFromGiphy).filter(Boolean);
+      const existing = new Set(gifItems.map(itemKey));
+      freshItems = [];
+      for (const it of fresh) {
+        if (!existing.has(itemKey(it))) {
+          gifItems.push(it);
+          freshItems.push(it);
+        }
       }
-      if (gifUrls.length > 640) gifUrls = gifUrls.slice(-640);
-      saveGifsToCache(gifUrls);
-      loadGif(gifUrls[Math.floor(Math.random() * Math.min(fresh.length, gifUrls.length))]);
-      scheduleNextGif();
+      if (gifItems.length > 640) gifItems = gifItems.slice(-640);
+      saveGifsToCache(gifItems);
+      queueNext();
       scheduleGifRefresh();
     } catch (e) {
       console.warn('Giphy fetch failed:', e.message);
-      if (!gifUrls.length) {
-        gifUrls = GIPHY_FALLBACK_URLS;
-        loadGif(gifUrls[0]);
-        scheduleNextGif();
+      if (!gifItems.length) {
+        gifItems = GIPHY_FALLBACK_URLS.map(gif => ({ mp4: '', gif }));
+        queueNext();
       }
       scheduleGifRefresh();
     } finally {
@@ -103,44 +136,145 @@ visuals.register('giphy', (() => {
         localStorage.removeItem(GIPHY_CACHE_KEY);
         return [];
       }
-      return cache.urls || [];
+      return (cache.items || []).filter(it => it && (it.mp4 || it.gif));
     } catch (e) {
       return [];
     }
   }
 
-  function saveGifsToCache(urls) {
+  function saveGifsToCache(items) {
     try {
-      localStorage.setItem(GIPHY_CACHE_KEY, JSON.stringify({ urls, ts: Date.now() }));
+      localStorage.setItem(GIPHY_CACHE_KEY, JSON.stringify({ items, ts: Date.now() }));
     } catch (e) {}
   }
 
-  function loadGif(url) {
-    const img = document.getElementById('gif-bg');
-    if (!img) return;
-    if (img.src === url) return;
-    img.src = url;
+  // Drop a media element and stop its download/decoder.
+  function discard(el) {
+    if (!el) return;
+    el.oncanplaythrough = el.onerror = null;
+    if (el.tagName === 'VIDEO') el.pause();
+    el.removeAttribute('src');
+    if (el.tagName === 'VIDEO') el.load();
+  }
+
+  // Resolve with an off-DOM element once it can play to the end without
+  // stalling (video: canplaythrough / HAVE_ENOUGH_DATA; img: decode()), or
+  // null on error/timeout.
+  function preloadMedia(url, isVideo) {
+    return new Promise((resolve) => {
+      const el = document.createElement(isVideo ? 'video' : 'img');
+      el.crossOrigin = 'anonymous';
+      el.setAttribute('aria-hidden', 'true');
+      loadingEl = el;
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (loadingEl === el) loadingEl = null;
+        el.oncanplaythrough = el.onerror = null;
+        if (!ok) discard(el);
+        resolve(ok ? el : null);
+      };
+      const timer = setTimeout(() => finish(false), GIPHY_PRELOAD_TIMEOUT_MS);
+      if (isVideo) {
+        el.muted = true;
+        el.loop = true;
+        el.playsInline = true;
+        el.preload = 'auto';
+        el.oncanplaythrough = () => finish(el.readyState >= 4);
+        el.onerror = () => finish(false);
+        el.src = url;
+        el.load();
+      } else {
+        el.alt = '';
+        el.src = url;
+        el.decode().then(() => finish(true), () => finish(false));
+      }
+    });
+  }
+
+  function pickNextItem() {
+    const avoid = new Set([currentKey]);
+    if (freshItems.length) {
+      const it = freshItems.splice(Math.floor(Math.random() * freshItems.length), 1)[0];
+      if (!avoid.has(itemKey(it))) return it;
+    }
+    if (!gifItems.length) return null;
+    for (let tries = 0; tries < 8; tries++) {
+      const it = gifItems[Math.floor(Math.random() * gifItems.length)];
+      if (!avoid.has(itemKey(it))) return it;
+    }
+    return null;
+  }
+
+  // Start buffering exactly one next item in the background.
+  async function queueNext() {
+    if (!running || loadingEl || nextEl) return;
+    const item = pickNextItem();
+    if (!item) return;
+    const token = loadToken;
+    const key = itemKey(item);
+    log('preload start', key);
+    let el = item.mp4 ? await preloadMedia(item.mp4, true) : null;
+    if (!el && item.gif && token === loadToken) el = await preloadMedia(item.gif, false);
+    if (token !== loadToken || !running) {
+      discard(el);
+      return;
+    }
+    if (!el) {
+      // Failed or too slow: the current one keeps looping; try another.
+      log('preload failed', key);
+      if (gifRetryTimer) clearTimeout(gifRetryTimer);
+      gifRetryTimer = setTimeout(queueNext, GIPHY_RETRY_MS);
+      return;
+    }
+    log('preload ready', key, el.tagName, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
+    nextEl = el;
+    nextKey = key;
+    maybeSwap();
+  }
+
+  function hasFrame(el) {
+    if (!el) return false;
+    if (el.tagName === 'VIDEO') return el.readyState >= 2 && el.videoWidth > 0;
+    return el.complete && el.naturalWidth > 0;
+  }
+
+  // Hard cut: the buffered element replaces #gif-bg in one DOM operation, so
+  // there is never a blank or half-loaded frame in between.
+  function maybeSwap() {
+    if (!running || !nextEl) return;
+    const cur = document.getElementById('gif-bg');
+    if (!dwellDone && hasFrame(cur)) return;
+    const el = nextEl;
+    nextEl = null;
+    el.id = 'gif-bg';
+    if (cur) {
+      el.style.display = cur.style.display;
+      cur.replaceWith(el);
+      discard(cur);
+    } else {
+      document.body.prepend(el);
+    }
+    if (el.tagName === 'VIDEO') el.play().catch(() => {});
+    log('swap', nextKey, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
+    currentKey = nextKey;
+    scheduleNextGif();
+    queueNext();
   }
 
   function pickInterval() {
     return 10000 + Math.random() * 10000;
   }
 
+  // Minimum time on screen; the actual swap waits for the next item too.
   function scheduleNextGif() {
     if (gifCycleTimer) clearTimeout(gifCycleTimer);
+    dwellDone = false;
     gifCycleTimer = setTimeout(() => {
-      if (gifUrls.length < 2) {
-        scheduleNextGif();
-        return;
-      }
-      const img = document.getElementById('gif-bg');
-      const current = img ? img.src : '';
-      let idx;
-      do {
-        idx = Math.floor(Math.random() * gifUrls.length);
-      } while (gifUrls[idx] === current && gifUrls.length > 1);
-      loadGif(gifUrls[idx]);
-      scheduleNextGif();
+      dwellDone = true;
+      maybeSwap();
     }, pickInterval());
   }
 
@@ -263,17 +397,19 @@ visuals.register('giphy', (() => {
     }
   }
 
-  // Cover-fit the current GIF frame, matching #gif-bg's object-fit + CSS filter.
+  // Cover-fit the current GIF/video frame, matching #gif-bg's object-fit + CSS filter.
   function drawGifFrame(ctx, w, h) {
-    const img = document.getElementById('gif-bg');
-    if (!img || !img.complete || !img.naturalWidth) return;
-    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-    const dw = img.naturalWidth * scale;
-    const dh = img.naturalHeight * scale;
+    const media = document.getElementById('gif-bg');
+    if (!hasFrame(media)) return;
+    const mw = media.videoWidth || media.naturalWidth;
+    const mh = media.videoHeight || media.naturalHeight;
+    const scale = Math.max(w / mw, h / mh);
+    const dw = mw * scale;
+    const dh = mh * scale;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.filter = 'contrast(1.2) grayscale(1)';
-    ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    ctx.drawImage(media, (w - dw) / 2, (h - dh) / 2, dw, dh);
     ctx.restore();
   }
 
@@ -385,6 +521,13 @@ visuals.register('giphy', (() => {
     if (gifBg) gifBg.style.display = '';
     if (overlay) overlay.style.display = '';
     if (blockCanvas) blockCanvas.style.display = 'none';
+    running = true;
+    loadToken++;
+    // Coming back to this visual: resume what was on screen and let it dwell.
+    if (hasFrame(gifBg)) {
+      if (gifBg.tagName === 'VIDEO') gifBg.play().catch(() => {});
+      scheduleNextGif();
+    }
 
     overlayCanvas = document.getElementById('overlay-canvas');
     if (overlayCanvas) {
@@ -410,10 +553,23 @@ visuals.register('giphy', (() => {
       clearTimeout(gifRefreshTimer);
       gifRefreshTimer = null;
     }
+    if (gifRetryTimer) {
+      clearTimeout(gifRetryTimer);
+      gifRetryTimer = null;
+    }
     window.removeEventListener('resize', resizeOverlay);
+
+    // Abandon the in-flight/buffered next item; stale preloads check loadToken.
+    running = false;
+    loadToken++;
+    discard(loadingEl);
+    loadingEl = null;
+    discard(nextEl);
+    nextEl = null;
 
     const gifBg = document.getElementById('gif-bg');
     const overlay = document.getElementById('overlay-canvas');
+    if (gifBg && gifBg.tagName === 'VIDEO') gifBg.pause();
     if (gifBg) gifBg.style.display = 'none';
     if (overlay) overlay.style.display = 'none';
   }

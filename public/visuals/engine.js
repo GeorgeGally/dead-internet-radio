@@ -133,15 +133,18 @@ const visuals = (() => {
   // during rapid prewarm cycling and can silently attribute one visual's
   // stale frame to a completely different id. Resolve deliberately instead.
   function captureVisualCanvas(id) {
-    // Giphy composites a transparent overlay canvas over a background <img>;
-    // capturing the overlay alone yields a black JPEG (no alpha), so flatten
-    // both onto an offscreen canvas first.
+    // Giphy composites a transparent overlay canvas over a background <img>
+    // or looping <video>; capturing the overlay alone yields a black JPEG (no
+    // alpha), so flatten both onto an offscreen canvas first.
     if (id === 'giphy') {
       const img = document.getElementById('gif-bg');
       const overlay = document.getElementById('overlay-canvas');
-      if (!img || !img.complete || !img.naturalWidth) return null;
-      const w = (overlay && overlay.width) || img.naturalWidth;
-      const h = (overlay && overlay.height) || img.naturalHeight;
+      if (!img) return null;
+      const mw = img.videoWidth || img.naturalWidth;
+      const mh = img.videoHeight || img.naturalHeight;
+      if (!mw || (img.tagName === 'VIDEO' ? img.readyState < 2 : !img.complete)) return null;
+      const w = (overlay && overlay.width) || mw;
+      const h = (overlay && overlay.height) || mh;
       const tmp = document.createElement('canvas');
       tmp.width = w;
       tmp.height = h;

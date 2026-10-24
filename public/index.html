@@ -13,7 +13,7 @@
 </head>
 <body>
   <div id="welcome-splash">
-    <canvas id="welcome-noise" aria-hidden="true"></canvas>
+    <iframe id="welcome-ident" title="Dead Internet Radio station ident" scrolling="no" tabindex="-1"></iframe>
     <div class="welcome-letterbox">
       <div id="welcome-dir">/D.I.R.</div>
       <div class="welcome-prompt">CLICK TO START</div>
@@ -75,7 +75,7 @@
           <span class="ctrl"><span class="led" id="input-gain-led"></span><div id="input-gain-knob" class="rams-knob" title="Audio input gain"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">sensitivity</div></span>
           <span class="ctrl-divider"></span>
           <span class="ctrl"><span class="led" id="slot-led"></span><div id="slot-knob" class="rams-knob slot-knob" title="Slot preset (click to cycle, 0=off)"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">slot</div></span>
-          <span class="ctrl"><button id="btn-save-slot" class="abtn" title="Save to current slot">⏺</button></span>
+          <span class="ctrl"><span class="led" id="save-slot-led"></span><button id="btn-save-slot" class="abtn" title="Save to current slot">⏺</button></span>
         </div>
       </div>
     <div class="deck-gallery"></div>
@@ -114,6 +114,8 @@
   <script src="visuals/cubes_token_sha.js"></script>
   <script src="visuals/led_grid.js"></script>
   <script src="visuals/bonk.js"></script>
+  <script src="visuals/bios_webcam.js"></script>
+  <script src="visuals/prelinger_broll.js"></script>
   <script src="visuals/sound_investigation1.js"></script>
   <script src="visuals/sound_investigation2.js"></script>
   <script src="visuals/gallery.js"></script>
