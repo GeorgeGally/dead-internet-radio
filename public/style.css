@@ -894,14 +894,15 @@ body.prewarming #block-canvas {
 
 .wall-board {
   display: grid;
-  grid-template-columns: repeat(auto-fill, var(--panel));
-  grid-auto-rows: var(--panel);
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-auto-rows: var(--ph);
+  align-content: start;
 }
 
 .wall-panel {
   position: relative;
-  width: var(--panel);
-  height: var(--panel);
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   padding: 0;
   border: 0;

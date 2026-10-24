@@ -233,7 +233,7 @@ const gallery = (() => {
     return { slots: [[k ?? null, k != null]], focus: 0 };
   }
 
-  // The artwork wall: square panels edge to edge, as large as fits with every
+  // The artwork wall: panels edge to edge across the whole drawer, every
   // artwork showing, a cross at the centre of every panel like an LED video
   // wall. Hover names the artwork in place of the cross; the playing one's
   // cross is orange. Only the last row can end short.
@@ -245,20 +245,24 @@ const gallery = (() => {
     const H = innerHeight - panel.offsetTop - wall.offsetTop;
     if (!W || !H) return;
     const n = list.length;
-    let best = { size: 0 };
-    for (let cols = 1; cols <= n; cols++) {
-      const rows = Math.ceil(n / cols);
-      const size = Math.floor(Math.min(W / cols, H / rows));
-      if (size > best.size) best = { cols, rows, size };
+    // Fill the drawer edge to edge; pick the column count whose panels come
+    // closest to square.
+    let best = null;
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c);
+      const err = Math.abs(Math.log((W / c) / (H / r)));
+      if (!best || err < best.err) best = { cols: c, rows: r, err };
     }
-    const { cols, rows, size } = best;
+    const { cols, rows } = best;
+    const ph = H / rows;
     const total = n;
     const at = new Map(list.map((item, i) => [i, item]));
     const board = document.createElement('div');
     board.className = 'wall-board';
-    board.style.width = `${cols * size}px`;
-    board.style.height = `${rows * size}px`;
-    board.style.setProperty('--panel', `${size}px`);
+    board.style.width = `${W}px`;
+    board.style.height = `${H}px`;
+    board.style.setProperty('--cols', cols);
+    board.style.setProperty('--ph', `${ph}px`);
     for (let slot = 0; slot < total; slot++) {
       const item = at.get(slot);
       const t = document.createElement(item ? 'button' : 'div');
