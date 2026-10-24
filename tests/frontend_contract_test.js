@@ -21,10 +21,8 @@ test('HTML has the radio player shell', () => {
 });
 
 test('HTML has transport controls and speaker', () => {
-  assert.match(html, /id="btn-prev"/);
   assert.match(html, /id="btn-play"/);
   assert.doesNotMatch(html, /id="btn-stop"/);
-  assert.match(html, /id="btn-next"/);
   assert.match(html, /class="speaker"/);
   assert.match(html, /class="marquee"/);
   assert.match(html, /class="transport"/);
@@ -64,7 +62,6 @@ test('CSS styles the analogue-style transport plate and buttons', () => {
   assert.match(css, /\.abtn/);
   assert.match(css, /\.abtn:active/);
   assert.match(css, /\.led\.on/);
-  assert.match(css, /#btn-next\s*\{\s*--c:\s*#2f2d2b;\s*--txt:\s*#f0ede6;/);
 });
 
 test('CSS respects reduced motion', () => {

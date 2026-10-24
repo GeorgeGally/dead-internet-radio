@@ -250,7 +250,8 @@ body.prewarming #block-canvas {
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding: 0 16px;
+  /* Left padding clears the speaker grille so the transport starts just past it. */
+  padding: 0 16px 0 88px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -360,9 +361,7 @@ body.prewarming #block-canvas {
 }
 
 /* Light-grey buttons with a single orange accent (Rams) */
-#btn-prev    { --c: #545251; --txt: #f0ede6; }
 #btn-play    { --c: #ec6a1f; --txt: #fff; }
-#btn-next   { --c: #2f2d2b; --txt: #f0ede6; }
 #btn-gallery { --c: #8d9aa6; --txt: #fff; }
 
 /* ---- Display controls (knob + gallery) ---- */
@@ -530,7 +529,9 @@ body.prewarming #block-canvas {
 /* ---- Synth LED now-playing display ---- */
 .npd-stack {
   position: relative;
-  flex: 0 1 840px;
+  /* Grows into spare width so the knob bank sits as close to the right edge as the speaker does to the left. */
+  flex: 1 1 840px;
+  max-width: 1120px;
   min-width: 0;
   align-self: stretch;
   justify-content: center;
@@ -565,7 +566,6 @@ body.prewarming #block-canvas {
 #np-display {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 840px;
   box-sizing: border-box;
   min-width: 0;
   height: 76px;

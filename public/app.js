@@ -204,7 +204,6 @@ function advanceTrack(ident) {
   try {
     stopVoiceover();
     currentTrack = (currentTrack + 1) % playlist.tracks.length;
-    flashLed('led-next');
     visuals.next();
     visuals.notify('trackChange');
     updateTrackInfo();
@@ -483,18 +482,10 @@ function setupControls() {
   document.getElementById('btn-play').addEventListener('click', () => {
     togglePlay();
   });
-  document.getElementById('btn-prev').addEventListener('click', () => {
-    flashLed('led-prev');
-    prevTrack();
-  });
-  document.getElementById('btn-next').addEventListener('click', () => {
-    flashLed('led-next');
-    nextTrack();
-  });
   const songPrev = document.getElementById('npd-song-prev');
   const songNext = document.getElementById('npd-song-next');
-  if (songPrev) songPrev.addEventListener('click', () => { flashLed('led-prev'); prevTrack(); });
-  if (songNext) songNext.addEventListener('click', () => { flashLed('led-next'); nextTrack(); });
+  if (songPrev) songPrev.addEventListener('click', () => prevTrack());
+  if (songNext) songNext.addEventListener('click', () => nextTrack());
   const artPrev = document.getElementById('npd-art-prev');
   const artNext = document.getElementById('npd-art-next');
   if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
