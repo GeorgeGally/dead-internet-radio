@@ -96,7 +96,7 @@ visuals.register('bios_webcam', (() => {
           const dy = (p.height - dh) / 2;
           p.push();
           p.noTint();
-          p.image(videoEl, dx, dy, dw, dh);
+          p.drawingContext.drawImage(videoEl, dx, dy, dw, dh);
           p.pop();
         } else {
           p.background(6, 10, 6);
@@ -175,6 +175,7 @@ visuals.register('bios_webcam', (() => {
         drawFeed();
         drawScanlines();
         drawBios();
+        canvasFilters.applyToP5(p);
       };
     });
   }
