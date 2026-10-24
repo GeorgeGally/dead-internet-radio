@@ -80,7 +80,7 @@
     },
   ];
 
-  // ---------- player: a full-frame ident between tracks ----------
+  // ---------- player: a full-frame ident between tracks and during loads ----------
   let canvas = null;
   let ctx = null;
   let raf = 0;
