@@ -17,6 +17,12 @@ const outDir = path.join(visualsDir, 'thumbs');
 const url = process.env.PLAYER_URL || 'http://localhost:3000/';
 const chrome = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const SETTLE_MS = Number(process.env.SETTLE_MS || 6000);
+// Drawings that build up over time look empty after a few seconds.
+const SLOW = {
+  trail: 40000, twirlz: 40000, particle_machine: 40000, particle_drawings: 40000,
+  delayed_lerp_points2c: 40000, delayed_lerp_points_1600: 40000, delayed_lerp_points7: 40000,
+  delayed_lerp_points7b: 40000, delayed_lerp_points8: 40000,
+};
 const PORT = 9341;
 
 const all = readdirSync(visualsDir)
@@ -82,8 +88,10 @@ for (const id of ids) {
     return ok;
   })()`);
   if (!ok) { console.log(`skip ${id}`); continue; }
-  await sleep(SETTLE_MS);
-  await evaluate(`document.getElementById('visual-notification')?.remove()`);
+  await sleep(SLOW[id] || SETTLE_MS);
+  // A preset can switch a filter on after activation; screenshots are of the plain artwork.
+  await evaluate(`document.getElementById('visual-notification')?.remove(); canvasFilters.clearActive()`);
+  await sleep(500);
   const shot = await send('Page.captureScreenshot', {
     format: 'jpeg', quality: 80,
     clip: { x: 0, y: 0, width: 1280, height: 720, scale: 0.5 },
