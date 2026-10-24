@@ -32,11 +32,11 @@ This station has broadcast for years. Some artist names and titles have been rep
 
 ## Constraints
 
-- The station's sound is sci-fi underground dance music, four families. Pick one per track from the brief:
+- The station's sound is sci-fi underground dance music, four families. Pick one per track from the brief. EBM is home: when the brief doesn't point elsewhere, choose EBM, and make it about half of all tracks. Dark disco and techno next; post-punk and disco-punk now and then.
   - **Berlin / Detroit techno**: hypnotic, functional, machine soul. 909/808 kick, dry hats, one resonant 303 or string line, long repetitive loops, warehouse reverb. Lineage to think with: Underground Resistance, Drexciya, Jeff Mills, Basic Channel, Robert Hood, early Tresor.
   - **EBM / goth**: stiff sequenced bass, harsh drum machine, barked or baritone vocals, cold minor chords, chorus-drenched guitar for the goth end. Lineage: DAF, Front 242, Nitzer Ebb, Liaisons Dangereuses, Sisters of Mercy, Bauhaus, Clan of Xymox.
   - **Post-punk**, 1978–84: melodic bass guitar carrying the tune, thin chorused guitar, drum machine or tight dry drums, deadpan voice, cavernous reverb. Lineage: Joy Division, Cabaret Voltaire, Section 25, The Normal, Fad Gadget, Siouxsie.
-  - **Disco-punk / punk-funk**: a scrappy band playing disco — scratchy funk guitar, rubbery bass, cowbell and congas, shouted vocals. Lineage: ESG, Liquid Liquid, A Certain Ratio, Konk, early DFA.
+  - **Dark disco / disco-punk**: mostly cosmic dark disco — steady drum machine, deep pulsing bass, slowly evolving sweeps, distant transmissions, a voice on a radio. Now and then a scrappy band playing disco: rubbery bass, cowbell and congas, shouted vocals; a scratchy funk guitar plus a bass arpeggio turns it generic, so pick one. Lineage: ESG, Liquid Liquid, A Certain Ratio, Konk, early DFA, Moroder's darker work.
   Lineage names are for you to think with, never to write in the caption.
 - Whatever the family, it was played on hardware by people in a room or a basement, not assembled from presets in a DAW.
 - **The brief wins over this list.** If its mood words point somewhere else (folk, ambient, cinematic, orchestral drift), build the track from those words instead of defaulting to club genres.
