@@ -334,7 +334,8 @@ def station_caption(caption: str) -> str:
     the line is phrased as what should be there.
     """
     caption = caption.strip()
-    if "low and mid register" in caption.lower():
+    # Arpeggios are welcome (disco/electro); the DJ describes those itself.
+    if "low and mid register" in caption.lower() or "arp" in caption.lower():
         return caption
     return f"{caption} {REGISTER_LINE}"
 
