@@ -3,23 +3,24 @@
 visuals.register('prelinger_broll', (() => {
   let myP5 = null;
 
-  const VIBES = {
-    atomic: { q: 'atomic energy' },
-    road: { q: 'highway driving' },
-    office: { q: 'office business' },
-    kitchen: { q: 'kitchen food' },
-    factory: { q: 'factory industry' },
-    suburban: { q: 'suburb family' },
+  // What to look for on archive.org. Each theme is a search; `words` pull it
+  // in when the track's title, artist or show mentions them. Ads are short
+  // and tiny (a few MB), so one is always in the mix and usually plays first.
+  const THEMES = {
+    ads:       { q: 'collection:classic_tv_commercials AND (year:[1900 TO 1989] OR 1950s OR 1960s OR 1970s OR 1980s OR vintage OR retro)', words: ['ad', 'buy', 'sale', 'product', 'brand', 'cereal', 'soda', 'cola', 'smoke'] },
+    ufo:       { q: 'mediatype:movies AND (ufo OR "flying saucer" OR "flying saucers" OR "outer space") AND date:[1940-01-01 TO 1989-12-31]', words: ['ufo', 'alien', 'saucer', 'space', 'star', 'cosmic', 'orbit', 'signal', 'void'] },
+    computers: { q: 'collection:computerchronicles OR (collection:prelinger AND (computer OR "electronic brain" OR automation OR robot))', words: ['computer', 'data', 'byte', 'binary', 'circuit', 'robot', 'machine', 'terminal', 'grid', 'code', 'cache', 'protocol', 'system', 'error'] },
+    atomic:    { q: 'collection:prelinger AND (atomic OR "civil defense" OR "duck and cover" OR radiation)', words: ['atom', 'atomic', 'nuclear', 'reactor', 'fallout', 'radiation', 'bomb'] },
+    mind:      { q: 'collection:prelinger AND (hypnosis OR psychic OR "mental health" OR dreams)', words: ['mind', 'dream', 'sleep', 'ghost', 'memory', 'hypno', 'trance', 'echo'] },
+    tomorrow:  { q: 'collection:prelinger AND ("world of tomorrow" OR "home of tomorrow" OR future OR "push button")', words: ['future', 'tomorrow', 'neon', 'chrome', 'synth', 'electro'] },
+    broadcast: { q: 'collection:prelinger AND (television OR telephone OR radio OR switchboard)', words: ['radio', 'broadcast', 'frequency', 'static', 'tv', 'phone', 'antenna', 'transmission'] },
+    dance:     { q: 'collection:prelinger AND (dance OR teenagers OR dating OR party)', words: ['disco', 'dance', 'party', 'love', 'night', 'club', 'funk', 'groove'] },
+    road:      { q: 'collection:prelinger AND (highway OR driving OR traffic OR freeway)', words: ['drive', 'road', 'highway', 'car', 'motor', 'travel', 'route'] },
+    work:      { q: 'collection:prelinger AND (office OR factory OR assembly OR industry)', words: ['work', 'office', 'factory', 'industrial', 'steel', 'plant', 'rust', 'iron'] },
+    suburb:    { q: 'collection:prelinger AND (suburb OR kitchen OR housewife OR family)', words: ['home', 'house', 'kitchen', 'family', 'garden', 'suburb', 'sunday'] },
+    scifi:     { q: 'collection:sciencefiction', words: ['sci', 'fi', 'robot', 'alien', 'planet', 'galaxy'] },
   };
-
-  const WORDS = [
-    ['atomic', ['atom', 'atomic', 'nuclear', 'science', 'reactor', 'space', 'rocket', 'radiation']],
-    ['road', ['drive', 'driving', 'road', 'highway', 'car', 'motor', 'travel', 'route', 'chase']],
-    ['office', ['work', 'office', 'business', 'desk', 'job', 'boss', 'meeting', 'company', 'paper']],
-    ['kitchen', ['kitchen', 'food', 'cook', 'dinner', 'eat', 'family', 'home', 'table', 'tea']],
-    ['factory', ['factory', 'machine', 'industrial', 'steel', 'plant', 'build', 'engine', 'power']],
-    ['suburban', ['suburb', 'house', 'garden', 'street', 'town', 'neighbour', 'kids', 'school']],
-  ];
+  const QUIRKY = ['ufo', 'mind', 'tomorrow', 'computers', 'atomic', 'broadcast', 'scifi'];
 
   const state = {
     films: [],
@@ -38,34 +39,52 @@ visuals.register('prelinger_broll', (() => {
       const t = playlist?.tracks?.[currentTrack] || {};
       return {
         bpm: Number(t.bpm) || 80,
-        key: `${t.artist || ''} ${t.title || ''} ${t.genre || ''} ${t.show || ''}`.trim(),
+        key: `${t.artist || ''} ${t.title || ''} ${t.genre || ''} ${t.show || ''} ${t.caption || ''}`.trim(),
       };
     } catch (e) {
       return { bpm: 80, key: '' };
     }
   }
 
-  function pickVibes(info) {
-    const hay = info.key.toLowerCase();
-    const scored = WORDS.map(([name, words]) => ({
-      name,
-      hits: words.reduce((n, w) => n + (hay.includes(w) ? 1 : 0), 0),
-    })).sort((a, b) => b.hits - a.hits);
-    const picked = scored.filter((s) => s.hits > 0).map((s) => s.name);
-    if (!picked.length) picked.push(info.bpm < 70 ? 'suburban' : info.bpm < 100 ? 'office' : 'road');
-    while (picked.length < 3) picked.push(picked[0] === 'road' ? 'factory' : 'road');
-    return picked.slice(0, 3);
+  const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
+
+  // Three searches per track: an ad, the theme the track's words point at (or a
+  // random one), and a quirky wildcard, so the reel is never the same twice.
+  function pickThemes(info) {
+    const hay = ` ${info.key.toLowerCase()} `;
+    const scored = Object.entries(THEMES)
+      .map(([name, th]) => ({ name, hits: th.words.filter((w) => hay.includes(w)).length + Math.random() * 0.5 }))
+      .filter((x) => x.name !== 'ads')
+      .sort((a, b) => b.hits - a.hits);
+    const matched = scored[0].hits >= 1 ? scored[0].name : pickOne(Object.keys(THEMES).filter((n) => n !== 'ads'));
+    const wild = pickOne(QUIRKY.filter((n) => n !== matched));
+    return ['ads', matched, wild];
   }
 
-  async function searchFilms(vibe) {
-    const q = `collection:prelinger AND mediatype:movies AND (${VIBES[vibe].q})`;
-    const url =
-      'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) +
-      '&fl%5B%5D=identifier&rows=10&page=1&output=json';
-    const res = await fetch(url);
+  // A random page of results instead of always the top ten. The hit count per
+  // theme is remembered so this costs one request after the first visit.
+  async function searchFilms(theme) {
+    const q = `(${THEMES[theme].q}) AND mediatype:movies`;
+    const base = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) + '&fl%5B%5D=identifier&output=json';
+    const key = 'broll-count2:' + theme;
+    let count = 0;
+    try { count = Number(localStorage.getItem(key)) || 0; } catch (e) {}
+    if (!count) {
+      const res = await fetch(base + '&rows=0');
+      if (!res.ok) throw new Error('search');
+      count = (await res.json())?.response?.numFound || 0;
+      try { localStorage.setItem(key, String(count)); } catch (e) {}
+    }
+    const rows = 20;
+    const pages = Math.max(1, Math.min(Math.ceil(count / rows), 500));
+    const res = await fetch(`${base}&rows=${rows}&page=${1 + Math.floor(Math.random() * pages)}`);
     if (!res.ok) throw new Error('search');
-    const json = await res.json();
-    return (json?.response?.docs || []).map((d) => d.identifier).filter(Boolean);
+    const ids = ((await res.json())?.response?.docs || []).map((d) => d.identifier).filter(Boolean);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    return ids;
   }
 
   async function filmVideo(id) {
@@ -79,16 +98,17 @@ visuals.register('prelinger_broll', (() => {
       .map((f) => ({ name: String(f.name || ''), size: Number(f.size) || Infinity, h: Number(f.height) || 0 }))
       .filter((f) => /\.mp4$/i.test(f.name) && f.h > 0)
       .sort((a, b) => a.size - b.size);
-    const pick = files.length ? files[0].name : null;
+    // ...but not the 120p postage stamps some items carry.
+    const pick = (files.find((f) => f.h >= 200) || files[0] || {}).name || null;
     if (!pick) return null;
     // Through the app's same-origin proxy: archive.org's storage hosts send no
     // CORS headers, which would taint the canvas and switch every filter off.
     return `/broll/${encodeURIComponent(id)}/${pick.split('/').map(encodeURIComponent).join('/')}`;
   }
 
-  // Resolves once the film is ready from a random point past the opening
-  // titles: `canplay` for the first film (start fast), `canplaythrough` for the
-  // ones cut to later. Rejects (and cleans up) if it takes too long.
+  // Resolves once the film can start from a random point past its opening
+  // titles; rejects (and cleans up) if it takes too long. Cuts later check how
+  // much is buffered ahead (nextBuffered), so big films don't hold up the reel.
   function makeVideo(url, readyEvent) {
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous';
@@ -129,15 +149,12 @@ visuals.register('prelinger_broll', (() => {
   }
 
   async function loadForTrack(info, token) {
-    const vibes = pickVibes(info);
+    // Search the three themes at once, then deal the results out in turn so the
+    // reel holds one film from each: ad, matched theme, wildcard.
+    const lists = await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
     let ids = [];
-    for (const v of vibes) {
-      try {
-        ids = ids.concat(await searchFilms(v));
-      } catch (e) {}
-      if (ids.length >= 9) break;
-    }
-    ids = [...new Set(ids)].slice(0, 8);
+    for (let i = 0; i < 6; i++) lists.forEach((l) => { if (l[i]) ids.push(l[i]); });
+    ids = [...new Set(ids)];
     if (!ids.length) throw new Error('none');
 
     // One film at a time: the first starts as soon as it can play through, and
@@ -150,7 +167,7 @@ visuals.register('prelinger_broll', (() => {
       try {
         const url = await filmVideo(id);
         if (!url) continue;
-        const video = await makeVideo(url, films.length ? 'canplaythrough' : 'canplay');
+        const video = await makeVideo(url, 'canplay');
         if (token !== state.loadToken) {
           video.remove();
           return;
@@ -200,6 +217,24 @@ visuals.register('prelinger_broll', (() => {
     try { standIn.pause(); } catch (e) {}
     standIn.remove();
     standIn = null;
+  }
+
+  function bufferedAhead(v) {
+    const b = v.buffered;
+    for (let i = 0; i < b.length; i++) {
+      if (b.start(i) <= v.currentTime + 0.1 && b.end(i) > v.currentTime) return b.end(i) - v.currentTime;
+    }
+    return 0;
+  }
+
+  // The next film in the rotation with a start buffered. Chrome stops filling a
+  // paused video at about 2s, so ask for 1.5s; it keeps buffering once playing.
+  function nextBuffered() {
+    for (let k = 1; k < state.films.length; k++) {
+      const i = (state.shot + k) % state.films.length;
+      if (bufferedAhead(state.films[i].video) >= 1.5) return i;
+    }
+    return -1;
   }
 
   function stopVideos() {
@@ -320,14 +355,15 @@ visuals.register('prelinger_broll', (() => {
 
         dropStandIn();
 
-        // Cut every 8 beats, but only onto a film that is already buffered;
-        // with nothing else ready the current film just keeps playing.
+        // Cut every 8 beats, but only onto a film with its start buffered; with
+        // nothing else ready the current film just keeps playing.
         const beatMs = (60 / Math.max(40, state.bpm)) * 8 * 1000;
-        if (t - state.shotAt > beatMs && state.films.length > 1) {
+        const next = t - state.shotAt > beatMs ? nextBuffered() : -1;
+        if (next >= 0) {
           const outgoing = state.films[state.prevShot];
           if (outgoing && state.prevShot !== state.shot) outgoing.video.pause();
           state.prevShot = state.shot;
-          state.shot = (state.shot + 1) % state.films.length;
+          state.shot = next;
           state.shotAt = t;
           state.films[state.shot].video.play().catch(() => {});
         }
