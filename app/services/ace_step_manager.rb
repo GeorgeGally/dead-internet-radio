@@ -31,6 +31,7 @@ class AceStepManager
 
       pid = spawn_process(start_cmd)
       cache_pid(pid)
+      start_watchdog
 
       wait_for_healthy
       Rails.logger.info "[AceStepManager] ACE-Step started (PID #{pid})"
@@ -119,6 +120,8 @@ class AceStepManager
         'ACESTEP_NO_INIT' => 'true',
         'CHECK_UPDATE' => 'false',
         'ACESTEP_SAVE_MEMORY' => '1',
+        # The 4B LM is the biggest resident model; 1.7B plans structure fine for mostly instrumental tracks.
+        'ACESTEP_LM_MODEL_PATH' => ENV.fetch('ACESTEP_LM_MODEL_PATH', 'acestep-5Hz-lm-1.7B'),
       }
       pid = Process.spawn(
         env,
@@ -129,6 +132,16 @@ class AceStepManager
       )
       Process.detach(pid)
       pid
+    end
+
+    # Kills ACE-Step if free memory drops too low, instead of letting the Mac freeze.
+    # One per Rails process is enough; it idles while nothing listens on the port.
+    def start_watchdog
+      return if @watchdog_pid && process_running?(@watchdog_pid)
+
+      @watchdog_pid = Process.spawn(Rails.root.join('ace-step-watchdog.sh').to_s, ace_step_port.to_s,
+                                    pgroup: true, %i[out err] => File::NULL)
+      Process.detach(@watchdog_pid)
     end
 
     def wait_for_healthy

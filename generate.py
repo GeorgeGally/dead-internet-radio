@@ -16,6 +16,11 @@ load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
+# Memory knobs. Peak memory scales with track length, so cap it; thinking runs
+# the 5Hz LM to plan the audio codes (structure), not just lyrics — set
+# ACE_STEP_THINKING=0 to skip it when the LM isn't loaded.
+MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "150"))
+ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
@@ -206,7 +211,7 @@ def call_llm(system_prompt: str, user_message: str) -> str:
     sys.exit(1)
 
 
-def wait_for_memory(threshold_pct=25, max_wait_s=600):
+def wait_for_memory(threshold_pct=25, max_wait_s=1800):
     """Block until macOS reports enough free memory (backpressure between tracks).
 
     ACE-Step on MPS keeps the whole model stack resident; submitting the next
@@ -228,9 +233,17 @@ def wait_for_memory(threshold_pct=25, max_wait_s=600):
         except Exception:
             return
         if time.time() >= deadline:
-            print("  WARNING: memory still low — continuing anyway", flush=True)
-            return
+            # Carrying on is what froze the machine. Stop; --resume-dir picks up from here.
+            print("  ERROR: memory still low — stopping. Re-run with --resume-dir to continue.", file=sys.stderr, flush=True)
+            sys.exit(75)
         time.sleep(30)
+
+
+def stop_ace_step():
+    port = ACE_STEP_URL.rsplit(":", 1)[-1].strip("/")
+    script = Path(__file__).parent / "ACE-Step-1.5" / "close_api_server.sh"
+    print("  Stopping ACE-Step to free memory...", flush=True)
+    subprocess.run([str(script), "--port", port, "--force"], check=False)
 
 
 def check_ace_step_health():
@@ -252,7 +265,9 @@ def call_ace_step(payload: dict) -> str:
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
         "audio_duration": payload.get("duration", 240),
-        "thinking": True,
+        "thinking": ACE_STEP_THINKING,
+        # The API defaults to 2 variations and we keep only the first.
+        "batch_size": 1,
         "audio_format": "mp3",
     }
     req = urllib.request.Request(
@@ -386,6 +401,8 @@ def main():
                         help="Disable batch mode — use per-track LLM calls instead")
     parser.add_argument("--dj-name", type=str, default="",
                         help="DJ name for announcements (default: random)")
+    parser.add_argument("--stop-ace-step", action="store_true",
+                        help="Shut ACE-Step down once the tracks are rendered")
     parser.add_argument("--resume-dir", type=str, default="",
                         help="Resume from an existing show directory (skips producer, announcer, DJ phases)")
     args = parser.parse_args()
@@ -644,7 +661,7 @@ def main():
 
         # --- Process tracks (shared between batch and per-track) ---
         for i, song in enumerate(songs, 1):
-            song["duration"] = min(max(song.get("duration", 180), 60), 360)
+            song["duration"] = min(max(song.get("duration", 180), 60), MAX_TRACK_SECONDS)
             track_prompt = song.pop("_prompt", dj_input)
 
             title = song.get("title", "").strip() or "Untitled"
@@ -771,6 +788,10 @@ def main():
                            "title": t["title"], "artist": t["artist"],
                            "file": str(output_file)})
         print()
+
+        # Music is done: free ACE-Step's memory before Kokoro loads for the voiceovers.
+        if args.stop_ace_step and not args.dry_run:
+            stop_ace_step()
 
         # --- BATCH voiceover generation ---
         # Schedule was already set during fresh generate (save-state) or loaded from resume state

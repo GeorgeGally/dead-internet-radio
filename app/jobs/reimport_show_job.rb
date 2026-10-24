@@ -10,14 +10,8 @@ class ReimportShowJob < ApplicationJob
     return unless show.directory
 
     root = Rails.root.to_s
-    full_path = File.join(root, show.directory)
-    return unless Dir.exist?(full_path)
-
-    playlist_path = File.join(full_path, 'playlist.json')
-    return unless File.exist?(playlist_path)
-
-    data = JSON.parse(File.read(playlist_path))
-    return unless data['tracks'].is_a?(Array)
+    data = scan_show(show.directory, root)
+    return unless data
 
     show.update!(
       name: data['showName'] || show.name,
@@ -35,8 +29,7 @@ class ReimportShowJob < ApplicationJob
         key: track_data['key'],
         duration_ms: track_data['durationMs'],
         audio_file: track_data['file'],
-        voiceover_file: track_data['voiceoverFile'],
-        cue_seconds: track_data['cueSeconds']
+        voiceover_file: track_data['voiceoverFile']
       )
     end
 
