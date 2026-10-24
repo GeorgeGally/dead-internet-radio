@@ -235,11 +235,10 @@ const gallery = (() => {
     return { slots: [[k ?? null, k != null]], focus: 0 };
   }
 
-  // The artwork wall: square panels edge to edge, the artworks scattered among
-  // black ones, a cross at the centre of every panel like an LED video wall.
-  // Hover names the artwork in place of the cross; the playing one's cross is
-  // orange. Positions are shuffled once per visit so the wall stays put.
-  let wallOrder = null;
+  // The artwork wall: square panels edge to edge, as large as fits with every
+  // artwork showing, a cross at the centre of every panel like an LED video
+  // wall. Hover names the artwork in place of the cross; the playing one's
+  // cross is orange. Only the last row can end short.
   function buildWall() {
     const list = visuals.getList();
     const currentId = visuals.getCurrentId();
@@ -248,29 +247,15 @@ const gallery = (() => {
     const H = innerHeight - panel.offsetTop - wall.offsetTop;
     if (!W || !H) return;
     const n = list.length;
-    let best = null;
-    for (let cols = 4; cols <= 40; cols++) {
-      const size = Math.floor(W / cols);
-      const rows = Math.floor(H / size);
-      if (rows < 1 || cols * rows < Math.ceil(n * 1.5)) continue;
-      best = { cols, rows, size };
-      break;
-    }
-    if (!best) {
-      // Too many artworks for a sparse wall: pack them.
-      const cols = Math.ceil(Math.sqrt(n * W / H));
-      best = { cols, rows: Math.ceil(n / cols), size: Math.floor(Math.min(W / cols, H / Math.ceil(n / cols))) };
+    let best = { size: 0 };
+    for (let cols = 1; cols <= n; cols++) {
+      const rows = Math.ceil(n / cols);
+      const size = Math.floor(Math.min(W / cols, H / rows));
+      if (size > best.size) best = { cols, rows, size };
     }
     const { cols, rows, size } = best;
-    const total = cols * rows;
-    if (!wallOrder || wallOrder.length !== total) {
-      wallOrder = [...Array(total).keys()];
-      for (let i = total - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [wallOrder[i], wallOrder[j]] = [wallOrder[j], wallOrder[i]];
-      }
-    }
-    const at = new Map(wallOrder.slice(0, n).sort((a, b) => a - b).map((slot, k) => [slot, list[k]]));
+    const total = n;
+    const at = new Map(list.map((item, i) => [i, item]));
     const board = document.createElement('div');
     board.className = 'wall-board';
     board.style.width = `${cols * size}px`;
