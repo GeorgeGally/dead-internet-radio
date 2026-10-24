@@ -9,7 +9,9 @@ const STATION_ID_COUNT = 14;     // public/station-ids/id-NN.wav
 function startWelcomeIdent() {
   const frame = document.getElementById('welcome-ident');
   if (!frame) return;
-  const n = Math.floor(Math.random() * IDENT_COUNT) + 1;
+  // V7 (radar) is retired in the lab; never open on it.
+  const pool = Array.from({ length: IDENT_COUNT }, (_, i) => i + 1).filter((n) => n !== 7);
+  const n = pool[Math.floor(Math.random() * pool.length)];
   frame.src = 'labs/station-ident-lab.html?only=' + n;
 }
 

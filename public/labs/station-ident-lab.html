@@ -26,6 +26,8 @@ section { margin-bottom: 80px; }
 body.solo header, body.solo .tag { display: none; }
 body.solo section { max-width: none; padding: 0; margin: 0; }
 body.solo .frame { padding: 0; border-radius: 0; }
+body.solo { overflow: hidden; }
+body.solo .stage { aspect-ratio: auto; width: 100vw; height: 100vh; border-radius: 0; }
 /* keeps the Giphy <img> animating without ever showing it */
 /* 1px and barely visible: Chrome stops animating images it considers hidden */
 #gifhold { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: .01; pointer-events: none; }
@@ -397,7 +399,8 @@ V.push({
   name: 'Numbers station', seed: 'af8298a15fd0873997534bd8', L: 10,
   idea: 'Cipher groups fill the screen like a shortwave numbers broadcast. Four groups on a falling diagonal decode, in orange, into DEAD INTER NET RADIO.',
   init(S) {
-    S.cols = 9 + Math.floor(S.r() * 2); S.rows = 9; const n = S.cols * S.rows;
+    // More rows on taller screens so the sheet always reaches the bottom.
+    S.cols = 9 + Math.floor(S.r() * 2); S.rows = Math.max(9, Math.round(9 * (innerHeight / innerWidth) / (9 / 16))); const n = S.cols * S.rows;
     S.settle = Array.from({ length: n }, (_, i) => .4 + i * .03 + S.r() * .5);
     const span = Math.floor(n / 4); S.msg = new Map([0, 1, 2, 3].map(k => [k * span + 2 + Math.floor(S.r() * (span - 4)), k]));
   },
@@ -407,7 +410,7 @@ V.push({
     const n = S.cols * S.rows, sent = Math.min(n, Math.floor(ramp(t, .15, n * .016) * n));
     hud(c, w, h, t, 0, `88.8 MHz    ${clock()}`, `GROUP ${String(sent).padStart(2, '0')}/${n}`, 'rgba(232,228,218,.6)');
     c.font = MONO(3.2 * u); const gw = c.measureText('00000').width;
-    const x0 = 6 * u, y0 = 18 * u, stepX = (w - 12 * u - gw) / (S.cols - 1), rh = (h - 40 * u) / (S.rows - 1);
+    const x0 = 6 * u, y0 = 18 * u, stepX = (w - 12 * u - gw) / (S.cols - 1), rh = (h - 26 * u) / (S.rows - 1);
     const fade = 1 - .82 * ramp(t, 5.2, 1);
     for (let i = 0; i < n; i++) {
       const al = ramp(t, .15 + i * .016, .25); if (!al) continue;

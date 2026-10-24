@@ -169,7 +169,41 @@ visuals.register('prelinger_broll', (() => {
     if (!films.length) throw new Error('no video');
   }
 
+  // Something to watch while the first film buffers: one Giphy clip, looped.
+  // Giphy's media host sends CORS headers, so the filters still work on it.
+  const GIPHY_API_KEY = '23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5';
+  const STANDIN_TERMS = ['vintage film', 'old footage', '1950s', 'home movie', 'film grain', 'retro tv'];
+  let standIn = null;
+
+  async function loadStandIn() {
+    try {
+      const q = encodeURIComponent(STANDIN_TERMS[Math.floor(Math.random() * STANDIN_TERMS.length)]);
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${q}&limit=25&rating=pg-13`);
+      const json = await res.json();
+      const mp4s = (json?.data || []).map((g) => g?.images?.original?.mp4).filter(Boolean);
+      if (!mp4s.length || state.ready) return;
+      const v = document.createElement('video');
+      v.crossOrigin = 'anonymous';
+      v.muted = true;
+      v.playsInline = true;
+      v.loop = true;
+      v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+      document.body.appendChild(v);
+      v.src = mp4s[Math.floor(Math.random() * mp4s.length)];
+      v.play().catch(() => {});
+      standIn = v;
+    } catch (e) {}
+  }
+
+  function dropStandIn() {
+    if (!standIn) return;
+    try { standIn.pause(); } catch (e) {}
+    standIn.remove();
+    standIn = null;
+  }
+
   function stopVideos() {
+    dropStandIn();
     disposeVideos();
   }
 
@@ -206,7 +240,9 @@ visuals.register('prelinger_broll', (() => {
           const token = state.loadToken;
           state.ready = false;
           state.failed = false;
+          disposeVideos();
           state.films = [];
+          if (!standIn) loadStandIn();
           loadForTrack(info, token).catch((err) => {
             console.error('prelinger b-roll load failed:', err && err.message);
             if (token === state.loadToken) state.failed = true;
@@ -267,6 +303,10 @@ visuals.register('prelinger_broll', (() => {
         const t = p.millis();
 
         if (!state.ready || !state.films.length) {
+          if (standIn && drawVideoShot(standIn, 1)) {
+            canvasFilters.applyToP5(p);
+            return;
+          }
           leader(t);
           if (state.failed) {
             p.noStroke();
@@ -277,6 +317,8 @@ visuals.register('prelinger_broll', (() => {
           }
           return;
         }
+
+        dropStandIn();
 
         // Cut every 8 beats, but only onto a film that is already buffered;
         // with nothing else ready the current film just keeps playing.
