@@ -811,13 +811,13 @@ V.push({
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
     const pos = t < T ? v0 * (t - t * t / (2 * T)) : v0 * T / 2, endPos = v0 * T / 2;
     c.font = MONO(2.6 * u); const gw = c.measureText('00000').width, gap = 1.4 * u, step = gw + gap;
-    const bw = S.cols * step - gap, x0 = (w - bw) / 2, rh = 3.8 * u, top = 14 * u, bot = h - 10 * u, readY = h * .56;
+    const bw = S.cols * step - gap, x0 = (w - bw) / 2, rh = 3.8 * u, top = 0, bot = h + rh, readY = h * .56;
     const vis = Math.ceil((bot - top) / rh) + 1, base = Math.floor(pos), frac = pos - base, first = Math.floor(endPos) + 2;
     c.fillStyle = 'rgba(232,228,218,.14)'; c.fillRect(x0 - 2 * u, readY + .9 * u, bw + 4 * u, 1);
     for (let j = -1; j < vis; j++) {
       const r = base + j, y = top + (j - frac + 1) * rh;
       if (y < top || y > bot) continue;
-      const edge = Math.min(ramp(y, top, 4 * u), 1 - ramp(y, bot - 4 * u, 4 * u)), kk = (r - first) / 2;
+      const edge = Math.min(ramp(y, top, 3 * u), 1 - ramp(y, h - 2 * u, 2 * u)), kk = (r - first) / 2;
       for (let col = 0; col < S.cols; col++) {
         let s = '', hot = false;
         if (Number.isInteger(kk) && kk >= 0 && kk < 4 && S.at[kk] === col) {
@@ -849,7 +849,8 @@ V.push({
     // the pitch comes off the window, so the reel wall runs edge to edge at any size
     const pitch = (w - 6 * u) / S.n, fs = pitch / .78, rh = pitch * 1.18;
     c.font = MONO(fs, 500);
-    const x0 = 3 * u, top = 11 * u, bot = h - 6 * u, lockRow = Math.round((h * .5 - top) / rh) - 1;
+    // columns run the full height; the readout sits over them
+    const x0 = 3 * u, top = 0, bot = h + rh, lockRow = Math.round((h * .5 - top) / rh) - 1;
     const settle = ramp(t, 5, 1);
     for (let i = 0; i < S.n; i++) {
       const tl = S.lock[i], locked = tl !== null && t >= tl;
@@ -857,7 +858,7 @@ V.push({
       const base = Math.floor(pos), frac = locked ? 0 : pos - base, x = x0 + i * pitch;
       for (let j = -1; (j - 1) * rh < bot - top; j++) {
         const y = top + (j - frac + 1) * rh; if (y < top || y > bot) continue;
-        const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 5 * u, 5 * u));
+        const edge = Math.min(ramp(y, top, 3 * u), 1 - ramp(y, h - 2 * u, 2 * u));
         let ch = String(h32((base + j) * 97 + i * 13) % 10), col = '#e8e4da', al = .45 * (1 - .55 * settle);
         if (locked && j === lockRow) { ch = S.msg[i - S.pad]; col = ORANGE; al = 1; }
         if (ch === ' ') continue;
@@ -926,7 +927,7 @@ V.push({
   idea: 'The V6 cipher sheet with sixteen tight columns, scrolling up as new groups arrive. Four columns carry a word each: when a word reaches the middle only that column stops, decodes to orange, holds its own length of time, turns back into numbers and scrolls on. The other columns never stop.',
   init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); S.lag = [0, 3, 1, 5]; S.hold = [2.4, 3.4, 2.0, 3.0]; },
   draw(c, w, h, t, S) {
-    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 0, bot = h + rh, readY = h * .5;
     const pos0 = Math.ceil((bot - top) / rh), toRead = Math.round((bot - readY) / rh);
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
     c.font = MONO(2.9 * u); const gw = c.measureText('00000').width;
@@ -943,7 +944,7 @@ V.push({
       }
       for (let r = Math.floor(pos); r >= 0; r--) {
         const y = bot - (pos - r) * rh; if (y < top) break;
-        const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
+        const edge = Math.min(ramp(y, top, 3 * u), 1 - ramp(y, h - 2 * u, 2 * u));
         let g = '', hot = false;
         if (r === row) {
           for (let i = 0; i < 5; i++) g += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? String(h32(r * 977 + col * 31 + i) % 10) : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
@@ -963,7 +964,7 @@ V.push({
   idea: 'The same sixteen-column scroll, but the cipher is drawn as solid ASCII blocks rather than digits, so the sheet reads as noise made of cells. Every column is monospaced and locks to the same grid; a message column stops on its word, which flips from blocks to letters in place.',
   init(S) { S.cols = 16; S.at = [0, 1, 2, 3].map(k => Math.floor((k + S.r()) * 4)); S.lag = [0, 3, 1, 5]; S.hold = [2.4, 3.4, 2.0, 3.0]; },
   draw(c, w, h, t, S) {
-    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 13 * u, bot = h - 8 * u, readY = h * .5;
+    const u = h / 100, v = 2.6, rh = 4.2 * u, top = 0, bot = h + rh, readY = h * .5;
     const pos0 = Math.ceil((bot - top) / rh), toRead = Math.round((bot - readY) / rh);
     const BLOCK = '█▓▒░';
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
@@ -980,7 +981,7 @@ V.push({
       }
       for (let r = Math.floor(pos); r >= 0; r--) {
         const y = bot - (pos - r) * rh; if (y < top) break;
-        const edge = Math.min(ramp(y, top, 5 * u), 1 - ramp(y, bot - 3 * u, 3 * u));
+        const edge = Math.min(ramp(y, top, 3 * u), 1 - ramp(y, h - 2 * u, 2 * u));
         let g = '', hot = false;
         if (r === row) {
           for (let i = 0; i < 5; i++) g += i < res && i >= back ? PAD_WORDS[k][i] : i < res ? BLOCK[h32(r * 977 + col * 31 + i) % 4] : String.fromCharCode(65 + h32(r * 977 + col * 31 + i + Math.floor(t * 12)) % 26);
