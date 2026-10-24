@@ -21,6 +21,19 @@ visuals.register('prelinger_broll', (() => {
     scifi:     { q: 'collection:sciencefiction', words: ['sci', 'fi', 'robot', 'alien', 'planet', 'galaxy'] },
   };
   const QUIRKY = ['ufo', 'mind', 'tomorrow', 'computers', 'atomic', 'broadcast', 'scifi'];
+  // Single subjects in the spirit of the Giphy artwork's search list, looked up
+  // across the old-film collections: a surprise picture for every track.
+  const SUBJECTS = [
+    'eyes', 'cows', 'kiss', 'crying', 'dance', 'party', 'aerial', 'moon',
+    'rocket', 'satellite', 'telescope', 'radio', 'antenna', 'television',
+    'robot', 'computer', 'surveillance', 'street', 'driving',
+    'factory', 'neon', 'hypnosis', 'magic', 'circus',
+    'swimming', 'skating', 'jet', 'monster', 'puppet', 'wrestling', 'cats',
+  ];
+  const ARCHIVES = 'collection:prelinger OR collection:classic_tv_commercials OR collection:sciencefiction OR collection:feature_films OR collection:computerchronicles';
+  const queryFor = (theme) => theme.startsWith('subject:')
+    ? `(${ARCHIVES}) AND "${theme.slice(8)}"`
+    : THEMES[theme].q;
 
   const state = {
     films: [],
@@ -49,7 +62,8 @@ visuals.register('prelinger_broll', (() => {
   const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
 
   // Three searches per track: an ad, the theme the track's words point at (or a
-  // random one), and a quirky wildcard, so the reel is never the same twice.
+  // random one), and a wildcard (a quirky theme or a single subject), so the
+  // reel is never the same twice.
   function pickThemes(info) {
     const hay = ` ${info.key.toLowerCase()} `;
     const scored = Object.entries(THEMES)
@@ -57,14 +71,16 @@ visuals.register('prelinger_broll', (() => {
       .filter((x) => x.name !== 'ads')
       .sort((a, b) => b.hits - a.hits);
     const matched = scored[0].hits >= 1 ? scored[0].name : pickOne(Object.keys(THEMES).filter((n) => n !== 'ads'));
-    const wild = pickOne(QUIRKY.filter((n) => n !== matched));
+    const wild = Math.random() < 0.5
+      ? 'subject:' + pickOne(SUBJECTS)
+      : pickOne(QUIRKY.filter((n) => n !== matched));
     return ['ads', matched, wild];
   }
 
   // A random page of results instead of always the top ten. The hit count per
   // theme is remembered so this costs one request after the first visit.
   async function searchFilms(theme) {
-    const q = `(${THEMES[theme].q}) AND mediatype:movies`;
+    const q = `(${queryFor(theme)}) AND mediatype:movies`;
     const base = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) + '&fl%5B%5D=identifier&output=json';
     const key = 'broll-count2:' + theme;
     let count = 0;
