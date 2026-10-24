@@ -1,6 +1,6 @@
 'use strict';
 
-// An acid-yellow terminal test page. The big title is set in a 5x7 pixel font
+// A black terminal test page in phosphor green. The big title is set in a 5x7 pixel font
 // whose cells are drawn in one of six styles (horizontal, vertical, pixel,
 // brick, full, inflated); the list top-left shows which. Everything small
 // ticks, types and loads. Bass hits change the style, the barcode and the
@@ -9,8 +9,8 @@
 visuals.register('error_404', (() => {
   let myP5 = null;
 
-  const BG = '#d6ff00';
-  const INK = '#141414';
+  const BG = '#000000';
+  const INK = '#3dff5a';
   const MODES = ['HORIZONTAL', 'VERTICAL', 'PIXEL', 'BRICK LANE', 'FULL', 'INFLATED'];
   const TITLES = ['(ERROR 404)', '(NO SIGNAL)', '(DEAD LINK)', '(ERROR 404)', '(LOST FEED)'];
 
