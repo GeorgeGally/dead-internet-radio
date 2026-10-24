@@ -565,6 +565,24 @@ const gallery = (() => {
     return pick;
   }
 
+  // Now and then the dial moves on its own to another saved slot of the
+  // current artwork, at random times. It keeps its hands off while someone is
+  // at the deck or the drawer is open.
+  // Timing: every 20-75 s.
+  let _lastTouch = 0;
+  function driftSlot() {
+    setTimeout(driftSlot, 20000 + Math.random() * 55000);
+    if (isOpen || slotDirty || Date.now() - _lastTouch < 60000) return;
+    const id = visuals.getCurrentId();
+    const saved = artPresets[id] || {};
+    const slots = [];
+    for (let s = 1; s <= 9; s++) if (saved[s] && s !== activeSlot) slots.push(s);
+    if (!slots.length) return;
+    activeSlot = slots[Math.floor(Math.random() * slots.length)];
+    updateSlotUI();
+    loadSlot(id, activeSlot);
+  }
+
   let _ticksCreated = false;
 
   function updateSlotUI() {
@@ -593,6 +611,9 @@ const gallery = (() => {
   }
 
   function init() {
+    const deckEl = document.getElementById('deck');
+    if (deckEl) ['pointerdown', 'wheel', 'keydown'].forEach((ev) => deckEl.addEventListener(ev, () => { _lastTouch = Date.now(); }, { passive: true }));
+    setTimeout(driftSlot, 20000 + Math.random() * 55000);
     document.addEventListener('keydown', (e) => {
       if ((e.key === 'g' || e.key === '/') && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
         e.preventDefault();
