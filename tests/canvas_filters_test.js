@@ -115,6 +115,28 @@ test('Dither keeps the same dot pattern when nothing moves', () => {
   assert.deepEqual(Array.from(a.data), Array.from(b.data));
 });
 
+test('Dither cell size follows the canvas scale, not the device ratio', () => {
+  const { win, canvasFilters } = loadFilters();
+  const dither = canvasFilters.getFilter(10).fn;
+  win.devicePixelRatio = 3;
+
+  const css = stubContext(64, 64, solid(64, 64, 128, 128, 128));
+  css.canvas = { clientWidth: 64 };
+  dither(css, 64, 64, 0);
+
+  const retina = stubContext(128, 128, solid(128, 128, 128, 128, 128));
+  retina.canvas = { clientWidth: 64 };
+  dither(retina, 128, 128, 0);
+
+  let mismatches = 0;
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      if (retina.data[((2 * y + 1) * 128 + 2 * x + 1) * 4] !== css.data[(y * 64 + x) * 4]) mismatches++;
+    }
+  }
+  assert.equal(mismatches, 0, 'a 2x canvas must dither on the same CSS-pixel grid');
+});
+
 test('Glitch is seeded per frame, moves between frames and leaves the frame changed', () => {
   const { win, canvasFilters } = loadFilters();
   const glitch = canvasFilters.getFilter(11).fn;

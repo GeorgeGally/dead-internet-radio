@@ -69,8 +69,10 @@ const fxPipeline = (() => {
         const r = window._resonanceVal ?? 50;
         return r < 34 ? 1 : r < 67 ? 0 : 2;
       },
-      // Same cell size as the CPU version: the cutoff dial drives it.
-      block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
+      // Same cell size as the CPU version: the cutoff dial drives it, and the
+      // scale comes from the sampled canvas so pixelDensity(1) artwork keeps
+      // the same CSS-pixel grid.
+      block: (scale = 1) => canvasFilters.ditherCell(scale),
     },
     // Red and blue pulled apart sideways, wobbling; same numbers as the CPU
     // version, which read back the whole frame twice per tick.
@@ -256,7 +258,10 @@ const fxPipeline = (() => {
     gl.vertexAttribPointer(prog.loc.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(prog.loc.uTex, 0);
     gl.uniform2f(prog.loc.uRes, canvas.width, canvas.height);
-    gl.uniform1f(prog.loc.uBlock, SHADERS[key].block());
+    // Canvas pixels per CSS pixel, so shaders can size things in screen terms
+    // whatever pixel density the artwork draws at.
+    const scale = src.clientWidth ? src.width / src.clientWidth : 1;
+    gl.uniform1f(prog.loc.uBlock, SHADERS[key].block(scale));
     if (prog.loc.uMode) gl.uniform1f(prog.loc.uMode, SHADERS[key].mode ? SHADERS[key].mode() : 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
