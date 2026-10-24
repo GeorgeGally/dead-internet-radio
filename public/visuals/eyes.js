@@ -17,6 +17,8 @@ visuals.register('eyes', (() => {
       // underneath, and the one the dials drive on top.
       const base = { i: 0, t: 0 };
       const live = { i: 0, t: 0 };
+      let bassAvg = 0;
+      let flash = 0;
 
       p.preload = () => {
         gif = p.loadImage('visuals/media/eyes.gif');
@@ -83,12 +85,37 @@ visuals.register('eyes', (() => {
         // alpha: how much of the driven playhead shows over the original
         const alpha = Math.max(0, Math.min(1, (window._filterStrengthVal ?? 100) / 100));
 
+        // Sound: loudness speeds the driven eyes up, a bass hit cuts them to a
+        // random frame and flashes them in. Sensitivity scales both; 0 = deaf.
+        const gain = (window.audioInputGain ?? 50) / 50;
+        let level = 0;
+        let bass = 0;
+        if (audioAnalysisReady && analyser && frequencyData) {
+          analyser.getByteFrequencyData(frequencyData);
+          let all = 0;
+          let low = 0;
+          for (let i = 0; i < frequencyData.length; i++) {
+            all += frequencyData[i];
+            if (i < 12) low += frequencyData[i];
+          }
+          level = Math.min(1, (all / (frequencyData.length * 255)) * 2 * gain);
+          bass = Math.min(1, (low / (12 * 255)) * gain);
+        }
+        if (bass > 0.35 && bass > bassAvg * 1.35) {
+          live.i = Math.floor(Math.random() * frames.length);
+          live.t = 0;
+          flash = 1;
+        }
+        bassAvg = bassAvg * 0.95 + bass * 0.05;
+        flash *= 0.9;
+
         advance(base, dt, 1, 0);
-        advance(live, dt, speed, jump);
+        advance(live, dt, speed * (1 + level * 3), jump);
 
         p.background(0);
         drawFrame(base.i, 1);
-        if (alpha > 0) drawFrame(live.i, alpha);
+        const shown = Math.min(1, alpha + flash * (1 - alpha));
+        if (shown > 0) drawFrame(live.i, shown);
         canvasFilters.applyToP5(p);
       };
 
