@@ -138,6 +138,8 @@
   let state = null;
   let current = null;
   let nextIndex = 0;
+  let kind = '';
+  let loadTimer = 0;
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -148,7 +150,10 @@
   function step(now) {
     if (!current) return;
     const t = (now - startedAt) / 1000;
-    if (t > current.L) { stop(); return; }
+    if (t > current.L) {
+      if (kind === 'load') { play('load'); return; }
+      stop(); return;
+    }
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
     ctx.save();
@@ -168,9 +173,10 @@
     window.addEventListener('resize', () => { if (current) resize(); });
   }
 
-  function play() {
+  function play(mode) {
     if (!ctx || !IDENTS.length) return;
     stop();
+    kind = mode || '';
     current = IDENTS[nextIndex % IDENTS.length];
     nextIndex += 1;
     state = {};
@@ -180,7 +186,19 @@
     raf = requestAnimationFrame(step);
   }
 
+  function load() {
+    if (loadTimer || !ctx) return;
+    loadTimer = setTimeout(() => { loadTimer = 0; play('load'); }, 300);
+  }
+
+  function loadDone() {
+    if (kind === 'load' || loadTimer) stop();
+  }
+
   function stop() {
+    clearTimeout(loadTimer);
+    loadTimer = 0;
+    kind = '';
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
     current = null;
@@ -189,5 +207,5 @@
     if (canvas) canvas.classList.remove('on');
   }
 
-  window.idents = { list: IDENTS, init, play, stop };
+  window.idents = { list: IDENTS, init, play, load, loadDone, stop };
 })();

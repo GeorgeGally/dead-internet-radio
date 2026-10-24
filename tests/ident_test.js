@@ -30,6 +30,7 @@ function stubContext(log) {
 function loadIdents() {
   const log = [];
   const classes = new Set();
+  const timers = [];
   const canvas = {
     width: 0, height: 0,
     getContext: () => stubContext(log),
@@ -49,11 +50,20 @@ function loadIdents() {
     performance: { now: () => 0 },
     requestAnimationFrame: (cb) => { rafCallback = cb; return 1; },
     cancelAnimationFrame: () => { rafCallback = null; },
+    setTimeout: (fn) => { timers.push(fn); return timers.length; },
+    clearTimeout: (id) => { if (id) timers[id - 1] = null; },
     console,
   };
   vm.createContext(sandbox);
   vm.runInContext(read('public/ident.js'), sandbox);
-  return { idents: sandbox.window.idents, canvas, classes, log, frame: (ms) => rafCallback(ms) };
+  return {
+    idents: sandbox.window.idents,
+    canvas,
+    classes,
+    log,
+    frame: (ms) => rafCallback(ms),
+    flush: () => { const due = timers.splice(0); due.forEach((fn) => fn && fn()); },
+  };
 }
 
 test('ident.js keeps the lab ident contract', () => {
@@ -103,6 +113,28 @@ test('stop clears the frame so a skipped track cannot leave a half-drawn ident',
   assert.equal(canvas.width, 1920);
 });
 
+test('a load ident fills the wait, rotating until the audio starts', () => {
+  const { idents, classes, frame, flush } = loadIdents();
+  idents.init();
+  idents.load();
+  assert.ok(!classes.has('on'), 'a fast load does not flash an ident frame');
+  flush();
+  assert.ok(classes.has('on'), 'a real wait gets an ident');
+  frame(12000);
+  assert.ok(classes.has('on'), 'rolls on to the next ident instead of going blank');
+  idents.loadDone();
+  assert.ok(!classes.has('on'), 'clears the moment the audio starts');
+});
+
+test('audio that starts first cancels a queued load ident', () => {
+  const { idents, classes, flush } = loadIdents();
+  idents.init();
+  idents.load();
+  idents.loadDone();
+  flush();
+  assert.ok(!classes.has('on'), 'a load that finished waiting never flashes an ident');
+});
+
 test('the site wires the ident without per-ident branching', () => {
   const html = read('public/index.html');
   const css = read('public/style.css');
@@ -117,6 +149,8 @@ test('the site wires the ident without per-ident branching', () => {
   assert.match(app, /idents\.init\(\)/);
   assert.match(app, /idents\.play\(\)/);
   assert.match(app, /idents\.stop\(\)/);
+  assert.match(app, /idents\.load\(\)/);
+  assert.ok(app.indexOf("addEventListener('playing', idents.loadDone)") > -1);
   assert.doesNotMatch(app, /ascii-block-wall/);
   assert.match(build, /"ident\.js"/);
 });

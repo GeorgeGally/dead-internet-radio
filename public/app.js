@@ -143,6 +143,7 @@ function setupAudio(noSeek) {
 
   const audio = document.getElementById('player');
   audio.src = playlistBase + tracks[currentTrack].file;
+  idents.load();
 
   setupAudioAnalysis();
 
@@ -895,10 +896,12 @@ async function fetchLive() {
 
 // Tune to the shared timeline (also used to resync after each segment).
 async function goLive(fromTrackEnd) {
+  idents.load();
   let next;
   try {
     next = await fetchLive();
   } catch (e) {
+    idents.loadDone();
     return;
   }
   stopVoiceover();
@@ -908,6 +911,7 @@ async function goLive(fromTrackEnd) {
   if (fromTrackEnd) visuals.next();
   visuals.notify('trackChange');
   setupAudio();
+  idents.play();
   updateTrackInfo();
   updatePlayBtn();
 }
@@ -1039,6 +1043,7 @@ async function selectShow(showId) {
 
   visuals.notify('trackChange');
   setupAudio();
+  idents.play();
   updateTrackInfo();
 
   if (audioCtx && audioCtx.state === 'suspended') {
@@ -1150,6 +1155,12 @@ let audioAnalysisReady = false;
   window.addEventListener('resize', initWave);
   visuals.init();
   idents.init();
+  const player = document.getElementById('player');
+  if (player) {
+    player.addEventListener('playing', idents.loadDone);
+    player.addEventListener('error', idents.loadDone);
+  }
+  idents.load();
   gallery.init();
   visuals.prewarmThumbnails();
   // engine.next/prev/random route through visuals.activate, so this wrapper
