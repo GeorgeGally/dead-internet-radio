@@ -42,6 +42,7 @@ visuals.register('led_grid', (() => {
       let lineWidth = 0.2;
 
       let frameSkips = 0;
+      let glow = null;
 
       function randomInt(min, max) {
         if (max === undefined) { max = min; min = 0; }
@@ -173,11 +174,18 @@ visuals.register('led_grid', (() => {
         p.image(hiddenCtx2, 0, 0, p.width, p.height);
         hiddenCtx.loadPixels();
         p.noStroke();
-        for (let y = 0; y < p.height; y += sz) {
-          for (let x = 0; x < p.width; x += sz) {
-            const c = sample(x, y);
-            if (c > (window.ledThreshold || 40)) {
-              p.fill(255);
+        // Each LED glows: it lights at once but fades out over a few frames,
+        // so a cell sitting on the threshold no longer blinks every frame.
+        const cols = Math.ceil(p.width / sz);
+        const rows = Math.ceil(p.height / sz);
+        if (!glow || glow.length !== cols * rows) glow = new Float32Array(cols * rows);
+        const threshold = window.ledThreshold || 40;
+        for (let row = 0, y = 0; row < rows; row++, y += sz) {
+          for (let col = 0, x = 0; col < cols; col++, x += sz) {
+            const i = row * cols + col;
+            glow[i] = sample(x, y) > threshold ? 1 : glow[i] * 0.8;
+            if (glow[i] > 0.05) {
+              p.fill(255, 255 * glow[i]);
               p.rect(x, y, sz - 1, sz - 1);
             }
           }
@@ -265,6 +273,18 @@ visuals.register('led_grid', (() => {
         p.angleMode(p.DEGREES);
       };
 
+      // The hidden layers are sampled at canvas coordinates, so they must
+      // match the canvas size or the LEDs read the wrong pixels.
+      p.windowResized = () => {
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
+        hiddenCtx.resizeCanvas(p.width, p.height);
+        hiddenCtx2.resizeCanvas(p.width, p.height);
+        hiddenCtx2.clear();
+        gingham();
+        glow = null;
+        reset();
+      };
+
       p.draw = () => {
         updateAudio();
 
@@ -288,7 +308,8 @@ visuals.register('led_grid', (() => {
           }
         }
 
-        if (pix && p.frameCount % 4 === 0 && chance(8)) randomPixelate();
+        // A rare glitch frame, not a constant flicker.
+        if (pix && p.frameCount % 4 === 0 && chance(120)) randomPixelate();
         led();
         canvasFilters.applyToP5(p);
 
