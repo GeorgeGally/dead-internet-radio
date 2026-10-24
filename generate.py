@@ -19,7 +19,8 @@ ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # Memory knobs. Peak memory scales with track length, so cap it. Thinking runs
 # the 4B LM to plan the audio codes: it drops the cheesy high EDM synths
 # (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
-MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "105"))
+MIN_TRACK_SECONDS = int(os.getenv("MIN_TRACK_SECONDS", "105"))
+MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "180"))
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated list of models to try in order. A pinned model keeps the
@@ -772,7 +773,9 @@ def main():
 
         # --- Process tracks (shared between batch and per-track) ---
         for i, song in enumerate(songs, 1):
-            song["duration"] = min(max(song.get("duration", 180), 60), MAX_TRACK_SECONDS)
+            # Lengths vary across a set: the DJ's choice, nudged so no two match.
+            asked = song.get("duration") or random.randint(MIN_TRACK_SECONDS, MAX_TRACK_SECONDS)
+            song["duration"] = min(max(int(asked) + random.randint(-12, 12), MIN_TRACK_SECONDS), MAX_TRACK_SECONDS)
             track_prompt = song.pop("_prompt", dj_input)
 
             title = song.get("title", "").strip() or "Untitled"

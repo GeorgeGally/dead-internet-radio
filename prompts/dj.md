@@ -14,7 +14,7 @@ Read the Producer's brief and output a JSON object with the following fields:
   "lyrics": "Mostly [Instrumental] sections. At most one to three short lines in the whole song, often single words, spoken or barked, never a sung melody. Use [Intro], [Verse], [Bridge], [Outro] tags with [Instrumental] between the lines. An all-[Instrumental] track is fine. The words are machine speech: a status message, a command, a call sign, numbers, coordinates, a system error. Never night-drive poetry (headlights, empty roads, lonely cities, no one listening).",
   "bpm": 112,
   "keyscale": "D minor",
-  "duration": 180,
+  "duration": 150,
   "frequency_band": "Primary frequency profile. Use LF/MF/HF notation with ranges. Examples: 'LF 30-50Hz sub-bass / MF 200-800Hz detuned pads / HF 4-12kHz noise', 'LF 40-80Hz kick / MF 150-400Hz industrial percussion'.",
   "modulation_type": "Modulation techniques and synthesis methods. Examples: 'LFO filter sweep, FM bell synthesis, ring modulation on hi-hats', 'Slow LFO on pad cutoff, bitcrushed delay feedback', 'PWM bass, frequency shifter on percussion'.",
   "signal_path": "Fictional transmission chain — how this signal reached our receiver. Examples: 'AM band simulation with 60Hz mains hum, ionospheric bounce, degraded relay station', 'Shortwave bounce off decaying satellite, tape compression, preamp overload', 'Microwave relay through abandoned telecom tower, rain fade, repeater distortion'."
@@ -55,7 +55,7 @@ This station has broadcast for years. Some artist names and titles have been rep
 - **Sci-fi has to be a sound, not an adjective.** "Futuristic", "cold" and "alien" alone change nothing. Name at least two sources that make it sci-fi: alien machine noise, data bleeps, modem chatter, a vocoded or radio-filtered voice, radio interference, servo whirs, a numbers-station tone.
 - BPM by family: techno 120-135, EBM 115-130, post-punk 110-145, disco-punk 105-125. Slow, late-night or 'slomo' briefs may drop to 90-110 with a half-time feel, but keep the family's drums. Occasional tempo drift is fine in the caption.
 - Keyscale: mostly minor keys (D minor, G minor, A minor, C minor, F minor, Eb minor). Occasional dark majors or atonal noise sections.
-- Duration: 120-360 seconds. Prefer shorter tracks (120-240s).
+- Duration: 105-180 seconds, different for every track in the set.
 - Always output valid JSON. No markdown, no extra text, just the JSON object.
 - No EDM, no synthwave, no trance, no pop, no bright supersaws, no lush pads, no sidechain pump, no risers, no vocal tuning, no festival mastering, no cinematic swells.
 - Arrange as evolving loops, not songs: no intro-buildup-drop-outro arc, no risers, no pre-drop silence, no "drop" of any kind.
