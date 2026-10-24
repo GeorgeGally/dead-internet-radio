@@ -1423,3 +1423,53 @@ body.prewarming #block-canvas {
     background: #000;
   }
 }
+
+/* ---- Listener report: occasional poster of what the browser gives away ---- */
+#listener-report {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  background: #0b0b0b;
+  color: #f2f2ee;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-weight: 500;
+  font-size: var(--fs, 64px);
+  line-height: 1.02;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  padding: 4vh 4vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s ease, visibility 0s 0.8s;
+}
+
+#listener-report.lr-on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.8s ease, visibility 0s 0s;
+}
+
+#listener-report .lr-row {
+  display: flex;
+  justify-content: space-between;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+#listener-report.lr-on .lr-row {
+  animation: lr-in 0.5s ease forwards;
+  animation-delay: calc(0.6s + var(--i) * 0.18s);
+}
+
+#listener-report .lr-label {
+  justify-content: center;
+  padding-right: 18%;
+}
+
+@keyframes lr-in {
+  to { opacity: 1; }
+}
