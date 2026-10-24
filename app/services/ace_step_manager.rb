@@ -122,6 +122,13 @@ class AceStepManager
         'ACESTEP_SAVE_MEMORY' => '1',
         # The 4B LM is the biggest resident model; 1.7B plans structure fine for mostly instrumental tracks.
         'ACESTEP_LM_MODEL_PATH' => ENV.fetch('ACESTEP_LM_MODEL_PATH', 'acestep-5Hz-lm-1.7B'),
+        # Same memory caps as start-ace-step.sh: no LM, smallest decode chunks.
+        'ACESTEP_INIT_LLM' => ENV.fetch('ACESTEP_INIT_LLM', 'false'),
+        'ACESTEP_MLX_VAE_CHUNK' => ENV.fetch('ACESTEP_MLX_VAE_CHUNK', '192'),
+        'ACESTEP_VAE_DECODE_CHUNK_SIZE' => ENV.fetch('ACESTEP_VAE_DECODE_CHUNK_SIZE', '256'),
+        'ACESTEP_MPS_DECODE_OFFLOAD' => ENV.fetch('ACESTEP_MPS_DECODE_OFFLOAD', '1'),
+        'ACESTEP_MPS_HALF' => ENV.fetch('ACESTEP_MPS_HALF', '1'),
+        'ACESTEP_MLX_VAE_FP16' => ENV.fetch('ACESTEP_MLX_VAE_FP16', '1'),
       }
       pid = Process.spawn(
         env,

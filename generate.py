@@ -16,11 +16,11 @@ load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
-# Memory knobs. Peak memory scales with track length, so cap it; thinking runs
-# the 5Hz LM to plan the audio codes (structure), not just lyrics — set
-# ACE_STEP_THINKING=0 to skip it when the LM isn't loaded.
+# Memory knobs. Peak memory scales with track length, so cap it. Thinking runs
+# the 5Hz LM to plan the audio codes; it's off by default because the LM costs
+# ~4 GB and start-ace-step.sh doesn't load it (ACE_STEP_THINKING=1 to opt in).
 MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "150"))
-ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
+ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "0").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
@@ -268,7 +268,9 @@ def call_ace_step(payload: dict) -> str:
         "thinking": ACE_STEP_THINKING,
         # The API defaults to 2 variations and we keep only the first.
         "batch_size": 1,
-        "audio_format": "mp3",
+        # WAV is written by soundfile; ACE-Step's MP3 path needs Homebrew's FFmpeg
+        # libraries, which break whenever Homebrew upgrades a codec under them.
+        "audio_format": "wav",
     }
     req = urllib.request.Request(
         f"{ACE_STEP_URL}/release_task",
@@ -316,6 +318,11 @@ def poll_ace_step(task_id: str, poll_interval: int = 15, timeout: int = 900,
             consecutive_errors += 1
             elapsed = int(time.time() - start)
             status = "busy" if consecutive_errors < 15 else "unreachable"
+            # The watchdog kills ACE-Step when memory runs low; the task is gone
+            # with it, so stop rather than wait out the whole timeout.
+            if consecutive_errors >= 24 and not check_ace_step_health()[0]:
+                print("  ACE-Step went away (memory watchdog?) - giving up", file=sys.stderr)
+                sys.exit(1)
             print(f"  ACE-Step {status} ({elapsed}s), retrying...", flush=True)
             time.sleep(min(poll_interval, 30))
             continue
@@ -355,11 +362,22 @@ def wav_to_mp3(wav_path: Path, mp3_path: Path) -> bool:
 
 def download_audio(audio_url: str, output_path: Path):
     full_url = f"{ACE_STEP_URL}{audio_url}"
+    wav_path = output_path.with_suffix(".wav")
     try:
-        urllib.request.urlretrieve(full_url, output_path)
+        urllib.request.urlretrieve(full_url, wav_path)
     except Exception as e:
         print(f"  Download failed: {e}", file=sys.stderr)
         sys.exit(1)
+    if output_path.suffix == ".wav":
+        return
+    try:
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path),
+                        "-codec:a", "libmp3lame", "-b:a", "320k", str(output_path)], check=True)
+    except (OSError, subprocess.CalledProcessError) as e:
+        # Keep the WAV: a finished track is never thrown away.
+        print(f"  MP3 encode failed ({e}); kept {wav_path}", file=sys.stderr)
+        sys.exit(1)
+    wav_path.unlink()
 
 
 def generate_announcement(text: str, output_path: Path, intensity: float = 0.5):

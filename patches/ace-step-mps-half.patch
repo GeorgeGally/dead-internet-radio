@@ -1,0 +1,49 @@
+diff --git a/acestep/core/generation/handler/init_service_orchestrator.py b/acestep/core/generation/handler/init_service_orchestrator.py
+index 4b03224..5453069 100644
+--- a/acestep/core/generation/handler/init_service_orchestrator.py
++++ b/acestep/core/generation/handler/init_service_orchestrator.py
+@@ -97,6 +97,11 @@ class InitServiceOrchestratorMixin:
+                         "[initialize_service] Pre-Ampere CUDA detected: "
+                         "using float16 instead of bfloat16."
+                     )
++            elif resolved_device == "mps" and os.environ.get("ACESTEP_MPS_HALF", "0").lower() in ("1", "true", "yes"):
++                # Dead Internet Radio: float32 on MPS doubles every model in
++                # unified memory (~23 GB loaded); bfloat16 halves it.
++                self.dtype = torch.bfloat16
++                logger.info("[initialize_service] MPS: using dtype=bfloat16 (ACESTEP_MPS_HALF=1)")
+             else:
+                 self.dtype = torch.bfloat16 if resolved_device == "xpu" else torch.float32
+             self.quantization = normalized_quantization
+diff --git a/acestep/models/mlx/dit_convert.py b/acestep/models/mlx/dit_convert.py
+index 3305e1d..7bd65a7 100644
+--- a/acestep/models/mlx/dit_convert.py
++++ b/acestep/models/mlx/dit_convert.py
+@@ -1,6 +1,7 @@
+ # Weight conversion from PyTorch AceStep DiT decoder to native MLX format.
+ 
+ import logging
++import os
+ from typing import Dict, List, Tuple
+ 
+ import numpy as np
+@@ -32,6 +33,7 @@ def convert_decoder_weights(
+ 
+     decoder = pytorch_model.decoder
+     state_dict = decoder.state_dict()
++    _half = os.environ.get("ACESTEP_MPS_HALF", "0").lower() in ("1", "true", "yes")
+ 
+     weights: List[Tuple[str, "mx.array"]] = []
+ 
+@@ -58,7 +60,11 @@ def convert_decoder_weights(
+         elif "rotary_emb" in key:
+             continue
+ 
+-        weights.append((new_key, mx.array(np_val)))
++        arr = mx.array(np_val)
++        if _half and mx.issubdtype(arr.dtype, mx.floating):
++            # Dead Internet Radio: keep the MLX copy in bfloat16 as well.
++            arr = arr.astype(mx.bfloat16)
++        weights.append((new_key, arr))
+ 
+     logger.info(
+         "[MLX-DiT] Converted %d decoder parameters to MLX format.", len(weights)
