@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D.I.R. Logo Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,900&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: VT100; src: url(../fonts/vt100-regular/vt100-regular.otf.woff2) format('woff2'); }
+:root { --bg: #0e0e0d; --ink: #ece8df; --dim: #9a958c; --frame: #191918; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 'Plus Jakarta Sans', sans-serif; }
+header, section { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 64px; padding-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: 0; }
+header p { margin: 0; color: var(--dim); max-width: 640px; }
+section { margin-bottom: 80px; }
+.tag { margin: 0 0 16px; max-width: 760px; }
+.tag b { font-weight: 700; }
+.frame { background: var(--frame); padding: 12px; border-radius: 6px; }
+.plate { position: relative; aspect-ratio: 16 / 9; border-radius: 2px; overflow: hidden; display: grid; place-items: center; }
+.plate canvas { display: block; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.bar { height: 64px; border-radius: 2px; display: flex; align-items: center; padding: 0 14px; }
+.bar.cream { background: #d9d4ca; }
+.bar.dark { background: #2f2d2b; }
+.bar canvas { display: block; }
+.fade { opacity: 0; transition: opacity .9s ease; }
+.fade.on { opacity: 1; }
+/* ?only=N : one version, filling the viewport (screenshots) */
+body.solo header, body.solo .tag { display: none; }
+body.solo section { max-width: 1440px; margin: 0; padding: 24px; }
+body.solo .plate { aspect-ratio: auto; height: calc(100vh - 48px - 76px); }
+@media (max-width: 640px) { .checks { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>D.I.R. logo</h1>
+  <p>Ten marks for Dead Internet Radio. Each sits large on its own ground, then at 36px in the player's deck bar, on cream and on dark.</p>
+</header>
+<main id="lab"></main>
+<script>
+'use strict';
+const ORANGE = '#ff5a1f', CREAM = '#f2eee6', INK = '#0b0b0a';
+function rng(hex) {
+  let a = parseInt(hex.slice(0, 8), 16) >>> 0;
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const JK = (px, wt = 800) => `${wt} ${px}px 'Plus Jakarta Sans', sans-serif`;
+// Font size whose capital "D" is exactly H tall.
+function capPx(c, H, fam) {
+  c.font = fam(100);
+  const m = c.measureText('D');
+  return H * 100 / m.actualBoundingBoxAscent;
+}
+function off(w, h) { const k = document.createElement('canvas'); k.width = Math.max(1, Math.ceil(w)); k.height = Math.max(1, Math.ceil(h)); return k; }
+// Rasterise text (cap height H) to an alpha mask.
+function textMask(s, H, fam, stretch) {
+  const k = off(10, 10), x = k.getContext('2d');
+  if (stretch) x.fontStretch = stretch;
+  const px = capPx(x, H, fam); x.font = fam(px);
+  const w = x.measureText(s).width;
+  k.width = Math.ceil(w); k.height = Math.ceil(H * 1.02);
+  if (stretch) x.fontStretch = stretch;
+  x.font = fam(px); x.textBaseline = 'alphabetic'; x.fillStyle = '#fff';
+  x.fillText(s, 0, H);
+  return k;
+}
+
+// ---------------------------------------------------------------- versions
+const V = [];
+
+// V1 — EBU bars inside the letters
+V.push({
+  seed: '65654398d12d8361d454a2b3cc5c8ef3214a27545814c9da',
+  name: 'Bar Letters', idea: 'EBU 75% colour bars show only inside a wide, heavy D.I.R.; the letters are the test card.',
+  ground: '#000', big: .30,
+  draw(c, H, light) {
+    const m = textMask('D.I.R.', H, px => `900 expanded ${px}px Archivo, sans-serif`);
+    const bars = [light ? '#2a2826' : '#c0c0c0', '#c0c000', '#00c0c0', '#00c000', '#c000c0', '#c00000', '#0000c0'];
+    const k = off(m.width, m.height), x = k.getContext('2d');
+    const bw = m.width / bars.length;
+    bars.forEach((col, i) => { x.fillStyle = col; x.fillRect(Math.floor(i * bw), 0, Math.ceil(bw) + 1, m.height); });
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(m, 0, 0);
+    c.drawImage(k, 0, 0);
+    return m.width;
+  },
+});
+
+// V2 — oscilloscope beam: one stroke, retrace left visible
+V.push({
+  seed: '47512c1c9eedbad4362b81d802ae67a85b918f7606e576c7',
+  name: 'Beam', idea: 'D, I and R drawn by one oscilloscope beam that never lifts; the faint retrace becomes a flatline running off to the right.',
+  ground: '#060605', big: .34,
+  draw(c, H, light) {
+    const s = H / 100, w = 262 * s, lw = Math.max(1.4, 7 * s);
+    const lit = 'M0 100 L0 0 L26 0 C62 0 74 24 74 50 C74 76 62 100 26 100 L0 100 M104 100 L104 0 M134 100 L134 0 L168 0 C189 0 198 12 198 27 C198 42 189 54 168 54 L134 54 M162 54 L198 100';
+    const dim = 'M0 100 L262 100 M104 0 L134 0';
+    c.save(); c.scale(s, s); c.translate(lw / s / 2, lw / s / 2);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const core = light ? INK : '#ffe7d8';
+    c.strokeStyle = light ? 'rgba(11,11,10,.28)' : 'rgba(255,90,31,.38)'; c.lineWidth = lw / s * .45; c.stroke(new Path2D(dim));
+    if (!light) { c.strokeStyle = 'rgba(255,90,31,.55)'; c.lineWidth = lw / s * 2.1; c.filter = `blur(${Math.max(1, 4 * s)}px)`; c.stroke(new Path2D(lit)); c.filter = 'none'; }
+    c.strokeStyle = light ? INK : ORANGE; c.lineWidth = lw / s * 1.25; c.stroke(new Path2D(lit));
+    if (!light) { c.strokeStyle = core; c.lineWidth = lw / s * .5; c.stroke(new Path2D(lit)); }
+    c.fillStyle = light ? ORANGE : '#fff'; c.beginPath(); c.arc(262, 100, lw / s * 1.1, 0, 7); c.fill();
+    c.restore();
+    return w + lw * 2;
+  },
+});
+
+// V3 — teletext separated mosaics
+const GLYPH = {
+  D: ['11110', '11011', '11001', '11001', '11001', '11001', '11001', '11011', '11110'].map(r => r + '0'),
+  I: Array(9).fill('11'),
+  R: ['111100', '110110', '110011', '110011', '110110', '111100', '110110', '110011', '110011'],
+  '.': ['00', '00', '00', '00', '00', '00', '00', '11', '11'],
+};
+V.push({
+  seed: '2843d3da7bbb7d4c2daaf463a34d562073121e6a4e31aec3',
+  name: 'Separated Mosaic', idea: 'Ceefax separated-graphics blocks, each sextant its own tile, in cream with orange stops.',
+  ground: '#000', big: .36,
+  draw(c, H, light) {
+    const word = ['D', '.', 'I', '.', 'R', '.'], p = H / 9, gap = Math.max(1, p * .2);
+    let x = 0;
+    word.forEach((ch, i) => {
+      const g = GLYPH[ch];
+      c.fillStyle = ch === '.' ? ORANGE : (light ? INK : CREAM);
+      g.forEach((row, r) => [...row].forEach((b, col) => { if (b === '1') c.fillRect(Math.round(x + col * p), Math.round(r * p), Math.max(1, Math.round(p - gap)), Math.max(1, Math.round(p - gap))); }));
+      x += g[0].length * p + (i < word.length - 1 ? p : 0);
+    });
+    return x;
+  },
+});
+
+// V4 — CRT switch-off dots as the full stops
+V.push({
+  seed: '956a74a5e0e6e59e0a329da14753b2a8dcd26b8590ccdbf7',
+  name: 'Switch-off', idea: 'A quiet serif D.I.R. whose full stops are the last bright dot a CRT leaves when it switches off.',
+  ground: '#0b0b0a', big: .34,
+  draw(c, H, light) {
+    const fam = px => `400 ${px}px 'Instrument Serif', serif`;
+    const px = capPx(c, H, fam); c.font = fam(px); c.textBaseline = 'alphabetic';
+    const ink = light ? INK : CREAM, r = H * .085;
+    let x = 0;
+    ['D', 'I', 'R'].forEach(ch => {
+      c.fillStyle = ink; c.fillText(ch, x, H); x += c.measureText(ch).width + H * .07;
+      const cx = x + r, cy = H - r;
+      if (!light) {
+        const g = c.createRadialGradient(cx, cy, 0, cx, cy, r * 3.2);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.28, 'rgba(255,214,190,.95)'); g.addColorStop(.42, 'rgba(255,90,31,.45)'); g.addColorStop(1, 'rgba(255,90,31,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(cx, cy, r * 3.2, 0, 7); c.fill();
+      } else { c.fillStyle = ORANGE; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill(); }
+      x += r * 2 + H * .1;
+    });
+    return x - H * .1 + r * 2;
+  },
+});
+
+// V5 — numbers station groups
+V.push({
+  seed: '172965447028139e0435cacc2a614a92021b9a1830827c33',
+  name: 'Groups', idea: 'D.I.R. read as a numbers-station transmission: letters 04, 09 and 18 of the alphabet, keyed underneath.',
+  ground: '#0b0b0a', big: .26, wide: true,
+  draw(c, H, light, full) {
+    const fam = px => `${px}px VT100, monospace`;
+    const px = capPx(c, H, fam); c.font = fam(px); c.textBaseline = 'alphabetic';
+    const groups = ['04', '09', '18'], cw = c.measureText('0').width, sp = cw * .9;
+    let x = 0;
+    groups.forEach((gp, i) => {
+      c.fillStyle = light ? INK : CREAM; c.fillText(gp, x, H);
+      if (full) { c.font = `500 ${H * .2}px 'IBM Plex Mono', monospace`; c.fillStyle = ORANGE; c.textAlign = 'center'; c.fillText('DIR'[i], x + cw, H * 1.5); c.textAlign = 'left'; c.font = fam(px); }
+      x += cw * 2 + sp;
+      if (i < 2) { c.fillStyle = ORANGE; c.fillRect(x - sp / 2 - H * .05, H * .45, H * .1, H * .1); }
+    });
+    return x - sp;
+  },
+});
+
+// V6 — test-card roundel
+V.push({
+  seed: '0acc44a16afa188d47153c5d9cf74abbd630b04443a5dab0',
+  name: 'Roundel', idea: 'The centre circle of a test card: bars above, a grey step wedge below, the station name on the black band between.',
+  ground: '#2f2d2b', big: .62, square: true,
+  draw(c, H, light) {
+    const R = H / 2, cx = R, cy = R;
+    c.save(); c.beginPath(); c.arc(cx, cy, R, 0, 7); c.clip();
+    const bars = ['#f2eee6', '#e8c547', '#4fb5c4', '#58a55c', '#c25b9e', '#ff5a1f', '#3557c4'];
+    bars.forEach((col, i) => { c.fillStyle = col; c.fillRect(i * H / 7, 0, H / 7 + 1, H * .36); });
+    c.fillStyle = INK; c.fillRect(0, H * .36, H, H * .3);
+    const steps = 6; for (let i = 0; i < steps; i++) { const v = Math.round(20 + i * 220 / (steps - 1)); c.fillStyle = `rgb(${v},${v - 3},${v - 8})`; c.fillRect(i * H / steps, H * .66, H / steps + 1, H * .34); }
+    if (H >= 30) {
+      const px = capPx(c, H * .12, JK); c.font = JK(px); c.fillStyle = CREAM; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+      c.fillText('D.I.R.', cx, H * .51 + H * .06);
+    }
+    c.restore();
+    return H;
+  },
+});
+
+// V7 — tuning scale, the I is the needle
+V.push({
+  seed: '2aed9df6a84465315433fdf8dc9087d345c08c68e921e466',
+  name: 'Tuning Scale', idea: 'D and R built only from the vertical ticks of a radio dial; the I is the orange needle that sits on the station.',
+  ground: '#f2eee6', big: .34,
+  draw(c, H, light, full) {
+    const ink = light ? INK : (this._onDark ? CREAM : INK);
+    const step = Math.max(2.2, H / 15), lw = Math.max(1, step * .42);
+    const fam = px => JK(px);
+    const D = textMask('D', H, fam), R = textMask('R', H, fam);
+    const sample = (m) => { const x = m.getContext('2d').getImageData(0, 0, m.width, m.height).data; return (px, py) => px < 0 || py < 0 || px >= m.width || py >= m.height ? 0 : x[(Math.floor(py) * m.width + Math.floor(px)) * 4 + 3] > 128; };
+    const drawTicks = (m, ox) => {
+      const on = sample(m); c.fillStyle = ink;
+      for (let x = step / 2; x < m.width; x += step) {
+        let y0 = -1; for (let y = 0; y <= m.height; y++) { const v = on(x, y); if (v && y0 < 0) y0 = y; if (!v && y0 >= 0) { c.fillRect(Math.round(ox + x - lw / 2), y0, lw, y - y0); y0 = -1; } }
+      }
+      return m.width;
+    };
+    let x = drawTicks(D, 0) + step * 1.5;
+    c.fillStyle = ORANGE; c.fillRect(Math.round(x), -H * .12, Math.max(2, step * .7), H * 1.24);
+    x += step * .7 + step * 1.5;
+    x += drawTicks(R, x);
+    if (full) {
+      c.fillStyle = ink; c.globalAlpha = .45;
+      for (let t = -step * 12, i = 0; t < x + step * 12; t += step, i++) c.fillRect(Math.round(t), H * 1.2, lw * .7, i % 5 === 0 ? H * .14 : H * .07);
+      c.globalAlpha = 1;
+    }
+    return x;
+  },
+});
+
+// V8 — hardware nameplate
+V.push({
+  seed: '7c7633d8439d4dd59e3a2313396d8370af028b317c282564',
+  name: 'Nameplate', idea: 'A small cream badge screwed onto the deck, with a power LED: the logo as a part of the hardware.',
+  ground: '#d9d4ca', big: .24,
+  draw(c, H, light) {
+    const px = capPx(c, H * .4, JK); c.font = JK(px);
+    const tw = c.measureText('D.I.R.').width, pad = H * .42, led = H * .13;
+    const w = pad + led * 2 + H * .26 + tw + pad, r = H * .16;
+    c.fillStyle = light ? CREAM : CREAM;
+    c.beginPath(); c.roundRect(0, 0, w, H, r); c.fill();
+    c.strokeStyle = 'rgba(11,11,10,.14)'; c.lineWidth = Math.max(1, H * .02); c.beginPath(); c.roundRect(.5, .5, w - 1, H - 1, r); c.stroke();
+    c.fillStyle = ORANGE; c.beginPath(); c.arc(pad + led, H / 2, led, 0, 7); c.fill();
+    c.fillStyle = INK; c.textBaseline = 'alphabetic'; c.fillText('D.I.R.', pad + led * 2 + H * .26, H / 2 + H * .2);
+    return w;
+  },
+});
+
+// V9 — horizontal hold slipping
+V.push({
+  seed: 'aa3870b07b49137adf5e7f6d16306e93c63d5176647ced7e',
+  name: 'Horizontal Hold', idea: 'D.I.R. cut into scan bands that have slipped sideways, as when a set loses horizontal hold; one band runs orange.',
+  ground: '#0b0b0a', big: .32,
+  draw(c, H, light) {
+    const r = rng(this.seed);
+    const m = textMask('D.I.R.', H, JK), n = 7, bh = m.height / n;
+    const ink = light ? INK : CREAM;
+    const shifts = Array.from({ length: n }, (_, i) => (i === 0 || i === n - 1) ? 0 : Math.round((r() - .5) * H * .22));
+    const hot = 2 + Math.floor(r() * (n - 4));
+    shifts[hot] = Math.round(H * .16);
+    const k = off(m.width, m.height), x = k.getContext('2d');
+    for (let i = 0; i < n; i++) {
+      x.clearRect(0, 0, k.width, k.height); x.globalCompositeOperation = 'source-over';
+      x.drawImage(m, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = i === hot ? ORANGE : ink; x.fillRect(0, 0, k.width, k.height);
+      const y0 = Math.floor(i * bh), y1 = Math.floor((i + 1) * bh);
+      c.drawImage(k, 0, y0, k.width, y1 - y0, H * .12 + shifts[i], y0, k.width, y1 - y0);
+    }
+    return m.width + H * .3;
+  },
+});
+
+// V10 — station clock
+V.push({
+  seed: '646a922dcc2dd15cbdb1803e88420bf502ed9701171dbca3',
+  name: 'Station Clock', idea: 'Sixty second-dots round the letters, lit up to the current second, the way a broadcaster’s clock counts into the hour.',
+  ground: '#ff5a1f', big: .66, square: true, live: true,
+  draw(c, H, light, full, onOrange) {
+    const R = H / 2, s = new Date().getSeconds() + new Date().getMilliseconds() / 1000;
+    const on = onOrange ? INK : (light ? INK : CREAM), offc = onOrange ? 'rgba(11,11,10,.22)' : (light ? 'rgba(11,11,10,.2)' : 'rgba(242,238,230,.2)');
+    const lit = onOrange ? INK : ORANGE;
+    const dr = H * .028;
+    for (let i = 0; i < 60; i++) {
+      const a = -Math.PI / 2 + i / 60 * Math.PI * 2, rr = R - dr * 1.6, big = i % 5 === 0;
+      const k = Math.max(0, Math.min(1, (s - i) / .5));
+      c.fillStyle = offc; c.beginPath(); c.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, dr, 0, 7); c.fill();
+      if (i <= s) { c.globalAlpha = i < Math.floor(s) ? 1 : k; c.fillStyle = lit; c.beginPath(); c.arc(R + Math.cos(a) * rr, R + Math.sin(a) * rr, dr, 0, 7); c.fill(); c.globalAlpha = 1; }
+    }
+    const px = capPx(c, H * .2, JK); c.font = JK(px); c.fillStyle = on; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    c.fillText('DIR', R, R + H * .1);
+    return H;
+  },
+});
+
+// ---------------------------------------------------------------- render
+const params = new URLSearchParams(location.search);
+const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
+if (ONLY !== null) document.body.classList.add('solo');
+const DPR = Math.min(2, devicePixelRatio || 1);
+const live = [];
+
+function paint(cv, v, H, light, full, onGround) {
+  const probe = off(4000, H * 2).getContext('2d');
+  probe.translate(0, H * .3);
+  const w = v.draw.call(v, probe, H, light, full, onGround);
+  const pad = H * (full ? .5 : .15);
+  cv.width = Math.ceil((w + pad * 2) * DPR); cv.height = Math.ceil((H + pad * 2) * DPR);
+  cv.style.width = (w + pad * 2) + 'px'; cv.style.height = (H + pad * 2) + 'px';
+  const c = cv.getContext('2d'); c.scale(DPR, DPR); c.translate(pad, pad);
+  v._onDark = !light && v.ground !== '#f2eee6' ? true : false;
+  v.draw.call(v, c, H, light, full, onGround);
+}
+
+function build() {
+  V.forEach((v, i) => {
+    if (ONLY !== null && i !== ONLY) return;
+    const sec = document.createElement('section');
+    sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p><div class="frame"><div class="plate" style="background:${v.ground}"><canvas class="fade"></canvas></div><div class="checks"><div class="bar cream"><canvas></canvas></div><div class="bar dark"><canvas></canvas></div></div></div>`;
+    document.getElementById('lab').appendChild(sec);
+    const plate = sec.querySelector('.plate'), [big, sc, sd] = sec.querySelectorAll('canvas');
+    const lightGround = ['#f2eee6', '#d9d4ca'].includes(v.ground);
+    const onOrange = v.ground === ORANGE;
+    const draw = () => {
+      const H = Math.round(plate.clientHeight * v.big);
+      v._onDark = !lightGround;
+      paint(big, v, H, lightGround || onOrange && false, true, onOrange);
+      v._onDark = false; paint(sc, v, 36, true, false);
+      v._onDark = true; paint(sd, v, 36, false, false);
+    };
+    draw();
+    requestAnimationFrame(() => big.classList.add('on'));
+    new ResizeObserver(draw).observe(plate);
+    if (v.live) live.push(draw);
+  });
+  if (live.length) setInterval(() => live.forEach(f => f()), 100);
+}
+
+Promise.all([
+  document.fonts.load(JK(40)), document.fonts.load('900 expanded 40px Archivo'), document.fonts.load("40px 'Instrument Serif'"),
+  document.fonts.load('40px VT100'), document.fonts.load("500 20px 'IBM Plex Mono'"),
+]).catch(() => {}).then(build);
+</script>
+</body>
+</html>

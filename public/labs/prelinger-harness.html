@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prelinger B-roll · harness</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block}</style>
+</head>
+<body>
+<script>
+  window.visuals = { register: (id, art) => { window.__art = art; window.__artId = id; } };
+  window.playlist = { tracks: [
+    { title: 'Signal Drift', artist: 'Ironworks', genre: 'industrial', bpm: 74, key: 'A min' }
+  ] };
+  window.currentTrack = 0;
+  window.audioAnalysisReady = false;
+  window.analyser = null;
+  window.frequencyData = null;
+  window.timeData = null;
+</script>
+<script src="../visuals/lib/p5.js"></script>
+<script src="../visuals/prelinger_broll.js"></script>
+<script>
+  if (window.__art) {
+    window.__art.start();
+    document.title = window.__artId + ' · ' + window.__art.name;
+  } else {
+    document.title = 'registration failed';
+  }
+</script>
+</body>
+</html>
