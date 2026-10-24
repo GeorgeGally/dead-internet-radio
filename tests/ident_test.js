@@ -228,6 +228,39 @@ test('tuning in leaves a load ident on screen until the audio plays', () => {
   assert.deepEqual(app.calls, ['load']);
 });
 
+test('blocked autoplay ends the load ident instead of looping it over the player', async () => {
+  const app = loadApp();
+  app.player.play = () => Promise.reject(new Error('NotAllowedError'));
+  app.run(`playlist = { tracks: [{ file: '/media/a.mp3', durationMs: 60000 }] }; setupAudio();`);
+  await app.settle();
+  assert.deepEqual(app.calls, ['load', 'loadDone']);
+});
+
+test('a playlist with nothing to play ends the load ident', () => {
+  const app = loadApp();
+  app.run(`playlist = { tracks: [{ durationMs: 60000 }] }; setupAudio();`);
+  assert.deepEqual(app.calls, ['loadDone']);
+});
+
+test('boot with no broadcast and no shows ends the load ident', async () => {
+  const app = loadApp();
+  delete app.responses['/api/v1/broadcast'];
+  await app.run('tuneIn()');
+  assert.deepEqual(app.calls, ['loadDone']);
+});
+
+test('the first archive tune-in leaves the wait to the load ident', async () => {
+  const app = loadApp();
+  delete app.responses['/api/v1/broadcast'];
+  app.responses['/api/v1/shows'] = () => [{ id: 'first', trackCount: 2 }];
+  app.responses['/api/v1/shows/first'] = () => ({
+    id: 'first', name: 'First', tracks: [{ file: '/media/f.mp3', durationMs: 60000, title: 'F' }],
+  });
+  await app.run('tuneIn()');
+  assert.deepEqual(app.calls, ['load']);
+  assert.equal(app.player.src, '/media/f.mp3');
+});
+
 test('live: a set that ends on its own gets the between-set ident', async () => {
   const app = loadApp();
   app.tuneLive();

@@ -112,7 +112,10 @@ function setupAudioAnalysis() {
 function setupAudio(noSeek) {
   const tracks = playlist.tracks;
   const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
-  if (totalMs === 0 || tracks.every((track) => !track.file)) return;
+  if (totalMs === 0 || tracks.every((track) => !track.file)) {
+    idents.loadDone();
+    return;
+  }
 
   let seekSeconds = 0;
 
@@ -142,6 +145,7 @@ function setupAudio(noSeek) {
 
   const audio = document.getElementById('player');
   audio.src = playlistBase + tracks[currentTrack].file;
+  const src = audio.src;
   idents.load();
 
   setupAudioAnalysis();
@@ -171,6 +175,7 @@ function setupAudio(noSeek) {
   };
 
   audio.play().catch(() => {
+    if (audio.src === src) idents.loadDone();
     document.addEventListener('keydown', tryPlay);
     document.addEventListener('click', tryPlay, true);
   });
@@ -968,8 +973,7 @@ async function loadShows() {
         showsBase = '';
         if (playlist && playlist.live) return;  // already tuned to the broadcast
         const initialShow = showsList.find(s => s.trackCount > 1) || showsList[0];
-        selectShow(initialShow.id);
-        return;
+        return selectShow(initialShow.id, false);
       }
     } catch (e) {
       // API not available, fall back to static files
@@ -986,8 +990,7 @@ async function loadShows() {
         showsList = shows;
         showsBase = base;
         const initialShow = showsList.find(s => s.trackCount > 1) || showsList[0];
-        selectShow(initialShow.id);
-        return;
+        return selectShow(initialShow.id, false);
       }
     } catch (e) {
       if (!isLocalPreview()) throw e;
@@ -1188,7 +1191,10 @@ let audioAnalysisReady = false;
   setupLogoHover();
 
   showWelcome();
+  tuneIn();
+}
 
+async function tuneIn() {
   try {
     playlist = await loadBroadcastData();
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {
@@ -1201,7 +1207,8 @@ let audioAnalysisReady = false;
     console.warn('No playlist found');
   }
 
-  loadShows();
+  await loadShows().catch(() => {});
+  if (!(playlist && Array.isArray(playlist.tracks) && playlist.tracks.length)) idents.loadDone();
 }
 
 document.addEventListener('DOMContentLoaded', init);
