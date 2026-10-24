@@ -36,6 +36,7 @@ const fxPipeline = (() => {
         uniform sampler2D uTex;
         uniform vec2 uRes;
         uniform float uBlock;
+        uniform float uMode;
         varying vec2 vUv;
         float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
         float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
@@ -49,11 +50,25 @@ const fxPipeline = (() => {
                    + texture2D(uTex, (c + vec2( d, -d)) / uRes).rgb
                    + texture2D(uTex, (c + vec2(-d,  d)) / uRes).rgb
                    + texture2D(uTex, (c + vec2( d,  d)) / uRes).rgb;
-          float lum = dot(rgb * 0.25, vec3(0.299, 0.587, 0.114));
-          bool ink = (1.0 - lum) > bayer8(cell) + 0.5 / 64.0;
-          gl_FragColor = vec4(ink ? vec3(0.102, 0.102, 0.102) : vec3(0.914, 0.902, 0.875), 1.0);
+          rgb *= 0.25;
+          float b = bayer8(cell) + 0.5 / 64.0;
+          if (uMode > 1.5) {
+            // colour: each channel dithered to four levels
+            gl_FragColor = vec4(floor(rgb * 3.0 + b) / 3.0, 1.0);
+            return;
+          }
+          bool ink = (1.0 - dot(rgb, vec3(0.299, 0.587, 0.114))) > b;
+          vec3 inkC = uMode > 0.5 ? vec3(0.02, 0.08, 0.04) : vec3(0.102, 0.102, 0.102);
+          vec3 paperC = uMode > 0.5 ? vec3(0.30, 1.0, 0.53) : vec3(0.914, 0.902, 0.875);
+          gl_FragColor = vec4(ink ? inkC : paperC, 1.0);
         }
       `,
+      // Resonance picks the inks: left green phosphor, centre (its rest
+      // position) cream on black, right full colour.
+      mode: () => {
+        const r = window._resonanceVal ?? 50;
+        return r < 34 ? 1 : r < 67 ? 0 : 2;
+      },
       // Same cell size as the CPU version: the cutoff dial drives it.
       block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
     },
@@ -106,6 +121,7 @@ const fxPipeline = (() => {
         uTex: gl.getUniformLocation(p, 'uTex'),
         uRes: gl.getUniformLocation(p, 'uRes'),
         uBlock: gl.getUniformLocation(p, 'uBlock'),
+        uMode: gl.getUniformLocation(p, 'uMode'),
       },
     };
   }
@@ -201,6 +217,7 @@ const fxPipeline = (() => {
     gl.uniform1i(prog.loc.uTex, 0);
     gl.uniform2f(prog.loc.uRes, canvas.width, canvas.height);
     gl.uniform1f(prog.loc.uBlock, SHADERS[key].block());
+    if (prog.loc.uMode) gl.uniform1f(prog.loc.uMode, SHADERS[key].mode ? SHADERS[key].mode() : 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
