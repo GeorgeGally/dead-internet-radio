@@ -19,7 +19,7 @@ ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # Memory knobs. Peak memory scales with track length, so cap it. Thinking runs
 # the 4B LM to plan the audio codes: it drops the cheesy high EDM synths
 # (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
-MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "150"))
+MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "105"))
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated list of models to try in order. A pinned model keeps the
