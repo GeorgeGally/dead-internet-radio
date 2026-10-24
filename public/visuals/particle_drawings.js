@@ -54,7 +54,7 @@ visuals.register('particle_drawings', (() => {
 
         this.c = Math.random() > 0.5
           ? p.color(255, 0, 0, 10)
-          : p.color(0, 0, 0, 10);
+          : p.color(255, 255, 255, 10);
 
         if (Math.random() > 0.5) this.speed.x *= -1;
         if (Math.random() > 0.5) this.speed.y *= -1;
@@ -91,7 +91,7 @@ visuals.register('particle_drawings', (() => {
         this.drawTrails = function () {
           const trailC = Math.random() > 0.5
             ? p.color(255, 0, 0, 15)
-            : p.color(0, 0, 0, 40);
+            : p.color(255, 255, 255, 40);
           ctx2.strokeWeight(1);
           ctx2.stroke(trailC);
           ctx2.line(this.x, this.y, this.old.x, this.old.y);
@@ -116,11 +116,11 @@ visuals.register('particle_drawings', (() => {
           particles.push(new Particle());
         }
 
-        ctx.stroke(0, 10);
+        ctx.stroke(255, 10);
       };
 
       p.draw = () => {
-        p.background('#d8d4cb');
+        p.background(0);
 
         p.image(ctx, 0, 0);
 
