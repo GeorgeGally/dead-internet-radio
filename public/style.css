@@ -53,6 +53,22 @@ html, body {
   z-index: 1;
 }
 
+#ident-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  background: #0b0b0a;
+  pointer-events: none;
+  z-index: 6;
+}
+
+#ident-canvas.on {
+  display: block;
+}
+
 /* Startup thumbnail prewarm cycles every visual; keep them off-screen so the
    user doesn't see them flash by. Rendering still happens (opacity only). */
 body.prewarming canvas.p5Canvas,

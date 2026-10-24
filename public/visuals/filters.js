@@ -450,6 +450,14 @@ const canvasFilters = (() => {
     return (1 - lum) > BAYER8[cy & 7][cx & 7];
   }
 
+  // One dither cell in canvas pixels. `scale` is canvas pixels per CSS pixel,
+  // taken from the canvas itself: artworks pinned to pixelDensity(1) would get
+  // devicePixelRatio-sized dots otherwise, which is what made the grid read
+  // twice as coarse on a retina desktop and three times on a phone.
+  function ditherCell(scale) {
+    return Math.max(2, Math.round((currentThreshold / 20) * (scale || 1)));
+  }
+
   // Browsers: downscale with drawImage, dither at cell resolution, blit back with
   // smoothing off. The old version issued one fillRect per cell on the full-res
   // canvas (>1M at 1440x900 dpr2), which is what stalled the frame.
@@ -475,8 +483,8 @@ const canvasFilters = (() => {
   window.monoContrast = monoContrast;
 
   register(10, 'Dither', (ctx, w, h, frame) => {
-    const dpr = window.devicePixelRatio || 1;
-    const cell = Math.max(2, Math.round((currentThreshold / 20) * dpr));
+    const scale = ctx.canvas && ctx.canvas.clientWidth ? w / ctx.canvas.clientWidth : 1;
+    const cell = ditherCell(scale);
 
     if (hasOffscreen && ctx.canvas && typeof ctx.drawImage === 'function') {
       const sw = Math.max(1, Math.ceil(w / cell));
@@ -611,7 +619,7 @@ const canvasFilters = (() => {
     applyToOverlay(p.canvas, p.frameCount);
   }
 
-  return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };
+  return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength, ditherCell };
 })();
 
 canvasFilters.setupKeybindings();

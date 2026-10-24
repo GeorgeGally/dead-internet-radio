@@ -10,7 +10,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 - `generate.py` — LLM prompts (via OpenRouter) + ACE-Step music generation. Needs `ACE_STEP_URL` (default `http://localhost:8001`), `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` in `.env`.
 - `djmix.py` — crossfades, voiceovers, ID3 tags, cue JSON, final MP3.
 - `announce.py` — Kokoro TTS voiceovers (uses `kokoro/.venv/` — separate environment).
-- `build_site.py` — builds static site from `src/`, `output/`, `mixes/` into `dist/`.
+- `build_site.py` — builds static site from `public/`, `output/`, `mixes/` into `dist/`.
 - `generate_station_ids.py` — station ID jingles.
 - Output: `output/` (tracks), `mixes/` (mixed shows), `dist/` (static site), `station-ids/`.
 
@@ -22,7 +22,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 - `bin/dev` starts the Rails dev server (see `Procfile.dev`).
 - Media served via `MediaController` with HTTP Range support — no static copies.
 
-**Frontend** — static teletext/dead-broadcast player in `src/` (vanilla JS, p5 visuals).
+**Frontend** — static teletext/dead-broadcast player in `public/` (vanilla JS, p5 visuals).
 - Tests: `node --test tests/` (Node.js contract tests in `tests/`).
 - No Rails test suite exists (no `test/` or `spec/`).
 

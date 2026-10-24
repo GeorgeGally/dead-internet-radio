@@ -112,7 +112,10 @@ function setupAudioAnalysis() {
 function setupAudio(noSeek) {
   const tracks = playlist.tracks;
   const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
-  if (totalMs === 0 || tracks.every((track) => !track.file)) return;
+  if (totalMs === 0 || tracks.every((track) => !track.file)) {
+    idents.loadDone();
+    return;
+  }
 
   let seekSeconds = 0;
 
@@ -142,6 +145,8 @@ function setupAudio(noSeek) {
 
   const audio = document.getElementById('player');
   audio.src = playlistBase + tracks[currentTrack].file;
+  const src = audio.src;
+  idents.load();
 
   setupAudioAnalysis();
 
@@ -170,6 +175,7 @@ function setupAudio(noSeek) {
   };
 
   audio.play().catch(() => {
+    if (audio.src === src) idents.loadDone();
     document.addEventListener('keydown', tryPlay);
     document.addEventListener('click', tryPlay, true);
   });
@@ -181,13 +187,17 @@ function setupAudio(noSeek) {
 let trackChangeInProgress = false;
 
 function onTrackEnd() {
+  advanceTrack(true);
+}
+
+function advanceTrack(ident) {
   if (trackChangeInProgress) return;
   if (playlist && playlist.live) {
-    goLive(true);
+    goLive(true, ident);
     return;
   }
   if (playlist && playlist.tracks.length < 2 && showsList.length > 1) {
-    nextStation();
+    nextStation(ident);
     return;
   }
   trackChangeInProgress = true;
@@ -199,6 +209,7 @@ function onTrackEnd() {
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
+    if (ident) idents.play();
     const audio = document.getElementById('player');
     audio.volume = 1;
     audio.src = playlistBase + playlist.tracks[currentTrack].file;
@@ -390,8 +401,9 @@ function playAudio() {
 function prevTrack() {
   stopVoiceover();
   if (!playlist) return;
+  idents.stop();
   if (playlist.live) {
-    goLive();  // live radio can't rewind; resync instead
+    goLive(false, false);  // live radio can't rewind; resync instead
     return;
   }
   currentTrack = (currentTrack - 1 + playlist.tracks.length) % playlist.tracks.length;
@@ -408,7 +420,8 @@ function prevTrack() {
 
 function nextTrack() {
   if (!playlist) return;
-  onTrackEnd();
+  idents.stop();
+  advanceTrack(false);
 }
 
 let voiceoverEndedHandler = null;
@@ -890,11 +903,13 @@ async function fetchLive() {
 }
 
 // Tune to the shared timeline (also used to resync after each segment).
-async function goLive(fromTrackEnd) {
+async function goLive(fromTrackEnd, ident) {
+  idents.load();
   let next;
   try {
     next = await fetchLive();
   } catch (e) {
+    idents.loadDone();
     return;
   }
   stopVoiceover();
@@ -904,6 +919,7 @@ async function goLive(fromTrackEnd) {
   if (fromTrackEnd) visuals.next();
   visuals.notify('trackChange');
   setupAudio();
+  if (ident) idents.play();
   updateTrackInfo();
   updatePlayBtn();
 }
@@ -957,8 +973,7 @@ async function loadShows() {
         showsBase = '';
         if (playlist && playlist.live) return;  // already tuned to the broadcast
         const initialShow = showsList.find(s => s.trackCount > 1) || showsList[0];
-        selectShow(initialShow.id);
-        return;
+        return selectShow(initialShow.id, false);
       }
     } catch (e) {
       // API not available, fall back to static files
@@ -975,8 +990,7 @@ async function loadShows() {
         showsList = shows;
         showsBase = base;
         const initialShow = showsList.find(s => s.trackCount > 1) || showsList[0];
-        selectShow(initialShow.id);
-        return;
+        return selectShow(initialShow.id, false);
       }
     } catch (e) {
       if (!isLocalPreview()) throw e;
@@ -986,19 +1000,19 @@ async function loadShows() {
   console.warn('No shows.json found');
 }
 
-function nextStation() {
+function nextStation(ident) {
   if (!showsList.length) return;
   const idx = showsList.findIndex(s => s.id === currentShowId);
   // Archive shows cycle back round to the live broadcast (API only).
   if (idx === showsList.length - 1 && !showsBase && location.protocol !== 'file:') {
-    goLive();
+    goLive(false, ident);
     return;
   }
   const next = showsList[(idx + 1) % showsList.length];
-  selectShow(next.id);
+  selectShow(next.id, ident);
 }
 
-async function selectShow(showId) {
+async function selectShow(showId, ident = true) {
   const show = showsList.find(s => s.id === showId);
   if (!show) return;
 
@@ -1035,6 +1049,7 @@ async function selectShow(showId) {
 
   visuals.notify('trackChange');
   setupAudio();
+  if (ident) idents.play();
   updateTrackInfo();
 
   if (audioCtx && audioCtx.state === 'suspended') {
@@ -1145,6 +1160,13 @@ let audioAnalysisReady = false;
   startEqLoop();
   window.addEventListener('resize', initWave);
   visuals.init();
+  idents.init();
+  const player = document.getElementById('player');
+  if (player) {
+    player.addEventListener('playing', idents.loadDone);
+    player.addEventListener('error', idents.loadDone);
+  }
+  idents.load();
   gallery.init();
   // engine.next/prev/random route through visuals.activate, so this wrapper
   // (and the per-visual preset) applies to every switch, not just gallery
@@ -1168,7 +1190,10 @@ let audioAnalysisReady = false;
   setupLogoHover();
 
   showWelcome();
+  tuneIn();
+}
 
+async function tuneIn() {
   try {
     playlist = await loadBroadcastData();
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {
@@ -1181,7 +1206,8 @@ let audioAnalysisReady = false;
     console.warn('No playlist found');
   }
 
-  loadShows();
+  await loadShows().catch(() => {});
+  if (!(playlist && Array.isArray(playlist.tracks) && playlist.tracks.length)) idents.loadDone();
 }
 
 document.addEventListener('DOMContentLoaded', init);
