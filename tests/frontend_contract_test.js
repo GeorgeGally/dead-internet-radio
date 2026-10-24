@@ -76,7 +76,7 @@ test('JavaScript sets up audio and track navigation', () => {
   assert.match(js, /function setupAudio/);
   assert.match(js, /playlist\.epoch \|\| EPOCH/);
   assert.match(js, /function onTrackEnd/);
-  assert.match(js, /playlist\.tracks\.length < 2[\s\S]*nextStation\(\)/);
+  assert.match(js, /playlist\.tracks\.length < 2[\s\S]*nextStation\(/);
   assert.match(js, /function nextTrack/);
   assert.match(js, /function prevTrack/);
   assert.match(js, /function togglePlay/);
