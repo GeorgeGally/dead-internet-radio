@@ -700,7 +700,7 @@ def main():
                 f"Return a JSON array of exactly {args.tracks} objects.\n\n"
                 f"CONSTRAINTS — all tracks must be distinct:\n"
                 f"- Different keys — no repeats across all {args.tracks} tracks\n"
-                f"- Every track is one of the station's four families (techno, EBM/goth, post-punk, dark disco/disco-punk), with drums, 90 BPM or more. The brief's mood words make it slower, sparser and darker, never ambient or drone\n"
+                f"- Genre: if the slot or brief names a genre or style (e.g. 'slomo disco'), every track is that genre, varied within it; if it only names a mood or time, use the station's home families (EBM first). Mood words make tracks slower, sparser and darker, never ambient or drone; every track has drums, 90 BPM or more\n"
                 f"- Different synth palettes, drum patterns, and structures\n"
                 f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n\n"
                 f"Guidance:\n"
@@ -756,7 +756,7 @@ def main():
                     "\n\nGuidance:\n"
                     "- Keep vocals to a minimum. Not all tracks need vocals.\n"
                     "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
-                    "- Every track is one of the station's four families, with drums, 90 BPM or more.\n"
+                    "- Genre named in the slot or brief wins; otherwise the station's home families. Every track has drums, 90 BPM or more.\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
                     f"{avoid}"
                 )
