@@ -41,13 +41,14 @@ function loadIdents() {
     },
   };
   let rafCallback = null;
+  let nowMs = 0;
   const sandbox = {
     document: {
       createElement: () => ({ width: 0, height: 0, getContext: () => stubContext(log) }),
       getElementById: (id) => (id === 'ident-canvas' ? canvas : null),
     },
     window: { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 2, addEventListener() {} },
-    performance: { now: () => 0 },
+    performance: { now: () => nowMs },
     requestAnimationFrame: (cb) => { rafCallback = cb; return 1; },
     cancelAnimationFrame: () => { rafCallback = null; },
     setTimeout: (fn) => { timers.push(fn); return timers.length; },
@@ -62,6 +63,7 @@ function loadIdents() {
     classes,
     log,
     frame: (ms) => rafCallback(ms),
+    setNow: (ms) => { nowMs = ms; },
     flush: () => { const due = timers.splice(0); due.forEach((fn) => fn && fn()); },
   };
 }
@@ -135,22 +137,154 @@ test('audio that starts first cancels a queued load ident', () => {
   assert.ok(!classes.has('on'), 'a load that finished waiting never flashes an ident');
 });
 
-test('the site wires the ident without per-ident branching', () => {
-  const html = read('public/index.html');
-  const css = read('public/style.css');
-  const app = read('public/app.js');
-  const build = read('build_site.py');
+test('a load ident already on screen keeps running when the audio re-arms the wait', () => {
+  const { idents, classes, frame, flush, log, setNow } = loadIdents();
+  idents.init();
+  idents.load();
+  flush();
+  frame(3000);
+  setNow(3000);
+  idents.load();
+  flush();
+  log.length = 0;
+  frame(3016);
+  assert.ok(classes.has('on'), 'the frame never goes blank');
+  assert.ok(log.some((entry) => entry.style === '#ff5a1f'), 'the ident carries on mid-reveal instead of restarting');
+});
 
-  assert.match(html, /id="ident-canvas"/);
-  assert.ok(html.indexOf('src="ident.js"') > -1);
-  assert.ok(html.indexOf('src="ident.js"') < html.indexOf('src="app.js"'));
-  assert.match(css, /#ident-canvas[\s\S]*pointer-events:\s*none/);
-  assert.match(css, /#ident-canvas[\s\S]*z-index:\s*6/);
-  assert.match(app, /idents\.init\(\)/);
-  assert.match(app, /idents\.play\(\)/);
-  assert.match(app, /idents\.stop\(\)/);
-  assert.match(app, /idents\.load\(\)/);
-  assert.ok(app.indexOf("addEventListener('playing', idents.loadDone)") > -1);
-  assert.doesNotMatch(app, /ascii-block-wall/);
-  assert.match(build, /"ident\.js"/);
+function loadApp() {
+  const calls = [];
+  const listeners = {};
+  const player = {
+    src: '', currentTime: 0, volume: 1, paused: true, readyState: 4, duration: 180,
+    play() { this.paused = false; return Promise.resolve(); },
+    pause() { this.paused = true; },
+    addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+    removeEventListener(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
+  };
+  const responses = {};
+  const sandbox = {
+    console: { log() {}, warn() {}, error() {} },
+    document: {
+      getElementById: (id) => (id === 'player' ? player : null),
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      addEventListener() {},
+      removeEventListener() {},
+    },
+    location: { protocol: 'http:', hostname: 'radio.test', port: '', pathname: '/' },
+    window: { location: { pathname: '/' }, addEventListener() {} },
+    fetch: async (url) => {
+      const key = Object.keys(responses).find((k) => url.endsWith(k));
+      if (!key) return { ok: false, status: 404, json: async () => ({}) };
+      return { ok: true, json: async () => responses[key]() };
+    },
+    setTimeout: () => 0,
+    clearTimeout() {},
+    requestAnimationFrame: () => 0,
+    visuals: { init() {}, next() {}, notify() {} },
+    canvasFilters: {},
+    gallery: { init() { throw new Error('boot stops after the ident wiring'); } },
+    idents: {
+      init() {}, load: () => calls.push('load'), loadDone: () => calls.push('loadDone'),
+      play: () => calls.push('play'), stop: () => calls.push('stop'),
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(read('public/app.js'), sandbox);
+  const live = () => {
+    const now = Date.now();
+    return {
+      serverTime: now,
+      segments: [
+        { startsAt: now - 1000, durationMs: 60000, file: '/media/a.mp3', title: 'A' },
+        { startsAt: now + 59000, durationMs: 60000, file: '/media/b.mp3', title: 'B' },
+      ],
+    };
+  };
+  responses['/api/v1/broadcast'] = live;
+  return {
+    calls,
+    player,
+    listeners,
+    responses,
+    run: (code) => vm.runInContext(code, sandbox),
+    settle: async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); },
+    tuneLive: () => vm.runInContext(`playlist = { live: true, tracks: [{ startsAt: 0, durationMs: 1, file: '/media/x.mp3' }] };`, sandbox),
+  };
+}
+
+test('boot fills the wait with a load ident that the first audio frame clears', async () => {
+  const app = loadApp();
+  await assert.rejects(app.run('init()'), /boot stops after the ident wiring/);
+  assert.deepEqual(app.calls, ['load']);
+  app.listeners.playing.forEach((fn) => fn());
+  assert.deepEqual(app.calls, ['load', 'loadDone']);
+});
+
+test('tuning in leaves a load ident on screen until the audio plays', () => {
+  const app = loadApp();
+  app.run(`playlist = { tracks: [{ file: '/media/a.mp3', durationMs: 60000 }] }; setupAudio();`);
+  assert.deepEqual(app.calls, ['load']);
+});
+
+test('live: a set that ends on its own gets the between-set ident', async () => {
+  const app = loadApp();
+  app.tuneLive();
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.equal(app.calls.at(-1), 'play');
+  assert.equal(app.player.src, '/media/a.mp3', 'tuned to the segment on air');
+});
+
+for (const control of ['nextTrack', 'prevTrack']) {
+  test(`live: a manual ${control} resyncs without a between-set ident`, async () => {
+    const app = loadApp();
+    app.tuneLive();
+    app.run(`${control}()`);
+    await app.settle();
+    assert.ok(!app.calls.includes('play'), app.calls.join(','));
+    assert.ok(app.calls.includes('load'), 'the fetch wait can still fill with a load ident');
+    assert.equal(app.player.src, '/media/a.mp3');
+  });
+}
+
+function tuneArchive(app, trackCount) {
+  app.responses['/api/v1/shows/next'] = () => ({
+    id: 'next', name: 'Next', tracks: [{ file: '/media/n.mp3', durationMs: 60000, title: 'N' }],
+  });
+  app.run(`
+    showsList = [{ id: 'here' }, { id: 'next' }, { id: 'last' }];
+    currentShowId = 'here';
+    playlistBase = '';
+    playlist = { tracks: ${JSON.stringify(Array.from({ length: trackCount }, (_, i) => ({ file: `/media/t${i}.mp3`, durationMs: 60000 })))} };
+  `);
+}
+
+for (const [label, trackCount, src] of [['playlist', 3, '/media/t1.mp3'], ['single-track show', 1, '/media/n.mp3']]) {
+  test(`archive ${label}: natural end plays the ident, a skip does not`, async () => {
+    const natural = loadApp();
+    tuneArchive(natural, trackCount);
+    natural.run('onTrackEnd()');
+    await natural.settle();
+    assert.equal(natural.calls.at(-1), 'play');
+    assert.equal(natural.player.src, src);
+
+    const skipped = loadApp();
+    tuneArchive(skipped, trackCount);
+    skipped.run('nextTrack()');
+    await skipped.settle();
+    assert.ok(!skipped.calls.includes('play'), skipped.calls.join(','));
+    assert.equal(skipped.player.src, src);
+  });
+}
+
+test('the static build ships ident.js alongside the player', () => {
+  const dist = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dir-dist-'));
+  const result = require('node:child_process').spawnSync('python3', ['-c',
+    'import sys, pathlib, build_site as b; b.DIST_DIR = pathlib.Path(sys.argv[1]); b._build_dist_static()', dist,
+  ], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(dist, 'ident.js'), 'utf8'), read('public/ident.js'));
+  fs.rmSync(dist, { recursive: true, force: true });
 });

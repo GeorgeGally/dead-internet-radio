@@ -110,7 +110,6 @@ function setupAudioAnalysis() {
 }
 
 function setupAudio(noSeek) {
-  idents.stop();
   const tracks = playlist.tracks;
   const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
   if (totalMs === 0 || tracks.every((track) => !track.file)) return;
@@ -183,13 +182,17 @@ function setupAudio(noSeek) {
 let trackChangeInProgress = false;
 
 function onTrackEnd() {
+  advanceTrack(true);
+}
+
+function advanceTrack(ident) {
   if (trackChangeInProgress) return;
   if (playlist && playlist.live) {
-    goLive(true);
+    goLive(true, ident);
     return;
   }
   if (playlist && playlist.tracks.length < 2 && showsList.length > 1) {
-    nextStation();
+    nextStation(ident);
     return;
   }
   trackChangeInProgress = true;
@@ -201,7 +204,7 @@ function onTrackEnd() {
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
-    idents.play();
+    if (ident) idents.play();
     const audio = document.getElementById('player');
     audio.volume = 1;
     audio.src = playlistBase + playlist.tracks[currentTrack].file;
@@ -395,7 +398,7 @@ function prevTrack() {
   if (!playlist) return;
   idents.stop();
   if (playlist.live) {
-    goLive();  // live radio can't rewind; resync instead
+    goLive(false, false);  // live radio can't rewind; resync instead
     return;
   }
   currentTrack = (currentTrack - 1 + playlist.tracks.length) % playlist.tracks.length;
@@ -412,8 +415,8 @@ function prevTrack() {
 
 function nextTrack() {
   if (!playlist) return;
-  onTrackEnd();
   idents.stop();
+  advanceTrack(false);
 }
 
 let voiceoverEndedHandler = null;
@@ -895,7 +898,7 @@ async function fetchLive() {
 }
 
 // Tune to the shared timeline (also used to resync after each segment).
-async function goLive(fromTrackEnd) {
+async function goLive(fromTrackEnd, ident) {
   idents.load();
   let next;
   try {
@@ -911,7 +914,7 @@ async function goLive(fromTrackEnd) {
   if (fromTrackEnd) visuals.next();
   visuals.notify('trackChange');
   setupAudio();
-  idents.play();
+  if (ident) idents.play();
   updateTrackInfo();
   updatePlayBtn();
 }
@@ -994,19 +997,19 @@ async function loadShows() {
   console.warn('No shows.json found');
 }
 
-function nextStation() {
+function nextStation(ident) {
   if (!showsList.length) return;
   const idx = showsList.findIndex(s => s.id === currentShowId);
   // Archive shows cycle back round to the live broadcast (API only).
   if (idx === showsList.length - 1 && !showsBase && location.protocol !== 'file:') {
-    goLive();
+    goLive(false, ident);
     return;
   }
   const next = showsList[(idx + 1) % showsList.length];
-  selectShow(next.id);
+  selectShow(next.id, ident);
 }
 
-async function selectShow(showId) {
+async function selectShow(showId, ident = true) {
   const show = showsList.find(s => s.id === showId);
   if (!show) return;
 
@@ -1043,7 +1046,7 @@ async function selectShow(showId) {
 
   visuals.notify('trackChange');
   setupAudio();
-  idents.play();
+  if (ident) idents.play();
   updateTrackInfo();
 
   if (audioCtx && audioCtx.state === 'suspended') {
