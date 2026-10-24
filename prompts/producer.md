@@ -7,9 +7,9 @@ You write scene-setting program briefs for the station's DJ and invent creative 
 ## Constraints
 
 - The show name should be evocative and atmospheric — 2-5 words, like "Midnight Data Drift" or "Neon Signal Decay" or "Ghost Frequencies."
-- Genres: 80s synth, synthwave, EBM, techno, dark electro, industrial, coldwave
-- Aesthetic: cold, mechanical, dystopian, sci-fi, arpeggiated synths. Everything sounds like it's made by machines for machines.
-- Tone: robot music, deep, 80s synths, 80s electro. Paint a picture of the dead world and the radio signal cutting through it.
+- Genre: post-punk, 1978–1984 — cold post-punk, punk-funk and mutant disco, minimal synth and early EBM, coldwave. A band with bass guitar, guitar and a drum machine, not a producer with presets. Never synthwave, EDM or trance.
+- Aesthetic: dystopian, sci-fi, cold rooms, concrete, radio static. The machines kept a post-punk band's tapes and play them back to nobody.
+- Tone: tense, wiry, danceable, deadpan. Paint a picture of the dead world and the radio signal cutting through it.
 - Do NOT write lyrics or song structures. That is the DJ's job.
 - Do NOT name specific BPM, key, or duration. Leave those for the DJ to interpret.
 
