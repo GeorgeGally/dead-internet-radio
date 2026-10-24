@@ -89,6 +89,11 @@ for (const id of ids) {
   })()`);
   if (!ok) { console.log(`skip ${id}`); continue; }
   await sleep(SLOW[id] || SETTLE_MS);
+  // A track change or the rotation timer can switch artworks mid-wait.
+  for (let tries = 0; tries < 3 && await evaluate(`visuals.getCurrentId()`) !== id; tries++) {
+    await evaluate(`visuals.activate(${JSON.stringify(id)}); canvasFilters.clearActive()`);
+    await sleep(SLOW[id] || SETTLE_MS);
+  }
   // A preset can switch a filter on after activation; screenshots are of the plain artwork.
   await evaluate(`document.getElementById('visual-notification')?.remove(); canvasFilters.clearActive()`);
   await sleep(500);
