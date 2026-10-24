@@ -530,8 +530,8 @@ body.prewarming #block-canvas {
 .npd-stack {
   position: relative;
   /* Grows into spare width so the knob bank sits as close to the right edge as the speaker does to the left. */
-  flex: 1 1 840px;
-  max-width: 1120px;
+  flex: 1 1 900px;
+  max-width: 900px;
   min-width: 0;
   align-self: stretch;
   justify-content: center;
@@ -615,7 +615,6 @@ body.prewarming #block-canvas {
   height: 100%;
   display: block;
   background: transparent;
-  max-width: 180px;
 }
 
 /* Prev/next song controls inside the LED */
