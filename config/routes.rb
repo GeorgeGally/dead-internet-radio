@@ -12,8 +12,12 @@ Rails.application.routes.draw do
     end
   end
 
+  # Prelinger B-roll proxied same-origin so canvas filters keep working.
+  get "broll/:id/:file", to: "broll#show", constraints: { file: /[^\/]+/ }
+
   # Audio streamed off disk from DB-linked paths (no blobs in DB).
   get "media/tracks/:id", to: "media#track", as: :media_track
+  get "broll/:item/*file", to: "broll#show", format: false, as: :broll
   get "media/tracks/:id/voiceover", to: "media#voiceover", as: :media_track_voiceover
   get "media/shows/:id/mix", to: "media#mix", as: :media_show_mix
 

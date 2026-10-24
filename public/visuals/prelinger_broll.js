@@ -72,28 +72,51 @@ visuals.register('prelinger_broll', (() => {
     const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`);
     if (!res.ok) throw new Error('meta');
     const json = await res.json();
-    const names = (json?.files || []).map((f) => String(f.name || ''));
-    const pick =
-      names.find((n) => /_512kb\.mp4$/i.test(n)) ||
-      names.find((n) => /\.mp4$/i.test(n) && !/ia\.mp4$/i.test(n)) ||
-      names.find((n) => /\.mp4$/i.test(n)) ||
-      names.find((n) => /\.ogv$/i.test(n));
+    // Smallest mp4 that has a picture: many Prelinger items only carry a
+    // multi-GB broadcast master besides the web derivative, and Chrome no
+    // longer decodes Theora (.ogv plays as sound only).
+    const files = (json?.files || [])
+      .map((f) => ({ name: String(f.name || ''), size: Number(f.size) || Infinity, h: Number(f.height) || 0 }))
+      .filter((f) => /\.mp4$/i.test(f.name) && f.h > 0)
+      .sort((a, b) => a.size - b.size);
+    const pick = files.length ? files[0].name : null;
     if (!pick) return null;
-    return `https://archive.org/download/${encodeURIComponent(id)}/${pick.split('/').map(encodeURIComponent).join('/')}`;
+    // Through the app's same-origin proxy: archive.org's storage hosts send no
+    // CORS headers, which would taint the canvas and switch every filter off.
+    return `/broll/${encodeURIComponent(id)}/${pick.split('/').map(encodeURIComponent).join('/')}`;
   }
 
-  function makeVideo(url) {
+  // Resolves once the film is ready from a random point past the opening
+  // titles: `canplay` for the first film (start fast), `canplaythrough` for the
+  // ones cut to later. Rejects (and cleans up) if it takes too long.
+  function makeVideo(url, readyEvent) {
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous';
     v.muted = true;
     v.playsInline = true;
     v.preload = 'auto';
     v.loop = true;
-    v.src = url;
     v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
     document.body.appendChild(v);
-    v.play().catch(() => {});
-    return v;
+    return new Promise((resolve, reject) => {
+      const fail = () => {
+        clearTimeout(timer);
+        v.removeAttribute('src');
+        v.remove();
+        reject(new Error('video'));
+      };
+      const timer = setTimeout(fail, 30000);
+      v.addEventListener('loadedmetadata', () => {
+        if (isFinite(v.duration) && v.duration > 30) v.currentTime = v.duration * (0.1 + Math.random() * 0.6);
+      }, { once: true });
+      v.addEventListener(readyEvent, () => {
+        if (!v.videoWidth) return fail();
+        clearTimeout(timer);
+        resolve(v);
+      }, { once: true });
+      v.addEventListener('error', fail, { once: true });
+      v.src = url;
+    });
   }
 
   function disposeVideos() {
@@ -117,30 +140,33 @@ visuals.register('prelinger_broll', (() => {
     ids = [...new Set(ids)].slice(0, 8);
     if (!ids.length) throw new Error('none');
 
+    // One film at a time: the first starts as soon as it can play through, and
+    // each next one only joins the rotation once it is fully buffered.
     const films = [];
+    state.films = films;
     for (const id of ids) {
       if (token !== state.loadToken) return;
       if (films.length >= 3) break;
       try {
         const url = await filmVideo(id);
         if (!url) continue;
-        const video = makeVideo(url);
+        const video = await makeVideo(url, films.length ? 'canplaythrough' : 'canplay');
+        if (token !== state.loadToken) {
+          video.remove();
+          return;
+        }
         films.push({ id, url, video });
         if (films.length === 1) {
-          state.films = films;
+          video.play().catch(() => {});
           state.ready = true;
           state.failed = false;
           state.shot = 0;
-          state.frame = 0;
+          state.prevShot = 0;
           state.shotAt = performance.now();
         }
       } catch (e) {}
     }
     if (!films.length) throw new Error('no video');
-    if (token !== state.loadToken) return;
-    state.films = films;
-    state.ready = true;
-    state.failed = false;
   }
 
   function stopVideos() {
@@ -181,7 +207,8 @@ visuals.register('prelinger_broll', (() => {
           state.ready = false;
           state.failed = false;
           state.films = [];
-          loadForTrack(info, token).catch(() => {
+          loadForTrack(info, token).catch((err) => {
+            console.error('prelinger b-roll load failed:', err && err.message);
             if (token === state.loadToken) state.failed = true;
           });
         }
@@ -251,22 +278,22 @@ visuals.register('prelinger_broll', (() => {
           return;
         }
 
+        // Cut every 8 beats, but only onto a film that is already buffered;
+        // with nothing else ready the current film just keeps playing.
         const beatMs = (60 / Math.max(40, state.bpm)) * 8 * 1000;
-        if (t - state.shotAt > beatMs) {
+        if (t - state.shotAt > beatMs && state.films.length > 1) {
+          const outgoing = state.films[state.prevShot];
+          if (outgoing && state.prevShot !== state.shot) outgoing.video.pause();
           state.prevShot = state.shot;
           state.shot = (state.shot + 1) % state.films.length;
           state.shotAt = t;
-          const v = state.films[state.shot].video;
-          if (v) {
-            v.play().catch(() => {});
-          }
+          state.films[state.shot].video.play().catch(() => {});
         }
 
+        // A film that hasn't produced a frame yet leaves the last picture up
+        // rather than flashing the leader.
         const film = state.films[state.shot];
-        if (!film || !drawVideoShot(film.video, 1)) {
-          leader(t);
-          return;
-        }
+        if (!film || !drawVideoShot(film.video, 1)) return;
 
         const prev = state.films[state.prevShot];
         const fadeMs = 500;
@@ -316,7 +343,7 @@ visuals.register('prelinger_broll', (() => {
         p.drawingContext.fillRect(0, bandY, p.width, 120);
         p.pop();
 
-        if (typeof filters !== 'undefined' && filters.applyToP5) filters.applyToP5(p);
+        if (typeof canvasFilters !== 'undefined' && canvasFilters.applyToP5) canvasFilters.applyToP5(p);
       };
     });
   }
