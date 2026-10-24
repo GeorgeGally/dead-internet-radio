@@ -72,6 +72,30 @@ const fxPipeline = (() => {
       // Same cell size as the CPU version: the cutoff dial drives it.
       block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
     },
+    // Red and blue pulled apart sideways, wobbling; same numbers as the CPU
+    // version, which read back the whole frame twice per tick.
+    4: {
+      name: 'Chromatic Aberration',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform vec2 uRes;
+        uniform float uBlock;
+        varying vec2 vUv;
+        void main() {
+          vec2 d = vec2(uBlock / uRes.x, 0.0);
+          vec4 c = texture2D(uTex, vUv);
+          gl_FragColor = vec4(texture2D(uTex, vUv + d).r, c.g, texture2D(uTex, vUv - d).b, c.a);
+        }
+      `,
+      // uBlock carries the shift in pixels: cutoff sets it, resonance the wobble.
+      block: () => {
+        const resonance = (window.soundSensitivity ?? 50) / 100;
+        const base = Math.max(1, Math.round((window.ledThreshold || 40) / 10));
+        const frame = performance.now() / (1000 / 60);
+        return base + Math.sin(frame * 0.02) * (2 + resonance * 10);
+      },
+    },
     12: {
       name: 'Black & White',
       frag: `
