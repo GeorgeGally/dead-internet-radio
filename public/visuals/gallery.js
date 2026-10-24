@@ -505,8 +505,9 @@ const gallery = (() => {
   function loadSlot(id, slot) {
     if (slot < 1 || slot > 9) return;
     slotDirty = false;
-    saveLit = false;
     const p = artPresets[id] && artPresets[id][slot];
+    // Landing on a saved slot lights both: the slot and its save.
+    saveLit = !!p;
     if (!p) { updateSlotUI(); return; }
     _suppressSave = true;
     canvasFilters.clearActive();
@@ -518,6 +519,7 @@ const gallery = (() => {
     if (window._restoreResonance) window._restoreResonance(p.resonance);
     if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);
     _suppressSave = false;
+    updateSlotUI();
   }
 
   function slotHasPreset(id, slot) {
