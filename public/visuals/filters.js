@@ -1,625 +1,561 @@
 'use strict';
 
+// The FX unit, laid out like a Traktor effects unit: three slots, each holding
+// one filter that can be switched on or off, two parameter knobs that act on
+// the focused slot, and a dry/wet dial over the whole chain.
+//
+// Every filter is a fragment shader. Each frame the visible artwork's canvas
+// is uploaded once, run through the slots that are on (in slot order, ping-
+// ponging between two framebuffers), then mixed with the untouched picture by
+// dry/wet onto #fx-canvas, which sits above every artwork. Because the chain
+// reads whatever canvas the artwork draws into, a new artwork works with every
+// filter as long as it calls canvasFilters.applyToP5(p) at the end of draw();
+// without the call the unit still finds the visible canvas, a frame late.
+//
+// Parameters are 0-1. Sizes are in CSS pixels (uScale converts), so a filter
+// looks the same on a pixelDensity(1) artwork and a retina one.
 const canvasFilters = (() => {
-  const registry = new Map();
-  let activeKeys = new Set();
+  const COMMON = `
+    precision mediump float;
+    uniform sampler2D uTex;
+    uniform vec2 uRes;
+    uniform float uP1;
+    uniform float uP2;
+    uniform float uTime;
+    uniform float uScale;
+    uniform float uLevel;
+    varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+    float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+    float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+    float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+  `;
 
-  const COVERS = {
-    1: { side: 'A', track: 1, colors: ['#3a3a3a', '#c8c8c8'], pattern: 'bars-h' },
-    2: { side: 'A', track: 2, colors: ['#7a4a2e', '#d4a06a'], pattern: 'circles' },
-    3: { side: 'A', track: 3, colors: ['#2e5a3a', '#8abc8a'], pattern: 'noise' },
-    4: { side: 'A', track: 4, colors: ['#1a3a5a', '#e06060', '#60c0e0'], pattern: 'rgb' },
-    5: { side: 'B', track: 1, colors: ['#1a2a4a', '#6a8aba'], pattern: 'bars-v' },
-    6: { side: 'B', track: 2, colors: ['#c04040', '#f0c040', '#40a040'], pattern: 'blocks' },
-     7: { side: 'B', track: 3, colors: ['#666666', '#999999', '#bbbbbb'], pattern: 'blocks' },
-    8: { side: 'B', track: 4, colors: ['#eeeeee', '#111111'], pattern: 'negate' },
-     9: { side: 'B', track: 5, colors: ['#ece4dc', '#3a1e0e'], pattern: 'dots' },
-  };
+  // key: the old number-key binding, kept so saved slots and keys still work.
+  const FILTERS = [
+    { key: 1, name: 'Scanlines', params: [['spacing', 0.35], ['depth', 0.6]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      float s = mix(2.0, 16.0, uP1) * uScale;
+      float y = vUv.y * uRes.y + uTime * 18.0 * uScale;
+      float line = step(0.5, fract(y / s));
+      float roll = smoothstep(0.0, 0.08, abs(fract(vUv.y + uTime * 0.07) - 0.5)) * 0.12 + 0.88;
+      return vec4(c.rgb * (1.0 - uP2 * 0.9 * line) * roll, c.a);` },
 
-  function coverStyles(key, w, h) {
-    const c = COVERS[key] || COVERS[1];
-    const [c1, c2, c3] = c.colors;
-    switch (c.pattern) {
-      case 'bars-h':
-        return `repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 8px, ${c2} 8px, ${c2} 16px)`;
-      case 'bars-v':
-        return `repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 8px, ${c2} 8px, ${c2} 16px)`;
-      case 'circles':
-        return `radial-gradient(circle at 30% 30%, ${c2} 0%, ${c1} 50%, ${c2} 100%)`;
-      case 'noise':
-        return `repeating-conic-gradient(${c1} 0% 25%, ${c2} 25% 50%)`;
-      case 'rgb':
-        return `linear-gradient(135deg, ${c1}, ${c2}, ${c3})`;
-      case 'blocks':
-        return `repeating-linear-gradient(45deg, ${c1} 0px, ${c1} 20px, ${c2} 20px, ${c2} 40px, ${c3} 40px, ${c3} 60px)`;
-      case 'grid':
-        return `repeating-linear-gradient(0deg, ${c1} 0px, ${c1} 2px, transparent 2px, transparent 20px), repeating-linear-gradient(90deg, ${c1} 0px, ${c1} 2px, transparent 2px, transparent 20px)`;
-      case 'negate':
-        return `linear-gradient(45deg, ${c1} 25%, ${c2} 25%, ${c2} 50%, ${c1} 50%, ${c1} 75%, ${c2} 75%)`;
-      case 'dots':
-        return `radial-gradient(${c2} 0.75px, transparent 0.75px) 0 0 / 6px 6px, radial-gradient(${c2} 1.5px, transparent 1.5px) 3px 3px / 12px 12px, linear-gradient(${c1}, ${c1})`;
-      default:
-        return `linear-gradient(135deg, ${c1}, ${c2})`;
+    { key: 2, name: 'Circle Sampling', params: [['size', 0.35], ['gain', 0.5]], body: `
+      vec2 px = vUv * uRes;
+      float cell = mix(5.0, 44.0, uP1) * uScale;
+      vec2 c = (floor(px / cell) + 0.5) * cell;
+      vec4 s = texture2D(uTex, c / uRes);
+      float r = sqrt(luma(s.rgb)) * cell * 0.5 * mix(0.6, 1.5, uP2) * (1.0 + uLevel * 0.25);
+      float a = 1.0 - smoothstep(r - uScale, r, length(px - c));
+      return vec4(s.rgb * a, 1.0);` },
+
+    { key: 3, name: 'Static Noise', params: [['amount', 0.4], ['grain', 0.2]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      float g = mix(1.0, 8.0, uP2) * uScale;
+      float n = hash(floor(vUv * uRes / g) + floor(uTime * 30.0) * 17.0);
+      float amt = uP1 * (0.6 + uLevel * 0.6);
+      return vec4(mix(c.rgb, vec3(n), clamp(amt, 0.0, 1.0)), c.a);` },
+
+    { key: 4, name: 'Chromatic Aberration', params: [['shift', 0.3], ['wobble', 0.4]], body: `
+      float px = (uP1 * 30.0 + uLevel * uP2 * 24.0) * (1.0 + sin(uTime * 1.7) * uP2 * 0.6) * uScale;
+      vec2 d = vec2(px / uRes.x, 0.0);
+      vec4 c = texture2D(uTex, vUv);
+      return vec4(texture2D(uTex, vUv + d).r, c.g, texture2D(uTex, vUv - d).b, c.a);` },
+
+    { key: 5, name: 'VHS Tracking', params: [['tracking', 0.4], ['bleed', 0.4]], body: `
+      float bandH = 24.0 * uScale;
+      float row = floor(vUv.y * uRes.y / bandH);
+      float tick = floor(uTime * 10.0);
+      float h = hash(vec2(row, tick));
+      float jump = step(1.0 - uP1 * 0.5, h) * (hash(vec2(row + 3.1, tick)) - 0.5) * uP1 * 0.12;
+      float wave = sin(vUv.y * 40.0 + uTime * 3.0) * 0.0015 * uP1;
+      vec2 uv = vec2(vUv.x + jump + wave, vUv.y);
+      float b = uP2 * 8.0 * uScale / uRes.x;
+      vec3 c = vec3(texture2D(uTex, uv + vec2(b, 0.0)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(b, 0.0)).b);
+      c = mix(c, vec3(luma(c)), 0.25);
+      float noise = step(0.995 - uP1 * 0.01, hash(vec2(floor(vUv.y * uRes.y / uScale), tick)));
+      return vec4(c + noise * 0.5, 1.0);` },
+
+    { key: 6, name: 'Posterize', params: [['levels', 0.5], ['mono', 0.0]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      float n = floor(mix(8.0, 2.0, uP1));
+      vec3 col = mix(c.rgb, vec3(luma(c.rgb)), uP2);
+      return vec4(floor(col * n + 0.5) / n, c.a);` },
+
+    { key: 7, name: 'Pixelate', params: [['size', 0.3], ['stretch', 0.0]], body: `
+      float s = mix(4.0, 64.0, uP1 * uP1) * uScale;
+      vec2 cell = vec2(s * (1.0 + uP2 * 4.0), s);
+      vec2 q = (floor(vUv * uRes / cell) + 0.5) * cell;
+      return texture2D(uTex, q / uRes);` },
+
+    { key: 8, name: 'Color Invert', params: [['solarize', 0.0], ['hue', 0.0]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      vec3 inv = 1.0 - c.rgb;
+      // Solarize: only what is brighter than the threshold flips.
+      vec3 sol = mix(c.rgb, inv, step(vec3(1.0 - uP1), c.rgb));
+      vec3 col = uP1 > 0.01 ? sol : inv;
+      // Hue turn in YIQ.
+      float a = uP2 * 6.2832;
+      float Y = dot(col, vec3(0.299, 0.587, 0.114));
+      float I = dot(col, vec3(0.596, -0.274, -0.322));
+      float Q = dot(col, vec3(0.211, -0.523, 0.312));
+      float I2 = I * cos(a) - Q * sin(a);
+      float Q2 = I * sin(a) + Q * cos(a);
+      col = vec3(Y + 0.956 * I2 + 0.621 * Q2, Y - 0.272 * I2 - 0.647 * Q2, Y - 1.106 * I2 + 1.703 * Q2);
+      return vec4(col, c.a);` },
+
+    { key: 9, name: 'LED Grid', params: [['size', 0.3], ['cutoff', 0.25]], body: `
+      vec2 px = vUv * uRes;
+      float cell = mix(5.0, 28.0, uP1) * uScale;
+      vec2 c = (floor(px / cell) + 0.5) * cell;
+      vec3 s = texture2D(uTex, c / uRes).rgb;
+      float l = luma(s);
+      float lit = smoothstep(uP2 * 0.8, uP2 * 0.8 + 0.08, l);
+      float d = length(px - c) / (cell * 0.5);
+      float disc = 1.0 - smoothstep(0.62, 0.8, d);
+      float glow = (1.0 - smoothstep(0.0, 1.0, d)) * 0.35;
+      vec3 led = s / max(0.35, max(s.r, max(s.g, s.b)));
+      vec3 col = mix(vec3(0.07), led, lit) * disc + led * glow * lit;
+      return vec4(col + vec3(0.03), 1.0);` },
+
+    { key: 10, name: 'Dither', params: [['cell', 0.15], ['inks', 0.5]], body: `
+      float block = mix(2.0, 14.0, uP1) * uScale;
+      vec2 cell = floor(vUv * uRes / block);
+      vec2 c = (cell + 0.5) * block;
+      float d = block * 0.25;
+      vec3 rgb = (texture2D(uTex, (c + vec2(-d, -d)) / uRes).rgb
+                + texture2D(uTex, (c + vec2( d, -d)) / uRes).rgb
+                + texture2D(uTex, (c + vec2(-d,  d)) / uRes).rgb
+                + texture2D(uTex, (c + vec2( d,  d)) / uRes).rgb) * 0.25;
+      float b = bayer8(cell) + 0.5 / 64.0;
+      // Inks: left green phosphor, middle ink on paper, right full colour.
+      if (uP2 > 0.66) return vec4(floor(rgb * 3.0 + b) / 3.0, 1.0);
+      bool ink = (1.0 - luma(rgb)) > b;
+      bool green = uP2 < 0.33;
+      vec3 inkC = green ? vec3(0.02, 0.08, 0.04) : vec3(0.102);
+      vec3 paperC = green ? vec3(0.30, 1.0, 0.53) : vec3(0.914, 0.902, 0.875);
+      return vec4(ink ? inkC : paperC, 1.0);` },
+
+    { key: 11, name: 'Glitch', params: [['amount', 0.4], ['blocks', 0.4]], body: `
+      float bs = mix(8.0, 90.0, uP2) * uScale;
+      vec2 blk = floor(vUv * uRes / vec2(bs * 3.0, bs));
+      float tick = floor(uTime * 12.0);
+      float h = hash(blk + tick);
+      float on = step(1.0 - uP1 * (0.35 + uLevel * 0.5), h);
+      vec2 uv = vUv + vec2((hash(blk * 1.7 + tick) - 0.5) * 0.15 * on, 0.0);
+      float split = on * uP1 * 10.0 * uScale / uRes.x;
+      vec3 c = vec3(texture2D(uTex, uv + vec2(split, 0.0)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(split, 0.0)).b);
+      if (on > 0.5 && hash(blk + tick + 9.0) > 0.85) c = 1.0 - c;
+      return vec4(c, 1.0);` },
+
+    { key: 12, name: 'Black & White', params: [['contrast', 0.3], ['grain', 0.15]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      float k = mix(0.8, 3.5, uP1);
+      float l = (luma(c.rgb) - 0.5) * k + 0.5;
+      l += (hash(vUv * uRes + floor(uTime * 24.0)) - 0.5) * uP2 * 0.5;
+      return vec4(vec3(clamp(l, 0.0, 1.0)), c.a);` },
+
+    { key: 13, name: 'Mirror', params: [['folds', 0.2], ['spin', 0.0]], body: `
+      vec2 p = vUv - 0.5;
+      p.x *= uRes.x / uRes.y;
+      float n = 2.0 + floor(uP1 * 6.99) * 1.0;
+      float seg = 6.2832 / n;
+      float a = atan(p.y, p.x) + uTime * uP2 * 0.8;
+      a = mod(a, seg);
+      a = abs(a - seg * 0.5);
+      vec2 q = vec2(cos(a), sin(a)) * length(p);
+      q.x /= uRes.x / uRes.y;
+      return texture2D(uTex, clamp(q + 0.5, 0.0, 1.0));` },
+
+    { key: 14, name: 'Edges', params: [['edges', 0.5], ['colour', 0.0]], body: `
+      vec2 t = (1.0 + uP1 * 2.0) * uScale / uRes;
+      float tl = luma(texture2D(uTex, vUv + vec2(-t.x,  t.y)).rgb);
+      float tc = luma(texture2D(uTex, vUv + vec2( 0.0,  t.y)).rgb);
+      float tr = luma(texture2D(uTex, vUv + vec2( t.x,  t.y)).rgb);
+      float ml = luma(texture2D(uTex, vUv + vec2(-t.x,  0.0)).rgb);
+      float mr = luma(texture2D(uTex, vUv + vec2( t.x,  0.0)).rgb);
+      float bl = luma(texture2D(uTex, vUv + vec2(-t.x, -t.y)).rgb);
+      float bc = luma(texture2D(uTex, vUv + vec2( 0.0, -t.y)).rgb);
+      float br = luma(texture2D(uTex, vUv + vec2( t.x, -t.y)).rgb);
+      float gx = tr + 2.0 * mr + br - tl - 2.0 * ml - bl;
+      float gy = tl + 2.0 * tc + tr - bl - 2.0 * bc - br;
+      float e = clamp(length(vec2(gx, gy)) * (1.0 + uP1 * 3.0), 0.0, 1.0);
+      vec3 c = texture2D(uTex, vUv).rgb;
+      return vec4(mix(vec3(e), c * e * 1.6 + c * 0.15, uP2), 1.0);` },
+  ];
+  const byKey = new Map(FILTERS.map((f) => [f.key, f]));
+
+  const VERT = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main() {
+      vUv = aPos * 0.5 + 0.5;
+      gl_Position = vec4(aPos, 0.0, 1.0);
     }
+  `;
+  // Last pass: the untouched picture under the chain's output, by dry/wet.
+  const MIX = `
+    precision mediump float;
+    uniform sampler2D uTex;
+    uniform sampler2D uFx;
+    uniform float uWet;
+    varying vec2 vUv;
+    void main() {
+      gl_FragColor = mix(texture2D(uTex, vUv), texture2D(uFx, vUv), uWet);
+    }
+  `;
+
+  // ---- State ----
+  const blank = () => ({ key: null, on: false, p: [0.5, 0.5] });
+  const slots = [blank(), blank(), blank()];
+  let focus = 0;
+  let wet = 1;          // target, 0-1
+  let wetNow = 1;       // eased toward target each frame
+  const listeners = new Set();
+
+  function notify() {
+    listeners.forEach((fn) => { try { fn(); } catch (e) { console.warn(e); } });
+    wake();
+  }
+  function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+
+  function defaults(key) {
+    const f = byKey.get(key);
+    return f ? f.params.map(([, v]) => v) : [0.5, 0.5];
+  }
+  function setSlotFilter(i, key) {
+    const s = slots[i];
+    if (!s) return;
+    key = byKey.has(key) ? key : null;
+    if (s.key === key) return;
+    s.key = key;
+    s.p = defaults(key);
+    if (key == null) s.on = false;
+    notify();
+  }
+  function setSlotOn(i, on) {
+    const s = slots[i];
+    if (!s || (on && s.key == null)) return;
+    s.on = !!on;
+    notify();
+  }
+  function setParam(i, j, v) {
+    const s = slots[i];
+    if (!s) return;
+    s.p[j] = Math.max(0, Math.min(1, v));
+    notify();
+  }
+  function setFocus(i) {
+    if (i < 0 || i > 2 || i === focus) return;
+    focus = i;
+    notify();
+  }
+  function setWet(v) {
+    wet = Math.max(0, Math.min(1, v));
+    window.filterStrength = wet * 100;
+    notify();
   }
 
-  function register(key, name, fn) {
-    registry.set(key, { name, fn });
+  // Snapshot for slot presets: [[key, on, p1, p2] x3].
+  function getState() {
+    return { slots: slots.map((s) => [s.key, s.on, s.p[0], s.p[1]]), focus };
+  }
+  function setState(st) {
+    for (let i = 0; i < 3; i++) {
+      const [key, on, p1, p2] = (st && st.slots && st.slots[i]) || [null, false];
+      slots[i].key = byKey.has(key) ? key : null;
+      slots[i].on = !!on && slots[i].key != null;
+      const d = defaults(slots[i].key);
+      slots[i].p = [p1 ?? d[0], p2 ?? d[1]];
+    }
+    if (st && st.focus != null) focus = st.focus;
+    notify();
   }
 
-  // Fired whenever the active filter set changes (keyboard, gallery, or api),
-  // so the shader pipeline can start/stop its loop instead of running always.
-  let onFilterChange = null;
-  function setOnFilterChange(cb) {
-    onFilterChange = cb;
-  }
-  function notifyChange() {
-    if (onFilterChange) onFilterChange();
-  }
-
+  // ---- Old single-filter API, still used by keys, presets and app.js ----
+  // Picking a filter puts it in the focused slot and turns it on.
   function setActive(key) {
-    activeKeys = new Set([key]);
-    notifyChange();
+    const s = slots[focus];
+    if (s.key !== key) { s.key = byKey.has(key) ? key : null; s.p = defaults(s.key); }
+    s.on = s.key != null;
+    notify();
   }
-
   function toggleActive(key) {
-    if (activeKeys.has(key) && activeKeys.size === 1) {
-      activeKeys = new Set();
-    } else {
-      activeKeys = new Set([key]);
-    }
-    notifyChange();
+    const s = slots[focus];
+    if (s.key === key && s.on) { s.on = false; notify(); } else setActive(key);
   }
-
   function clearActive() {
-    activeKeys = new Set();
-    notifyChange();
+    slots.forEach((s) => { s.on = false; });
+    notify();
   }
-
-  // Keys handled by the GPU shader pipeline (fx.js) — CPU apply skips these so
-  // there's no double-filtering during the shader migration.
-  let shaderKeys = new Set();
-  function setShaderKeys(keys) {
-    shaderKeys = new Set(keys);
-  }
-
-  let filterStrength = 100;
-  let targetStrength = 100;
-  function setStrength(val) {
-    targetStrength = val;
-    window.filterStrength = val;
-  }
-
-  function apply(ctx, w, h, frame) {
-    if (!activeKeys.size) return;
-    filterStrength += (targetStrength - filterStrength) * 0.12;
-    if (Math.abs(targetStrength - filterStrength) < 0.05) filterStrength = targetStrength;
-    const sorted = [...activeKeys].sort((a, b) => a - b);
-    const strength = Math.max(0, Math.min(100, filterStrength)) / 100;
-    const blend = strength < 1;
-    const before = blend ? ctx.getImageData(0, 0, w, h) : null;
-    for (const key of sorted) {
-      if (shaderKeys.has(key)) continue;
-      const filter = registry.get(key);
-      if (filter) filter.fn(ctx, w, h, frame);
-    }
-    if (blend) {
-      const after = ctx.getImageData(0, 0, w, h);
-      const b = before.data, a = after.data;
-      for (let i = 0; i < a.length; i += 4) {
-        a[i] = b[i] + (a[i] - b[i]) * strength;
-        a[i + 1] = b[i + 1] + (a[i + 1] - b[i + 1]) * strength;
-        a[i + 2] = b[i + 2] + (a[i + 2] - b[i + 2]) * strength;
-        a[i + 3] = b[i + 3] + (a[i + 3] - b[i + 3]) * strength;
-      }
-      ctx.putImageData(after, 0, 0);
-    }
-  }
-
-  // For visuals that can't be filtered in place (WebGL canvases have no 2D
-  // context): sample the source canvas onto the full-screen overlay canvas
-  // and run the filters there. Overlay is only shown when a filter is active.
-  let overlayEl = null;
-  let overlayCtx = null;
-  function applyToOverlay(source, frame) {
-    if (!source) return;
-    if (!overlayEl) {
-      overlayEl = document.getElementById('overlay-canvas');
-      overlayCtx = overlayEl ? overlayEl.getContext('2d', { willReadFrequently: true }) : null;
-    }
-    if (!overlayEl || !overlayCtx) return;
-    // Only CPU-handled filters need the overlay; shader keys are drawn by fx.js.
-    const cpuActive = [...activeKeys].some(k => !shaderKeys.has(k));
-    if (!cpuActive) {
-      // Hide AND wipe the buffer so a stale filter frame can't flash back.
-      if (overlayEl.style.display !== 'none') {
-        overlayEl.style.display = 'none';
-        overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
-        overlayCtx.clearRect(0, 0, overlayEl.width, overlayEl.height);
-      }
-      return;
-    }
-    if (overlayEl.width !== source.width || overlayEl.height !== source.height) {
-      overlayEl.width = source.width;
-      overlayEl.height = source.height;
-    }
-    overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
-    overlayCtx.clearRect(0, 0, overlayEl.width, overlayEl.height);
-    try {
-      overlayCtx.drawImage(source, 0, 0, overlayEl.width, overlayEl.height);
-    } catch (e) {
-      return;
-    }
-    if (overlayEl.style.display === 'none') overlayEl.style.display = 'block';
-    apply(overlayCtx, overlayEl.width, overlayEl.height, frame);
-  }
-
-  function getActiveName() {
-    if (!activeKeys.size) return 'none';
-    const names = [...activeKeys].map(k => {
-      const filter = registry.get(k);
-      return filter ? filter.name : '';
-    }).filter(Boolean);
-    return names.join(' + ') || 'none';
-  }
-
   function getActiveKeys() {
-    return new Set(activeKeys);
+    return new Set(slots.filter((s) => s.on).map((s) => s.key));
   }
-
   function hasActiveKey(key) {
-    return activeKeys.has(key);
+    return slots.some((s) => s.on && s.key === key);
   }
-
-  function getFilter(key) {
-    return registry.get(key) || null;
+  function getActiveName() {
+    const names = slots.filter((s) => s.on).map((s) => byKey.get(s.key).name);
+    return names.length ? names.join(' + ') : 'none';
   }
+  function setStrength(val) { setWet(val / 100); }
+  // The LED Grid artwork still reads the cutoff dial through this.
+  function setThreshold(val) { window.ledThreshold = val; }
 
-  function getCoverInfo(key) {
-    const c = COVERS[key];
-    if (!c) return null;
-    return { side: `${c.side}${c.track}`, name: registry.get(key)?.name || '', colors: c.colors, pattern: c.pattern };
-  }
+  // ---- GPU ----
+  let canvas = null;
+  let gl = null;
+  let disabled = false;
+  let quad = null;
+  let srcTex = null;
+  let targets = [];       // two { fb, tex, w, h } for ping-pong
+  const programs = new Map(); // filter key -> program info; 'mix' -> mix program
 
-  function getAllCoverInfo() {
-    const info = [];
-    for (const [key, c] of Object.entries(COVERS)) {
-      const n = registry.get(parseInt(key))?.name || '';
-      info.push({ key: parseInt(key), side: `${c.side}${c.track}`, name: n, colors: c.colors, pattern: c.pattern });
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.warn('fx shader compile failed:', gl.getShaderInfoLog(s));
+      return null;
     }
-    return info;
+    return s;
+  }
+  function build(frag) {
+    const vs = compile(gl.VERTEX_SHADER, VERT);
+    const fs = compile(gl.FRAGMENT_SHADER, frag);
+    if (!vs || !fs) return null;
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.warn('fx program link failed:', gl.getProgramInfoLog(p));
+      return null;
+    }
+    const loc = {};
+    ['uTex', 'uFx', 'uRes', 'uP1', 'uP2', 'uTime', 'uScale', 'uLevel', 'uWet'].forEach((n) => { loc[n] = gl.getUniformLocation(p, n); });
+    loc.aPos = gl.getAttribLocation(p, 'aPos');
+    return { program: p, loc };
+  }
+  function texture() {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return t;
+  }
+  function ensureTargets(w, h) {
+    if (targets.length && targets[0].w === w && targets[0].h === h) return;
+    targets.forEach((t) => { gl.deleteFramebuffer(t.fb); gl.deleteTexture(t.tex); });
+    targets = [0, 1].map(() => {
+      const tex = texture();
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      return { fb, tex, w, h };
+    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function init() {
+    canvas = document.getElementById('fx-canvas');
+    if (!canvas) { disabled = true; return; }
+    gl = canvas.getContext('webgl', { premultipliedAlpha: false, alpha: true });
+    if (!gl) { disabled = true; console.warn('fx: no WebGL, filters off'); return; }
+    quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    srcTex = texture();
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    for (const f of FILTERS) {
+      const prog = build(`${COMMON}\nvec4 fx() {${f.body}\n}\nvoid main() { gl_FragColor = fx(); }`);
+      if (prog) programs.set(f.key, prog);
+    }
+    const mix = build(MIX);
+    if (mix) programs.set('mix', mix);
+    else disabled = true;
+    wake();
+  }
+
+  // Bass level 0-1 for the filters that answer the music, scaled by the
+  // sensitivity dial. Own buffer, so the artworks' frequencyData is untouched.
+  let bins = null;
+  function level() {
+    try {
+      if (!(audioAnalysisReady && analyser)) return 0;
+      if (!bins || bins.length !== analyser.frequencyBinCount) bins = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(bins);
+      let sum = 0;
+      for (let i = 1; i < 10; i++) sum += bins[i];
+      return Math.min(1, (sum / 9 / 255) * ((window.audioInputGain ?? 50) / 50));
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function pass(prog, input, target, w, h, s, scale, lvl) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target ? target.fb : null);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(prog.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.enableVertexAttribArray(prog.loc.aPos);
+    gl.vertexAttribPointer(prog.loc.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, input);
+    gl.uniform1i(prog.loc.uTex, 0);
+    gl.uniform2f(prog.loc.uRes, w, h);
+    gl.uniform1f(prog.loc.uP1, s.p[0]);
+    gl.uniform1f(prog.loc.uP2, s.p[1]);
+    gl.uniform1f(prog.loc.uTime, performance.now() / 1000);
+    gl.uniform1f(prog.loc.uScale, scale);
+    gl.uniform1f(prog.loc.uLevel, lvl);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function anyOn() { return slots.some((s) => s.on); }
+
+  function hide() {
+    if (canvas && canvas.style.display !== 'none') canvas.style.display = 'none';
+  }
+
+  function render(src) {
+    if (disabled || !gl || !src || !src.width || !src.height) return;
+    const w = src.width;
+    const h = src.height;
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    } catch (e) {
+      return; // not readable this frame
+    }
+    ensureTargets(w, h);
+    wetNow += (wet - wetNow) * 0.15;
+    if (Math.abs(wet - wetNow) < 0.002) wetNow = wet;
+    const scale = src.clientWidth ? w / src.clientWidth : 1;
+    const lvl = level();
+    let input = srcTex;
+    let n = 0;
+    for (const s of slots) {
+      if (!s.on) continue;
+      const prog = programs.get(s.key);
+      if (!prog) continue;
+      const t = targets[n % 2];
+      pass(prog, input, t, w, h, s, scale, lvl);
+      input = t.tex;
+      n++;
+    }
+    const mix = programs.get('mix');
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(mix.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.enableVertexAttribArray(mix.loc.aPos);
+    gl.vertexAttribPointer(mix.loc.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1i(mix.loc.uTex, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, input);
+    gl.uniform1i(mix.loc.uFx, 1);
+    gl.uniform1f(mix.loc.uWet, wetNow);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.activeTexture(gl.TEXTURE0);
+    if (canvas.style.display !== 'block') canvas.style.display = 'block';
+  }
+
+  // The canvas the current artwork draws into, reported by the artwork each
+  // frame. Rendering right then (not in a later frame) keeps WebGL artworks,
+  // whose buffers clear after compositing, readable.
+  let lastSrc = null;
+  let lastSrcAt = 0;
+  let lastRenderAt = 0;
+  function source(c) {
+    if (!c) return;
+    lastSrc = c;
+    lastSrcAt = performance.now();
+    if (!anyOn()) { hide(); return; }
+    if (lastSrcAt - lastRenderAt < 6) return; // once per frame
+    lastRenderAt = lastSrcAt;
+    render(c);
+  }
+
+  // Fallback for artworks that never report: the visible canvas.
+  function guessSource() {
+    for (const sel of ['canvas#defaultCanvas0', '#block-canvas', '#overlay-canvas']) {
+      const c = document.querySelector(sel);
+      if (c && c.width > 0 && getComputedStyle(c).display !== 'none') return c;
+    }
+    return null;
+  }
+
+  let running = false;
+  function wake() {
+    if (disabled || running || !gl) return;
+    if (!anyOn()) { hide(); return; }
+    running = true;
+    requestAnimationFrame(loop);
+  }
+  function loop() {
+    if (!anyOn()) { hide(); running = false; return; }
+    const now = performance.now();
+    if (now - lastSrcAt > 150) {
+      const c = guessSource();
+      if (c) { lastRenderAt = now; render(c); } else hide();
+    } else if (wetNow !== wet && now - lastRenderAt > 40 && lastSrc) {
+      render(lastSrc);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Artwork entry points. All three just name the canvas to filter.
+  function applyToP5(p) { source(p && p.canvas); }
+  function applyToOverlay(c) { source(c); }
+  function apply(ctx) { source(ctx && ctx.canvas); }
+
+  function list() {
+    return FILTERS.map((f) => ({ key: f.key, name: f.name, params: f.params.map(([n]) => n) }));
   }
 
   function setupKeybindings() {
     window.addEventListener('keydown', (e) => {
+      if (e.target && e.target.closest && e.target.closest('input,textarea,select,[contenteditable]')) return;
       if (e.key === '0') {
         e.preventDefault();
         clearActive();
         return;
       }
       const letter = e.ctrlKey || e.metaKey ? '' : e.key.toLowerCase();
-      const num = { d: 10, x: 11, b: 12 }[letter] ?? parseInt(e.key);
-      if (num >= 1 && num <= 12) {
-        const filter = registry.get(num);
-        if (filter) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            toggleActive(num);
-          } else {
-            setActive(num);
-          }
-        }
+      const num = { d: 10, x: 11, b: 12 }[letter] ?? parseInt(e.key, 10);
+      if (byKey.has(num)) {
+        e.preventDefault();
+        if (e.shiftKey) toggleActive(num);
+        else setActive(num);
       }
     });
   }
 
-  register(1, 'Scanlines', (ctx, w, h, frame) => {
-    const spacing = Math.max(3, Math.round(currentThreshold / 5));
-    const alpha = Math.min(0.65, 0.15 + currentThreshold / 400);
-    ctx.save();
-    const offset = (frame * 0.5) % spacing;
-    for (let y = -spacing + offset; y < h + spacing; y += spacing) {
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, y, w, spacing * 0.8);
-    }
-    ctx.restore();
-    ctx.save();
-    const resonance = (window.soundSensitivity ?? 50) / 100;
-    const vignetteAlpha = 0.08 + resonance * 0.6;
-    const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, `rgba(0,0,0,${vignetteAlpha.toFixed(3)})`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
-  });
-
-  register(2, 'Circle Sampling', (ctx, w, h, frame) => {
-    const resonance = (window.soundSensitivity ?? 50) / 100;
-    const cutoff = currentThreshold / 255;
-    const block = Math.max(4, Math.round(6 + cutoff * 54));
-    const brightnessMin = 15 + Math.round(resonance * 200);
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
-    for (let y = 0; y < h; y += block) {
-      for (let x = 0; x < w; x += block) {
-        const i = (Math.round(y) * w + Math.round(x)) * 4;
-        if (i >= data.length - 4) continue;
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        if (r + g + b < brightnessMin) continue;
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.beginPath();
-        ctx.arc(x + block / 2, y + block / 2, block * 0.42, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-  });
-
-  register(3, 'Static Noise', (ctx, w, h, frame) => {
-    const intensity = Math.max(10, currentThreshold);
-    const noiseMax = Math.min(255, intensity * 2);
-    const resonance = (window.soundSensitivity ?? 50) / 100;
-    const grain = Math.max(1, Math.round(1 + resonance * 5));
-    const imageData = ctx.createImageData(w, h);
-    const data = imageData.data;
-    for (let y = 0; y < h; y += grain) {
-      for (let x = 0; x < w; x += grain) {
-        const v = Math.floor(Math.random() * noiseMax);
-        const maxDy = Math.min(grain, h - y);
-        const maxDx = Math.min(grain, w - x);
-        for (let dy = 0; dy < maxDy; dy++) {
-          const row = (y + dy) * w;
-          for (let dx = 0; dx < maxDx; dx++) {
-            const i = (row + x + dx) * 4;
-            data[i] = data[i + 1] = data[i + 2] = v;
-            data[i + 3] = 255;
-          }
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  register(4, 'Chromatic Aberration', (ctx, w, h, frame) => {
-    const resonance = (window.soundSensitivity ?? 50) / 100;
-    const baseShift = Math.max(1, Math.round(currentThreshold / 10));
-    const wobble = Math.sin(frame * 0.02) * (2 + resonance * 10);
-    const shift = baseShift + wobble;
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    const temp = ctx.getImageData(0, 0, w, h);
-    const src = temp.data;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const si = (y * w + x) * 4;
-        const ri = (y * w + Math.min(w - 1, Math.max(0, x + Math.round(shift)))) * 4;
-        const bi = (y * w + Math.min(w - 1, Math.max(0, x - Math.round(shift)))) * 4;
-        if (ri >= data.length - 4 || bi >= data.length - 4) continue;
-        data[si] = src[ri];
-        data[si + 1] = src[si + 1];
-        data[si + 2] = src[bi + 2];
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  register(5, 'VHS Tracking', (ctx, w, h, frame) => {
-    const resonance = (window.soundSensitivity ?? 50) / 100;
-    const bandH = Math.max(4, Math.round(currentThreshold / 8));
-    const maxJitter = Math.max(2, Math.round(currentThreshold / 6));
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    const src = new Uint8ClampedArray(data);
-    for (let y = 0; y < h; y += bandH) {
-      const noise = Math.sin(y * 0.3 + frame * 0.4) + Math.sin(y * 0.07 - frame * 0.15);
-      const jitter = Math.round(noise * maxJitter * (0.3 + resonance * 0.7));
-      const rowsInBand = Math.min(bandH, h - y);
-      for (let dy = 0; dy < rowsInBand; dy++) {
-        const yy = y + dy;
-        for (let x = 0; x < w; x++) {
-          const sx = Math.min(w - 1, Math.max(0, x - jitter));
-          const di = (yy * w + x) * 4;
-          const si = (yy * w + sx) * 4;
-          data[di] = src[si];
-          data[di + 1] = src[si + 1];
-          data[di + 2] = src[si + 2];
-        }
-      }
-      if (Math.random() < 0.02 + resonance * 0.08) {
-        for (let x = 0; x < w; x++) {
-          const di = (y * w + x) * 4;
-          data[di] = 255;
-          data[di + 1] = 255;
-          data[di + 2] = 255;
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  register(6, 'Posterize', (ctx, w, h, frame) => {
-    const levels = Math.max(2, Math.round((255 - currentThreshold) / 40) + 2);
-    const step = 255 / (levels - 1);
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] = Math.round(data[i] / step) * step;
-      data[i + 1] = Math.round(data[i + 1] / step) * step;
-      data[i + 2] = Math.round(data[i + 2] / step) * step;
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  register(7, 'Pixelate', (ctx, w, h, frame) => {
-    const block = Math.max(4, Math.round(currentThreshold / 3));
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-    for (let y = 0; y < h; y += block) {
-      for (let x = 0; x < w; x += block) {
-        const i = (Math.round(y) * w + Math.round(x)) * 4;
-        if (i >= data.length - 4) continue;
-        ctx.fillStyle = `rgb(${data[i]},${data[i+1]},${data[i+2]})`;
-        ctx.fillRect(x, y, block + 1, block + 1);
-      }
-    }
-    ctx.restore();
-  });
-
-  register(8, 'Color Invert', (ctx, w, h, frame) => {
-    const src = ctx.getImageData(0, 0, w, h);
-    const out = ctx.createImageData(w, h);
-    const s = src.data;
-    const d = out.data;
-    for (let i = 0; i < s.length; i += 4) {
-      d[i] = 255 - s[i];
-      d[i + 1] = 255 - s[i + 1];
-      d[i + 2] = 255 - s[i + 2];
-      d[i + 3] = s[i + 3];
-    }
-    ctx.putImageData(out, 0, 0);
-  });
-
-  let currentThreshold = 40;
-  window.ledThreshold = currentThreshold;
-
-  function setThreshold(val) {
-    currentThreshold = val;
-    window.ledThreshold = val;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
   }
 
-  register(9, 'LED Grid', (ctx, w, h, frame) => {
-    const sz = 16;
-    const stripeSz = 24;
-    const threshold = currentThreshold;
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = 'rgb(40, 28, 28)';
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < w; x += stripeSz) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-    }
-    for (let y = 0; y < h; y += stripeSz) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-    }
-    ctx.fillStyle = '#ffffff';
-    for (let y = 0; y < h; y += sz) {
-      for (let x = 0; x < w; x += sz) {
-        const idx = (Math.round(y) * w + Math.round(x)) * 4;
-        if (idx >= data.length - 4) continue;
-        const c = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-        const level = (c - threshold) / (255 - threshold);
-        if (level > 0) {
-          const alpha = Math.min(1, level * 1.5);
-          ctx.globalAlpha = alpha;
-          ctx.fillRect(x, y, sz - 1, sz - 1);
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  });
-
-  const BAYER8 = [
-    [0, 32, 8, 40, 2, 34, 10, 42],
-    [48, 16, 56, 24, 50, 18, 58, 26],
-    [12, 44, 4, 36, 14, 46, 6, 38],
-    [60, 28, 52, 20, 62, 30, 54, 22],
-    [3, 35, 11, 43, 1, 33, 9, 41],
-    [51, 19, 59, 27, 49, 17, 57, 25],
-    [15, 47, 7, 39, 13, 45, 5, 37],
-    [63, 31, 55, 23, 61, 29, 53, 21],
-  ].map(row => row.map(v => (v + 0.5) / 64));
-
-  const DITHER_INK = '#1a1a1a';
-  const DITHER_PAPER = '#e9e6df';
-
-  function ditherInk(lum, cx, cy) {
-    return (1 - lum) > BAYER8[cy & 7][cx & 7];
-  }
-
-  // One dither cell in canvas pixels. `scale` is canvas pixels per CSS pixel,
-  // taken from the canvas itself: artworks pinned to pixelDensity(1) would get
-  // devicePixelRatio-sized dots otherwise, which is what made the grid read
-  // twice as coarse on a retina desktop and three times on a phone.
-  function ditherCell(scale) {
-    return Math.max(2, Math.round((currentThreshold / 20) * (scale || 1)));
-  }
-
-  // Browsers: downscale with drawImage, dither at cell resolution, blit back with
-  // smoothing off. The old version issued one fillRect per cell on the full-res
-  // canvas (>1M at 1440x900 dpr2), which is what stalled the frame.
-  const hasOffscreen = typeof document !== 'undefined' && typeof document.createElement === 'function';
-  let ditherSmall = null;
-  let ditherSmallCtx = null;
-
-  // Contrast follows the cutoff dial; the old Giphy look (1.2) sits at its rest position.
-  function monoContrast() {
-    return 0.6 + ((window._cutoffVal ?? 130) / 255) * 1.2;
-  }
-
-  register(12, 'Black & White', (ctx, w, h) => {
-    const k = monoContrast();
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const l = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 - 128) * k + 128;
-      d[i] = d[i + 1] = d[i + 2] = l < 0 ? 0 : l > 255 ? 255 : l;
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-  window.monoContrast = monoContrast;
-
-  register(10, 'Dither', (ctx, w, h, frame) => {
-    const scale = ctx.canvas && ctx.canvas.clientWidth ? w / ctx.canvas.clientWidth : 1;
-    const cell = ditherCell(scale);
-
-    if (hasOffscreen && ctx.canvas && typeof ctx.drawImage === 'function') {
-      const sw = Math.max(1, Math.ceil(w / cell));
-      const sh = Math.max(1, Math.ceil(h / cell));
-      if (!ditherSmall) {
-        ditherSmall = document.createElement('canvas');
-        ditherSmallCtx = ditherSmall.getContext('2d', { willReadFrequently: true });
-      }
-      if (ditherSmall.width !== sw || ditherSmall.height !== sh) {
-        ditherSmall.width = sw;
-        ditherSmall.height = sh;
-      }
-      ditherSmallCtx.imageSmoothingEnabled = true;
-      ditherSmallCtx.clearRect(0, 0, sw, sh);
-      ditherSmallCtx.drawImage(ctx.canvas, 0, 0, w, h, 0, 0, sw, sh);
-
-      const imageData = ditherSmallCtx.getImageData(0, 0, sw, sh);
-      const data = imageData.data;
-      for (let y = 0; y < sh; y++) {
-        for (let x = 0; x < sw; x++) {
-          const i = (y * sw + x) * 4;
-          const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
-          const ink = ditherInk(lum, x, y);
-          data[i] = ink ? 0x1a : 0xe9;
-          data[i + 1] = ink ? 0x1a : 0xe6;
-          data[i + 2] = ink ? 0x1a : 0xdf;
-          data[i + 3] = 255;
-        }
-      }
-      ditherSmallCtx.putImageData(imageData, 0, 0);
-
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(ditherSmall, 0, 0, sw, sh, 0, 0, w, h);
-      ctx.restore();
-      return;
-    }
-
-    // No offscreen canvas (tests, exotic hosts): write pixels instead of fillRect.
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    for (let cy = 0, y = 0; y < h; y += cell, cy++) {
-      const rows = Math.min(cell, h - y);
-      for (let cx = 0, x = 0; x < w; x += cell, cx++) {
-        const cols = Math.min(cell, w - x);
-        let sum = 0;
-        for (let dy = 0; dy < rows; dy++) {
-          let i = ((y + dy) * w + x) * 4;
-          for (let dx = 0; dx < cols; dx++, i += 4) {
-            sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-          }
-        }
-        const ink = ditherInk(sum / (rows * cols * 255), cx, cy);
-        const r = ink ? 0x1a : 0xe9;
-        const g = ink ? 0x1a : 0xe6;
-        const b = ink ? 0x1a : 0xdf;
-        for (let dy = 0; dy < rows; dy++) {
-          let i = ((y + dy) * w + x) * 4;
-          for (let dx = 0; dx < cols; dx++, i += 4) {
-            data[i] = r;
-            data[i + 1] = g;
-            data[i + 2] = b;
-            data[i + 3] = 255;
-          }
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  const GLITCH_SEED = 25;
-
-  function glitchRandom(seed) {
-    let s = seed >>> 0;
-    return () => {
-      s = (s + 0x6d2b79f5) >>> 0;
-      let t = s;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  register(11, 'Glitch', (ctx, w, h, frame) => {
-    const amount = Math.max(0.05, Math.min(1, currentThreshold / 255));
-    const strength = Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100;
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    const randomSeed = glitchRandom((GLITCH_SEED + (frame | 0) * 2654435761) >>> 0);
-    const bands = Math.round(4 + amount * 26);
-    const maxShift = Math.round(w * (0.01 + amount * 0.06) * strength);
-    let src = new Uint8ClampedArray(0);
-    for (let b = 0; b < bands; b++) {
-      const top = Math.floor(randomSeed() * h);
-      const height = Math.max(3, Math.floor((0.004 + randomSeed() * 0.035) * h));
-      const shift = Math.round((randomSeed() * 2 - 1) * maxShift);
-      const fringe = Math.max(1, Math.min(12, Math.round(Math.abs(shift) * 0.08)));
-      const chroma = Math.round(fringe * strength) * (randomSeed() < 0.5 ? -1 : 1);
-      const bottom = Math.min(h, top + height);
-      const rows = bottom - top;
-      if (rows <= 0) continue;
-      const need = rows * w * 4;
-      if (src.length < need) src = new Uint8ClampedArray(need);
-      // snapshot just this band, so the read stays a straight typed-array copy
-      src.set(data.subarray(top * w * 4, bottom * w * 4));
-      for (let y = 0; y < rows; y++) {
-        const srow = y * w * 4;
-        const drow = (top + y) * w * 4;
-        for (let x = 0; x < w; x++) {
-          let g = x - shift;
-          g = g < 0 ? 0 : g >= w ? w - 1 : g;
-          let r = g - chroma;
-          r = r < 0 ? 0 : r >= w ? w - 1 : r;
-          let bl = g + chroma;
-          bl = bl < 0 ? 0 : bl >= w ? w - 1 : bl;
-          const di = drow + x * 4;
-          data[di] = src[srow + r * 4];
-          data[di + 1] = src[srow + g * 4 + 1];
-          data[di + 2] = src[srow + bl * 4 + 2];
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-  });
-
-  // Convenience for p5 visuals: filter a copy on the overlay canvas, never the
-  // sketch's own canvas. Sketches that fade the last frame instead of clearing
-  // it would otherwise build on the filtered picture, so circles, scanlines and
-  // so on pile up frame after frame and the alpha knob can never fade them out.
-  function applyToP5(p) {
-    applyToOverlay(p.canvas, p.frameCount);
-  }
-
-  return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength, ditherCell };
+  return {
+    FILTERS, list, subscribe,
+    getSlots: () => slots.map((s) => ({ key: s.key, on: s.on, p: s.p.slice() })),
+    getFocus: () => focus,
+    getWet: () => wet,
+    setSlotFilter, setSlotOn, setParam, setFocus, setWet, getState, setState,
+    setActive, toggleActive, clearActive, getActiveKeys, hasActiveKey, getActiveName,
+    setStrength, setThreshold, apply, applyToOverlay, applyToP5, setupKeybindings,
+  };
 })();
 
 canvasFilters.setupKeybindings();

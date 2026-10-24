@@ -1,21 +1,6 @@
 'use strict';
 
 const gallery = (() => {
-  const FILTER_NAMES = {
-    1: 'Scanlines',
-    2: 'Circle Sampling',
-    3: 'Static Noise',
-    4: 'Chromatic Aberration',
-    5: 'VHS Tracking',
-    6: 'Posterize',
-    7: 'Pixelate',
-    8: 'Color Invert',
-    9: 'LED Grid',
-    10: 'Dither',
-    11: 'Glitch',
-    12: 'Black & White',
-  };
-
   // Baseline filter/cutoff/resonance every user sees on an artwork before
   // they've customized it themselves this session.
   const DEFAULT_PRESETS = {
@@ -53,9 +38,8 @@ const gallery = (() => {
   let panel = null;
   let grid = null;
   let gridRows = [];
-  let filterRow = null;
+  let fxStrip = null;
   let isOpen = false;
-  let ledPreviewTimer = null;
   let wasExpanded = false;
   const presets = {};
   let _suppressSave = false;
@@ -182,15 +166,13 @@ const gallery = (() => {
 
     panel = container;
 
-    const filterLabel = document.createElement('div');
-    filterLabel.className = 'gallery-section-label';
-    filterLabel.textContent = 'Filters';
-    panel.appendChild(filterLabel);
+    const fxLabel = document.createElement('div');
+    fxLabel.className = 'gallery-section-label';
+    fxLabel.textContent = 'FX';
+    panel.appendChild(fxLabel);
 
-    filterRow = document.createElement('div');
-    filterRow.className = 'gallery-filter-row';
-    buildFilterRow();
-    panel.appendChild(filterRow);
+    fxStrip = buildFxStrip();
+    panel.appendChild(fxStrip);
 
     const artLabel = document.createElement('div');
     artLabel.className = 'gallery-section-label gallery-section-label--art';
@@ -208,109 +190,148 @@ const gallery = (() => {
       return row;
     });
 
-    setupMouseScroll(filterRow);
     gridRows.forEach(setupMouseScroll);
 
     document.addEventListener('keydown', handleKeyDown);
   }
 
-  function filterCoverBg(key) {
-    switch (key) {
-      case 12:
-        return `linear-gradient(90deg, #1a1a1a 0%, #1a1a1a 33%, #777 33%, #777 66%, #e9e6df 66%)`;
-      case 1:
-        return `repeating-linear-gradient(0deg, #e9e6df 0px, #e9e6df 30px, #1a1a1a 30px, #1a1a1a 38px, #e9e6df 38px, #e9e6df 42px, #1a1a1a 42px, #1a1a1a 44px)`;
-      case 2:
-        return `radial-gradient(circle at 50% 50%, transparent 0%, transparent 13%, #c94814 13%, #c94814 14.5%, transparent 14.5%, transparent 30%, #c94814 30%, #c94814 31.5%, transparent 31.5%, transparent 46%, #c94814 46%, #c94814 47.5%, transparent 47.5%), linear-gradient(#e9e6df, #e9e6df)`;
-      case 3:
-        return `radial-gradient(#c94814 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(#1a1a1a, #1a1a1a)`;
-      case 4:
-        return `linear-gradient(rgba(220,60,60,0.7), rgba(220,60,60,0.7)) no-repeat 32% 50% / 36px 36px, linear-gradient(rgba(60,200,60,0.7), rgba(60,200,60,0.7)) no-repeat 50% 50% / 36px 36px, linear-gradient(rgba(60,100,220,0.7), rgba(60,100,220,0.7)) no-repeat 68% 50% / 36px 36px, linear-gradient(#1a1a1a, #1a1a1a)`;
-      case 5:
-        return `linear-gradient(#e9e6df, #e9e6df),` +
-          `repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1.5px, transparent 1.5px, transparent 7px) no-repeat 0 20px / 100% 8px,` +
-          `repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1.5px, transparent 1.5px, transparent 7px) no-repeat -10px 36px / 100% 8px,` +
-          `repeating-linear-gradient(90deg, #c94814 0px, #c94814 1.5px, transparent 1.5px, transparent 7px) no-repeat 12px 52px / 100% 6px,` +
-          `repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1.5px, transparent 1.5px, transparent 7px) no-repeat -16px 66px / 100% 8px,` +
-          `repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1.5px, transparent 1.5px, transparent 7px) no-repeat 8px 82px / 100% 8px,` +
-          `repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1.5px, transparent 1.5px, transparent 7px) no-repeat -6px 98px / 100% 8px`;
-      case 6:
-        return `linear-gradient(0deg, #111 0%, #111 25%, #555 25%, #555 50%, #999 50%, #999 75%, #ddd 75%, #ddd 100%)`;
-      case 7:
-        return `repeating-linear-gradient(0deg, #1a1a1a 0px, #1a1a1a 6px, transparent 6px, transparent 18px), repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 6px, transparent 6px, transparent 18px), linear-gradient(#e9e6df, #e9e6df)`;
-      case 8:
-        return `linear-gradient(135deg, #111 0%, #111 50%, #ddd 50%, #ddd 100%)`;
-      case 9:
-        return `radial-gradient(#8a7a6a 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(#ece8e2, #ece8e2)`;
-      case 10:
-        return `radial-gradient(#1a1a1a 1px, transparent 1px) 0 0 / 8px 8px, radial-gradient(#1a1a1a 1px, transparent 1px) 4px 4px / 8px 8px, linear-gradient(#e9e6df, #e9e6df)`;
-      case 11:
-        return `repeating-linear-gradient(0deg, #161616 0px, #161616 9px, #ff2e63 9px, #ff2e63 11px, #161616 11px, #161616 20px, #22d3ee 20px, #22d3ee 22px, #161616 22px, #161616 34px)`;
-      default:
-        return `#111`;
-    }
+  // ---- FX strip: dry/wet, three slots, a filter dial and two parameter knobs ----
+  // Click a slot's name to focus it; the filter dial turns through the filters
+  // for the focused slot, and the two knobs set its parameters.
+  function knobHtml(cls, label) {
+    return `<span class="ctrl"><span class="led"></span><div class="rams-knob ${cls}"><div class="knob-body"><div class="knob-tick"></div></div></div><div class="knob-label">${label}</div></span>`;
   }
 
-  function buildFilterRow() {
-    const noneCard = document.createElement('button');
-    noneCard.className = 'gallery-filter-card';
-    noneCard.innerHTML = `
-      <div class="gfc-pattern" style="background: #111;"></div>
-      <div class="gfc-name">off</div>
-    `;
-    noneCard.dataset.filter = '';
-    noneCard.addEventListener('click', () => {
-      canvasFilters.clearActive();
-      updateFilterRow();
-      close();
+  // Drag up/down or scroll. A detented knob steps once per `detent` pixels.
+  function bindKnob(el, { get, set, reset, detent }) {
+    let dragging = false;
+    let acc = 0;
+    el.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      acc = 0;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging');
     });
-    filterRow.appendChild(noneCard);
-
-    for (const [key, name] of Object.entries(FILTER_NAMES)) {
-      const k = parseInt(key);
-      const info = canvasFilters.getCoverInfo(k);
-      const card = document.createElement('button');
-      card.className = 'gallery-filter-card';
-      const displayName = name.toLowerCase().split(' ').join('<br>');
-      card.innerHTML = `
-        <div class="gfc-pattern" style="background: ${filterCoverBg(k)};"></div>
-        <div class="gfc-name">${displayName}</div>
-      `;
-      card.dataset.filter = String(key);
-      if ([1, 2, 5, 7, 8, 9, 10].includes(k)) {
-        card.dataset.text = 'dark';
-      }
-      card.addEventListener('click', () => {
-        canvasFilters.setActive(k);
-        updateFilterRow();
-        close();
-      });
-      filterRow.appendChild(card);
-    }
-
-    updateFilterRow();
-  }
-
-  function showFilterNotif() {
-    const el = document.getElementById('visual-notification');
-    if (el) {
-      el.classList.add('visible');
-      clearTimeout(el._hideTimer);
-      el._hideTimer = setTimeout(() => el.classList.remove('visible'), 1500);
-    }
-  }
-
-  function updateFilterRow() {
-    if (!filterRow) return;
-    const cards = filterRow.querySelectorAll('.gallery-filter-card');
-    for (const card of cards) {
-      const key = card.dataset.filter;
-      if (key === '') {
-        card.classList.toggle('active', canvasFilters.getActiveKeys().size === 0);
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      if (detent) {
+        acc -= e.movementY;
+        while (Math.abs(acc) >= detent) {
+          set(get() + Math.sign(acc));
+          acc -= Math.sign(acc) * detent;
+        }
       } else {
-        card.classList.toggle('active', canvasFilters.hasActiveKey(parseInt(key)));
+        set(get() - e.movementY * 0.005);
       }
-    }
+    });
+    const end = () => { dragging = false; el.classList.remove('dragging'); };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      set(get() - Math.sign(e.deltaY) * (detent ? 1 : 0.03));
+    }, { passive: false });
+    if (reset) el.addEventListener('dblclick', reset);
+  }
+
+  const FX_KEYS = [null, ...canvasFilters.list().map((f) => f.key)];
+  const fxName = (key) => (canvasFilters.list().find((f) => f.key === key) || {}).name || '';
+
+  function buildFxStrip() {
+    const el = document.createElement('div');
+    el.className = 'fx-unit';
+    el.innerHTML = `
+      ${knobHtml('fx-wet', 'dry/wet')}
+      <div class="fx-lcd">
+        ${[0, 1, 2].map((i) => `<div class="fx-row" data-slot="${i}"><span class="fx-num">${i + 1}</span><span class="fx-name"></span><button class="fx-on" data-slot="${i}">off</button></div>`).join('')}
+      </div>
+      ${knobHtml('fx-pick', 'filter')}
+      ${knobHtml('fx-p1', '')}
+      ${knobHtml('fx-p2', '')}`;
+
+    el.querySelectorAll('.fx-row').forEach((row) => {
+      row.addEventListener('click', (e) => {
+        const i = Number(row.dataset.slot);
+        if (e.target.closest('.fx-on')) {
+          const s = canvasFilters.getSlots()[i];
+          canvasFilters.setFocus(i);
+          canvasFilters.setSlotOn(i, !s.on);
+        } else {
+          canvasFilters.setFocus(i);
+        }
+      });
+    });
+
+    const focused = () => canvasFilters.getSlots()[canvasFilters.getFocus()];
+    bindKnob(el.querySelector('.fx-wet'), {
+      get: () => canvasFilters.getWet(),
+      set: (v) => canvasFilters.setWet(v),
+      reset: () => canvasFilters.setWet(1),
+    });
+    bindKnob(el.querySelector('.fx-pick'), {
+      detent: 14,
+      get: () => FX_KEYS.indexOf(focused().key),
+      set: (i) => {
+        const f = canvasFilters.getFocus();
+        const key = FX_KEYS[Math.max(0, Math.min(FX_KEYS.length - 1, i))];
+        canvasFilters.setSlotFilter(f, key);
+        // A filter dialled in starts playing; dialling back to nothing stops it.
+        if (key != null) canvasFilters.setSlotOn(f, true);
+      },
+    });
+    [0, 1].forEach((j) => {
+      bindKnob(el.querySelector(`.fx-p${j + 1}`), {
+        get: () => focused().p[j],
+        set: (v) => canvasFilters.setParam(canvasFilters.getFocus(), j, v),
+        reset: () => {
+          const f = canvasFilters.list().find((x) => x.key === focused().key);
+          if (f) canvasFilters.setParam(canvasFilters.getFocus(), j, canvasFilters.FILTERS.find((x) => x.key === f.key).params[j][1]);
+        },
+      });
+    });
+
+    canvasFilters.subscribe(() => updateFxStrip(el));
+    updateFxStrip(el);
+    return el;
+  }
+
+  function turn(el, frac) {
+    el.querySelector('.knob-tick').style.transform = `rotate(${frac * 300 - 150}deg)`;
+  }
+
+  function updateFxStrip(el) {
+    const slots = canvasFilters.getSlots();
+    const focus = canvasFilters.getFocus();
+    el.querySelectorAll('.fx-row').forEach((row, i) => {
+      const s = slots[i];
+      row.classList.toggle('focus', i === focus);
+      row.classList.toggle('on', s.on);
+      row.querySelector('.fx-name').textContent = s.key == null ? '\u2014' : fxName(s.key);
+      const btn = row.querySelector('.fx-on');
+      btn.textContent = s.on ? 'on' : 'off';
+      btn.disabled = s.key == null;
+    });
+    const s = slots[focus];
+    const info = canvasFilters.list().find((f) => f.key === s.key);
+    const ctrl = (cls) => el.querySelector(`.${cls}`).closest('.ctrl');
+    turn(el.querySelector('.fx-wet'), canvasFilters.getWet());
+    ctrl('fx-wet').querySelector('.led').classList.toggle('on', slots.some((x) => x.on));
+    turn(el.querySelector('.fx-pick'), FX_KEYS.indexOf(s.key) / (FX_KEYS.length - 1));
+    ctrl('fx-pick').querySelector('.led').classList.toggle('on', s.on);
+    [0, 1].forEach((j) => {
+      const c = ctrl(`fx-p${j + 1}`);
+      turn(c.querySelector('.rams-knob'), s.p[j]);
+      c.querySelector('.knob-label').textContent = info ? info.params[j] : '\u2014';
+      c.classList.toggle('idle', !info);
+      c.querySelector('.led').classList.toggle('on', s.on);
+    });
+  }
+
+  // Saved looks keep the whole FX unit. Older saves held one filter key.
+  function fxOf(p) {
+    if (p.fx) return p.fx;
+    const k = (p.filters || [])[0];
+    return { slots: [[k ?? null, k != null]], focus: 0 };
   }
 
   function getTrackLabel() {
@@ -374,31 +395,12 @@ const gallery = (() => {
     }
   }
 
-  function updateLedPreview() {
-    const ledCard = filterRow.querySelector('[data-filter="9"]');
-    if (!ledCard) return;
-    const patternEl = ledCard.querySelector('.gfc-pattern');
-    if (!patternEl) return;
-    const t = window.ledThreshold || 40;
-    const frac = t / 255;
-    const dotBright = Math.max(30, 255 - Math.round(frac * 200));
-    const bgBright = Math.max(5, Math.round(dotBright * 0.08));
-    const dim = Math.round(frac * 6 + 1.5);
-    const dot = `rgb(${dotBright}, ${Math.round(dotBright * 0.5)}, ${Math.round(dotBright * 0.1)})`;
-    const bg = `rgb(${bgBright}, ${Math.round(bgBright * 0.35)}, ${Math.round(bgBright * 0.08)})`;
-    const spc = Math.round(frac * 16 + 8);
-    patternEl.style.background = `radial-gradient(${dot} ${dim}px, transparent ${dim}px) 0 0 / ${spc}px ${spc}px, linear-gradient(${bg}, ${bg})`;
-  }
-
   function open() {
     if (isOpen) return;
     isOpen = true;
     build();
     gridRows.forEach((row) => { row.innerHTML = ''; });
     buildGrid();
-    updateFilterRow();
-    updateLedPreview();
-    ledPreviewTimer = setInterval(updateLedPreview, 150);
     const deck = document.getElementById('deck');
     deck.classList.remove('closing');
     deck.classList.add('ejected', 'expanded');
@@ -407,8 +409,6 @@ const gallery = (() => {
   function close() {
     if (!isOpen) return;
     isOpen = false;
-    clearInterval(ledPreviewTimer);
-    ledPreviewTimer = null;
     const deck = document.getElementById('deck');
     deck.classList.add('closing');
     deck.dispatchEvent(new CustomEvent('galleryclose'));
@@ -433,7 +433,7 @@ const gallery = (() => {
   function savePreset(id) {
     if (_suppressSave || !id || activeSlot > 0) return;
     presets[id] = {
-      filters: Array.from(canvasFilters.getActiveKeys()),
+      fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
       resonance: window._resonanceVal != null ? window._resonanceVal : 50,
       strength: window._filterStrengthVal != null ? window._filterStrengthVal : 100,
@@ -445,11 +445,7 @@ const gallery = (() => {
     const p = presets[id] || DEFAULT_PRESETS[id];
     if (!p) return;
     _suppressSave = true;
-    canvasFilters.clearActive();
-    for (const key of p.filters) {
-      canvasFilters.setActive(key);
-    }
-    updateFilterRow();
+    canvasFilters.setState(fxOf(p));
     if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
     if (window._restoreResonance) window._restoreResonance(p.resonance);
     if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);
@@ -479,7 +475,7 @@ const gallery = (() => {
     if (!id || slot < 1 || slot > 9) return;
     if (!artPresets[id]) artPresets[id] = {};
     artPresets[id][slot] = {
-      filters: Array.from(canvasFilters.getActiveKeys()),
+      fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
       resonance: window._resonanceVal != null ? window._resonanceVal : 50,
       strength: window._filterStrengthVal != null ? window._filterStrengthVal : 100,
@@ -505,11 +501,7 @@ const gallery = (() => {
     saveLit = !!p;
     if (!p) { updateSlotUI(); return; }
     _suppressSave = true;
-    canvasFilters.clearActive();
-    for (const key of p.filters) {
-      canvasFilters.setActive(key);
-    }
-    updateFilterRow();
+    canvasFilters.setState(fxOf(p));
     if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
     if (window._restoreResonance) window._restoreResonance(p.resonance);
     if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);

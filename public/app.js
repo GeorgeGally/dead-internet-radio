@@ -541,34 +541,11 @@ function setupControls() {
   updateKnob(knobVal);
   let knobDragging = false;
 
-  // The dial drives each canvas filter's main variable. Map filter name ->
-  // the parameter it controls, so the label/readout reflect the active filter.
-  const FILTER_PARAM = {
-    'Scanlines': 'thickness',
-    'Circle Sampling': 'size',
-    'Static Noise': 'intensity',
-    'Chromatic Aberration': 'shift',
-    'VHS Tracking': 'bands',
-    'Posterize': 'levels',
-    'Pixelate': 'size',
-    'Color Invert': '—',
-    'LED Grid': 'cutoff',
-    'Dither': 'cell',
-    'Glitch': 'amount',
-  };
-  function activeFilter() {
-    const fx = canvasFilters.getActiveName ? canvasFilters.getActiveName() : 'none';
-    if (!fx || fx === 'none') return { name: null, param: 'cutoff' };
-    const first = fx.split(' + ')[0].split(' · ')[0];
-    return { name: first, param: FILTER_PARAM[first] || 'amount' };
-  }
-
   // Transient readout under the LED screen: what the dial is affecting + amount.
   function showDialReadout() {
     if (!dialReadout) return;
-    const { name, param } = activeFilter();
     const pct = Math.round(((knobVal - 5) / 250) * 100);
-    dialReadout.textContent = name ? `${name} · ${param} ${pct}%` : `no fx · ${pct}%`;
+    dialReadout.textContent = `cutoff ${pct}%`;
     dialReadout.classList.add('show');
     clearTimeout(dialReadoutTimer);
     dialReadoutTimer = setTimeout(() => dialReadout.classList.remove('show'), 1400);
@@ -676,12 +653,6 @@ function setupControls() {
     const deg = (strengthVal / 100) * 300 - 150;
     strengthKnob.querySelector('.knob-tick').style.transform = `rotate(${deg}deg)`;
     canvasFilters.setStrength(strengthVal);
-    if (strengthVal > 5) {
-      strengthLed.classList.add('on');
-    } else {
-      strengthLed.classList.remove('on');
-    }
-    gallery.saveCurrentPreset();
   }
   strengthKnob.addEventListener('pointerdown', (e) => {
     strengthDragging = true;
@@ -815,40 +786,22 @@ function setupControls() {
     });
   }
 
+  // The FX unit (filters.js) calls back on every change: keys, the drawer's
+  // FX strip, slot presets. The alpha knob is the unit's dry/wet.
   function syncFilterLeds() {
-    const hasFilter = canvasFilters.getActiveKeys().size > 0;
-    if (!hasFilter) {
-      knobLed.classList.remove('on');
-      sensLed.classList.remove('on');
-      strengthLed.classList.remove('on');
-    } else {
-      if (knobVal > 20) knobLed.classList.add('on');
-      if (sensVal > 5) sensLed.classList.add('on');
-      if (strengthVal > 5) strengthLed.classList.add('on');
-    }
+    strengthLed.classList.toggle('on', canvasFilters.getActiveKeys().size > 0 && strengthVal > 5);
   }
-
-  const origSetActive = canvasFilters.setActive;
-  const origClearActive = canvasFilters.clearActive;
-  const origToggleActive = canvasFilters.toggleActive;
-  canvasFilters.setActive = function(k) {
-    origSetActive.call(canvasFilters, k);
+  canvasFilters.subscribe(() => {
     updateNowPlaying();
+    const w = Math.round(canvasFilters.getWet() * 100);
+    if (w !== Math.round(strengthVal)) {
+      strengthVal = w;
+      window._filterStrengthVal = w;
+      strengthKnob.querySelector('.knob-tick').style.transform = `rotate(${(w / 100) * 300 - 150}deg)`;
+    }
     syncFilterLeds();
     gallery.saveCurrentPreset();
-  };
-  canvasFilters.clearActive = function() {
-    origClearActive.call(canvasFilters);
-    updateNowPlaying();
-    syncFilterLeds();
-    gallery.saveCurrentPreset();
-  };
-  canvasFilters.toggleActive = function(k) {
-    origToggleActive.call(canvasFilters, k);
-    updateNowPlaying();
-    syncFilterLeds();
-    gallery.saveCurrentPreset();
-  };
+  });
 
   const audio = document.getElementById('player');
   audio.addEventListener('play', () => updatePlayBtn());
