@@ -530,7 +530,7 @@ body.prewarming #block-canvas {
 /* ---- Synth LED now-playing display ---- */
 .npd-stack {
   position: relative;
-  flex: 0 1 900px;
+  flex: 0 1 760px;
   min-width: 0;
   align-self: stretch;
   justify-content: center;
@@ -565,7 +565,7 @@ body.prewarming #block-canvas {
 #np-display {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 900px;
+  max-width: 760px;
   box-sizing: border-box;
   min-width: 0;
   height: 76px;
@@ -615,6 +615,7 @@ body.prewarming #block-canvas {
   height: 100%;
   display: block;
   background: transparent;
+  max-width: 140px;
 }
 
 /* Prev/next song controls inside the LED */
