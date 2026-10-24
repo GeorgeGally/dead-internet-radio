@@ -274,7 +274,12 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .led .x.on { mix-blend-mode: normal; }
 .led .x.on::before, .led .x.on::after { background: var(--orange); width: 2px; }
 .led .x.on::after { width: 15px; height: 2px; }
-.v15 .t .nm { left: 50%; bottom: auto; top: calc(50% + 14px); transform: translateX(-50%); background: none; padding: 0; font-size: 10.5px; }
+/* Hover: the name takes the cross's place, the panel takes a slight orange wash. */
+.led .t.art .nm { left: 50%; top: 50%; bottom: auto; transform: translate(-50%, -50%); padding: 3px 6px 2px; font-size: 10.5px; line-height: 1.35; white-space: normal; width: max-content; max-width: 84%; text-align: center; }
+.led .t.art::after { content: ""; position: absolute; inset: 0; background: rgba(255, 90, 31, .22); opacity: 0; transition: opacity .3s ease; z-index: 1; pointer-events: none; }
+.led .t.art:hover::after { opacity: 1; }
+.led .t.art .x { transition: opacity .3s ease; }
+.led .t.art:hover .x { opacity: 0; }
 .led .t.fx .fnm { position: absolute; left: 8px; bottom: 6px; font-family: var(--mono); font-size: 10.5px; color: #8a8a8a; text-transform: uppercase; letter-spacing: .02em; }
 .led .t.fx.on .fnm { color: var(--orange); }
 .led .t.fx { cursor: pointer; border-right: 1px solid #111; }
