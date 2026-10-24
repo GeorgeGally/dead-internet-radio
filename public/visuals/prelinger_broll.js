@@ -334,17 +334,76 @@ visuals.register('prelinger_broll', (() => {
         p.pop();
       }
 
+      // Many archive films carry black bars inside the file (4:3 pillarboxed
+      // into 16:9, widescreen letterboxed into 4:3). Find the picture inside
+      // them, once a second for the first few seconds of each clip.
+      const probe = document.createElement('canvas');
+      const probeCtx = probe.getContext('2d', { willReadFrequently: true });
+      function pictureBox(v) {
+        const vw = v.videoWidth;
+        const vh = v.videoHeight;
+        const now = performance.now();
+        if (v._box && (v._boxChecks >= 4 || now - v._boxAt < 1000)) return v._box;
+        v._boxAt = now;
+        v._boxChecks = (v._boxChecks || 0) + 1;
+        const W = 96;
+        const H = Math.max(8, Math.round(W * vh / vw));
+        probe.width = W;
+        probe.height = H;
+        let d;
+        try {
+          probeCtx.drawImage(v, 0, 0, W, H);
+          d = probeCtx.getImageData(0, 0, W, H).data;
+        } catch (e) {
+          return (v._box = v._box || { x: 0, y: 0, w: vw, h: vh });
+        }
+        // A line is picture if a few of its pixels are above black.
+        const lit = (x0, y0, dx, dy, n) => {
+          let on = 0;
+          for (let k = 0; k < n; k++) {
+            const i = 4 * ((y0 + dy * k) * W + (x0 + dx * k));
+            if (d[i] + d[i + 1] + d[i + 2] > 90) on++;
+          }
+          return on > n * 0.06;
+        };
+        let x0 = 0, x1 = W - 1, y0 = 0, y1 = H - 1;
+        while (x0 < W / 3 && !lit(x0, 0, 0, 1, H)) x0++;
+        while (x1 > (W * 2) / 3 && !lit(x1, 0, 0, 1, H)) x1--;
+        while (y0 < H / 3 && !lit(0, y0, 1, 0, W)) y0++;
+        while (y1 > (H * 2) / 3 && !lit(0, y1, 1, 0, W)) y1--;
+        // An all-dark frame (a fade) says nothing about the bars.
+        if (x0 >= W / 3 && y0 >= H / 3) return (v._box = v._box || { x: 0, y: 0, w: vw, h: vh });
+        const sx = vw / W;
+        const sy = vh / H;
+        const box = { x: x0 * sx, y: y0 * sy, w: (x1 - x0 + 1) * sx, h: (y1 - y0 + 1) * sy };
+        // Bars don't move; a dark scene only makes the box look smaller. Keep
+        // the widest box seen.
+        if (v._box) {
+          const r = Math.max(box.x + box.w, v._box.x + v._box.w);
+          const btm = Math.max(box.y + box.h, v._box.y + v._box.h);
+          box.x = Math.min(box.x, v._box.x);
+          box.y = Math.min(box.y, v._box.y);
+          box.w = r - box.x;
+          box.h = btm - box.y;
+        }
+        v._box = box;
+        return box;
+      }
+
+      // The picture covers the screen edge to edge: at least the screen's
+      // width and height, never stretched, bars inside the file cut away.
       function drawVideoShot(v, alpha) {
         const vw = v.videoWidth;
         const vh = v.videoHeight;
         if (!vw || !vh) return false;
-        const scale = Math.max(p.width / vw, p.height / vh) * 1.02;
-        const dw = vw * scale;
-        const dh = vh * scale;
+        const b = pictureBox(v);
+        const scale = Math.max(p.width / b.w, p.height / b.h) * 1.02;
+        const dw = b.w * scale;
+        const dh = b.h * scale;
         const ctx = p.drawingContext;
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.drawImage(v, (p.width - dw) / 2, (p.height - dh) / 2, dw, dh);
+        ctx.drawImage(v, b.x, b.y, b.w, b.h, (p.width - dw) / 2, (p.height - dh) / 2, dw, dh);
         ctx.restore();
         return true;
       }

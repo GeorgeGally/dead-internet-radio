@@ -210,7 +210,9 @@ visuals.register('glyph_board', (() => {
         let b = 0, a = 0;
         for (let i = 1; i < 12; i++) b += frequencyData[i];
         for (let i = 1; i < 200; i++) a += frequencyData[i];
-        return { bass: Math.min(1, (b / 11 / 255) * gain), lvl: Math.min(1, (a / 199 / 255) * 1.6 * gain) };
+        const bass = Math.min(1, (b / 11 / 255) * gain);
+        const lvl = Math.min(1, (a / 199 / 255) * 1.6 * gain);
+        return { bass: isFinite(bass) ? bass : 0, lvl: isFinite(lvl) ? lvl : 0 };
       }
 
       function drawLetter(ch, x, y, h) {
