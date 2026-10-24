@@ -289,8 +289,6 @@ visuals.register('giphy', (() => {
     const h = window.innerHeight;
     overlayCanvas.width = Math.round(w * dpr);
     overlayCanvas.height = Math.round(h * dpr);
-    overlayCanvas.style.width = w + 'px';
-    overlayCanvas.style.height = h + 'px';
   }
 
   function buildTextBlock(trackIndex) {

@@ -51,6 +51,9 @@ const visuals = (() => {
     p.canvas.style.width = '100%';
     p.canvas.style.height = '100%';
     p.canvas.style.zIndex = '1';
+    // Sketches without their own handler still follow the window, so the
+    // filter overlays (sized from this canvas) never lag behind a resize.
+    if (!p.windowResized) p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
     return p;
   }
 
