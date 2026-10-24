@@ -1429,7 +1429,6 @@ body.prewarming #block-canvas {
   position: fixed;
   inset: 0;
   z-index: 6;
-  background: #0b0b0b;
   color: #f2f2ee;
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-weight: 500;
@@ -1445,6 +1444,17 @@ body.prewarming #block-canvas {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.8s ease, visibility 0s 0.8s;
+}
+
+/* Over the artwork: white inverted against whatever is underneath (black on
+   light, white on dark), or phosphor green. */
+#listener-report.lr-mono {
+  color: #fff;
+  mix-blend-mode: difference;
+}
+
+#listener-report.lr-green {
+  color: #39ff6a;
 }
 
 #listener-report.lr-on {

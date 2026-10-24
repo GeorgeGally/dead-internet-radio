@@ -3,8 +3,9 @@
 // Now and then, the station reads the listener back to themselves: a full-
 // screen black poster of what the browser gives away without asking — where
 // their clock says they are, the time there, their device, their history with
-// this station. Nothing here leaves the browser; visits and listening time are
-// kept in localStorage for this page only.
+// this station. Visits and listening time are kept in localStorage for this
+// page only. Where they are comes from their IP (geojs.io, no key) rounded to
+// a 0.1° cell, about 11 km a side, and the weather there from Open-Meteo.
 //
 // window.showListenerReport() shows it at once; ?listener in the URL does too.
 const listenerReport = (() => {
@@ -41,7 +42,45 @@ const listenerReport = (() => {
   }, 1000);
   addEventListener('pagehide', () => save(memory));
 
+  // IP location and the weather there, fetched once per session.
+  const WMO = [[0, 'CLEAR'], [1, 'MOSTLY CLEAR'], [2, 'PARTLY CLOUDY'], [3, 'OVERCAST'], [48, 'FOG'],
+    [57, 'DRIZZLE'], [67, 'RAIN'], [77, 'SNOW'], [82, 'SHOWERS'], [86, 'SNOW SHOWERS'], [99, 'THUNDERSTORM']];
+  let where = null;
+  async function locate() {
+    try { where = JSON.parse(sessionStorage.getItem('dir-where')); } catch (e) {}
+    if (where) return;
+    try {
+      const g = await (await fetch('https://get.geojs.io/v1/ip/geo.json')).json();
+      const lat = Math.round(g.latitude * 10) / 10;
+      const lon = Math.round(g.longitude * 10) / 10;
+      if (!isFinite(lat) || !isFinite(lon)) return;
+      const w = await (await fetch('https://api.open-meteo.com/v1/forecast'
+        + `?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=1`
+        + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=sunset')).json();
+      const c = w.current || {};
+      where = {
+        city: (g.city || '').toUpperCase(),
+        country: (g.country || '').toUpperCase(),
+        lat, lon,
+        net: (g.organization_name || '').toUpperCase(),
+        temp: c.temperature_2m,
+        sky: c.weather_code != null ? (WMO.find(([max]) => c.weather_code <= max) || [0, ''])[1] : '',
+        wind: c.wind_speed_10m,
+        humidity: c.relative_humidity_2m,
+        sunset: (w.daily?.sunset?.[0] || '').slice(11, 16),
+        elevation: w.elevation,
+      };
+      sessionStorage.setItem('dir-where', JSON.stringify(where));
+    } catch (e) {}
+  }
+  const located = locate();
+
+  function coord(v, pos, neg) {
+    return `${v < 0 ? neg : pos} ${Math.abs(v).toFixed(1)}°`;
+  }
+
   function place() {
+    if (where && where.city) return { city: where.city, region: where.country };
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     const parts = tz.split('/');
     const city = (parts[parts.length - 1] || 'NOWHERE').replace(/_/g, ' ');
@@ -94,13 +133,24 @@ const listenerReport = (() => {
     const scr = `${screen.width}×${screen.height}`;
     const out = [
       [`${p.city}`, 'l', p.region || 'LISTENER'],
+    ];
+    if (where) {
+      out.push([`${coord(where.lat, 'N', 'S')}  ${coord(where.lon, 'E', 'W')}`, 'l'],
+        [`(11 KM CELL${where.elevation != null ? `  ${Math.round(where.elevation)} M` : ''})`, 'l']);
+      if (where.temp != null) {
+        out.push(['WEATHER', 'c'], [`${Math.round(where.temp)}°C  ${where.sky}`, 'l'],
+          [`(WIND ${Math.round(where.wind)} KM/H  ${where.humidity}%${where.sunset ? `  SUNSET ${where.sunset}` : ''})`, 'l']);
+      }
+    }
+    out.push(
       ['LOCAL', 'c'],
       [`${time} ${day}`, 'l'],
       [`(VISIT ${String(memory.visits).padStart(2, '0')}  ${duration(memory.listenedMs)})`, 'l'],
       ['DEVICE', 'c'],
       [`${d.os}  ${d.browser}`, 'l'],
       [`(${[scr, cores || mem].filter(Boolean).join('  ')})`, 'l'],
-    ];
+    );
+    if (where && where.net) out.push(['NETWORK', 'c'], [where.net, 'l']);
     const g = gpu();
     if (g) out.push(['GPU', 'c'], [g, 'l']);
     out.push(['LANGUAGE', 'c'], [lang + (matchMedia('(prefers-color-scheme: dark)').matches ? '  DARK' : ''), 'l']);
@@ -133,6 +183,9 @@ const listenerReport = (() => {
   function show() {
     render();
     el.classList.remove('lr-on');
+    // White inverted over the artwork, or phosphor green.
+    el.classList.toggle('lr-green', Math.random() < 0.4);
+    el.classList.toggle('lr-mono', !el.classList.contains('lr-green'));
     void el.offsetWidth;
     el.classList.add('lr-on');
     clearTimeout(el._hide);
@@ -152,7 +205,7 @@ const listenerReport = (() => {
   }
 
   schedule();
-  if (/[?&]listener\b/.test(location.search)) setTimeout(show, 1500);
+  if (/[?&]listener\b/.test(location.search)) setTimeout(() => located.then(show), 1500);
   window.showListenerReport = show;
   return { show };
 })();
