@@ -7,6 +7,7 @@ import os
 import random
 import re
 import shutil
+import subprocess
 import sys
 from collections import defaultdict
 from datetime import date
@@ -115,8 +116,14 @@ def get_duration_ms(mp3_path: Path) -> int:
         audio = MP3(str(mp3_path))
         return int(audio.info.length * 1000)
     except Exception as e:
-        print(f"  Warning: mutagen failed for {mp3_path.name}: {e}", flush=True)
-        return 30000
+        # Without mutagen every track used to come out as 30s; ffprobe is always there for djmix.
+        try:
+            out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                                  "-of", "csv=p=0", str(mp3_path)], capture_output=True, text=True, timeout=30)
+            return int(float(out.stdout.strip()) * 1000)
+        except Exception:
+            print(f"  Warning: no duration for {mp3_path.name}: {e}", file=sys.stderr, flush=True)
+            return 30000
 
 
 def build_playlist(tracks):
@@ -184,13 +191,15 @@ def _build_dist_static():
             shutil.copytree(src_file, dest_dir)
 
 
-def find_shows():
-    """Scan output/ for show subdirectories and return a list of show dicts."""
+def find_shows(only=None):
+    """Scan output/ for show subdirectories and return a list of show dicts.
+
+    `only` limits the scan to one folder name."""
     SHOW_DIR_RE = re.compile(r"^(.+?)-(\d{8}-\d{6})$")
     shows = []
 
     for entry in sorted(OUTPUT_DIR.iterdir()):
-        if not entry.is_dir():
+        if not entry.is_dir() or (only and entry.name != only):
             continue
         m = SHOW_DIR_RE.match(entry.name)
         if not m:
@@ -417,7 +426,17 @@ def main():
     parser = argparse.ArgumentParser(description="Build Dead Internet Radio website")
     parser.add_argument("--shows-only", action="store_true",
                         help="Only scan shows and generate shows.json (skip full site build)")
+    parser.add_argument("--show-json", metavar="DIR",
+                        help="Print one show from output/DIR as JSON and exit (used by the Rails importer)")
     args = parser.parse_args()
+
+    if args.show_json:
+        name = Path(args.show_json).name
+        show = next(iter(find_shows(only=name)), None)
+        if show is None:
+            sys.exit(f"No show found in output/{name}")
+        print(json.dumps(show, default=str))
+        return
 
     print("Dead Internet Radio — Building site", flush=True)
     print()

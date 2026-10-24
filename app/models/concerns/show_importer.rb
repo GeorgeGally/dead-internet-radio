@@ -1,6 +1,18 @@
+require "open3"
+
 # frozen_string_literal: true
 
 module ShowImporter
+  # The show as build_site.py sees it: name, DJ and tracks scanned from output/<dir>/.
+  # Returns nil if the folder has no rendered tracks yet.
+  def scan_show(show_dir, root)
+    out, status = Open3.capture2(Rails.configuration.x.python, 'build_site.py', '--show-json', File.basename(show_dir), chdir: root)
+    return nil unless status.success?
+
+    data = JSON.parse(out)
+    data['tracks'].is_a?(Array) ? data : nil
+  end
+
   def import_cues(show, root)
     cues_dir = File.join(root, 'mixes')
     return unless Dir.exist?(cues_dir)

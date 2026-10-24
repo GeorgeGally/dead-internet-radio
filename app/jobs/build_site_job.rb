@@ -17,7 +17,7 @@ class BuildSiteJob < ApplicationJob
     )
 
     begin
-      cmd = ['python3', 'build_site.py']
+      cmd = [Rails.configuration.x.python, 'build_site.py']
       append_log(log, gen_job, 'Running: build_site.py')
       run_and_stream(log, gen_job, cmd, chdir: root)
       append_log(log, gen_job, "Exit: #{$CHILD_STATUS.exitstatus}")
