@@ -1131,3 +1131,30 @@ body.prewarming #block-canvas {
 @keyframes lr-in {
   to { opacity: 1; }
 }
+
+/* ---- Narrow screens: the menubar gives up the spectrum first, then the
+   artwork/show lines, then shrinks its knobs and buttons ---- */
+@media (max-width: 1400px) {
+  .npd-wave { display: none; }
+}
+
+@media (max-width: 1200px) {
+  .npd-group:nth-of-type(2) { display: none; }
+  .deck-content { gap: 18px; }
+  .deck-display { gap: 8px; }
+  .deck-transport { gap: 8px; }
+  .rams-knob,
+  .abtn {
+    width: 38px;
+    height: 38px;
+  }
+  .knob-tick {
+    height: 9px;
+    transform-origin: 50% 11px;
+  }
+  .slot-knob .knob-tick {
+    height: 6px;
+    transform-origin: 50% 10px;
+  }
+  .slot-tick { transform-origin: 50% 16px; }
+}
