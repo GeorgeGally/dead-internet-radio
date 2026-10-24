@@ -18,7 +18,7 @@ visuals.register('sound_investigation1', (() => {
 
       p.setup = () => {
         visuals.setupP5Canvas(p);
-        p.background(255);
+        p.background(0);
         p.strokeWeight(0.5);
 
         for (let i = 0; i < NUM_DOTS; i++) {
@@ -27,7 +27,7 @@ visuals.register('sound_investigation1', (() => {
       };
 
       p.draw = () => {
-        p.background(255);
+        p.background(0);
         const sens = (window.audioInputGain != null ? window.audioInputGain : 50) / 50;
         const cx = p.width / 2;
         const cy = p.height / 2;
@@ -53,15 +53,15 @@ visuals.register('sound_investigation1', (() => {
           const y = r * p.sin(angle);
 
           p.noFill();
-          p.stroke(0, 100);
+          p.stroke(255, 110);
           p.ellipse(cx + x, cy + y, r / 2, r / 2);
-          p.fill(0);
+          p.fill(255);
           p.noStroke();
           p.ellipse(cx + x, cy + y, 2, 2);
         }
 
         p.noFill();
-        p.stroke(0, 40);
+        p.stroke(255, 50);
         p.strokeWeight(0.5);
         p.beginShape();
         for (let i = 0; i < NUM_DOTS; i++) {
@@ -88,4 +88,4 @@ visuals.register('sound_investigation1', (() => {
   }
 
   return { name: 'Sound Investigation 1', start, stop };
-})();
+})());

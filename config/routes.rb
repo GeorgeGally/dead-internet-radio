@@ -8,8 +8,12 @@ Rails.application.routes.draw do
       resources :visuals, only: [:index]
       get "playlist", to: "playlist#show"
       get "now_playing", to: "now_playing#show"
+      get "broadcast", to: "broadcast#show"
     end
   end
+
+  # archive.org films proxied same-origin so canvas filters keep working.
+  get "broll/:item/*file", to: "broll#show", format: false, as: :broll
 
   # Audio streamed off disk from DB-linked paths (no blobs in DB).
   get "media/tracks/:id", to: "media#track", as: :media_track

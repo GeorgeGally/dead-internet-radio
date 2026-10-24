@@ -11,6 +11,9 @@ const gallery = (() => {
     7: 'Pixelate',
     8: 'Color Invert',
     9: 'LED Grid',
+    10: 'Dither',
+    11: 'Glitch',
+    12: 'Black & White',
   };
 
   // Baseline filter/cutoff/resonance every user sees on an artwork before
@@ -61,6 +64,9 @@ const gallery = (() => {
   // Per-artwork slot presets (slots 1-9, slot 0 = live state)
   let artPresets = {};
   let activeSlot = 0;
+  // A saved slot stops being "the saved look" the moment a control moves.
+  let slotDirty = false;
+  let saveLit = false;
 
   function loadArtPresets() {
     try {
@@ -212,6 +218,8 @@ const gallery = (() => {
 
   function filterCoverBg(key) {
     switch (key) {
+      case 12:
+        return `linear-gradient(90deg, #1a1a1a 0%, #1a1a1a 33%, #777 33%, #777 66%, #e9e6df 66%)`;
       case 1:
         return `repeating-linear-gradient(0deg, #e9e6df 0px, #e9e6df 30px, #1a1a1a 30px, #1a1a1a 38px, #e9e6df 38px, #e9e6df 42px, #1a1a1a 42px, #1a1a1a 44px)`;
       case 2:
@@ -236,6 +244,10 @@ const gallery = (() => {
         return `linear-gradient(135deg, #111 0%, #111 50%, #ddd 50%, #ddd 100%)`;
       case 9:
         return `radial-gradient(#8a7a6a 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(#ece8e2, #ece8e2)`;
+      case 10:
+        return `radial-gradient(#1a1a1a 1px, transparent 1px) 0 0 / 8px 8px, radial-gradient(#1a1a1a 1px, transparent 1px) 4px 4px / 8px 8px, linear-gradient(#e9e6df, #e9e6df)`;
+      case 11:
+        return `repeating-linear-gradient(0deg, #161616 0px, #161616 9px, #ff2e63 9px, #ff2e63 11px, #161616 11px, #161616 20px, #22d3ee 20px, #22d3ee 22px, #161616 22px, #161616 34px)`;
       default:
         return `#111`;
     }
@@ -267,7 +279,7 @@ const gallery = (() => {
         <div class="gfc-name">${displayName}</div>
       `;
       card.dataset.filter = String(key);
-      if ([1, 2, 5, 7, 8, 9].includes(k)) {
+      if ([1, 2, 5, 7, 8, 9, 10].includes(k)) {
         card.dataset.text = 'dark';
       }
       card.addEventListener('click', () => {
@@ -424,7 +436,7 @@ const gallery = (() => {
   }
 
   function savePreset(id) {
-    if (_suppressSave || !id) return;
+    if (_suppressSave || !id || activeSlot > 0) return;
     presets[id] = {
       filters: Array.from(canvasFilters.getActiveKeys()),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
@@ -450,7 +462,17 @@ const gallery = (() => {
   }
 
   function saveCurrentPreset() {
+    markAltered();
     savePreset(visuals.getCurrentId());
+  }
+
+  // Any dial, filter or strength move: the slot light goes out and the save
+  // light clears until the user saves again.
+  function markAltered() {
+    if (_suppressSave) return;
+    if (activeSlot > 0) slotDirty = true;
+    saveLit = false;
+    updateSlotUI();
   }
 
   function getActiveSlot() {
@@ -468,6 +490,8 @@ const gallery = (() => {
       strength: window._filterStrengthVal != null ? window._filterStrengthVal : 100,
     };
     saveArtPresets();
+    slotDirty = false;
+    saveLit = true;
     updateSlotUI();
     const el = document.getElementById('visual-notification');
     if (el) {
@@ -480,8 +504,11 @@ const gallery = (() => {
 
   function loadSlot(id, slot) {
     if (slot < 1 || slot > 9) return;
+    slotDirty = false;
     const p = artPresets[id] && artPresets[id][slot];
-    if (!p) return;
+    // Landing on a saved slot lights both: the slot and its save.
+    saveLit = !!p;
+    if (!p) { updateSlotUI(); return; }
     _suppressSave = true;
     canvasFilters.clearActive();
     for (const key of p.filters) {
@@ -492,6 +519,14 @@ const gallery = (() => {
     if (window._restoreResonance) window._restoreResonance(p.resonance);
     if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);
     _suppressSave = false;
+    updateSlotUI();
+  }
+
+  // Point the dial at a slot without loading it (used when saving into it).
+  function selectSlot(slot) {
+    if (slot < 0 || slot > 9) return;
+    activeSlot = slot;
+    updateSlotUI();
   }
 
   function slotHasPreset(id, slot) {
@@ -512,7 +547,27 @@ const gallery = (() => {
 
   function resetSlot() {
     activeSlot = 0;
+    slotDirty = false;
+    saveLit = false;
     updateSlotUI();
+  }
+
+  // A new artwork lands on one of its saved slots, not always on slot 0, so the
+  // same artwork returns looking different across switches.
+  function applyRandomSlot(id) {
+    id = id || visuals.getCurrentId();
+    const saved = artPresets[id] || {};
+    const slots = [];
+    for (let s = 1; s <= 9; s++) if (saved[s]) slots.push(s);
+    if (!slots.length) {
+      resetSlot();
+      return 0;
+    }
+    const pick = slots[Math.floor(Math.random() * slots.length)];
+    activeSlot = pick;
+    updateSlotUI();
+    loadSlot(id, pick);
+    return pick;
   }
 
   let _ticksCreated = false;
@@ -537,7 +592,9 @@ const gallery = (() => {
     if (tick) tick.style.transform = `rotate(${-150 + activeSlot * 30}deg)`;
     const id = visuals.getCurrentId();
     const el = document.getElementById('slot-led');
-    if (el) el.classList.toggle('on', activeSlot > 0 && slotHasPreset(id, activeSlot));
+    if (el) el.classList.toggle('on', activeSlot > 0 && slotHasPreset(id, activeSlot) && !slotDirty);
+    const sl = document.getElementById('save-slot-led');
+    if (sl) sl.classList.toggle('on', saveLit);
   }
 
   function init() {
@@ -549,5 +606,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, resetSlot, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();

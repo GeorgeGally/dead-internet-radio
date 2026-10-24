@@ -184,6 +184,10 @@ visuals.register('patterns2', (() => {
 
       let pixel_size = 8;
       let grid;
+      let baseCols = 40;
+      let zoomUntil = 0;
+      let nextZoomAt = 0;
+      let bassAvg = 0;
 
       function simpleGrid(nx, ny, _w, _h) {
         this.w = _w || p.width;
@@ -220,14 +224,18 @@ visuals.register('patterns2', (() => {
         p.pop();
       }
 
-      p.setup = () => {
-        visuals.setupP5Canvas(p);
-
-        grid = new simpleGrid(40, 20);
+      function buildGrid(cols) {
+        grid = new simpleGrid(cols, Math.max(2, Math.round(cols / 2)));
         pixel_size = (grid.sz.x - 2) / 5;
         for (let i = 0; i < grid.length; i++) {
           grid.pos[i].mode = Math.round(Math.random() * (shapes.length - 1));
         }
+      }
+
+      p.setup = () => {
+        visuals.setupP5Canvas(p);
+        buildGrid(40);
+        nextZoomAt = p.millis() + 8000;
       };
 
       p.draw = () => {
@@ -235,9 +243,45 @@ visuals.register('patterns2', (() => {
         p.fill(0);
         p.noStroke();
 
+        // Cutoff sets the resting grid: low = fine (64 cols), high = coarse (16)
+        const cutoff = window._cutoffVal != null ? window._cutoffVal : 130;
+        baseCols = Math.round(64 - ((cutoff - 5) / 250) * 48);
+
+        const gain = (window.audioInputGain != null ? window.audioInputGain : 50) / 50;
+        const sens = (window.soundSensitivity != null ? window.soundSensitivity : 50) / 50;
+        let spectrum = null;
+        let bass = 0;
+        if (audioAnalysisReady && analyser && frequencyData) {
+          analyser.getByteFrequencyData(frequencyData);
+          spectrum = frequencyData;
+          let s = 0;
+          for (let i = 0; i < 12; i++) s += frequencyData[i];
+          bass = Math.min(1, (s / (12 * 255)) * gain);
+        }
+
+        // Every so often the grid goes coarse, then settles back: on a bass hit,
+        // or on a timer when the music gives nothing to react to.
+        const now = p.millis();
+        const hit = bass > 0.35 && bass > bassAvg * 1.35;
+        bassAvg = bassAvg * 0.95 + bass * 0.05;
+        if (now > zoomUntil && (hit || now > nextZoomAt) && now > nextZoomAt - 6000) {
+          zoomUntil = now + 2500;
+          nextZoomAt = now + 9000 + Math.random() * 7000;
+        }
+        const cols = now < zoomUntil ? Math.max(8, Math.round(baseCols / 2)) : baseCols;
+        if (cols !== grid.cols || p.width !== grid.w) buildGrid(cols);
+
+        // Each column listens to its own slice of the spectrum; louder = more change
+        const usable = spectrum ? Math.floor(spectrum.length * 0.7) : 0;
         for (let i = 0; i < grid.length; i++) {
           const g = grid.pos[i];
-          if (Math.random() * 5 > 4) {
+          let chance = 0.05;
+          if (spectrum) {
+            const col = i % grid.cols;
+            const level = spectrum[Math.floor((col / grid.cols) * usable)] / 255;
+            chance = 0.01 + Math.min(0.6, level * level * gain * sens * 0.6);
+          }
+          if (Math.random() < chance) {
             g.mode = Math.round(Math.random() * (shapes.length - 1));
           }
           pixelShape(shapes[g.mode], g.x - g.sz.x / 2, g.y - g.sz.y / 2);

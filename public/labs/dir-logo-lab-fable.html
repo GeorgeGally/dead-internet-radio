@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D.I.R. Logo Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: VT100; src: url(../fonts/vt100-regular/vt100-regular.otf.woff2) format('woff2'); }
+:root { --bg: #0e0e0d; --ink: #ece8df; --dim: #9a958c; --frame: #191918; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 'Plus Jakarta Sans', sans-serif; }
+header, section { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 64px; padding-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: 0; }
+header p { margin: 0; color: var(--dim); max-width: 640px; }
+section { margin-bottom: 80px; }
+.tag { margin: 0 0 16px; max-width: 760px; }
+.tag b { font-weight: 700; }
+.frame { background: var(--frame); padding: 12px; border-radius: 6px; display: grid; gap: 12px; }
+.stage { position: relative; aspect-ratio: 2 / 1; overflow: hidden; border-radius: 2px; display: grid; place-items: center; }
+.stage.left { justify-items: start; padding-left: 8%; }
+.stage svg { display: block; animation: fade .7s ease-out both; }
+@keyframes fade { from { opacity: 0; } }
+/* the deck bar at its real height, on the two faces it lives on */
+.strip { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; }
+.bar { height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-radius: 2px; }
+.bar.cream { background: #d9d4ca; color: #0b0b0a; }
+.bar.dark { background: #0b0b0a; color: #f2eee6; }
+.grille { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; opacity: .45;
+  background-image: radial-gradient(circle at center, currentColor 0 1.1px, transparent 1.4px); background-size: 7px 7px; background-position: center; }
+.bar svg { height: 36px; width: auto; display: block; }
+.minis { display: flex; gap: 12px; }
+.sq { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 2px; }
+.sq svg { height: 28px; width: auto; display: block; }
+.sq.fav svg { height: 16px; }
+@media (max-width: 720px) { .strip { grid-template-columns: 1fr; } }
+/* ?only=N : one version, full viewport (screenshots) */
+body.solo header, body.solo .tag { display: none; }
+body.solo section { max-width: none; padding: 0; margin: 0; height: 100vh; }
+body.solo .frame { padding: 0 0 12px; border-radius: 0; height: 100%; grid-template-rows: 1fr auto; }
+body.solo .stage { aspect-ratio: auto; border-radius: 0; }
+body.solo .strip { padding: 0 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>D.I.R. logo</h1>
+  <p>Ten station marks for Dead Internet Radio. Each is shown large on its own ground, then at 36px in the deck bar on cream and on black, with its reduced form beside.</p>
+</header>
+<main id="lab"></main>
+<script>
+'use strict';
+
+const ORANGE = '#ff5a1f', CREAM = '#f2eee6', INK = '#0b0b0a', FACE = '#d9d4ca', DARK = '#2f2d2b';
+const JK = "'Plus Jakarta Sans', sans-serif", MONO = "'IBM Plex Mono', monospace";
+
+// ---------- helpers ----------
+function rng(hex) {
+  let a = parseInt(hex.slice(0, 8), 16) >>> 0;
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const mc = document.createElement('canvas').getContext('2d');
+function measure(s, wt, px, fam = JK) {
+  mc.font = `${wt} ${px}px ${fam}`; const m = mc.measureText(s);
+  return { w: m.width, asc: m.actualBoundingBoxAscent, desc: m.actualBoundingBoxDescent };
+}
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const f1 = n => Math.round(n * 10) / 10;
+const T = (s, x, y, px, wt, fill, extra = '', fam = JK) =>
+  `<text x="${f1(x)}" y="${f1(y)}" font-family="${fam}" font-size="${f1(px)}" font-weight="${wt}" fill="${fill}" ${extra}>${esc(s)}</text>`;
+const sv = (m, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f1(m.w)} ${f1(m.h)}" ${attrs}>${m.body}</svg>`;
+const inkOf = o => o.g === 'dark' ? CREAM : INK;
+// the faint second tone each face can carry (off discs, ghost segments, dial ticks)
+const faint = { [INK]: '#262422', [DARK]: '#413e39', [FACE]: '#c2bcb0', [CREAM]: '#d6d1c6', '#5a5751': '#6b6861' };
+let uid = 0;
+
+// 5×7 bitmaps shared by the teletext and flip-disc marks
+const PX = {
+  D: ['1111.', '1...1', '1...1', '1...1', '1...1', '1...1', '1111.'],
+  I: ['111', '.1.', '.1.', '.1.', '.1.', '.1.', '111'],
+  R: ['1111.', '1...1', '1...1', '1111.', '1.1..', '1..1.', '1...1'],
+  '.': ['.', '.', '.', '.', '.', '.', '1'],
+  '/': ['...1', '...1', '..1.', '..1.', '.1..', '.1..', '1...'],
+};
+function bits(text) {
+  let x = 0; const cells = [];
+  for (const ch of text) {
+    const g = PX[ch];
+    g.forEach((row, y) => [...row].forEach((c, i) => { if (c === '1') cells.push([x + i, y, ch]); }));
+    x += g[0].length + 1;
+  }
+  return { w: x - 1, h: 7, cells };
+}
+
+// 14-segment cell, 56 wide × 100 tall, decimal point to the right
+function seg14(lit, on, off) {
+  const W = 56, H = 100, t = 10, g = 1.4, X0 = t / 2, X1 = W / 2, X2 = W - t / 2, Y0 = t / 2, Y1 = H / 2, Y2 = H - t / 2;
+  const hs = (x1, x2, y) => `${x1},${y} ${x1 + t / 2},${y - t / 2} ${x2 - t / 2},${y - t / 2} ${x2},${y} ${x2 - t / 2},${y + t / 2} ${x1 + t / 2},${y + t / 2}`;
+  const vs = (x, y1, y2) => `${x},${y1} ${x + t / 2},${y1 + t / 2} ${x + t / 2},${y2 - t / 2} ${x},${y2} ${x - t / 2},${y2 - t / 2} ${x - t / 2},${y1 + t / 2}`;
+  const segs = {
+    a: hs(X0 + g, X2 - g, Y0), d: hs(X0 + g, X2 - g, Y2), g1: hs(X0 + g, X1 - g, Y1), g2: hs(X1 + g, X2 - g, Y1),
+    f: vs(X0, Y0 + g, Y1 - g), b: vs(X2, Y0 + g, Y1 - g), e: vs(X0, Y1 + g, Y2 - g), c: vs(X2, Y1 + g, Y2 - g),
+    i: vs(X1, Y0 + g, Y1 - g), l: vs(X1, Y1 + g, Y2 - g),
+  };
+  const d = t * .95;
+  const diag = { h: [X0 + d, Y0 + d, X1 - d, Y1 - d], j: [X2 - d, Y0 + d, X1 + d, Y1 - d], k: [X0 + d, Y2 - d, X1 - d, Y1 + d], m: [X2 - d, Y2 - d, X1 + d, Y1 + d] };
+  let s = '';
+  for (const k in segs) s += `<polygon points="${segs[k]}" fill="${lit.includes(k) ? on : off}"/>`;
+  for (const k in diag) { const [x1, y1, x2, y2] = diag[k]; s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${lit.includes(k) ? on : off}" stroke-width="${t * .7}"/>`; }
+  s += `<circle cx="${X2 + t * 1.5}" cy="${Y2}" r="${t * .55}" fill="${lit.includes('.') ? on : off}"/>`;
+  return s;
+}
+
+// browser broken-image glyph, 20×20 box
+function brokenIcon(ink, sw = 1.4) {
+  return `<g fill="none" stroke="${ink}" stroke-width="${sw}" stroke-linejoin="miter" stroke-linecap="butt">
+    <path d="M1.5,1.5 H16.5 L14.5,6 L17.5,9.6 L14.8,13 L17,18.5 H1.5 Z"/>
+    <path d="M3.6,15.3 L7.6,10.1 L10.3,13.5 L12.2,11.5 L14.6,14.6"/>
+    <circle cx="6.3" cy="6.3" r="1.7"/>
+  </g>`;
+}
+
+// ---------- the ten versions ----------
+// Each mark(o) returns {w, h, body}; o = { bg, g: 'light'|'dark', small }. The same function draws
+// the splash, the 36px deck mark and (via mini) the reduced form, so nothing is redrawn by hand.
+const V = [];
+
+// V1 — Ceefax double-height graphics. Seed: 2e → separated-graphics gap on, 54 → block aspect
+V.push({
+  name: 'Sextant', seed: '2e5484cca65097520495e4b63b022e9cfb4d3d6e4c260b07',
+  idea: 'The wordmark set in teletext mosaic blocks, the leading slash in its own orange character cell.',
+  bg: INK, g: 'dark',
+  init(S) { S.gap = S.r() < .5 ? 1.2 : 0; S.aspect = 1.1 + S.r() * .1; },
+  draw(text, o, S) {
+    const b = bits(text), u = 10, v = u * S.aspect, gap = S.gap;
+    const body = b.cells.map(([x, y, ch]) =>
+      `<rect x="${f1(x * u + gap / 2)}" y="${f1(y * v + gap / 2)}" width="${f1(u - gap)}" height="${f1(v - gap)}" fill="${ch === '/' ? ORANGE : inkOf(o)}"/>`).join('');
+    return { w: b.w * u, h: b.h * v, body };
+  },
+  mark(o, S) { return this.draw('/D.I.R.', o, S); },
+  mini(o, S) { return this.draw('/D', o, S); },
+});
+
+// V2 — oscilloscope vector display. Seed: 5e → stroke weight, fe → dwell-dot size
+V.push({
+  name: 'Beam', seed: '5efe69e7f0c34c948bf8bf0569ff0000788b3778c668e32c',
+  idea: 'One thin beam writes the letters as a vector display would, dwelling on each dot; the beam is still sitting on the last one.',
+  bg: '#141412', g: 'dark',
+  init(S) { S.sw = 5 + S.r() * 1.5; S.dr = 1 + S.r() * .25; },
+  draw(full, o, S) {
+    const sw = S.sw, p = sw, ink = inkOf(o), r = sw * S.dr;
+    const paths = [`<path d="M0,100 V0 H30 A50,50 0 0 1 30,100 Z"/>`];
+    const dots = [[100, full ? ink : ORANGE]];
+    let W = 100 + r;
+    if (full) {
+      paths.push(`<path d="M120,0 V100"/>`, `<path d="M160,100 V0 H180 A25,25 0 0 1 180,50 H166 L205,100"/>`);
+      dots.push([140, ink], [225, ORANGE]);
+      W = 225 + r;
+    }
+    const body = `<g transform="translate(${p},${p})"><g fill="none" stroke="${ink}" stroke-width="${f1(sw)}" stroke-linecap="round" stroke-linejoin="round">${paths.join('')}</g>` +
+      dots.map(([x, c]) => `<circle cx="${x}" cy="${f1(100 - r + sw / 2)}" r="${f1(r)}" fill="${c}"/>`).join('') + '</g>';
+    return { w: W + 2 * p, h: 100 + 2 * p, body };
+  },
+  mark(o, S) { return this.draw(true, o, S); },
+  mini(o, S) { return this.draw(false, o, S); },
+});
+
+// V3 — FM dial. Seed: 38 → tick pitch, 3f → needle lean
+V.push({
+  name: 'Needle', seed: '383f9d013abf2e746fdcd0bf63cc7c22a4ad6cf22f889ff1',
+  idea: 'The slash becomes the tuning needle, standing on a tick scale under the letters like a pointer on dial glass.',
+  bg: CREAM, g: 'light',
+  init(S) { S.pitch = 6 + Math.floor(S.r() * 3); S.lean = 17 + S.r() * 6; },
+  draw(text, o, S) {
+    const px = 100, m = measure(text, 800, px), cap = measure('D', 800, px).asc;
+    const up = 20, down = 24, nh = cap + up + down, dx = Math.tan(S.lean * Math.PI / 180) * nh;
+    const base = up + cap, tx = dx + 9, W = tx + m.w + 4, H = base + down + 2;
+    const tick = o.g === 'dark' ? '#8a857b' : '#8f8a80', sy = base + 14, pitch = S.pitch;
+    let ticks = '';
+    for (let x = 0, i = 0; x <= W; x += pitch, i++) {
+      const major = i % 5 === 0; if (o.small && !major) continue;
+      ticks += `<line x1="${f1(x)}" y1="${f1(sy)}" x2="${f1(x)}" y2="${f1(sy - (major ? 10 : 5))}" stroke="${tick}" stroke-width="${o.small ? 1.6 : 1.2}"/>`;
+    }
+    const needle = `<line x1="2" y1="${f1(base + down)}" x2="${f1(dx + 2)}" y2="0" stroke="${ORANGE}" stroke-width="${o.small ? 4.5 : 3.6}"/>`;
+    return { w: W, h: H, body: ticks + T(text, tx, base, px, 800, inkOf(o)) + needle };
+  },
+  mark(o, S) { return this.draw('D.I.R.', o, S); },
+  mini(o, S) { return this.draw('D', o, S); },
+});
+
+// V4 — test-card roundel. Seed: ef → number of ring ticks, 42 → bar height
+V.push({
+  name: 'Roundel', seed: 'ef429d74827d3d3380928905001f26ba9a9b6e022b5cc1e1',
+  idea: 'A test-card circle: four colour bands under a name bar, ringed in clock ticks. Small, the roundel stands beside the wordmark.',
+  bg: '#5a5751', g: 'dark',
+  init(S) { S.ticks = 40 + Math.floor(S.r() * 3) * 8; S.barH = 36 + S.r() * 8; },
+  roundel(o, S, named) {
+    const R = 100, ring = 12, C = R, inner = R - ring, id = 'c' + (uid++), bands = [CREAM, ORANGE, '#b7b0a3', DARK], bw = inner * 2 / bands.length;
+    const L = 2 * Math.PI * (R - ring / 2), dash = L / S.ticks;
+    let s = `<defs><clipPath id="${id}"><circle cx="${C}" cy="${C}" r="${inner}"/></clipPath></defs>`;
+    s += `<circle cx="${C}" cy="${C}" r="${R}" fill="${INK}"/>`;
+    if (!o.small) s += `<circle cx="${C}" cy="${C}" r="${R - ring / 2}" fill="none" stroke="${CREAM}" stroke-width="${ring - 3}" stroke-dasharray="${f1(dash)} ${f1(dash)}"/>`;
+    s += `<g clip-path="url(#${id})">` + bands.map((c, i) => `<rect x="${f1(C - inner + i * bw)}" y="${C - inner}" width="${f1(bw + .5)}" height="${inner * 2}" fill="${c}"/>`).join('') + '</g>';
+    s += `<rect x="${C - inner}" y="${f1(C - S.barH / 2)}" width="${inner * 2}" height="${f1(S.barH)}" fill="${INK}"/>`;
+    if (named) { const px = S.barH * .72, cap = measure('D', 800, px).asc; s += T('D.I.R.', C, C + cap / 2, px, 800, CREAM, 'text-anchor="middle"'); }
+    return { w: 2 * R, h: 2 * R, body: s };
+  },
+  mark(o, S) {
+    if (!o.small) return this.roundel(o, S, true);
+    const r = this.roundel(o, S, false), px = 150, m = measure('D.I.R.', 800, px), cap = measure('D', 800, px).asc, gap = 36;
+    return { w: r.w + gap + m.w, h: r.h, body: r.body + T('D.I.R.', r.w + gap, r.h / 2 + cap / 2, px, 800, inkOf(o)) };
+  },
+  mini(o, S) { return this.roundel({ ...o, small: true }, S, false); },
+});
+
+// V5 — flip-disc destination blind. Seed: a2 → disc radius, b6 → margin columns
+V.push({
+  name: 'Flip-disc', seed: 'a2b694ead5521d8b0ab1739796fe72b8c38f5217723d5fa4',
+  idea: 'A flip-disc sign: every disc in the panel is visible, the letters flipped to cream and the three dots flipped to orange.',
+  bg: DARK, g: 'dark',
+  init(S) { S.rad = .36 + S.r() * .08; S.mx = 1 + Math.floor(S.r() * 2); },
+  draw(text, o, S) {
+    const b = bits(text), p = 10, mx = S.mx, my = 1, cols = b.w + mx * 2, rows = b.h + my * 2;
+    const on = new Map(b.cells.map(([x, y, ch]) => [(x + mx) + ',' + (y + my), ch]));
+    const off = faint[o.bg] || (o.g === 'dark' ? '#3a3733' : '#c2bcb0'), ink = inkOf(o);
+    let s = '';
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const ch = on.get(x + ',' + y);
+      s += `<circle cx="${(x + .5) * p}" cy="${(y + .5) * p}" r="${f1(p * S.rad)}" fill="${ch === '.' ? ORANGE : ch ? ink : off}"/>`;
+    }
+    return { w: cols * p, h: rows * p, body: s };
+  },
+  mark(o, S) { return this.draw('D.I.R.', o, S); },
+  mini(o, S) { return this.draw('D', o, S); },
+});
+
+// V6 — Braun faceplate. Seed: 5a → indicator size, d1 → rule weight
+V.push({
+  name: 'Faceplate', seed: '5ad12bc2306754dbb407444a6ea2d33e8e76efd80b6ff0b3',
+  idea: 'Printed on the deck face like a Braun label: a small orange indicator, the mark, a hairline, and the full name set in mono.',
+  bg: FACE, g: 'light',
+  init(S) { S.led = 7 + S.r() * 3; S.rule = 1 + S.r() * .6; },
+  draw(text, o, S, full) {
+    const px = 100, ink = o.g === 'dark' ? CREAM : DARK, m = measure(text, 800, px), cap = measure('D', 800, px).asc;
+    const led = S.led, tx = led * 2 + 14, base = cap + 2, W = tx + m.w;
+    let s = `<circle cx="${f1(led + 1)}" cy="${f1(base - cap / 2)}" r="${f1(led)}" fill="${ORANGE}"/>` + T(text, tx, base, px, 800, ink);
+    let H = base + 6;
+    if (full) {
+      const ry = base + 22, sub = 'DEAD INTERNET RADIO', spx = 15.5;
+      s += `<line x1="0" y1="${f1(ry)}" x2="${f1(W)}" y2="${f1(ry)}" stroke="${ink}" stroke-width="${f1(S.rule)}"/>`;
+      s += T(sub, 0, ry + 26, spx, 500, ink, `letter-spacing="${f1(spx * .04)}"`, MONO);
+      H = ry + 30;
+    }
+    return { w: W, h: H, body: s };
+  },
+  mark(o, S) { return this.draw('D.I.R.', o, S, !o.small); },
+  mini(o, S) { return this.draw('D', o, S, false); },
+});
+
+// V7 — stencil. Seed: e9 → upper bridge height, 72 → bridge thickness
+V.push({
+  name: 'Stencil', seed: 'e972465fe038b4912b6b21a6cee3f93675a0fa4f1ce2df91',
+  idea: 'Cut as a stencil, two bridges through every letter, black on the station orange. On black the letters go orange.',
+  bg: ORANGE, g: 'light',
+  init(S) { S.hi = .66 + S.r() * .08; S.th = .065 + S.r() * .02; },
+  draw(text, o, S) {
+    const px = 100, m = measure(text, 800, px), cap = measure('D', 800, px).asc, base = cap + 2;
+    const ink = o.g === 'dark' ? ORANGE : INK, bg = o.bg, W = m.w + 2, th = cap * S.th;
+    let s = T(text, 1, base, px, 800, ink);
+    for (const k of [S.hi, .33]) s += `<rect x="0" y="${f1(base - cap * k - th / 2)}" width="${f1(W)}" height="${f1(th)}" fill="${bg}"/>`;
+    return { w: W, h: base + 4, body: s };
+  },
+  mark(o, S) { return this.draw('D.I.R.', o, S); },
+  mini(o, S) {
+    const d = this.draw('D', { ...o, g: 'light', bg: ORANGE }, S), pad = 14, W = d.w + pad * 2, H = d.h + pad * 2;
+    return { w: W, h: H, body: `<rect width="${f1(W)}" height="${f1(H)}" fill="${ORANGE}"/><g transform="translate(${pad},${pad})">${d.body}</g>` };
+  },
+});
+
+// V8 — missing image. Seed: 93 → icon weight, 3b → gap to alt text
+V.push({
+  name: 'Broken image', seed: '933bec0d097493f32ef916572b4660013118496c07978222',
+  idea: 'The picture never loaded. The browser’s broken-image glyph, with D.I.R. standing in as the alt text.',
+  bg: '#f7f5f0', g: 'light',
+  init(S) { S.sw = 1.3 + S.r() * .4; S.gap = .3 + S.r() * .15; },
+  draw(text, o, S) {
+    const px = 100, m = text ? measure(text, 800, px) : { w: 0 }, cap = measure('D', 800, px).asc, ink = inkOf(o);
+    const k = cap / 20, tx = text ? cap + cap * S.gap : 0, W = tx + m.w + (text ? 2 : 0), H = cap + 4;
+    let s = `<g transform="translate(0,2) scale(${f1(k)})">${brokenIcon(ink, S.sw)}</g>`;
+    if (text) s += T(text, tx, cap + 2, px, 800, ink);
+    return { w: W, h: H, body: s };
+  },
+  mark(o, S) { return this.draw('D.I.R.', o, S); },
+  mini(o, S) { return this.draw('', o, S); },
+});
+
+// V9 — tuner display. Seed: 14 → slant, 5e → cell pitch
+V.push({
+  name: 'Readout', seed: '145eb1b59c6750d3fae23e974c596bfbf2e6340db8ceeac5',
+  idea: 'A tuner’s fourteen-segment display spelling the station, the decimal points doing the dots and every dead segment left faintly in place.',
+  bg: INK, g: 'dark',
+  init(S) { S.slant = S.r() < .5 ? 0 : 8; S.adv = 88 + Math.floor(S.r() * 8); },
+  draw(cells, o, S) {
+    const off = faint[o.bg] || (o.g === 'dark' ? '#262422' : '#c2bcb0'), adv = S.adv, sk = Math.tan(S.slant * Math.PI / 180) * 100;
+    const inner = cells.map((lit, i) => `<g transform="translate(${i * adv},0)">${seg14(lit, ORANGE, off)}</g>`).join('');
+    const W = (cells.length - 1) * adv + 56 + 22 + sk;
+    return { w: W, h: 100, body: `<g transform="translate(${f1(sk)},0) skewX(${-S.slant})">${inner}</g>` };
+  },
+  mark(o, S) { return this.draw([['a', 'b', 'c', 'd', 'i', 'l', '.'], ['a', 'd', 'i', 'l', '.'], ['a', 'b', 'f', 'e', 'g1', 'g2', 'm', '.']], o, S); },
+  mini(o, S) { return this.draw([['a', 'b', 'c', 'd', 'i', 'l', '.']], o, S); },
+});
+
+// V10 — Swiss lockup. Seed: 6d → line gap, 76 → subline weight
+V.push({
+  name: 'Lockup', seed: '6d766f0556ac18774ac04305626be4fedc087aac1b0b63ca',
+  idea: 'The current wordmark with the full name set to exactly its width beneath, one block of type and nothing else.',
+  bg: INK, g: 'dark',
+  init(S) { S.gap = .16 + S.r() * .1; S.wt = S.r() < .5 ? 700 : 400; },
+  draw(text, sub, o, S) {
+    const px = 100, ink = inkOf(o), m1 = measure(text, 800, px), base = m1.asc + 1;
+    let s = T(text, 0, base, px, 800, ink), H = base + m1.desc + 1, W = m1.w;
+    if (sub) {
+      const m2 = measure(sub, S.wt, px), px2 = px * m1.w / m2.w, cap2 = measure('D', S.wt, px2).asc;
+      const base2 = base + m1.desc + m1.asc * S.gap + cap2;
+      s += T(sub, 0, base2, px2, S.wt, ink); H = base2 + 3;
+    }
+    return { w: W, h: H, body: s };
+  },
+  mark(o, S) { return this.draw('/D.I.R.', 'Dead Internet Radio', o, S); },
+  mini(o, S) { return this.draw('/D', '', o, S); },
+});
+
+// ---------- engine ----------
+const params = new URLSearchParams(location.search);
+const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
+if (ONLY !== null) document.body.classList.add('solo');
+
+function build() {
+  V.forEach((v, i) => {
+    if (ONLY !== null && i !== ONLY) return;
+    const S = { r: rng(v.seed) };
+    if (v.init) v.init(S);
+    // seed → splash composition: width on the stage, flush-left or centred
+    let frac = .36 + S.r() * .16; const left = S.r() < .4;
+    const big = v.mark({ bg: v.bg, g: v.g, small: false }, S);
+    const ar = big.h / big.w; if (ar * frac * 2 > .72) frac = .72 / (ar * 2);
+    const onCream = v.mark({ bg: FACE, g: 'light', small: true }, S), onDark = v.mark({ bg: INK, g: 'dark', small: true }, S);
+    const miniC = v.mini({ bg: FACE, g: 'light', small: true }, S), miniD = v.mini({ bg: INK, g: 'dark', small: true }, S);
+    const sec = document.createElement('section');
+    sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p>
+<div class="frame">
+  <div class="stage${left ? ' left' : ''}" style="background:${v.bg}">${sv(big, `style="width:${f1(frac * 100)}%"`)}</div>
+  <div class="strip">
+    <div class="bar cream"><span class="grille"></span>${sv(onCream)}</div>
+    <div class="bar dark"><span class="grille"></span>${sv(onDark)}</div>
+    <div class="minis">
+      <div class="sq" style="background:${FACE}">${sv(miniC)}</div><div class="sq" style="background:${INK}">${sv(miniD)}</div>
+      <div class="sq fav" style="background:${FACE}">${sv(miniC)}</div><div class="sq fav" style="background:${INK}">${sv(miniD)}</div>
+    </div>
+  </div>
+</div>`;
+    document.getElementById('lab').appendChild(sec);
+  });
+}
+
+Promise.all([
+  document.fonts.load(`800 40px ${JK}`), document.fonts.load(`700 40px ${JK}`), document.fonts.load(`400 40px ${JK}`),
+  document.fonts.load(`500 20px ${MONO}`), document.fonts.load(`400 20px ${MONO}`),
+]).catch(() => {}).then(build);
+</script>
+</body>
+</html>

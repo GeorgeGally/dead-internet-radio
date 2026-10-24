@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station Ident Lab · Fable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: VT100; src: url(../fonts/vt100-regular/vt100-regular.otf.woff2) format('woff2'); }
+:root { --bg: #0e0e0d; --ink: #ece8df; --dim: #9a958c; --frame: #191918; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 'Plus Jakarta Sans', sans-serif; }
+header, section { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 64px; padding-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
+header p { margin: 0; color: var(--dim); max-width: 640px; }
+section { margin-bottom: 80px; }
+.tag { margin: 0 0 16px; max-width: 760px; }
+.tag b { font-weight: 700; }
+.frame { background: var(--frame); padding: 12px; border-radius: 6px; }
+.stage { position: relative; aspect-ratio: 16 / 9; background: #000; cursor: pointer; overflow: hidden; border-radius: 2px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* ?only=N&t=S : one stage, full viewport, frozen at S seconds (screenshots) */
+body.solo header, body.solo .tag { display: none; }
+body.solo section { max-width: none; padding: 0; margin: 0; }
+body.solo .frame { padding: 0; border-radius: 0; }
+/* keeps the Giphy <img> animating without ever showing it (Chrome stops animating hidden images) */
+#gifhold { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: .01; pointer-events: none; }
+#gifhold img { width: 1px; height: 1px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Station ident · second lab</h1>
+  <p>Ten more animated versions of the intro that plays while D.I.R. loads. A pure ID each time: the mark over a picture. Click any one to replay it with a station voice.</p>
+</header>
+<main id="lab"></main>
+<div id="gifhold"></div>
+<script>
+'use strict';
+
+// ---------- live station furniture (show and DJ names only; never a song title) ----------
+const DATA = { show: 'Berlin Grid Hours', dj: 'Echo' };
+fetch('/api/v1/broadcast').then(r => r.json()).then(d => {
+  const s = (d.segments || [])[0];
+  if (s && s.showName) { DATA.show = s.showName; DATA.dj = s.djName || DATA.dj; }
+}).catch(() => {});
+
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const ramp = (t, s, d) => clamp((t - s) / d);
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const TAU = Math.PI * 2;
+function rng(hex) {
+  let a = parseInt(hex.slice(0, 8), 16) >>> 0;
+  return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function h32(n) { n = Math.imul(n ^ n >>> 16, 0x45d9f3b); n = Math.imul(n ^ n >>> 16, 0x45d9f3b); return (n ^ n >>> 16) >>> 0; }
+const byte = (hex, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16) / 255;   // seed byte i → 0..1
+const hx = s => s[0] === '#' ? [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)) : s.match(/\d+/g).slice(0, 3).map(Number);   // '#rrggbb' or 'rgb(r,g,b)'
+const mix = (a, b, k) => { const A = hx(a), B = hx(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; };
+const rgba = (hex, a) => { const [r, g, b] = hx(hex); return `rgba(${r},${g},${b},${a})`; };
+const JK = (wt, px) => `${wt} ${px}px 'Plus Jakarta Sans', sans-serif`;
+const MONO = (px, wt = 400) => `${wt} ${px}px 'IBM Plex Mono', monospace`;
+const VT = px => `${px}px VT100, monospace`;
+const ORANGE = '#ff5a1f', CREAM = '#f2eee6', INK = '#0b0b0a';
+const clock = () => new Date().toTimeString().slice(0, 5);
+
+const NZ = document.createElement('canvas'); NZ.width = 256; NZ.height = 144;
+const nzx = NZ.getContext('2d'); const nzImg = nzx.createImageData(256, 144);
+function noise(ctx, w, h, alpha, lo = 0, hi = 255, streak = 1) {
+  if (alpha <= 0) return;
+  const d = nzImg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = lo + Math.random() * (hi - lo); d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  nzx.putImageData(nzImg, 0, 0);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false; ctx.drawImage(NZ, 0, 0, 256 / streak, 144, 0, 0, w, h); ctx.restore();
+}
+function scan(ctx, w, h, a = .18) {
+  ctx.save(); ctx.fillStyle = `rgba(0,0,0,${a})`;
+  const s = Math.max(2, Math.round(h / 240));
+  for (let y = 0; y < h; y += s * 2) ctx.fillRect(0, y, w, s);
+  ctx.restore();
+}
+function vignette(ctx, w, h, a = .7) {
+  const g = ctx.createRadialGradient(w / 2, h / 2, h * .4, w / 2, h / 2, w * .66);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+function txt(ctx, s, x, y, font, color, alpha = 1, align = 'left', base = 'alphabetic', ls = '0px') {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base; ctx.letterSpacing = ls; ctx.fillText(s, x, y); ctx.restore();
+}
+// the wordmark, always the same cut: Plus Jakarta Sans 800, tracked -0.02em
+const mark = (ctx, x, y, size, color, alpha = 1, align = 'left') => txt(ctx, '/D.I.R.', x, y, JK(800, size), color, alpha, align, 'alphabetic', `${-size * .02}px`);
+// where the mark's ink actually starts and ends (the slash has side bearing), so other lines can align to ink, not to the origin
+function markInk(ctx, size) {
+  ctx.save(); ctx.font = JK(800, size); ctx.letterSpacing = `${-size * .02}px`; const m = ctx.measureText('/D.I.R.'); ctx.restore();
+  return { left: -m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight, width: m.actualBoundingBoxRight + m.actualBoundingBoxLeft };
+}
+// Rasterise text into an on/off grid (letters as data for pixels and cells).
+function mask(text, W, H, fontOf = px => JK(800, px), pad = .96) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  let px = H * .95; x.font = fontOf(px); x.letterSpacing = `${-px * .02}px`;
+  const m = x.measureText(text).width; if (m > W * pad) { px *= W * pad / m; x.font = fontOf(px); x.letterSpacing = `${-px * .02}px`; }
+  x.fillText(text, W / 2, H / 2 + px * .04);
+  const d = x.getImageData(0, 0, W, H).data; const on = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) on[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+  return { W, H, on };
+}
+// 3×5 pixel font (only the glyphs the lab needs)
+const PX5 = { A: '010101111101101', D: '110101101101110', E: '111100110100111', I: '111010010010111', N: '101111111101101', T: '111010010010010', R: '110101110101101', O: '111101101101111',
+  0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001001001001', 8: '111101111101111', 9: '111101111001111', ':': '000010000010000', ' ': '000000000000000' };
+const pxWidth = s => s.length * 4 - 1;
+function pxText(put, s, x0, y0) { [...s].forEach((ch, i) => { const g = PX5[ch] || PX5[' ']; for (let k = 0; k < 15; k++) if (g[k] === '1') put(x0 + i * 4 + k % 3, y0 + Math.floor(k / 3)); }); }
+// the mark as a matrix glyph set: 11 rows, every stroke exactly two cells, so a dot board renders it the way it renders a route number
+const DOT = {
+  '/': ['000011', '000011', '000110', '000110', '001100', '001100', '011000', '011000', '110000', '110000', '110000'],
+  D: ['1111100', '1111110', '1100011', '1100011', '1100011', '1100011', '1100011', '1100011', '1100011', '1111110', '1111100'],
+  I: ['11', '11', '11', '11', '11', '11', '11', '11', '11', '11', '11'],
+  R: ['1111100', '1111110', '1100011', '1100011', '1111110', '1111100', '1101100', '1100110', '1100011', '1100011', '1100011'],
+  '.': ['00', '00', '00', '00', '00', '00', '00', '00', '00', '11', '11'],
+};
+const dotWidth = s => [...s].reduce((a, ch) => a + DOT[ch][0].length + 1, -1);
+function dotText(put, s, x0, y0, k = 1) { let x = x0; for (const ch of s) { const g = DOT[ch]; g.forEach((row, y) => [...row].forEach((b, xx) => { if (b === '1') for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) put(x + xx * k + i, y0 + y * k + j); })); x += (g[0].length + 1) * k; } }
+
+// ---------- the ten versions ----------
+const V = [];
+
+// V1 — flip-disc board
+V.push({
+  name: 'Flip-disc board', seed: 'deb6619fd750f2377d3d8390039da941a2a30cb760912c89', L: 9,
+  idea: 'A black flip-disc board, the kind on the front of a bus. One wave of flips crosses it and the discs that turn over leave the mark; a second wave brings the destination line. A few discs are stuck.',
+  // seed → column count (byte 0), disc colour warmth (byte 1), which discs are stuck, each disc\'s flip jitter and its lit brightness
+  init(S) { S.cols = 84 + Math.round(byte(S.seed, 0) * 20); S.disc = mix('#ece4c9', '#f1dc96', byte(S.seed, 1)); },
+  draw(c, w, h, t, S) {
+    if (S.w !== w) {
+      S.w = w; const cols = S.cols, pitch = w / cols, rows = Math.floor(h / pitch);
+      S.pitch = pitch; S.rows = rows; S.y0 = (h - rows * pitch) / 2;
+      S.on = new Float32Array(cols * rows);   // 0 = never flips, else the wave that flips it (1: mark, 2: destination)
+      const k = 2, mw = dotWidth('/D.I.R.') * k, ox = Math.round((cols - mw) / 2), oy = Math.round((rows - 22 - 9) / 2);
+      dotText((x, y) => { S.on[y * cols + x] = 1; }, '/D.I.R.', ox, oy, k);
+      pxText((x, y) => { S.on[y * cols + x] = 2; }, 'DEAD INTERNET RADIO', Math.round((cols - pxWidth('DEAD INTERNET RADIO')) / 2), oy + 22 + 4);
+      const r = rng(S.seed.slice(8)); S.stuck = new Uint8Array(cols * rows); S.jit = new Float32Array(cols * rows); S.lum = new Float32Array(cols * rows);
+      for (let i = 0; i < cols * rows; i++) { S.stuck[i] = r() < .006 ? 1 : 0; S.jit[i] = r() * .16; S.lum[i] = .92 + r() * .08; }
+    }
+    c.fillStyle = '#0a0a09'; c.fillRect(0, 0, w, h);
+    const { cols, rows, pitch } = S, R = pitch * .44, speed = 2.1 / cols;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const i = y * cols + x, wave = S.on[i], tf = (wave === 2 ? 4.4 : .7) + x * speed + S.jit[i];
+      let a;
+      if (wave && !S.stuck[i]) a = Math.PI * ease(ramp(t, tf, .26));
+      else a = S.stuck[i] ? 0 : Math.PI * .42 * Math.sin(ramp(t, .7 + x * speed + S.jit[i], .22) * Math.PI);   // a twitch as the first wave passes
+      const front = a > Math.PI / 2;
+      if (front) { c.globalAlpha = S.lum[i]; c.fillStyle = S.disc; } else { c.globalAlpha = 1; c.fillStyle = '#12110c'; }
+      c.beginPath(); c.ellipse(x * pitch + pitch / 2, S.y0 + y * pitch + pitch / 2, Math.max(.35, R * Math.abs(Math.cos(a))), R, 0, 0, TAU); c.fill();
+    }
+    c.globalAlpha = 1;
+  },
+});
+
+// V2 — VHS
+V.push({
+  name: 'VHS', seed: 'c2226d9b8c130758f2a104ac4080d8b761c15039af56f809', L: 9,
+  idea: 'A tape playing a picture the station never finished: the heads chase the tracking, colour smears to the right, the blacks never get black, and the mark is recorded on the tape with it.',
+  // seed → footage search term (byte 0), tracking wobble (byte 1), counter start (byte 2), which clip (byte 3)
+  init(S) {
+    const terms = ['night drive rain', 'empty street night', 'city lights timelapse', 'night highway', 'rain window'];
+    S.term = terms[Math.floor(byte(S.seed, 0) * terms.length)];
+    S.wob = 1.6 + byte(S.seed, 1) * 2.4; S.cnt0 = Math.floor(byte(S.seed, 2) * 40) * 60 + 7;
+    S.off = document.createElement('canvas');
+    fetch(`https://api.giphy.com/v1/gifs/search?api_key=23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5&q=${encodeURIComponent(S.term)}&limit=25&rating=pg-13`)
+      .then(r => r.json()).then(d => {
+        const g = d.data[Math.floor(byte(S.seed, 3) * d.data.length)]; if (!g) return;
+        const img = new Image(); img.crossOrigin = 'anonymous'; img.src = g.images.fixed_height?.url || g.images.downsized.url;   // 200 lines is plenty for tape
+        img.onload = () => { S.img = img; }; document.getElementById('gifhold').appendChild(img);
+      }).catch(() => {});
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, lock = ease(ramp(t, .3, 2.5)), wob = (1 - lock) * S.wob * u, m = 7 * u;
+    if (S.off.width !== w || S.off.height !== h) { S.off.width = w; S.off.height = h; }
+    const o = S.off.getContext('2d');
+    o.fillStyle = '#16161a'; o.fillRect(0, 0, w, h);   // tape never reaches black
+    if (S.img) {
+      const iw = S.img.naturalWidth, ih = S.img.naturalHeight, sc = Math.max(w / iw, h / ih);
+      o.save(); o.globalAlpha = .86; o.filter = 'saturate(.55) contrast(.95) brightness(.8) blur(.5px)';
+      o.drawImage(S.img, (w - iw * sc) / 2, (h - ih * sc) / 2, iw * sc, ih * sc); o.restore();
+    } else noise(o, w, h, .3, 10, 90, 4);
+    // chroma is low-resolution on tape and smears to the right
+    o.save(); o.globalAlpha = .2; o.globalCompositeOperation = 'lighter'; o.filter = 'saturate(4) blur(1.5px)'; o.drawImage(S.off, 1.2 * u, 0); o.restore();
+    c.fillStyle = '#101013'; c.fillRect(0, 0, w, h);
+    const strips = 40, sh = h / strips, fr = Math.floor(t * 24);
+    for (let i = 0; i < strips; i++) {
+      const y = i * sh, dx = wob * Math.sin(t * 7 + i * .55) + (1 - lock) * ((h32(i * 31 + fr) % 9) - 4) * u * .35;
+      c.drawImage(S.off, 0, y, w, sh + 1, dx, y, w, sh + 1);
+    }
+    // head-switching band at the bottom: the picture slips sideways and breaks into line noise
+    const bh = h * (.09 - .05 * lock), by = h - bh;
+    c.drawImage(S.off, 0, by, w, bh, (1 - lock) * 9 * u + 2 * u, by, w, bh);
+    c.save(); c.beginPath(); c.rect(0, by, w, bh); c.clip(); noise(c, w, h, .55 - .2 * lock, 30, 200, 6); c.restore();
+    c.fillStyle = `rgba(255,255,255,${.45 - .3 * lock})`; c.fillRect(0, by, w, Math.max(1, u * .25));
+    noise(c, w, h, .05 + .3 * (1 - lock), 0, 255, 3);
+    scan(c, w, h, .12);
+    // VCR on-screen display, on the same margin as the mark
+    const cnt = S.cnt0 + Math.floor(t), osd = `SP  ${Math.floor(cnt / 3600)}:${String(Math.floor(cnt / 60) % 60).padStart(2, '0')}:${String(cnt % 60).padStart(2, '0')}`;
+    txt(c, osd, m + u * .2, 11 * u + u * .2, VT(4.4 * u), 'rgba(0,0,0,.7)');
+    txt(c, osd, m, 11 * u, VT(4.4 * u), '#f4f1ea', .92);
+    if (lock < 1) { txt(c, 'TRACKING', w - m + u * .2, 11 * u + u * .2, VT(4.4 * u), 'rgba(0,0,0,.7)', 1, 'right'); txt(c, 'TRACKING', w - m, 11 * u, VT(4.4 * u), '#f4f1ea', .92 * (1 - lock), 'right'); }
+    // the mark, recorded on the tape: its colour smears right like everything else, then the cream on top
+    const al = ramp(t, 2.9, .9), my = h - 15 * u, ms = 12.5 * u;   // only after the tracking has locked, so the mark never moves
+    for (let i = 1; i <= 4; i++) mark(c, m + i * .45 * u, my, ms, 'rgba(255,120,80,.16)', al);
+    mark(c, m, my, ms, CREAM, al * .96);
+  },
+});
+
+// V3 — stuck pixels
+V.push({
+  name: 'Stuck pixels', seed: '2e4516aa08bb61575a249f379ccca76fe7e5cdf12cdadc96', L: 9.5,
+  idea: 'A macro of a dead LCD. Nothing is lit except a few stuck subpixels, then more stick on until the red, green and blue stripes add up to the mark.',
+  // seed → row count (byte 0), the stick order and which subpixels never light
+  init(S) { S.rows = 66 + Math.round(byte(S.seed, 0) * 12); },
+  draw(c, w, h, t, S) {
+    if (S.w !== w) {
+      S.w = w; const rows = S.rows, p = h / rows, cols = Math.floor(w / p); S.p = p; S.cols = cols;
+      const mh = Math.round(rows * .46), mw = Math.round(cols * .7), ox = Math.round((cols - mw) / 2), oy = Math.round((rows - mh) / 2);
+      const mk = mask('/D.I.R.', mw, mh), r = rng(S.seed.slice(6));
+      S.lit = [];   // [x, y, channel, stickTime]
+      for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) if (mk.on[y * mw + x]) for (let k = 0; k < 3; k++) { if (r() < .012) continue; S.lit.push([x + ox, y + oy, k, 1 + 3.9 * Math.pow(r(), .45)]); }
+      for (let n = 0; n < 14; n++) S.lit.push([Math.floor(r() * cols), Math.floor(r() * rows), Math.floor(r() * 3), -1]);   // the stuck ones, lit from the start
+      // the unlit lattice, rendered once: the same three stripes everywhere, barely tinted
+      const bg = S.bg = document.createElement('canvas'); bg.width = w; bg.height = h; const b = bg.getContext('2d');
+      b.fillStyle = '#030303'; b.fillRect(0, 0, w, h);
+      const sw = p / 3, off = ['#150909', '#091509', '#09091a'];
+      for (let k = 0; k < 3; k++) { b.fillStyle = off[k]; for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) b.fillRect(x * p + k * sw + sw * .12, y * p + p * .08, sw * .76, p * .84); }
+    }
+    c.drawImage(S.bg, 0, 0);
+    const p = S.p, sw = p / 3, col = ['#ff2d1c', '#2cff4e', '#2a5cff'];
+    for (const [x, y, k, ts] of S.lit) {
+      const a = ts < 0 ? 1 : ramp(t, ts, .12); if (a <= 0) continue;
+      c.globalAlpha = a; c.fillStyle = col[k]; c.fillRect(x * p + k * sw + sw * .12, y * p + p * .08, sw * .76, p * .84);
+    }
+    c.globalAlpha = 1;
+    // a lit subpixel leaks a little into its neighbours
+    c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = .28; c.filter = `blur(${p * .35}px)`; c.drawImage(c.canvas, 0, 0); c.restore();
+  },
+});
+
+// V4 — phone LCD
+V.push({
+  name: 'Phone LCD', seed: '569312424a7aefd16ef41844b4e60733fc10cc851eac4b1e', L: 9,
+  idea: 'An 84 by 48 monochrome phone screen boots. The backlight comes up green, and the mark settles in with the lag of liquid crystal, one pixel after another. Every pixel is on the same grid; the clock is real.',
+  // seed → backlight hue (byte 0), lag spread (byte 1)
+  init(S) { S.lit = mix('#b9cf49', '#9fd36a', byte(S.seed, 0)); S.lag = .5 + byte(S.seed, 1) * .8; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, CW = 84, CH = 48;
+    if (!S.on) {
+      S.on = new Float32Array(CW * CH).fill(-1); const r = rng(S.seed.slice(10));
+      const put = tt => (x, y) => { if (x >= 0 && x < CW && y >= 0 && y < CH) S.on[y * CW + x] = tt; };
+      const mw = dotWidth('/D.I.R.') * 2, top = 9;
+      dotText((x, y) => { if (x >= 0 && x < CW && y >= 0 && y < CH) S.on[y * CW + x] = 1.2 + r() * S.lag; }, '/D.I.R.', Math.round((CW - mw) / 2), top, 2);
+      pxText(put(3.3), 'DEAD INTERNET RADIO', Math.round((CW - pxWidth('DEAD INTERNET RADIO')) / 2), top + 22 + 5);
+    }
+    const ph = 84 * u, pw = ph * CW / CH, px = (w - pw) / 2, py = (h - ph) / 2, cell = ph / CH;
+    c.fillStyle = '#1b1b19'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#0e0e0d'; c.beginPath(); c.roundRect(px - 3 * u, py - 3 * u, pw + 6 * u, ph + 6 * u, 1.2 * u); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = Math.max(1, u * .12); c.stroke();
+    const bl = ramp(t, .5, .5);
+    c.fillStyle = mix('#5f6a55', S.lit, bl); c.fillRect(px, py, pw, ph);
+    // the clock rewrites itself each minute; the rest is fixed from init
+    const tm = clock();
+    if (S.tm !== tm) { S.tm = tm; S.clk = new Float32Array(CW * CH); pxText((x, y) => { S.clk[y * CW + x] = 1; }, tm, CW - 2 - pxWidth(tm), 1); }
+    const g = cell * .06, shade = `rgba(27,34,22,.22)`;
+    for (let y = 0; y < CH; y++) for (let x = 0; x < CW; x++) {
+      const i = y * CW + x, tt = S.on[i], on = tt >= 0 ? ramp(t, tt, .55) : (S.clk[i] ? ramp(t, 2.6, .55) : 0);
+      const X = px + x * cell + g, Y = py + y * cell + g, s = cell - 2 * g;
+      if (on > .02) { c.fillStyle = shade; c.globalAlpha = on; c.fillRect(X + cell * .14, Y + cell * .14, s, s); c.globalAlpha = 1; }   // the crystal casts on the diffuser behind it
+      c.fillStyle = `rgba(27,34,22,${.045 + .955 * on})`; c.fillRect(X, Y, s, s);
+    }
+  },
+});
+
+// V5 — last LED
+V.push({
+  name: 'Last LED', seed: '2fb3fd5f1c076a4eaffcc0163ac5fc5ddf10e202b76624ea', L: 10,
+  idea: 'Two racks of switches blinking with traffic. Unit by unit the power goes and the room goes dark, except one status LED, and that one turns orange: the station, with its name on the label strip beside it.',
+  // seed → units per rack (byte 1), which unit survives, the blackout order, traffic density per unit
+  init(S) {
+    S.racks = 2; S.units = 11 + Math.round(byte(S.seed, 1) * 2);
+    const r = rng(S.seed.slice(4)), n = S.racks * S.units; S.order = Array.from({ length: n }, (_, i) => i).sort(() => r() - .5);
+    S.keep = S.order[Math.floor(n * .3 + r() * n * .4)]; S.dens = Array.from({ length: n }, () => .25 + r() * .5);
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, n = S.racks * S.units, gap = 1.2 * u, M = 5 * u, rw = (w - 2 * M - gap * (S.racks - 1)) / S.racks, uh = (h - 2 * M - gap * (S.units - 1)) / S.units;
+    const alive = S.order.map((_, i) => t < 2.8 + (S.order.indexOf(i) / n) * 2.6 ? 1 : 0);
+    const light = alive.reduce((a, b) => a + b, 0) / n;
+    c.fillStyle = mix('#050504', '#0e0e0c', light); c.fillRect(0, 0, w, h);
+    const fr = Math.floor(t * 18), led = uh * .24, pitch = led * 1.6;
+    for (let j = 0; j < n; j++) {
+      const rx = M + (j % S.racks) * (rw + gap), ry = M + Math.floor(j / S.racks) * (uh + gap), up = alive[j], keep = j === S.keep;
+      c.fillStyle = mix('#131312', '#1b1b19', .25 + .75 * up * light); c.fillRect(rx, ry, rw, uh);
+      c.fillStyle = `rgba(255,255,255,${.035 + .04 * up})`; c.fillRect(rx, ry, rw, Math.max(1, u * .12));
+      c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(rx, ry + uh - Math.max(1, u * .12), rw, Math.max(1, u * .12));
+      const x0 = rx + 3 * u, y1 = ry + uh * .5 - led * 1.3, y2 = ry + uh * .5 + led * .3;
+      for (let k = 0; k < 24; k++) {
+        const on = up && (h32(j * 977 + k * 31 + fr) % 100) < S.dens[j] * 100, x = x0 + (k % 12) * pitch, y = k < 12 ? y1 : y2;
+        c.fillStyle = on ? (k % 12 < 9 ? '#36d457' : '#efb43a') : 'rgba(255,255,255,.05)'; c.fillRect(x, y, led, led);
+      }
+      // power and status, stacked at the right edge of every unit
+      const sx = rx + rw - 3 * u - led;
+      c.fillStyle = up ? '#36d457' : 'rgba(255,255,255,.05)'; c.fillRect(sx, y1, led, led);
+      const st = keep || (up && (h32(j * 131 + (fr >> 2)) % 10) < 7), k = keep ? ramp(t, 5.4, .6) : 0;
+      if (keep && k > 0) { c.fillStyle = `rgba(255,90,31,${.22 * k})`; c.fillRect(sx - led * .6, y2 - led * .6, led * 2.2, led * 2.2); }   // a tight bloom, two stops
+      c.fillStyle = st ? mix('#efb43a', ORANGE, k) : 'rgba(255,255,255,.05)'; c.fillRect(sx, y2, led, led);
+      if (keep) mark(c, x0 + 12 * pitch + 3 * u, ry + uh * .5 + uh * .3, uh * .82, CREAM, ramp(t, 5.9, .9));   // on the unit's own label strip
+    }
+  },
+});
+
+// V6 — burn-in
+V.push({
+  name: 'Burn-in', seed: '591b7fd95359c6603b95ad9ef0b1bc4a3aabbd84a09951b9', L: 10,
+  idea: 'A monitor that showed this station for years. The raster warms up grey and the mark is already there, burnt into the phosphor; the live mark fades in exactly on top of its own ghost. Only the clock is new.',
+  // seed → raster grey (byte 0), depth of the burn (byte 2)
+  init(S) { S.grey = mix('#565a52', '#70746a', byte(S.seed, 0)); S.deep = .75 + byte(S.seed, 2) * .25; S.g = document.createElement('canvas'); },
+  draw(c, w, h, t, S) {
+    const u = h / 100, m = 6 * u, ms = 15 * u, ink = markInk(c, ms);
+    const furn = (ctx, color, al, live) => {
+      txt(ctx, 'DEAD INTERNET RADIO', m, 9 * u, MONO(2.7 * u, 500), color, al);
+      txt(ctx, live ? clock() : '88:88', w - m, 9 * u, MONO(2.7 * u, 500), live ? ORANGE : color, al, 'right');
+      mark(ctx, m - ink.left, 58 * u, ms, color, al);   // ink-aligned to the same margin as the name
+    };
+    if (S.g.width !== w || S.g.height !== h) {
+      S.g.width = w; S.g.height = h; const g = S.g.getContext('2d');
+      g.filter = `blur(${u * .8}px)`; furn(g, '#000', .9, false); g.filter = 'none';
+    }
+    const warm = ease(ramp(t, .7, 1.9)), live = ease(ramp(t, 3.6, 1.1));
+    c.fillStyle = mix('#050605', mix(S.grey, '#2c2e28', live), warm); c.fillRect(0, 0, w, h);
+    c.globalAlpha = S.deep * warm; c.drawImage(S.g, 0, 0); c.globalAlpha = 1;
+    furn(c, CREAM, ramp(t, 4.2, 1), true);
+    noise(c, w, h, .05 + .12 * warm * (1 - live));
+    scan(c, w, h, .16); vignette(c, w, h, .85);
+  },
+});
+
+// V7 — broadcast clock
+V.push({
+  name: 'Broadcast clock', seed: '80b74d2b3644c7bf44c85ecefa3b0e5d5e2339a6939f51bf', L: 10,
+  idea: 'The clock before the programme. A railway-style face at the real time, a sweeping orange second hand, and the mark beside it. Nothing else happens, which is the point.',
+  // seed → clock position (byte 0), dial radius (byte 1), tick weight (byte 2), whether the show on air is named (byte 3)
+  init(S) { S.cx = .27 + byte(S.seed, 0) * .08; S.R = 31 + byte(S.seed, 1) * 6; S.tw = .3 + byte(S.seed, 2) * .25; S.show = byte(S.seed, 3) > .4; },
+  draw(c, w, h, t, S) {
+    const u = h / 100, cx = w * S.cx, cy = h * .5, R = S.R * u, face = ramp(t, .3, 1.1);
+    c.fillStyle = INK; c.fillRect(0, 0, w, h);
+    c.save(); c.translate(cx, cy); c.strokeStyle = CREAM; c.lineCap = 'butt';
+    for (let i = 0; i < 60; i++) {
+      const hr = i % 5 === 0, a = i / 60 * TAU; c.lineWidth = (hr ? 2.8 : 1) * S.tw * u; c.globalAlpha = face * (hr ? 1 : .5);
+      c.beginPath(); c.moveTo(Math.sin(a) * (R - (hr ? 6 : 2.4) * u), -Math.cos(a) * (R - (hr ? 6 : 2.4) * u)); c.lineTo(Math.sin(a) * R, -Math.cos(a) * R); c.stroke();
+    }
+    const d = new Date(), sec = d.getSeconds() + d.getMilliseconds() / 1000, min = d.getMinutes() + sec / 60, hr = (d.getHours() % 12) + min / 60;
+    // flat-bar hands with a short tail past the hub; the second hand carries a disc
+    const bar = (ang, len, wd, tail) => { c.save(); c.rotate(ang); c.fillStyle = CREAM; c.fillRect(-wd / 2, -len, wd, len + tail); c.restore(); };
+    c.globalAlpha = face;
+    bar(hr / 12 * TAU, R * .62, 3.2 * u, 5 * u); bar(min / 60 * TAU, R * .95, 2.6 * u, 5 * u);
+    c.save(); c.rotate(sec / 60 * TAU); c.fillStyle = ORANGE; c.fillRect(-.35 * u, -R * .72, .7 * u, R * .72 + 7 * u);
+    c.beginPath(); c.arc(0, -R * .72, 2.4 * u, 0, TAU); c.fill(); c.restore();
+    c.fillStyle = ORANGE; c.beginPath(); c.arc(0, 0, 1.3 * u, 0, TAU); c.fill();
+    c.restore();
+    // the lockup sits in the middle of the space the clock leaves, ink-aligned
+    const ms = 12.5 * u, ink = markInk(c, ms), x = (cx + R + w) / 2 - ink.width / 2 - ink.left;
+    mark(c, x, 50.5 * u, ms, CREAM, ramp(t, 1.5, .9));
+    txt(c, 'Dead Internet Radio', x + ink.left, 57.5 * u, MONO(3 * u), 'rgba(242,238,230,.6)', ramp(t, 2.1, .9));
+    if (S.show) txt(c, `${DATA.show} · ${DATA.dj}`, x + ink.left, 64 * u, MONO(3 * u), 'rgba(242,238,230,.4)', ramp(t, 2.7, .9));
+  },
+});
+
+// V8 — the object
+V.push({
+  name: 'The object', seed: '690629c07e74545c466ede345766096ee1bc4ba4aabf53ae', L: 10,
+  idea: 'The mark as a thing: cast in orange, standing on a cream table under one lamp. The studio lights come up and over ten seconds the lamp drifts, so only the shadow moves.',
+  // seed → table warmth (byte 0), extrusion depth (byte 2), where the lamp starts (byte 3)
+  init(S) { S.table = mix('#e9e4d8', '#ddd5c4', byte(S.seed, 0)); S.depth = 1.6 + byte(S.seed, 2) * 1.2; S.lamp = -.65 + byte(S.seed, 3) * .2; S.grain = document.createElement('canvas'); },
+  draw(c, w, h, t, S) {
+    const u = h / 100, m = 9 * u, size = 19 * u, D = S.depth * u, ink = markInk(c, size), x = m - ink.left, y = 64 * u;
+    if (S.grain.width !== w) {
+      S.grain.width = w; S.grain.height = h; const g = S.grain.getContext('2d'); g.fillStyle = S.table; g.fillRect(0, 0, w, h);
+      noise(nzx, 256, 144, 0); g.globalAlpha = .07; g.fillStyle = g.createPattern(NZ, 'repeat'); g.fillRect(0, 0, w, h);   // paper grain at pixel scale
+    }
+    c.drawImage(S.grain, 0, 0);
+    // one lamp, up and to the right: the unlit faces fall to the lower left and so does the shadow, which drifts a little
+    const k = S.lamp + (t / 10) * .3, len = .36;
+    c.save(); c.translate(x, y); c.transform(1, 0, k, -len, 0, 0); c.filter = `blur(${u * .5}px)`;
+    mark(c, 0, 0, size, 'rgba(70,45,25,.3)'); c.restore();
+    for (let i = 1; i <= 10; i++) { const f = i / 10; mark(c, x - D * .55 * f, y + D * .85 * f, size, '#a0300f'); }
+    mark(c, x, y, size, ORANGE);
+    txt(c, 'DEAD INTERNET RADIO', m, h - m, MONO(2.6 * u, 500), 'rgba(40,30,20,.75)');
+    c.fillStyle = `rgba(0,0,0,${1 - ease(ramp(t, .2, 1.4))})`; c.fillRect(0, 0, w, h);
+  },
+});
+
+// V9 — data scan
+V.push({
+  name: 'Data scan', seed: '3d2bea031651e191abcc3f59fbe6e0745e0a7047c277add3', L: 9.5,
+  idea: 'One orange hairline reads the screen left to right and leaves a field of figures behind it: sparse and grey in the open, silent around the mark, dense and white inside it.',
+  // seed → cell size (byte 0), sparse density (byte 1), the flicker rate (byte 3)
+  init(S) { S.cell = 1 + byte(S.seed, 0) * .25; S.sparse = .05 + byte(S.seed, 1) * .06; S.flick = 20 + Math.round(byte(S.seed, 3) * 30); S.A = document.createElement('canvas'); S.B = document.createElement('canvas'); },
+  draw(c, w, h, t, S) {
+    const u = h / 100;
+    if (S.w !== w) {
+      S.w = w; const fz = 1.05 * u * S.cell, cw = fz * .6, rh = fz * 1.25, cols = Math.floor(w / cw), rows = Math.floor(h / rh);
+      S.cw = cw; S.rh = rh; S.cols = cols; S.rows = rows;
+      const mh = Math.round(rows * .5), mw = Math.round(cols * .8), ox = Math.round((cols - mw) / 2), oy = Math.round((rows - mh) / 2);
+      const mk = mask('/D.I.R.', mw, mh); S.in = new Uint8Array(cols * rows); const near = new Uint8Array(cols * rows);
+      for (let yy = 0; yy < mh; yy++) for (let xx = 0; xx < mw; xx++) if (mk.on[yy * mw + xx]) S.in[(yy + oy) * cols + xx + ox] = 1;
+      for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) if (S.in[yy * cols + xx]) for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) { const X = xx + dx, Y = yy + dy; if (X >= 0 && X < cols && Y >= 0 && Y < rows) near[Y * cols + X] = 1; }
+      S.cells = []; for (let i = 0; i < cols * rows; i++) if (S.in[i]) S.cells.push(i);
+      for (const [cv, salt] of [[S.A, 1], [S.B, 2]]) {
+        cv.width = w; cv.height = h; const g = cv.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+        g.textBaseline = 'top';
+        for (let yy = 0; yy < rows; yy++) {
+          if (yy % 8 === 0) { g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(0, yy * rh - 1, w, 1); }
+          for (let xx = 0; xx < cols; xx++) {
+            const i = yy * cols + xx, hv = h32(i * 7919 + salt * 104729);
+            if (S.in[i]) { g.font = MONO(fz, 500); g.fillStyle = '#fff'; g.fillText(String(hv % 10), xx * cw, yy * rh); }
+            else if (!near[i] && (hv % 1000) / 1000 < S.sparse) { g.font = MONO(fz); g.fillStyle = 'rgba(255,255,255,.22)'; g.fillText(hv % 7 === 0 ? '|' : String(hv % 10), xx * cw, yy * rh); }
+          }
+        }
+      }
+    }
+    const { cw, rh, cols } = S, sx = w * ease(ramp(t, .4, 3.6));
+    c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    c.save(); c.beginPath(); c.rect(0, 0, sx, h); c.clip(); c.drawImage(S.A, 0, 0);
+    // a few cells of the mark keep changing: the data is live
+    const fr = Math.floor(t * S.flick);
+    for (let n = 0; n < 60; n++) { const i = S.cells[h32(n * 131 + fr) % S.cells.length], xx = i % cols, yy = Math.floor(i / cols); c.drawImage(S.B, xx * cw, yy * rh, cw, rh, xx * cw, yy * rh, cw, rh); }
+    c.restore();
+    if (sx < w) { c.fillStyle = ORANGE; c.fillRect(sx, 0, Math.max(1, u * .2), h); c.fillStyle = 'rgba(255,90,31,.18)'; c.fillRect(sx - 2 * u, 0, 2 * u, h); }
+    txt(c, clock(), w - 5 * u, h - 5 * u, MONO(2.4 * u, 500), 'rgba(255,255,255,.5)', ramp(t, 4.4, .8), 'right');
+  },
+});
+
+// V10 — VU meter
+V.push({
+  name: 'VU meter', seed: 'e5508eb0c5277cfdf27b6913401d851c3a20f4cb74ddc7a1', L: 9,
+  idea: 'A close-up of one analogue VU meter on the deck, hub and all. The lamp warms the dial, the needle kicks to the station voice, and the mark is printed on the dial like a maker\'s name.',
+  // seed → dial cream (byte 0), needle weight (byte 1), rhythm of the simulated voice (seed stream)
+  init(S) {
+    S.dial = mix('#f2eee6', '#ebe3d2', byte(S.seed, 0)); S.nw = .9 + byte(S.seed, 1) * .4;
+    const r = rng(S.seed.slice(6)); S.words = []; let at = 1.1;
+    while (at < 7.4) { const d = .14 + r() * .32; S.words.push([at, d, .45 + r() * .55]); at += d + (r() < .22 ? .35 + r() * .4 : .04 + r() * .08); }
+    S.pos = 0; S.vel = 0; S.last = null;
+  },
+  draw(c, w, h, t, S) {
+    const u = h / 100, cx = w / 2, cy = h * .97, R = h * .76, M = 6 * u;
+    const lamp = ramp(t, .3, .7);
+    c.fillStyle = '#d9d4ca'; c.fillRect(0, 0, w, h);
+    c.fillStyle = mix('#8f8a80', S.dial, lamp); c.fillRect(M, M, w - 2 * M, h - 2 * M);
+    const ink = `rgba(20,19,17,${.35 + .65 * lamp})`, hot = rgba(ORANGE, .4 + .6 * lamp);
+    // the VU scale: non-linear, like the real instrument
+    const stops = [[-20, 0], [-10, .25], [-7, .37], [-5, .47], [-3, .58], [-2, .64], [-1, .7], [0, .76], [1, .83], [2, .91], [3, 1]];
+    const ang = f => -Math.PI / 4 + f * Math.PI / 2, pt = (f, rr) => [cx + Math.sin(ang(f)) * rr, cy - Math.cos(ang(f)) * rr];
+    c.lineWidth = .5 * u; c.strokeStyle = ink; c.beginPath(); c.arc(cx, cy, R, ang(0) - Math.PI / 2, ang(.76) - Math.PI / 2); c.stroke();
+    c.lineWidth = 1.1 * u; c.strokeStyle = hot; c.beginPath(); c.arc(cx, cy, R, ang(.76) - Math.PI / 2, ang(1) - Math.PI / 2); c.stroke();
+    for (let i = 0; i <= 50; i++) { const f = i / 50; const [x1, y1] = pt(f, R - 1.3 * u), [x2, y2] = pt(f, R); c.lineWidth = .2 * u; c.strokeStyle = f > .76 ? hot : ink; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+    for (const [db, f] of stops) {
+      const [x1, y1] = pt(f, R - 2.8 * u), [x2, y2] = pt(f, R), [tx, ty] = pt(f, R + 5 * u), red = db > 0;
+      c.lineWidth = .4 * u; c.strokeStyle = red ? hot : ink; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+      txt(c, db > 0 ? `+${db}` : String(db), tx, ty, MONO(2.9 * u, 500), red ? hot : ink, 1, 'center', 'middle');
+    }
+    txt(c, 'VU', cx, cy - R * .42, JK(700, 6 * u), ink, 1, 'center', 'middle');
+    mark(c, 11 * u, h - 13 * u, 5 * u, `rgba(20,19,17,${.2 + .8 * lamp})`);
+    // the signal: the real voice when it plays, otherwise a seeded speech rhythm
+    let env = 0;
+    if (LIVE.level()) env = LIVE.level();
+    else for (const [a, d, amp] of S.words) { const k = t - a; if (k > -.05 && k < d + .3) env = Math.max(env, amp * (k < 0 ? 0 : k < .06 ? k / .06 : k < d ? 1 - .25 * Math.sin(k * 40) ** 2 : Math.exp(-(k - d) * 9))); }
+    const target = lamp < .3 ? 0 : clamp(env) * .98;
+    const now = performance.now() / 1000, dt = S.last === null ? 1 / 60 : Math.min(.05, now - S.last); S.last = now;
+    if (FREEZE !== null) S.pos = target;
+    else { const acc = (target - S.pos) * 320 - S.vel * 26; S.vel += acc * dt; S.pos += S.vel * dt; }
+    // a tapered needle from a visible hub, with its counterweight below
+    c.save(); c.translate(cx, cy); c.rotate(ang(clamp(S.pos, 0, 1.03)));
+    c.fillStyle = '#1a1917'; c.beginPath(); c.moveTo(-S.nw * u / 2, 0); c.lineTo(-.18 * u, -R - 3 * u); c.lineTo(.18 * u, -R - 3 * u); c.lineTo(S.nw * u / 2, 0); c.closePath(); c.fill();
+    c.fillRect(-S.nw * u * .7, 0, S.nw * u * 1.4, 9 * u);
+    c.beginPath(); c.arc(0, 0, 4.2 * u, 0, TAU); c.fill();
+    c.fillStyle = '#6b6560'; c.beginPath(); c.arc(0, 0, 1.1 * u, 0, TAU); c.fill();
+    c.restore();
+    c.fillStyle = `rgba(0,0,0,${1 - ramp(t, 0, .5)})`; c.fillRect(0, 0, w, h);
+  },
+});
+
+// ---------- engine ----------
+const params = new URLSearchParams(location.search);
+const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
+const FREEZE = params.has('t') ? Number(params.get('t')) : null;
+if (ONLY !== null) document.body.classList.add('solo');
+let voice = null;
+
+// the station voice, analysed for the meter when it plays
+const LIVE = { ac: null, an: null, buf: null, level() {
+  if (!this.an || !voice || voice.paused || voice.ended) return 0;
+  this.an.getByteTimeDomainData(this.buf); let s = 0;
+  for (let i = 0; i < this.buf.length; i++) { const v = (this.buf[i] - 128) / 128; s += v * v; }
+  return clamp(Math.sqrt(s / this.buf.length) * 5.5);
+} };
+function hookVoice(a) {
+  try {
+    LIVE.ac = LIVE.ac || new (window.AudioContext || window.webkitAudioContext)();
+    const src = LIVE.ac.createMediaElementSource(a); LIVE.an = LIVE.ac.createAnalyser(); LIVE.an.fftSize = 1024; LIVE.buf = new Uint8Array(LIVE.an.fftSize);
+    src.connect(LIVE.an); LIVE.an.connect(LIVE.ac.destination); LIVE.ac.resume();
+  } catch (e) {}
+}
+
+const stages = [];
+V.forEach((v, i) => {
+  if (ONLY !== null && i !== ONLY) return;
+  const sec = document.createElement('section');
+  sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p><div class="frame"><div class="stage"><canvas></canvas></div></div>`;
+  document.getElementById('lab').appendChild(sec);
+  const stage = sec.querySelector('.stage'), cv = sec.querySelector('canvas');
+  const S = { seed: v.seed, r: rng(v.seed), start: performance.now(), visible: ONLY !== null };
+  if (v.init) v.init(S);
+  const st = { v, S, cv, ctx: cv.getContext('2d') };
+  new ResizeObserver(() => {
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    cv.width = Math.round(stage.clientWidth * dpr); cv.height = Math.round(stage.clientHeight * dpr);
+  }).observe(stage);
+  new IntersectionObserver(([e]) => { S.visible = e.isIntersecting || ONLY !== null; }, { rootMargin: '100px' }).observe(stage);
+  stage.addEventListener('click', () => {
+    S.start = performance.now();
+    if (voice) voice.pause();
+    voice = new Audio(`../welcome/welcome-${1 + Math.floor(Math.random() * 4)}.wav`);
+    hookVoice(voice);
+    voice.play().catch(() => {});
+  });
+  stages.push(st);
+});
+
+function frame(now) {
+  for (const { v, S, cv, ctx } of stages) {
+    if (!S.visible || !cv.width) continue;
+    let t = FREEZE !== null ? FREEZE : (now - S.start) / 1000;
+    if (FREEZE === null && t > v.L) { S.start = now; t = 0; }
+    const w = cv.width, h = cv.height;
+    ctx.save(); v.draw(ctx, w, h, t, S); ctx.restore();
+    // the TV-style fade to the player
+    if (FREEZE === null && t > v.L - .7) { ctx.fillStyle = `rgba(0,0,0,${ramp(t, v.L - .7, .7)})`; ctx.fillRect(0, 0, w, h); }
+  }
+  requestAnimationFrame(frame);
+}
+
+Promise.all([
+  document.fonts.load(JK(800, 40)), document.fonts.load(JK(700, 40)), document.fonts.load(JK(400, 40)),
+  document.fonts.load(MONO(20)), document.fonts.load(MONO(20, 500)), document.fonts.load('20px VT100'),
+]).catch(() => {}).then(() => { stages.forEach(s => s.S.start = performance.now()); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>

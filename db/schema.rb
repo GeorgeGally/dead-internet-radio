@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_04_032945) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_23_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -21,6 +21,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_032945) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["last_activity_at"], name: "index_ace_step_sessions_on_last_activity_at"
+  end
+
+  create_table "broadcast_segments", force: :cascade do |t|
+    t.bigint "track_id", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "source", default: "rotation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ends_at"], name: "index_broadcast_segments_on_ends_at"
+    t.index ["starts_at"], name: "index_broadcast_segments_on_starts_at"
+    t.index ["track_id"], name: "index_broadcast_segments_on_track_id"
   end
 
   create_table "generation_jobs", force: :cascade do |t|
@@ -88,6 +100,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_032945) do
     t.index ["slug"], name: "index_visual_modules_on_slug", unique: true
   end
 
+  add_foreign_key "broadcast_segments", "tracks"
   add_foreign_key "generation_jobs", "shows"
   add_foreign_key "tracks", "shows"
 end

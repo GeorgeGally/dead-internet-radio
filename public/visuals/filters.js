@@ -197,8 +197,9 @@ const canvasFilters = (() => {
         clearActive();
         return;
       }
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= 9) {
+      const letter = e.ctrlKey || e.metaKey ? '' : e.key.toLowerCase();
+      const num = { d: 10, x: 11, b: 12 }[letter] ?? parseInt(e.key);
+      if (num >= 1 && num <= 12) {
         const filter = registry.get(num);
         if (filter) {
           e.preventDefault();
@@ -431,18 +432,183 @@ const canvasFilters = (() => {
     ctx.restore();
   });
 
-  // Convenience for p5 visuals: run filters on the p5 canvas in pixel space,
-  // or via overlay for WebGL canvases that have no 2D context.
-  function applyToP5(p) {
-    const nativeCtx = p.canvas.getContext('2d');
-    if (nativeCtx) {
-      nativeCtx.save();
-      nativeCtx.setTransform(1, 0, 0, 1, 0, 0);
-      apply(nativeCtx, p.canvas.width, p.canvas.height, p.frameCount);
-      nativeCtx.restore();
-    } else {
-      applyToOverlay(p.canvas, p.frameCount);
+  const BAYER8 = [
+    [0, 32, 8, 40, 2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+  ].map(row => row.map(v => (v + 0.5) / 64));
+
+  const DITHER_INK = '#1a1a1a';
+  const DITHER_PAPER = '#e9e6df';
+
+  function ditherInk(lum, cx, cy) {
+    return (1 - lum) > BAYER8[cy & 7][cx & 7];
+  }
+
+  // Browsers: downscale with drawImage, dither at cell resolution, blit back with
+  // smoothing off. The old version issued one fillRect per cell on the full-res
+  // canvas (>1M at 1440x900 dpr2), which is what stalled the frame.
+  const hasOffscreen = typeof document !== 'undefined' && typeof document.createElement === 'function';
+  let ditherSmall = null;
+  let ditherSmallCtx = null;
+
+  // Contrast follows the cutoff dial; the old Giphy look (1.2) sits at its rest position.
+  function monoContrast() {
+    return 0.6 + ((window._cutoffVal ?? 130) / 255) * 1.2;
+  }
+
+  register(12, 'Black & White', (ctx, w, h) => {
+    const k = monoContrast();
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const l = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 - 128) * k + 128;
+      d[i] = d[i + 1] = d[i + 2] = l < 0 ? 0 : l > 255 ? 255 : l;
     }
+    ctx.putImageData(imageData, 0, 0);
+  });
+  window.monoContrast = monoContrast;
+
+  register(10, 'Dither', (ctx, w, h, frame) => {
+    const dpr = window.devicePixelRatio || 1;
+    const cell = Math.max(2, Math.round((currentThreshold / 20) * dpr));
+
+    if (hasOffscreen && ctx.canvas && typeof ctx.drawImage === 'function') {
+      const sw = Math.max(1, Math.ceil(w / cell));
+      const sh = Math.max(1, Math.ceil(h / cell));
+      if (!ditherSmall) {
+        ditherSmall = document.createElement('canvas');
+        ditherSmallCtx = ditherSmall.getContext('2d', { willReadFrequently: true });
+      }
+      if (ditherSmall.width !== sw || ditherSmall.height !== sh) {
+        ditherSmall.width = sw;
+        ditherSmall.height = sh;
+      }
+      ditherSmallCtx.imageSmoothingEnabled = true;
+      ditherSmallCtx.clearRect(0, 0, sw, sh);
+      ditherSmallCtx.drawImage(ctx.canvas, 0, 0, w, h, 0, 0, sw, sh);
+
+      const imageData = ditherSmallCtx.getImageData(0, 0, sw, sh);
+      const data = imageData.data;
+      for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+          const i = (y * sw + x) * 4;
+          const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+          const ink = ditherInk(lum, x, y);
+          data[i] = ink ? 0x1a : 0xe9;
+          data[i + 1] = ink ? 0x1a : 0xe6;
+          data[i + 2] = ink ? 0x1a : 0xdf;
+          data[i + 3] = 255;
+        }
+      }
+      ditherSmallCtx.putImageData(imageData, 0, 0);
+
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(ditherSmall, 0, 0, sw, sh, 0, 0, w, h);
+      ctx.restore();
+      return;
+    }
+
+    // No offscreen canvas (tests, exotic hosts): write pixels instead of fillRect.
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    for (let cy = 0, y = 0; y < h; y += cell, cy++) {
+      const rows = Math.min(cell, h - y);
+      for (let cx = 0, x = 0; x < w; x += cell, cx++) {
+        const cols = Math.min(cell, w - x);
+        let sum = 0;
+        for (let dy = 0; dy < rows; dy++) {
+          let i = ((y + dy) * w + x) * 4;
+          for (let dx = 0; dx < cols; dx++, i += 4) {
+            sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          }
+        }
+        const ink = ditherInk(sum / (rows * cols * 255), cx, cy);
+        const r = ink ? 0x1a : 0xe9;
+        const g = ink ? 0x1a : 0xe6;
+        const b = ink ? 0x1a : 0xdf;
+        for (let dy = 0; dy < rows; dy++) {
+          let i = ((y + dy) * w + x) * 4;
+          for (let dx = 0; dx < cols; dx++, i += 4) {
+            data[i] = r;
+            data[i + 1] = g;
+            data[i + 2] = b;
+            data[i + 3] = 255;
+          }
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  });
+
+  const GLITCH_SEED = 25;
+
+  function glitchRandom(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  register(11, 'Glitch', (ctx, w, h, frame) => {
+    const amount = Math.max(0.05, Math.min(1, currentThreshold / 255));
+    const strength = Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const randomSeed = glitchRandom((GLITCH_SEED + (frame | 0) * 2654435761) >>> 0);
+    const bands = Math.round(4 + amount * 26);
+    const maxShift = Math.round(w * (0.01 + amount * 0.06) * strength);
+    let src = new Uint8ClampedArray(0);
+    for (let b = 0; b < bands; b++) {
+      const top = Math.floor(randomSeed() * h);
+      const height = Math.max(3, Math.floor((0.004 + randomSeed() * 0.035) * h));
+      const shift = Math.round((randomSeed() * 2 - 1) * maxShift);
+      const fringe = Math.max(1, Math.min(12, Math.round(Math.abs(shift) * 0.08)));
+      const chroma = Math.round(fringe * strength) * (randomSeed() < 0.5 ? -1 : 1);
+      const bottom = Math.min(h, top + height);
+      const rows = bottom - top;
+      if (rows <= 0) continue;
+      const need = rows * w * 4;
+      if (src.length < need) src = new Uint8ClampedArray(need);
+      // snapshot just this band, so the read stays a straight typed-array copy
+      src.set(data.subarray(top * w * 4, bottom * w * 4));
+      for (let y = 0; y < rows; y++) {
+        const srow = y * w * 4;
+        const drow = (top + y) * w * 4;
+        for (let x = 0; x < w; x++) {
+          let g = x - shift;
+          g = g < 0 ? 0 : g >= w ? w - 1 : g;
+          let r = g - chroma;
+          r = r < 0 ? 0 : r >= w ? w - 1 : r;
+          let bl = g + chroma;
+          bl = bl < 0 ? 0 : bl >= w ? w - 1 : bl;
+          const di = drow + x * 4;
+          data[di] = src[srow + r * 4];
+          data[di + 1] = src[srow + g * 4 + 1];
+          data[di + 2] = src[srow + bl * 4 + 2];
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  });
+
+  // Convenience for p5 visuals: filter a copy on the overlay canvas, never the
+  // sketch's own canvas. Sketches that fade the last frame instead of clearing
+  // it would otherwise build on the filtered picture, so circles, scanlines and
+  // so on pile up frame after frame and the alpha knob can never fade them out.
+  function applyToP5(p) {
+    applyToOverlay(p.canvas, p.frameCount);
   }
 
   return { register, setActive, toggleActive, clearActive, apply, applyToOverlay, applyToP5, setShaderKeys, setOnFilterChange, getActiveName, getActiveKeys, hasActiveKey, getFilter, setupKeybindings, getCoverInfo, getAllCoverInfo, coverStyles, COVERS, setThreshold, setStrength };

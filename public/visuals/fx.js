@@ -1,6 +1,6 @@
 'use strict';
 
-// GPU filter pipeline (proof: pixelate). Samples the active visual's canvas as
+// GPU filter pipeline (pixelate, dither). Samples the active visual's canvas as
 // a texture and runs a fragment shader onto #fx-canvas. This replaces the CPU
 // getImageData filters incrementally: keys ported here are registered via
 // canvasFilters.setShaderKeys() so the CPU path skips them.
@@ -25,6 +25,92 @@ const fxPipeline = (() => {
           gl_FragColor = texture2D(uTex, q / uRes);
         }
       `,
+      block: () => Math.max(4, window._pixelBlockSize || 16),
+    },
+    // Ordered (Bayer 8x8) dither in two inks, one decision per cell. The CPU
+    // version read back the whole frame every tick; here it is one pass.
+    10: {
+      name: 'Dither',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform vec2 uRes;
+        uniform float uBlock;
+        uniform float uMode;
+        varying vec2 vUv;
+        float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+        float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+        float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+        void main() {
+          vec2 cell = floor(vUv * uRes / uBlock);
+          vec2 c = (cell + 0.5) * uBlock;
+          float d = uBlock * 0.25;
+          // Four taps per cell so a moving picture doesn't shimmer.
+          vec3 rgb = texture2D(uTex, (c + vec2(-d, -d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2( d, -d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2(-d,  d)) / uRes).rgb
+                   + texture2D(uTex, (c + vec2( d,  d)) / uRes).rgb;
+          rgb *= 0.25;
+          float b = bayer8(cell) + 0.5 / 64.0;
+          if (uMode > 1.5) {
+            // colour: each channel dithered to four levels
+            gl_FragColor = vec4(floor(rgb * 3.0 + b) / 3.0, 1.0);
+            return;
+          }
+          bool ink = (1.0 - dot(rgb, vec3(0.299, 0.587, 0.114))) > b;
+          vec3 inkC = uMode > 0.5 ? vec3(0.02, 0.08, 0.04) : vec3(0.102, 0.102, 0.102);
+          vec3 paperC = uMode > 0.5 ? vec3(0.30, 1.0, 0.53) : vec3(0.914, 0.902, 0.875);
+          gl_FragColor = vec4(ink ? inkC : paperC, 1.0);
+        }
+      `,
+      // Resonance picks the inks: left green phosphor, centre (its rest
+      // position) cream on black, right full colour.
+      mode: () => {
+        const r = window._resonanceVal ?? 50;
+        return r < 34 ? 1 : r < 67 ? 0 : 2;
+      },
+      // Same cell size as the CPU version: the cutoff dial drives it.
+      block: () => Math.max(2, Math.round(((window.ledThreshold || 40) / 20) * (window.devicePixelRatio || 1))),
+    },
+    // Red and blue pulled apart sideways, wobbling; same numbers as the CPU
+    // version, which read back the whole frame twice per tick.
+    4: {
+      name: 'Chromatic Aberration',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform vec2 uRes;
+        uniform float uBlock;
+        varying vec2 vUv;
+        void main() {
+          vec2 d = vec2(uBlock / uRes.x, 0.0);
+          vec4 c = texture2D(uTex, vUv);
+          gl_FragColor = vec4(texture2D(uTex, vUv + d).r, c.g, texture2D(uTex, vUv - d).b, c.a);
+        }
+      `,
+      // uBlock carries the shift in pixels: cutoff sets it, resonance the wobble.
+      block: () => {
+        const resonance = (window.soundSensitivity ?? 50) / 100;
+        const base = Math.max(1, Math.round((window.ledThreshold || 40) / 10));
+        const frame = performance.now() / (1000 / 60);
+        return base + Math.sin(frame * 0.02) * (2 + resonance * 10);
+      },
+    },
+    12: {
+      name: 'Black & White',
+      frag: `
+        precision mediump float;
+        uniform sampler2D uTex;
+        uniform float uBlock;
+        varying vec2 vUv;
+        void main() {
+          vec4 c = texture2D(uTex, vUv);
+          float l = (dot(c.rgb, vec3(0.299, 0.587, 0.114)) - 0.5) * uBlock + 0.5;
+          gl_FragColor = vec4(vec3(clamp(l, 0.0, 1.0)), c.a);
+        }
+      `,
+      // uBlock carries the contrast here (cutoff dial).
+      block: () => (window.monoContrast ? window.monoContrast() : 1.2),
     },
   };
 
@@ -75,6 +161,7 @@ const fxPipeline = (() => {
         uTex: gl.getUniformLocation(p, 'uTex'),
         uRes: gl.getUniformLocation(p, 'uRes'),
         uBlock: gl.getUniformLocation(p, 'uBlock'),
+        uMode: gl.getUniformLocation(p, 'uMode'),
       },
     };
   }
@@ -123,12 +210,15 @@ const fxPipeline = (() => {
     }
   }
 
-  // The active visual's canvas (p5 default, or the blocks canvas).
+  // The active visual's canvas (p5 default, the blocks canvas, or giphy's
+  // overlay, which carries the GIF frame while a filter is on).
   function sourceCanvas() {
     const p5c = document.querySelector('canvas#defaultCanvas0');
     if (p5c && p5c.width > 0 && getComputedStyle(p5c).display !== 'none') return p5c;
     const block = document.getElementById('block-canvas');
     if (block && block.width > 0 && getComputedStyle(block).display !== 'none') return block;
+    const overlay = document.getElementById('overlay-canvas');
+    if (overlay && overlay.width > 0 && getComputedStyle(overlay).display !== 'none') return overlay;
     return null;
   }
 
@@ -166,11 +256,15 @@ const fxPipeline = (() => {
     gl.vertexAttribPointer(prog.loc.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(prog.loc.uTex, 0);
     gl.uniform2f(prog.loc.uRes, canvas.width, canvas.height);
-    gl.uniform1f(prog.loc.uBlock, Math.max(4, window._pixelBlockSize || 16));
+    gl.uniform1f(prog.loc.uBlock, SHADERS[key].block());
+    if (prog.loc.uMode) gl.uniform1f(prog.loc.uMode, SHADERS[key].mode ? SHADERS[key].mode() : 0);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    if (canvas.style.display === 'none') canvas.style.display = 'block';
+    // Alpha knob: fade the shader output over the untouched visual below.
+    canvas.style.opacity = String(Math.max(0, Math.min(100, window.filterStrength ?? 100)) / 100);
+    // The stylesheet hides #fx-canvas, so the inline style starts empty, not 'none'.
+    if (canvas.style.display !== 'block') canvas.style.display = 'block';
   }
 
   function loop() {

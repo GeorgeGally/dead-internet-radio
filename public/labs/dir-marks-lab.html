@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DIR Marks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #0e0e0d; --ink: #ece8df; --dim: #9a958c; --frame: #191918; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 'Plus Jakarta Sans', sans-serif; }
+header, section { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 64px; padding-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: 0; }
+header p { margin: 0; color: var(--dim); max-width: 640px; }
+section { margin-bottom: 80px; }
+.tag { margin: 0 0 16px; max-width: 760px; }
+.tag b { font-weight: 700; }
+.frame { background: var(--frame); padding: 12px; border-radius: 6px; }
+.stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 2px; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+body.solo header, body.solo .tag { display: none; }
+body.solo section { max-width: none; padding: 0; margin: 0; }
+body.solo .frame { padding: 0; border-radius: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DIR marks</h1>
+  <p>Logos for Dead Internet Radio: wordmarks, one mark with no letters, and the cassette set. Each is just the logo on a flat ground; the band under it shows it at 36px on the deck cream and on black.</p>
+</header>
+<main id="lab"></main>
+<script>
+'use strict';
+const ORANGE = '#ff5a1f', CREAM = '#f2eee6', INK = '#0b0b0a', DECK = '#d9d4ca';
+const PI = Math.PI;
+
+// ---------- letterforms: heavy geometric cut, unit height, y down ----------
+// Every letter is a Path2D in a 1-high box; counters are wound the other way.
+function D(s = .26, w = .84) {
+  const p = new Path2D(), r = .5, cx = w - r;
+  p.moveTo(0, 0); p.lineTo(cx, 0); p.arc(cx, .5, r, -PI / 2, PI / 2); p.lineTo(0, 1); p.closePath();
+  p.moveTo(s, s); p.lineTo(s, 1 - s); p.arc(cx, .5, r - s, PI / 2, -PI / 2, true); p.closePath();
+  return { p, w };
+}
+function I(s = .26) { const p = new Path2D(); p.rect(0, 0, s, 1); return { p, w: s }; }
+function R(s = .26, H = .7, w = .86) {
+  const p = new Path2D(), rb = H / 2, cx = w - rb, lw = .3, k = (w - cx) / (1 - H);
+  const yl = 1 - (w - lw - s) / k; // where the leg's inner edge meets the stem
+  p.moveTo(0, 0); p.lineTo(cx, 0); p.arc(cx, rb, rb, -PI / 2, PI / 2);
+  p.lineTo(w, 1); p.lineTo(w - lw, 1); p.lineTo(s, yl); p.lineTo(s, 1); p.lineTo(0, 1); p.closePath();
+  p.moveTo(s, s); p.lineTo(s, H - s); p.lineTo(cx, H - s); p.arc(cx, rb, rb - s, PI / 2, -PI / 2, true); p.closePath();
+  return { p, w };
+}
+// A D whose stem is the slash: one slanted stroke, bowl hung off it.
+function slashD(s = .26, lean = .3, w = 1.12) {
+  const p = new Path2D(), r = .5, cx = w - r, at = y => lean * (1 - y);
+  p.moveTo(0, 1); p.lineTo(lean, 0); p.lineTo(cx, 0); p.arc(cx, .5, r, -PI / 2, PI / 2); p.closePath();
+  p.moveTo(s + at(1 - s), 1 - s); p.lineTo(cx, 1 - s); p.arc(cx, .5, r - s, PI / 2, -PI / 2, true); p.lineTo(s + at(s), s); p.closePath();
+  return { p, w };
+}
+// Paint fill() only inside shape(), on its own layer, so the ground stays clean.
+function inside(ctx, w, shape, fill) {
+  const sc = Math.max(1, ctx.getTransform().a), off = document.createElement('canvas');
+  off.width = Math.ceil((w + .2) * sc); off.height = Math.ceil(1.2 * sc);
+  const o = off.getContext('2d'); o.scale(sc, sc); o.translate(.1, .1);
+  shape(o); o.globalCompositeOperation = 'source-atop'; fill(o);
+  ctx.drawImage(off, -.1, -.1, off.width / sc, off.height / sc);
+}
+const TDK = ['#ffb000', '#ff5a1f', '#e0262e', '#9b1b4b'];
+function slash(s = .24, lean = .3) { const p = new Path2D(); p.moveTo(lean, 0); p.lineTo(lean + s, 0); p.lineTo(s, 1); p.lineTo(0, 1); p.closePath(); return { p, w: lean + s }; }
+function dot(s = .26) { const p = new Path2D(); p.rect(0, 1 - s, s, s); return { p, w: s }; }
+function zero(ctx, x, y, h, color, w = .56, s = .2) {
+  const W = w * h, S = s * h, p = new Path2D();
+  p.roundRect(x, y, W, h, W / 2); p.roundRect(x + S, y + S, W - 2 * S, h - 2 * S, (W - 2 * S) / 2);
+  ctx.fillStyle = color; ctx.fill(p, 'evenodd');
+}
+function nine(ctx, x, y, h, color, w = .56, s = .2) {
+  const W = w * h, S = s * h, top = .64 * h, p = new Path2D(), q = new Path2D();
+  p.roundRect(x, y, W, top, W / 2); p.roundRect(x + S, y + S, W - 2 * S, top - 2 * S, (W - 2 * S) / 2);
+  q.roundRect(x + W - S, y + top / 2, S, h - top / 2, [0, 0, S / 2, S / 2]);
+  ctx.fillStyle = color; ctx.fill(p, 'evenodd'); ctx.fill(q);
+}
+
+// Lay glyphs on a line with a gap; returns total width and the placed list.
+function line(glyphs, gap = .09) {
+  let x = 0; const placed = [];
+  for (const g of glyphs) { placed.push({ ...g, x }); x += g.w + gap; }
+  return { placed, w: x - gap };
+}
+function fillLine(ctx, L, color) {
+  ctx.fillStyle = color;
+  for (const g of L.placed) { ctx.save(); ctx.translate(g.x, 0); ctx.fill(g.p); ctx.restore(); }
+}
+function strokeLine(ctx, L, color, lw, join = 'miter') {
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = join; ctx.lineCap = join === 'round' ? 'round' : 'butt';
+  for (const g of L.placed) { ctx.save(); ctx.translate(g.x, 0); ctx.stroke(g.p); ctx.restore(); }
+}
+const DIR = () => line([D(), I(), R()]);
+const DOTTED = () => line([D(), dot(), I(), dot(), R(), dot()], .08);
+
+// 14-segment cell: width .62, height 1, bar .13. Letters list their lit segments.
+function seg14(lit, s = .13, w = .62) {
+  const p = new Path2D(), h = 1, m = h / 2, g = .015;
+  const bar = (x0, y0, x1, y1) => { // a bar from (x0,y0) to (x1,y1), thickness s, pointed ends
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, nx = -uy * s / 2, ny = ux * s / 2, t = s / 2;
+    const ax = x0 + ux * g, ay = y0 + uy * g, bx = x1 - ux * g, by = y1 - uy * g;
+    p.moveTo(ax + ux * t, ay + uy * t); p.lineTo(ax + ux * t + nx, ay + uy * t + ny); p.lineTo(bx - ux * t + nx, by - uy * t + ny); p.lineTo(bx, by);
+    p.lineTo(bx - ux * t - nx, by - uy * t - ny); p.lineTo(ax + ux * t - nx, ay + uy * t - ny); p.closePath();
+  };
+  const S = {
+    a: [0, 0, w, 0], b: [w, 0, w, m], c: [w, m, w, h], d: [0, h, w, h], e: [0, m, 0, h], f: [0, 0, 0, m],
+    g1: [0, m, w / 2, m], g2: [w / 2, m, w, m], i: [w / 2, 0, w / 2, m], l: [w / 2, m, w / 2, h],
+    h: [0, 0, w / 2, m], j: [w, 0, w / 2, m], k: [0, h, w / 2, m], mm: [w / 2, m, w, h],
+  };
+  for (const k of lit) bar(...S[k]);
+  return { p, w };
+}
+
+// Rasterise a path line into a sextant grid and draw it as teletext mosaic.
+function mosaic(ctx, L, color, cols = 26, rows = 7) {
+  const sw = cols * 2, sh = rows * 3, off = document.createElement('canvas'); off.width = sw; off.height = sh;
+  const o = off.getContext('2d'); const sc = sh / 1; o.scale(sw / L.w / sc, 1); o.scale(sc, sc);
+  o.fillStyle = '#fff'; for (const g of L.placed) { o.save(); o.translate(g.x, 0); o.fill(g.p); o.restore(); }
+  const d = o.getImageData(0, 0, sw, sh).data, cw = L.w / cols, ch = 1 / rows, gap = .006;
+  ctx.fillStyle = color;
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) if (d[(y * sw + x) * 4 + 3] > 120)
+    ctx.fillRect(x * cw / 2 + gap, y * ch / 3 + gap, cw / 2 - gap * 2, ch / 3 - gap * 2);
+}
+
+// ---------- the ten marks ----------
+// draw(ctx, c): ctx is scaled so 1 unit = mark height; returns mark width in units.
+// c = { ink, accent, ground }. Large ground per version; strip grounds are deck cream and black.
+const V = [
+  {
+    name: 'Block', idea: 'DIR in one heavy geometric cut, the letters almost touching. The silhouette is the logo; fill it with anything.',
+    ground: INK, draw(ctx, c) { const L = DIR(); fillLine(ctx, L, c.ink); return L.w; },
+  },
+  {
+    name: 'MTV', idea: 'A giant D carries the station; IR sits on its shoulder in orange, the way TV sits on the M.',
+    ground: INK, draw(ctx, c) {
+      const d = D(.3, .9); ctx.fillStyle = c.ink; ctx.fill(d.p);
+      const ir = line([I(.3), R(.3, .36, .9)], .1); ctx.save(); ctx.translate(.5, .5); ctx.scale(.5, .5);
+      strokeLine(ctx, ir, c.ground, .12, 'round'); fillLine(ctx, ir, c.accent); ctx.restore();
+      return Math.max(d.w, .5 + ir.w * .5);
+    },
+  },
+  {
+    name: 'Slash stem', idea: 'The D has no upright: the slash is its stem, and the bowl hangs off it. The URL mark and the letter are one shape.',
+    ground: INK, draw(ctx, c) { const L = line([slashD(), I(), R()]); fillLine(ctx, L, c.ink); return L.w; },
+  },
+  {
+    name: 'Readout', idea: 'D.I.R. as a fourteen-segment display, so the R gets a real diagonal leg. Lit segments only, no ghost.',
+    ground: INK, draw(ctx, c) {
+      const L = line([seg14(['a', 'b', 'c', 'd', 'i', 'l']), dot(.13), seg14(['a', 'd', 'i', 'l']), dot(.13), seg14(['a', 'b', 'e', 'f', 'g1', 'g2', 'mm']), dot(.13)], .1);
+      fillLine(ctx, L, c.accent); return L.w;
+    },
+  },
+  {
+    name: 'Tape label', idea: 'D.I.R. punched out of a black label, the way a model name is printed on hardware.',
+    ground: DECK, draw(ctx, c) {
+      const L = DOTTED(), pad = .22, W = L.w + pad * 2, r = .14;
+      ctx.fillStyle = c.ink; ctx.beginPath(); ctx.roundRect(0, -pad, W, 1 + pad * 2, r); ctx.fill();
+      ctx.save(); ctx.translate(pad, 0); fillLine(ctx, L, c.ground); ctx.restore(); return W;
+    },
+  },
+  {
+    name: 'Mosaic', idea: 'The block letters built from teletext sextants. The stepped edge is the whole idea.',
+    ground: INK, draw(ctx, c) { const L = DIR(); mosaic(ctx, L, c.ink, 13, 7); return L.w; },
+  },
+  {
+    name: 'Tube', idea: 'The block cut with every corner rounded off, like the glass of a CRT.',
+    ground: INK, draw(ctx, c) { const L = line([D(), I(), R()], .12); strokeLine(ctx, L, c.ink, .06, 'round'); fillLine(ctx, L, c.ink); return L.w; },
+  },
+  {
+    hidden: true, name: 'Lowercase', idea: 'dir, set low and heavy with round bowls: a path name, said quietly.',
+    ground: INK, draw(ctx, c) {
+      const s = .22, p = new Path2D();
+      // d: ring + right stem
+      p.arc(.33, .69, .31, 0, 2 * PI); p.moveTo(.33 + .31 - s, .69); p.arc(.33, .69, .31 - s, 0, 2 * PI, true); p.rect(.42, 0, s, 1);
+      // i: stem + dot
+      p.rect(.76, .38, s, .62); p.rect(.76, 0, s, s);
+      // r: stem + arch
+      p.rect(1.1, .38, s, .62); p.moveTo(1.1, .6); p.arc(1.32, .6, .22, PI, 2 * PI); p.lineTo(1.54, .6); p.lineTo(1.54 - .08, .6); p.arc(1.32, .6, .22 - .08, 2 * PI, PI, true); p.closePath();
+      ctx.fillStyle = c.ink; ctx.fill(p); return 1.54;
+    },
+  },
+  {
+    name: 'Two-tone', idea: 'The block, with the I in orange. One move: the signal runs through the middle of the name.',
+    ground: INK, draw(ctx, c) {
+      const L = DIR(); fillLine(ctx, L, c.ink);
+      ctx.save(); ctx.translate(L.placed[1].x, 0); ctx.fillStyle = c.accent; ctx.fill(L.placed[1].p); ctx.restore(); return L.w;
+    },
+  },
+  {
+    name: 'Contour', idea: 'The same block drawn as a single heavy outline, for when the mark sits over a picture.',
+    ground: INK, draw(ctx, c) { const L = DIR(); strokeLine(ctx, L, c.ink, .07, 'miter'); return L.w; },
+  },
+
+  // ---------- marks: no letters ----------
+  {
+    name: 'Signal D', idea: 'A stem, two arcs and a half dot, drawn thin, each in its own tape colour. It is a D and it is the broadcast symbol.',
+    ground: INK, draw(ctx, c) {
+      ctx.fillStyle = c.ink; ctx.fillRect(0, 0, .1, 1);
+      ctx.lineWidth = .07; ctx.lineCap = 'butt';
+      [[.44, TDK[0]], [.31, TDK[1]], [.18, TDK[2]]].forEach(([r, col]) => { ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(.1, .5, r, -PI / 2, PI / 2); ctx.stroke(); });
+      ctx.fillStyle = TDK[3]; ctx.beginPath(); ctx.arc(.1, .5, .07, -PI / 2, PI / 2); ctx.fill(); return .58;
+    },
+  },
+  {
+    hidden: true, name: 'One bar', idea: 'The phone signal icon with one bar left, in orange. Dead internet, still broadcasting.',
+    ground: INK, draw(ctx, c) {
+      const n = 5, bw = .16, g = .07;
+      for (let i = 0; i < n; i++) {
+        const bh = .3 + .7 * i / (n - 1), x = i * (bw + g);
+        if (i === 0) { ctx.fillStyle = c.accent; ctx.fillRect(x, 1 - bh, bw, bh); }
+        else { ctx.strokeStyle = c.ink; ctx.lineWidth = .05; ctx.strokeRect(x + .025, 1 - bh + .025, bw - .05, bh - .05); }
+      }
+      return n * bw + (n - 1) * g;
+    },
+  },
+  {
+    hidden: true, name: 'Flatline', idea: 'A carrier wave that goes flat. One thick stroke with round ends.',
+    ground: DECK, draw(ctx, c) {
+      ctx.strokeStyle = c.ink; ctx.lineWidth = .2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+      const L = 1.5; ctx.moveTo(.1, .5);
+      for (let x = 0; x <= L; x += .02) ctx.lineTo(.1 + x, .5 - Math.sin(x / L * PI * 3) * .36);
+      ctx.lineTo(2.5, .5); ctx.stroke(); return 2.6;
+    },
+  },
+  {
+    hidden: true, name: 'Dead pixel', idea: 'Nine pixels. One of them is stuck on.',
+    ground: INK, draw(ctx, c) {
+      const s = .28, g = .08;
+      for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) { ctx.fillStyle = x === 2 && y === 0 ? c.accent : c.ink; ctx.fillRect(x * (s + g), y * (s + g), s, s); }
+      return 3 * s + 2 * g;
+    },
+  },
+  {
+    hidden: true, name: 'Torn image', idea: 'The broken-image icon as a mark: a page with a folded corner, torn down the middle, the halves out of register.',
+    ground: INK, draw(ctx, c) {
+      const W = .86, f = .2, tx = .42, teeth = [[tx, 0], [tx + .07, .2], [tx - .05, .42], [tx + .06, .64], [tx - .04, .84], [tx + .03, 1]];
+      ctx.fillStyle = c.ink;
+      ctx.beginPath(); ctx.moveTo(0, 0); for (const [x, y] of teeth) ctx.lineTo(x, y); ctx.lineTo(0, 1); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.translate(.07, .07);
+      ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(W - f, 0); ctx.lineTo(W, f); ctx.lineTo(W, 1); for (const [x, y] of [...teeth].reverse()) ctx.lineTo(x, y); ctx.closePath(); ctx.fill();
+      ctx.restore(); return W + .07;
+    },
+  },
+  {
+    hidden: true, name: 'Stuck', idea: 'A loading ring that never finishes. The last sixth is orange.',
+    ground: INK, draw(ctx, c) {
+      const a = -PI / 2, r = .41;
+      ctx.lineCap = 'butt'; ctx.lineWidth = .18;
+      ctx.strokeStyle = c.ink; ctx.beginPath(); ctx.arc(.5, .5, r, a + PI / 3, a + 2 * PI); ctx.stroke();
+      ctx.strokeStyle = c.accent; ctx.beginPath(); ctx.arc(.5, .5, r, a, a + PI / 3); ctx.stroke(); return 1;
+    },
+  },
+  {
+    hidden: true, name: 'Tube', idea: 'A screen and the last line on it as the tube collapses. An outline and one orange stroke.',
+    ground: INK, draw(ctx, c) {
+      const W = 1.3; ctx.strokeStyle = c.ink; ctx.lineWidth = .11; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.roundRect(.055, .055, W - .11, 1 - .11, .12); ctx.stroke();
+      ctx.fillStyle = c.accent; ctx.fillRect(.24, .455, W - .48, .09); return W;
+    },
+  },
+  {
+    hidden: true, name: 'Off the dial', idea: 'A tuning dial and a needle that points past its edge, where the station is.',
+    ground: INK, draw(ctx, c) {
+      ctx.lineCap = 'butt'; ctx.strokeStyle = c.ink; ctx.lineWidth = .12; ctx.beginPath(); ctx.arc(.5, .5, .36, 0, 2 * PI); ctx.stroke();
+      ctx.save(); ctx.translate(.5, .5); ctx.rotate(PI / 4);
+      ctx.fillStyle = c.ground; ctx.fillRect(-.08, -.7, .16, .7);
+      ctx.fillStyle = c.accent; ctx.fillRect(-.04, -.68, .08, .68); ctx.restore(); return 1;
+    },
+  },
+  {
+    hidden: true, name: 'Bot', idea: 'The thing that runs the dead internet: a square head, two slot eyes, one of them stuck orange.',
+    ground: INK, draw(ctx, c) {
+      ctx.fillStyle = c.ink; ctx.beginPath(); ctx.roundRect(0, .14, 1, .86, .1); ctx.fill(); ctx.fillRect(.46, 0, .08, .16);
+      ctx.fillStyle = c.ground; ctx.fillRect(.2, .42, .2, .22); ctx.fillRect(.3, .78, .4, .06);
+      ctx.fillStyle = c.accent; ctx.fillRect(.6, .42, .2, .22); return 1;
+    },
+  },
+  {
+    hidden: true, name: 'Ghost', idea: 'A ghost in the signal: dome, three scallops, slot eyes. Drawn flat on orange.',
+    ground: ORANGE, draw(ctx, c) {
+      const W = .9, r = W / 2, n = 3, sw = W / n;
+      ctx.fillStyle = c.ink; ctx.beginPath(); ctx.moveTo(0, r); ctx.arc(r, r, r, PI, 0); ctx.lineTo(W, 1);
+      for (let i = n - 1; i >= 0; i--) ctx.arc(i * sw + sw / 2, 1, sw / 2, 0, PI, true);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = c.ground; ctx.fillRect(.22, .36, .14, .26); ctx.fillRect(.54, .36, .14, .26); return W;
+    },
+  },
+
+  // ---------- from the cassette label ----------
+  {
+    name: 'D-90', idea: 'The bottom strip of a cassette label: two ruled lines, the mark heavy, the tape length in orange. The TDK D, on its red felt.',
+    ground: '#bd232c', draw(ctx, c) {
+      const W = 2.9;
+      ctx.fillStyle = CREAM; ctx.beginPath(); ctx.roundRect(0, 0, W, 1, .06); ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = .025; ctx.beginPath(); ctx.roundRect(.0125, .0125, W - .025, 1 - .025, .06); ctx.stroke();
+      ctx.fillStyle = INK; for (const y of [.2, .36]) ctx.fillRect(.18, y, W - .36, .022);
+      ctx.save(); ctx.translate(.18, .56); ctx.scale(.3, .3);
+      const L = DIR(); fillLine(ctx, L, INK); nine(ctx, L.w + .4, 0, 1, ORANGE); zero(ctx, L.w + 1.06, 0, 1, ORANGE);
+      ctx.restore();
+      ctx.font = `500 .085px 'Plus Jakarta Sans', sans-serif`; ctx.fillStyle = INK; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('NORMAL BIAS · 120µs EQ · 88.8 MHz', W - .18, .84); ctx.textAlign = 'left';
+      return W;
+    },
+  },
+  {
+    name: 'Cassette', idea: 'The tape itself as the mark: shell, label, two reels and the window. No letters.',
+    ground: '#bd232c', draw(ctx, c) {
+      const W = 1.575;
+      ctx.fillStyle = c.ink; ctx.beginPath(); ctx.roundRect(0, 0, W, 1, .07); ctx.fill();
+      const lab = c.ink === CREAM ? INK : CREAM; // label always contrasts the shell
+      ctx.fillStyle = lab; ctx.beginPath(); ctx.roundRect(.07, .07, W - .14, .7, .03); ctx.fill();
+      ctx.fillStyle = c.ink; for (const x of [.5, 1.075]) { ctx.beginPath(); ctx.arc(x, .46, .17, 0, 2 * PI); ctx.fill(); }
+      ctx.fillRect(.5, .34, .575, .24);
+      ctx.fillStyle = c.accent; ctx.fillRect(.67, .49, .235, .06);
+      ctx.strokeStyle = lab; ctx.lineWidth = .045; for (const x of [.5, 1.075]) { ctx.beginPath(); ctx.arc(x, .46, .075, 0, 2 * PI); ctx.stroke(); }
+      return W;
+    },
+  },
+  {
+    name: 'Tube · 80s', idea: 'The V7 letters with a TDK stripe running through them: four bars, yellow to plum, across the lower half.',
+    ground: INK, draw(ctx, c) {
+      const L = line([D(), I(), R()], .12);
+      inside(ctx, L.w, o => { strokeLine(o, L, '#fff', .06, 'round'); fillLine(o, L, '#fff'); }, o => {
+        o.fillStyle = c.ink; o.fillRect(-.1, -.1, L.w + .2, 1.2);
+        TDK.forEach((col, i) => { o.fillStyle = col; o.fillRect(-.1, .5 + i * .115, L.w + .2, .085); });
+      });
+      return L.w;
+    },
+  },
+];
+
+// ---------- page ----------
+const params = new URLSearchParams(location.search);
+const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
+if (ONLY !== null) document.body.classList.add('solo');
+
+function render(v, cv) {
+  const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const strip = 48, inkFor = g => g === INK ? CREAM : INK;
+  // large: the mark alone on its ground
+  ctx.fillStyle = v.ground; ctx.fillRect(0, 0, W, H - strip);
+  const mh = (H - strip) * .36;
+  const measure = document.createElement('canvas').getContext('2d'); measure.scale(1, 1);
+  const mw = v.draw(measure, { ink: 'rgba(0,0,0,0)', accent: 'rgba(0,0,0,0)', ground: v.ground }) * mh;
+  ctx.save(); ctx.translate((W - mw) / 2, (H - strip - mh) / 2); ctx.scale(mh, mh);
+  v.draw(ctx, { ink: inkFor(v.ground), accent: ORANGE, ground: v.ground }); ctx.restore();
+  // strip: 36px on the deck cream, 36px on black
+  const sy = H - strip, sh = 36, pad = (strip - sh) / 2;
+  ctx.fillStyle = DECK; ctx.fillRect(0, sy, W / 2, strip); ctx.fillStyle = INK; ctx.fillRect(W / 2, sy, W / 2, strip);
+  for (const [gx, g] of [[0, DECK], [W / 2, INK]]) {
+    ctx.save(); ctx.translate(gx + 16, sy + pad); ctx.scale(sh, sh);
+    v.draw(ctx, { ink: inkFor(g), accent: ORANGE, ground: g }); ctx.restore();
+  }
+}
+
+V.forEach((v, i) => {
+  if (ONLY !== null ? i !== ONLY : v.hidden) return;
+  const sec = document.createElement('section');
+  sec.innerHTML = `<p class="tag"><b>V${i + 1} · ${v.name}.</b> ${v.idea}</p><div class="frame"><div class="stage"><canvas></canvas></div></div>`;
+  document.getElementById('lab').appendChild(sec);
+  const cv = sec.querySelector('canvas');
+  new ResizeObserver(() => render(v, cv)).observe(sec.querySelector('.stage'));
+});
+</script>
+</body>
+</html>

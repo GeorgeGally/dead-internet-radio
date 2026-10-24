@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DIR marks · flux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#0e0e0d; --ink:#ece8df; --dim:#9a958c; --line:#232322; --accent:#ff5a1f; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 'Plus Jakarta Sans',sans-serif; }
+header { max-width:1240px; margin:0 auto; padding:56px 24px 28px; }
+h1 { font-size:26px; margin:0 0 8px; font-weight:700; }
+header p { margin:0; color:var(--dim); max-width:70ch; font-size:14px; }
+main { max-width:1240px; margin:0 auto; padding:0 24px 80px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; }
+figure { margin:0; }
+.tile { background:#000; border:1px solid var(--line); aspect-ratio:1/1; overflow:hidden; }
+.tile img { width:100%; height:100%; object-fit:cover; display:block; }
+figcaption { display:flex; justify-content:space-between; gap:8px; padding:8px 2px 0; font:400 11px/1.3 'IBM Plex Mono',monospace; color:var(--dim); }
+figcaption b { color:var(--ink); font-weight:500; }
+@media (max-width:1000px) { main { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:700px) { main { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>DIR marks · generated</h1>
+  <p>Eight station marks made with an image model (flux-schnell via Replicate) — flat vector brief, cream and orange on near-black. Open any file for the full-size PNG.</p>
+</header>
+<main><figure><div class="tile"><img src="marks-flux/01-mast.png" alt="Mast · broken arc"></div><figcaption><b>Mast · broken arc</b><span>01-mast.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/02-slashed.png" alt="Slashed speaker"></div><figcaption><b>Slashed speaker</b><span>02-slashed.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/03-flatline.png" alt="Flatline"></div><figcaption><b>Flatline</b><span>03-flatline.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/04-fading.png" alt="Fading arcs"></div><figcaption><b>Fading arcs</b><span>04-fading.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/05-monogram.png" alt="DIR monogram"></div><figcaption><b>DIR monogram</b><span>05-monogram.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/06-noHands.png" alt="Clock, no hands"></div><figcaption><b>Clock, no hands</b><span>06-noHands.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/07-testcard.png" alt="Test card"></div><figcaption><b>Test card</b><span>07-testcard.png</span></figcaption></figure><figure><div class="tile"><img src="marks-flux/08-sizzle.png" alt="Sizzle"></div><figcaption><b>Sizzle</b><span>08-sizzle.png</span></figcaption></figure></main>
+</body>
+</html>
