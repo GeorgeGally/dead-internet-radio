@@ -36,8 +36,7 @@ const gallery = (() => {
   };
 
   let panel = null;
-  let grid = null;
-  let gridRows = [];
+  let wall = null;
   let fxStrip = null;
   let isOpen = false;
   let wasExpanded = false;
@@ -65,99 +64,6 @@ const gallery = (() => {
     } catch (e) {}
   }
 
-  function hashStr(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) {
-      h = ((h << 5) - h) + str.charCodeAt(i);
-      h |= 0;
-    }
-    return Math.abs(h);
-  }
-
-  function cardTint(id) {
-    const hues = [0, 30, 60, 120, 180, 210, 240, 300];
-    return hues[hashStr(id) % hues.length];
-  }
-
-  function cardPattern(id) {
-    return hashStr(id) % 8;
-  }
-
-  function setupMouseScroll(el) {
-    let raf = null;
-    let speed = 0;
-    let dragging = false;
-    let dragStartX = 0;
-    let dragStartScroll = 0;
-    let moved = false;
-
-    el.addEventListener('mousemove', (e) => {
-      if (dragging) {
-        if (Math.abs(e.clientX - dragStartX) > 3) moved = true;
-        el.scrollLeft = dragStartScroll - (e.clientX - dragStartX);
-        return;
-      }
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const norm = (x / rect.width) * 2 - 1;
-      speed = Math.abs(norm) > 0.15 ? Math.pow(Math.abs(norm), 3) * Math.sign(norm) * 40 : 0;
-    });
-
-    el.addEventListener('mousedown', (e) => {
-      dragging = true;
-      moved = false;
-      dragStartX = e.clientX;
-      dragStartScroll = el.scrollLeft;
-      speed = 0;
-    });
-
-    el.addEventListener('mouseup', () => {
-      dragging = false;
-    });
-
-    el.addEventListener('mouseleave', () => {
-      speed = 0;
-      dragging = false;
-    });
-
-    el.addEventListener('click', (e) => {
-      if (moved) {
-        e.preventDefault();
-        e.stopPropagation();
-        moved = false;
-      }
-    }, true);
-
-    el.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
-      dragging = true;
-      moved = false;
-      dragStartX = e.touches[0].clientX;
-      dragStartScroll = el.scrollLeft;
-      speed = 0;
-    }, { passive: true });
-
-    el.addEventListener('touchmove', (e) => {
-      if (!dragging) return;
-      const x = e.touches[0].clientX;
-      if (Math.abs(x - dragStartX) > 3) moved = true;
-      el.scrollLeft = dragStartScroll - (x - dragStartX);
-      e.preventDefault();
-    }, { passive: false });
-
-    el.addEventListener('touchend', () => {
-      dragging = false;
-    });
-
-    function tick() {
-      if (speed) {
-        el.scrollLeft += speed;
-      }
-      raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-  }
-
   function build() {
     if (panel) return;
 
@@ -166,31 +72,13 @@ const gallery = (() => {
 
     panel = container;
 
-    const fxLabel = document.createElement('div');
-    fxLabel.className = 'gallery-section-label';
-    fxLabel.textContent = 'FX';
-    panel.appendChild(fxLabel);
-
     fxStrip = buildFxStrip();
     panel.appendChild(fxStrip);
 
-    const artLabel = document.createElement('div');
-    artLabel.className = 'gallery-section-label gallery-section-label--art';
-    artLabel.textContent = 'Artwork';
-    panel.appendChild(artLabel);
-
-    grid = document.createElement('div');
-    grid.className = 'gallery-grid';
-    panel.appendChild(grid);
-
-    gridRows = [0, 1, 2].map(() => {
-      const row = document.createElement('div');
-      row.className = 'gallery-row';
-      grid.appendChild(row);
-      return row;
-    });
-
-    gridRows.forEach(setupMouseScroll);
+    wall = document.createElement('div');
+    wall.className = 'gallery-wall';
+    panel.appendChild(wall);
+    addEventListener('resize', () => { if (isOpen) buildWall(); });
 
     document.addEventListener('keydown', handleKeyDown);
   }
@@ -334,76 +222,84 @@ const gallery = (() => {
     return { slots: [[k ?? null, k != null]], focus: 0 };
   }
 
-  function getTrackLabel() {
-    if (typeof playlist !== 'undefined' && playlist && playlist.tracks && playlist.tracks[currentTrack]) {
-      const t = playlist.tracks[currentTrack];
-      return [t.artist, t.title].filter(Boolean).join(' \u2014 ') || t.caption || '';
-    }
-    return '';
-  }
-
-  function buildGrid() {
+  // The artwork wall: square panels edge to edge, the artworks scattered among
+  // black ones, a cross at the centre of every panel like an LED video wall.
+  // Hover names the artwork in place of the cross; the playing one's cross is
+  // orange. Positions are shuffled once per visit so the wall stays put.
+  let wallOrder = null;
+  function buildWall() {
     const list = visuals.getList();
     const currentId = visuals.getCurrentId();
-    const trackLabel = getTrackLabel();
-
-    for (let i = 0; i < list.length; i++) {
-      const item = list[i];
-      const card = document.createElement('button');
-      card.className = 'gallery-card';
-      card.dataset.id = item.id;
-      card.dataset.pattern = cardPattern(item.id);
-      card.style.setProperty('--card-hue', cardTint(item.id));
-
-      const art = document.createElement('div');
-      art.className = 'gallery-card-art';
-      // Fixed screenshot per artwork: bin/capture-thumbnails.mjs <id>
-      art.style.backgroundImage = `url(visuals/thumbs/${item.id}.jpg)`;
-      art.style.backgroundSize = 'cover';
-      art.style.backgroundPosition = 'center';
-      art.dataset.thumbnail = 'true';
-
-      const label = document.createElement('div');
-      label.className = 'gallery-card-label';
-
-      const nameLine = document.createElement('div');
-      nameLine.className = 'gallery-card-name';
-      nameLine.textContent = item.name;
-
-      const trackLine = document.createElement('div');
-      trackLine.className = 'gallery-card-track';
-      trackLine.textContent = trackLabel;
-
-      label.appendChild(nameLine);
-      label.appendChild(trackLine);
-      card.appendChild(art);
-      card.appendChild(label);
-
-      if (item.id === currentId) {
-        card.classList.add('active');
-      }
-
-      card.style.animationDelay = `${i * 16}ms`;
-
-      card.addEventListener('click', () => {
-        visuals.activate(item.id);
-        visuals.resetTimer(item.id);
-        close();
-      });
-
-      gridRows[i % gridRows.length].appendChild(card);
+    // From the window, not the drawer, which is still sliding open.
+    const W = wall.clientWidth || innerWidth;
+    const H = innerHeight - panel.offsetTop - wall.offsetTop;
+    if (!W || !H) return;
+    const n = list.length;
+    let best = null;
+    for (let cols = 4; cols <= 40; cols++) {
+      const size = Math.floor(W / cols);
+      const rows = Math.floor(H / size);
+      if (rows < 1 || cols * rows < Math.ceil(n * 1.5)) continue;
+      best = { cols, rows, size };
+      break;
     }
+    if (!best) {
+      // Too many artworks for a sparse wall: pack them.
+      const cols = Math.ceil(Math.sqrt(n * W / H));
+      best = { cols, rows: Math.ceil(n / cols), size: Math.floor(Math.min(W / cols, H / Math.ceil(n / cols))) };
+    }
+    const { cols, rows, size } = best;
+    const total = cols * rows;
+    if (!wallOrder || wallOrder.length !== total) {
+      wallOrder = [...Array(total).keys()];
+      for (let i = total - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [wallOrder[i], wallOrder[j]] = [wallOrder[j], wallOrder[i]];
+      }
+    }
+    const at = new Map(wallOrder.slice(0, n).sort((a, b) => a - b).map((slot, k) => [slot, list[k]]));
+    const board = document.createElement('div');
+    board.className = 'wall-board';
+    board.style.width = `${cols * size}px`;
+    board.style.height = `${rows * size}px`;
+    board.style.setProperty('--panel', `${size}px`);
+    for (let slot = 0; slot < total; slot++) {
+      const item = at.get(slot);
+      const t = document.createElement(item ? 'button' : 'div');
+      t.className = 'wall-panel';
+      if (item) {
+        t.classList.add('art');
+        t.classList.toggle('active', item.id === currentId);
+        // Fixed screenshot per artwork: bin/capture-thumbnails.mjs <id>
+        t.style.backgroundImage = `url(visuals/thumbs/${item.id}.jpg)`;
+        const name = document.createElement('span');
+        name.className = 'wall-name';
+        name.textContent = item.name;
+        t.appendChild(name);
+        t.title = '';
+        t.addEventListener('click', () => {
+          visuals.activate(item.id);
+          visuals.resetTimer(item.id);
+          close();
+        });
+      }
+      const x = document.createElement('i');
+      x.className = 'wall-x';
+      t.appendChild(x);
+      board.appendChild(t);
+    }
+    wall.replaceChildren(board);
   }
 
   function open() {
     if (isOpen) return;
     isOpen = true;
     build();
-    gridRows.forEach((row) => { row.innerHTML = ''; });
-    buildGrid();
     const deck = document.getElementById('deck');
     deck.classList.remove('closing');
     deck.classList.add('ejected', 'expanded');
+    // Measure once the drawer has its height.
+    requestAnimationFrame(buildWall);
   }
 
   function close() {
