@@ -48,3 +48,10 @@ test('every artwork is loaded by the player', () => {
     .map((a) => a.file);
   assert.deepEqual(unlisted, []);
 });
+
+test('every artwork has a gallery screenshot', () => {
+  // Fixed previews, made with `node bin/capture-thumbnails.mjs <id>`.
+  const ids = artworks.flatMap((a) => [...a.src.matchAll(/visuals\.register\('([\w-]+)'/g)].map((m) => m[1]));
+  const missing = ids.filter((id) => !fs.existsSync(path.join(dir, 'thumbs', `${id}.jpg`)));
+  assert.deepEqual(missing, []);
+});

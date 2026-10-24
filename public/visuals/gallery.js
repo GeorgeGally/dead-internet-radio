@@ -52,8 +52,7 @@ const gallery = (() => {
 
   let panel = null;
   let grid = null;
-  let gridRow0 = null;
-  let gridRow1 = null;
+  let gridRows = [];
   let filterRow = null;
   let isOpen = false;
   let ledPreviewTimer = null;
@@ -202,16 +201,15 @@ const gallery = (() => {
     grid.className = 'gallery-grid';
     panel.appendChild(grid);
 
-    gridRow0 = document.createElement('div');
-    gridRow0.className = 'gallery-row';
-    gridRow1 = document.createElement('div');
-    gridRow1.className = 'gallery-row';
-    grid.appendChild(gridRow0);
-    grid.appendChild(gridRow1);
+    gridRows = [0, 1, 2].map(() => {
+      const row = document.createElement('div');
+      row.className = 'gallery-row';
+      grid.appendChild(row);
+      return row;
+    });
 
     setupMouseScroll(filterRow);
-    setupMouseScroll(gridRow0);
-    setupMouseScroll(gridRow1);
+    gridRows.forEach(setupMouseScroll);
 
     document.addEventListener('keydown', handleKeyDown);
   }
@@ -338,13 +336,11 @@ const gallery = (() => {
 
       const art = document.createElement('div');
       art.className = 'gallery-card-art';
-      const thumb = visuals.getThumbnail(item.id);
-      if (thumb) {
-        art.style.backgroundImage = `url(${thumb})`;
-        art.style.backgroundSize = 'cover';
-        art.style.backgroundPosition = 'center';
-        art.dataset.thumbnail = 'true';
-      }
+      // Fixed screenshot per artwork: bin/capture-thumbnails.mjs <id>
+      art.style.backgroundImage = `url(visuals/thumbs/${item.id}.jpg)`;
+      art.style.backgroundSize = 'cover';
+      art.style.backgroundPosition = 'center';
+      art.dataset.thumbnail = 'true';
 
       const label = document.createElement('div');
       label.className = 'gallery-card-label';
@@ -374,7 +370,7 @@ const gallery = (() => {
         close();
       });
 
-      (i % 2 === 0 ? gridRow0 : gridRow1).appendChild(card);
+      gridRows[i % gridRows.length].appendChild(card);
     }
   }
 
@@ -398,8 +394,7 @@ const gallery = (() => {
     if (isOpen) return;
     isOpen = true;
     build();
-    gridRow0.innerHTML = '';
-    gridRow1.innerHTML = '';
+    gridRows.forEach((row) => { row.innerHTML = ''; });
     buildGrid();
     updateFilterRow();
     updateLedPreview();

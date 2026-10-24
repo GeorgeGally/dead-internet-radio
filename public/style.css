@@ -785,7 +785,7 @@ body.prewarming #block-canvas {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: rgba(0, 0, 0, 0.3);
-  padding: 40px 32px 0;
+  padding: 28px 40px 0;
   flex-shrink: 0;
   opacity: 0;
   transform: translateY(-6px);
@@ -810,8 +810,8 @@ body.prewarming #block-canvas {
 }
 
 .gallery-section-label--art {
-  padding-top: 0px;
-  padding-bottom: 32px;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 /* ---- Filter row ---- */
@@ -926,10 +926,11 @@ body.prewarming #block-canvas {
 .gallery-grid {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 0 40px 40px;
-  flex-shrink: 0;
-  flex: none;
+  gap: 16px;
+  padding: 0 40px 24px;
+  /* Three rows share whatever height is left under the filters. */
+  flex: 1 1 0;
+  min-height: 0;
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -940,7 +941,9 @@ body.prewarming #block-canvas {
   gap: 24px;
   overflow-x: auto;
   overflow-y: hidden;
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 212px;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
   -webkit-overflow-scrolling: touch;
@@ -962,9 +965,9 @@ body.prewarming #block-canvas {
 
 .gallery-card {
   flex: 0 0 auto;
-  width: 288px;
-  height: 208px;
-  border: 14px solid #fff;  font-family: "IBM Plex Mono", "Courier New", monospace;
+  height: 100%;
+  aspect-ratio: 288 / 208;
+  border: 10px solid #fff;  font-family: "IBM Plex Mono", "Courier New", monospace;
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -1012,14 +1015,14 @@ body.prewarming #block-canvas {
   left: 0;
   right: 0;
   z-index: 1;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.35) 20%);
-  padding: 40px 14px 16px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+  padding: 20px 12px 10px;
 }
 
 .gallery-card-name {
   font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
-  font-size: 16px;
-  letter-spacing: 0.08em;
+  font-size: 14px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.85);
   transition: color 0.2s ease;
@@ -1029,6 +1032,7 @@ body.prewarming #block-canvas {
 }
 
 .gallery-card-track {
+  display: none;
   font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
   font-size: 13px;
   letter-spacing: 0.03em;

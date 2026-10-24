@@ -44,6 +44,8 @@ far was one of these:
 4. Add the `<script>` to `public/index.html`.
 5. Check on a 2x screen with Dither, Circle Sampling and Chromatic Aberration
    at full and at ~25% alpha.
+6. Take its gallery preview with the player running:
+   `node bin/capture-thumbnails.mjs <id>` (writes `public/visuals/thumbs/<id>.jpg`).
 
-`tests/visuals_filter_contract_test.js` enforces 1–4 statically
+`tests/visuals_filter_contract_test.js` enforces 1–4 and 6 statically
 (`node --test tests/`).

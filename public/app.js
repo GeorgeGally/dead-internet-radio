@@ -1146,7 +1146,6 @@ let audioAnalysisReady = false;
   window.addEventListener('resize', initWave);
   visuals.init();
   gallery.init();
-  visuals.prewarmThumbnails();
   // engine.next/prev/random route through visuals.activate, so this wrapper
   // (and the per-visual preset) applies to every switch, not just gallery
   // clicks. random() relies on the boolean result.
