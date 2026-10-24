@@ -83,7 +83,7 @@ const gallery = (() => {
   // and two parameter knobs ----
   // Rows 1-3 are the filter slots; click one to focus it, its box switches it
   // on and off. The filter dial turns through filters for the focused slot and
-  // the two knobs set its parameters. Row A is the artwork itself: focused, the
+  // the two knobs set its parameters. Row A is the playing artwork: focused, the
   // dial is its sensitivity and the knobs its cutoff and resonance.
   let artFocus = false;
 
@@ -125,7 +125,7 @@ const gallery = (() => {
   const ART_KNOBS = ['sensitivity', 'cutoff', 'resonance']; // filter dial, p1, p2
 
   function bindFxUnit() {
-    const el = document.querySelector('.deck-display');
+    const el = document.querySelector('.deck-content');
     if (!el || !el.querySelector('.fx-lcd')) return;
 
     el.querySelectorAll('.fx-row').forEach((row) => {
@@ -181,8 +181,6 @@ const gallery = (() => {
 
     canvasFilters.subscribe(() => updateFxUnit(el));
     window.artDials.subscribe(() => updateFxUnit(el));
-    // The A row names the playing artwork.
-    setInterval(() => updateFxUnit(el), 1000);
     updateFxUnit(el);
   }
 
@@ -198,7 +196,7 @@ const gallery = (() => {
       if (i < 0) {
         row.classList.add('on');
         row.classList.toggle('focus', artFocus);
-        row.querySelector('.fx-name').textContent = (visuals.getCurrentName && visuals.getCurrentName()) || '\u2014';
+        row.querySelector('.fx-name').textContent = 'Artwork';
         return;
       }
       const s = slots[i];
