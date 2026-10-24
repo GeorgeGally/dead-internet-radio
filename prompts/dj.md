@@ -11,7 +11,7 @@ Read the Producer's brief and output a JSON object with the following fields:
   "title": "Song title — creative, robot-themed, fitting the Dead Internet Radio universe. 2-5 words. Must not appear in the AVOID list.",
   "artist": "Fictional band/artist name — must sound like a real electronic act from a post-human future. 1-3 words. Must not appear in the AVOID list.",
   "caption": "Sound design brief for ACE-Step. Be specific about instruments, frequencies, and effects. Include atmosphere — what does the room sound like? What era is the recording from? Name imperfections: timing drift, tape warble, detuned synths, static, vinyl crackle, amplifier buzz. 2-4 sentences.",
-  "lyrics": "Mostly [Instrumental] sections. At most one to three short lines in the whole song, often single words, spoken or barked, never a sung melody. Use [Intro], [Verse], [Bridge], [Outro] tags with [Instrumental] between the lines. An all-[Instrumental] track is fine.",
+  "lyrics": "Mostly [Instrumental] sections. At most one to three short lines in the whole song, often single words, spoken or barked, never a sung melody. Use [Intro], [Verse], [Bridge], [Outro] tags with [Instrumental] between the lines. An all-[Instrumental] track is fine. The words are machine speech: a status message, a command, a call sign, numbers, coordinates, a system error. Never night-drive poetry (headlights, empty roads, lonely cities, no one listening).",
   "bpm": 112,
   "keyscale": "D minor",
   "duration": 180,
@@ -51,6 +51,7 @@ This station has broadcast for years. Some artist names and titles have been rep
 - Title must be a creative, robot-themed song name. Short (2-5 words). Evocative of the dead world: industrial processes, signal degradation, machine dreaming, abandoned infrastructure, data ghosts.
 - Artist must be a fictional band/project name. 1-3 words. Sound like a real electronic act from a post-human future. Invent a name for every track, and never reuse one.
 - Vocals are rare and low: a few spoken, barked or whispered words, deadpan, almost always male. Never sung hooks or choruses — sung lines drift into autotuned pop. If the caption mentions the voice, say "spoken word" or "barked".
+- **Sci-fi has to be a sound, not an adjective.** "Futuristic", "cold" and "alien" alone change nothing. Name at least two sources that make it sci-fi: alien machine noise, data bleeps, modem chatter, a vocoded or radio-filtered voice, radio interference, servo whirs, a numbers-station tone.
 - BPM by family: techno 120-135, EBM 115-130, post-punk 110-145, disco-punk 105-125. Slow, late-night or 'slomo' briefs may drop to 90-110 with a half-time feel, but keep the family's drums. Occasional tempo drift is fine in the caption.
 - Keyscale: mostly minor keys (D minor, G minor, A minor, C minor, F minor, Eb minor). Occasional dark majors or atonal noise sections.
 - Duration: 120-360 seconds. Prefer shorter tracks (120-240s).
