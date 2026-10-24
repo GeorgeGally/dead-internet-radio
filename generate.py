@@ -17,10 +17,10 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # Memory knobs. Peak memory scales with track length, so cap it. Thinking runs
-# the 5Hz LM to plan the audio codes; it's off by default because the LM costs
-# ~4 GB and start-ace-step.sh doesn't load it (ACE_STEP_THINKING=1 to opt in).
+# the 4B LM to plan the audio codes: it drops the cheesy high EDM synths
+# (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
 MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "150"))
-ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "0").lower() not in ("0", "false", "no")
+ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated list of models to try in order. A pinned model keeps the
 # station's voice consistent across tracks — `openrouter/free` picks a different
@@ -323,14 +323,33 @@ def check_ace_step_health():
         return False, str(e)
 
 
+REGISTER_LINE = "Everything in the low and mid register; the melody stays in the bass."
+
+
+def station_caption(caption: str) -> str:
+    """The DJ's caption plus the one line every track needs.
+
+    High leads and plucks are what made tracks sound cheesy (sound lab,
+    2026-10-24), and the DJ forgets to say so; ACE-Step ignores negation, so
+    the line is phrased as what should be there.
+    """
+    caption = caption.strip()
+    if "low and mid register" in caption.lower():
+        return caption
+    return f"{caption} {REGISTER_LINE}"
+
+
 def call_ace_step(payload: dict) -> str:
     body = {
-        "prompt": payload["caption"],
+        "prompt": station_caption(payload["caption"]),
         "lyrics": payload.get("lyrics", ""),
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
         "audio_duration": payload.get("duration", 240),
         "thinking": ACE_STEP_THINKING,
+        # The LM may plan the song but must not rewrite our caption: its
+        # rewrites drift to generic pop (sound lab, 2026-10-24).
+        "use_cot_caption": False,
         # The API defaults to 2 variations and we keep only the first.
         "batch_size": 1,
         # WAV is written by soundfile; ACE-Step's MP3 path needs Homebrew's FFmpeg
