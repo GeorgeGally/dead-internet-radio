@@ -522,6 +522,13 @@ const gallery = (() => {
     updateSlotUI();
   }
 
+  // Point the dial at a slot without loading it (used when saving into it).
+  function selectSlot(slot) {
+    if (slot < 0 || slot > 9) return;
+    activeSlot = slot;
+    updateSlotUI();
+  }
+
   function slotHasPreset(id, slot) {
     return !!(artPresets[id] && artPresets[id][slot]);
   }
@@ -599,5 +606,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();

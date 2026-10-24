@@ -789,13 +789,16 @@ function setupControls() {
   const saveBtn = document.getElementById('btn-save-slot');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      const slot = gallery.getActiveSlot();
+      // Save what's on screen, where the dial is. From slot 0 (off) it goes
+      // into the first empty slot; the dial moves there without loading
+      // anything over the look being saved.
+      let slot = gallery.getActiveSlot();
       if (slot === 0) {
-        gallery.nextSlot(1);
-        gallery.saveSlot(1);
-      } else {
-        gallery.saveSlot(slot);
+        const id = visuals.getCurrentId();
+        slot = [1, 2, 3, 4, 5, 6, 7, 8, 9].find((s) => !gallery.slotHasPreset(id, s)) || 1;
+        gallery.selectSlot(slot);
       }
+      gallery.saveSlot(slot);
     });
   }
 
