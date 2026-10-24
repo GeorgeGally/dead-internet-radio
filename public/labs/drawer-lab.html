@@ -65,6 +65,11 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .sw[data-f="11"] { background: linear-gradient(#111 0 22%, #4dd 22% 24%, #111 24% 48%, #f46 48% 50%, #111 50% 74%, #4dd 74% 76%, #111 76%); }
 .sw[data-f="12"] { background: linear-gradient(90deg, #111 0 50%, #888 50% 75%, #e9e6df 75%); }
 .th { background-size: cover; background-position: center; }
+/* Screenshots are square: grid stills stay square. */
+.v1 .cell .th, .v2 .cell .th, .v3 .shelf .th, .v4 .cell .th, .v9 .cell .th { flex: none; aspect-ratio: 1; }
+.v5 .cell, .v7 .mon { aspect-ratio: 1; }
+.v6 .row .th, .v8 .it .th { width: 30px; }
+.v6 .row { grid-template-columns: 34px 30px 1fr 48px; } .v8 .it { grid-template-columns: 26px 30px 1fr; }
 
 /* ================= V1 · Teletext index ================= */
 .v1 .drawer { background: #000; color: #fff; font-family: var(--mono); padding: 22px 40px 0; display: grid; grid-template-rows: auto auto 1fr; gap: 16px; }
@@ -76,7 +81,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v1 .fl .n { color: #00e5ff; }
 .v1 .fl .on { background: #ffe600; color: #000; padding: 3px 8px; margin: 0 -8px; }
 .v1 .fl .on .n { color: #000; }
-.v1 .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px 16px; min-height: 0; padding-bottom: 26px; }
+.v1 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 14px 16px; min-height: 0; padding-bottom: 26px; }
 .v1 .cell { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .v1 .cell .th { flex: 1; min-height: 0; image-rendering: pixelated; }
 .v1 .cell .nm { font-size: 13px; display: flex; gap: 8px; white-space: nowrap; overflow: hidden; }
@@ -93,7 +98,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v2 .fl span { font-family: var(--mono); font-size: 11px; color: #c9c5bb; padding: 7px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .v2 .fl .on span { color: var(--orange); }
 .v2 .fl .on { box-shadow: inset 0 -2px 0 var(--orange); }
-.v2 .sheet { background: #121110; padding: 18px 18px 6px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px 10px; min-height: 0; }
+.v2 .sheet { background: #121110; padding: 18px 18px 6px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 10px 10px; min-height: 0; }
 .v2 .cell { display: flex; flex-direction: column; min-height: 0; position: relative; }
 .v2 .cell .th { flex: 1; min-height: 0; }
 .v2 .cell .nm { font-family: var(--mono); font-size: 11px; color: #a7a39a; padding: 5px 0 6px; display: flex; gap: 8px; justify-content: space-between; white-space: nowrap; }
@@ -110,7 +115,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v3 .spine.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
 .v3 .spine.on span::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--orange); margin-right: 9px; vertical-align: 1px; }
 .v3 .spine i { display: none; }
-.v3 .shelf { padding: 22px 32px 22px 28px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px 14px; min-height: 0; }
+.v3 .shelf { padding: 22px 32px 22px 28px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 12px 14px; min-height: 0; }
 .v3 .shelf .cell { display: flex; flex-direction: column; background: #f7f5f0; border: 1px solid #d0cbbf; padding: 6px; min-height: 0; }
 .v3 .shelf .th { flex: 1; min-height: 0; }
 .v3 .shelf .nm { font-family: var(--sans); font-size: 12px; font-weight: 500; padding: 6px 2px 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; }
@@ -124,7 +129,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v4 .fl .sw { width: 14px; height: 14px; border-radius: 50%; }
 .v4 .fl .on { color: var(--ink); font-weight: 600; }
 .v4 .fl .on .sw { box-shadow: 0 0 0 2px #f1efea, 0 0 0 3.5px var(--orange); }
-.v4 .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 18px 22px; min-height: 0; }
+.v4 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 18px 22px; min-height: 0; }
 .v4 .cell { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .v4 .cell .th { flex: 1; min-height: 0; }
 .v4 .cell .nm { font-size: 12.5px; color: #3a3935; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -143,7 +148,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v5 .strip .cap { width: 34px; height: 34px; border-radius: 3px; background: linear-gradient(#f6f4ef, #dcd8cf); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
 .v5 .strip.on .cap { background: var(--orange); }
 .v5 .strip span { text-align: center; line-height: 1.25; height: 28px; padding: 0 4px; }
-.v5 .grid { padding: 20px 32px 24px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; min-height: 0; }
+.v5 .grid { padding: 20px 32px 24px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 12px; min-height: 0; }
 .v5 .cell { position: relative; min-height: 0; border-radius: 3px; overflow: hidden; }
 .v5 .cell .th { position: absolute; inset: 0; }
 .v5 .cell .nm { position: absolute; left: 0; bottom: 0; background: #111; color: #e9e6df; font-family: var(--mono); font-size: 11px; padding: 4px 8px; }
@@ -174,7 +179,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v7 .mixer .key .sw { width: 36px; height: 24px; border-radius: 2px; }
 .v7 .mixer .on .key { background: #8a2a10; box-shadow: inset 0 0 0 2px var(--orange); }
 .v7 .mixer .on { color: var(--orange); }
-.v7 .wall { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 2px; padding: 2px; min-height: 0; }
+.v7 .wall { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 2px; padding: 2px; min-height: 0; }
 .v7 .mon { position: relative; min-height: 0; background: #000; }
 .v7 .mon .th { position: absolute; inset: 0; }
 .v7 .mon .nm { position: absolute; left: 8px; bottom: 8px; background: #000; color: #e9e6df; font-family: var(--mono); font-size: 11px; padding: 2px 6px; }
@@ -206,7 +211,7 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v9 .fl .on .b { background: var(--orange); }
 .v9 .fl .on { color: var(--ink); font-weight: 600; }
 .v9 .fl span { line-height: 1.2; height: 28px; }
-.v9 .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; min-height: 0; }
+.v9 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 14px; min-height: 0; }
 .v9 .cell { background: #f3f1ec; border-radius: 8px; padding: 7px 7px 0; display: flex; flex-direction: column; min-height: 0; }
 .v9 .cell .th { flex: 1; min-height: 0; border-radius: 4px; }
 .v9 .cell .nm { font-size: 12px; padding: 7px 3px 8px; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; }
@@ -233,6 +238,24 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v10 .fr.on .nm { color: var(--orange); }
 .v10 .fr.on .th { box-shadow: 0 0 0 3px var(--orange); }
 
+/* ================= V11 / V12 · Video wall ================= */
+.wall11 .drawer { background: #000; display: flex; flex-direction: column; }
+.wall11 .fl { height: var(--flh); flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-family: var(--mono); font-size: 12px; color: #6f6f6f; }
+.wall11 .fl span.on { color: var(--orange); }
+.wall11 .tiles { position: relative; display: grid; grid-template-columns: repeat(var(--cols), var(--tile)); grid-auto-rows: var(--tile); gap: 0; margin: 0 auto; }
+.wall11 .tile { position: relative; overflow: hidden; }
+.wall11 .tile .th { position: absolute; inset: 0; }
+.wall11 .tile .nm { position: absolute; left: 0; bottom: 0; padding: 4px 8px; background: #000; color: #fff; font-family: var(--mono); font-size: 11px; opacity: 0; transition: opacity .25s ease; }
+.wall11 .tile:hover .nm { opacity: 1; }
+.wall11 .tile.on::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--orange); }
+.wall11 .x { mix-blend-mode: difference; position: absolute; width: 13px; height: 13px; margin: -6px 0 0 -6px; pointer-events: none; z-index: 2; transition: opacity .25s ease; }
+.wall11 .x::before, .wall11 .x::after { content: ""; position: absolute; background: #fff; }
+.wall11 .x::before { left: 6px; top: 0; width: 1px; height: 13px; }
+.wall11 .x::after { top: 6px; left: 0; height: 1px; width: 13px; }
+.v12 .drawer { flex-direction: column-reverse; }
+.v12 .x { opacity: 0; }
+.v12 .tiles:hover .x { opacity: .9; }
+
 @media (max-width: 700px) { .tag { font-size: 13px; } }
 </style>
 </head>
@@ -246,6 +269,7 @@ const ART = [
   ['blocks', 'Generative Blocks'], ['isocubes', 'Isocubes'], ['bubbles', 'Bubbles'], ['particle_drawings', 'Particle Drawings'], ['pulsing_squares', 'Pulsing Squares'], ['four_dots', 'Four Dots'], ['patterns2', 'Patterns 2'], ['led_grid', 'LED Grid'],
   ['grid', 'Grid'], ['bouncy', 'Bouncy'], ['branches', 'Branches'], ['word_sparks', 'Word Sparks'], ['eyes', 'Eyes'], ['delayed_lerp_points7', 'Delayed Lerp Points 7'], ['self_avoiding_walk_3d', 'Self Avoiding Walk 3D'], ['sound_investigation1', 'Sound Investigation 1'],
   ['sound_investigation2', 'Sound Investigation 2'], ['wall_drawing_26', 'Wall Drawing No. 26'], ['cubes_token_sha', 'Cubes Token SHA'], ['bonk', 'Bonk'], ['delayed_lerp_points2c', 'Delayed Lerp Points 2C'], ['delayed_lerp_points_1600', 'Delayed Lerp Points 1600'], ['bios_webcam', 'BIOS Webcam'], ['prelinger_broll', 'Prelinger B-roll'],
+  ['system_terminal', 'System Terminal'], ['error_404', 'Error 404'], ['swiss_clock', 'Swiss Clock'], ['passbook_cam', 'Passbook Cam'],
 ];
 const ON_ART = 'eyes', ON_F = 10;
 const th = (id) => `<div class="th" style="background-image:url(../visuals/thumbs/${id}.jpg)"></div>`;
@@ -255,7 +279,7 @@ const short = (n) => SHORT[n] || n;
 const on = (c) => c ? ' on' : '';
 
 // Per-version seeds: sha256 of "12855g-N"; first 16 hex chars.
-const SEEDS = ['9f15091919c2d08d', '7ebcce09e89ec7f6', '16ae0532e4aa2320', 'f5667dc7e37bd049', '9c94d8c4a01b625c', 'ff5f5a867a97b7af', '8557a943d60626d9', 'b02ed37b64d75685', 'dfea63dc2ec02772', '94dd92ec74490e1b'];
+const SEEDS = ['9f15091919c2d08d', '7ebcce09e89ec7f6', '16ae0532e4aa2320', 'f5667dc7e37bd049', '9c94d8c4a01b625c', 'ff5f5a867a97b7af', '8557a943d60626d9', 'b02ed37b64d75685', 'dfea63dc2ec02772', '94dd92ec74490e1b', '3c1e0d9b7a5f2e48', '61b0f2c94d8a7e15'];
 
 const DECK = `<div class="deck"><div class="spk"></div><div class="btns"><div class="btn ej"></div><div class="btn on"></div><div class="btn"></div><div class="btn"></div></div>
 <div class="disp"><div><div class="row"><span class="k">SONG</span><span class="song">Neon Rift</span></div><div class="row"><span class="k">ARTIST</span><span>Waveform Decay</span></div></div>
@@ -304,7 +328,25 @@ V.push(['Braun index', 'Rams restraint: round filter keys with the name below, a
 
 V.push(['Film strip', 'Three reels of 35mm film run across the drawer; filters are labelled cans of tape above.', () => `
 <div class="labels">${FILTERS.map((f, i) => `<div class="${on(i === ON_F)}">${sw(i)}<span>${short(f)}</span></div>`).join('')}</div>
-<div class="strips">${[0, 1, 2].map(r => `<div class="strip"><div class="frames">${ART.slice(r * 11, r * 11 + 11).map(([id, n], i) => `<div class="fr${on(id === ON_ART)}">${th(id)}<div class="nm"><span class="n">${pad(r * 11 + i + 1)}</span>${n}</div></div>`).join('')}</div></div>`).join('')}</div>`]);
+<div class="strips">${[0, 1, 2].map(r => `<div class="strip"><div class="frames">${ART.slice(r * 12, r * 12 + 12).map(([id, n], i) => `<div class="fr${on(id === ON_ART)}">${th(id)}<div class="nm"><span class="n">${pad(r * 12 + i + 1)}</span>${n}</div></div>`).join('')}</div></div>`).join('')}</div>`]);
+
+const frameH = () => new URLSearchParams(location.search).get('v') ? Math.round(1440 * innerHeight / innerWidth) : 900;
+// Video wall: square tiles, no gaps, sized so every artwork fits the drawer.
+function wall() {
+  const W = 1440, H = frameH() - 128, FLH = 48, n = ART.length;
+  let best = { size: 0 };
+  for (let c = 1; c <= n; c++) {
+    const r = Math.ceil(n / c), size = Math.min(W / c, (H - FLH) / r);
+    if (size > best.size) best = { cols: c, rows: r, size };
+  }
+  const { cols, rows, size } = best;
+  const xs = [];
+  for (let r = 1; r < rows; r++) for (let c = 1; c < cols; c++) xs.push(`<i class="x" style="left:${c * size}px;top:${r * size}px"></i>`);
+  return `<div class="fl" style="--flh:${H - rows * size}px">${FILTERS.map((f, i) => `<span class="${on(i === ON_F)}">${f}</span>`).join('')}</div>
+<div class="tiles" style="--cols:${cols};--tile:${size}px">${ART.map(([id, n]) => `<div class="tile${on(id === ON_ART)}">${th(id)}<span class="nm">${n}</span></div>`).join('')}${xs.join('')}</div>`;
+}
+V.push(['Video wall', 'An LED video wall: square tiles with no gaps, a thin cross at every seam, the filters one quiet line above.', wall]);
+V.push(['Video wall, quiet', 'The same wall with the crosses only under the pointer and the filters along the bottom.', wall]);
 
 const only = new URLSearchParams(location.search).get('v');
 const page = document.getElementById('page');
@@ -316,7 +358,7 @@ V.forEach(([name, line, body], i) => {
   const gapNudge = parseInt(s[2], 16) % 4;
   const typeNudge = 1 + (parseInt(s[3], 16) % 5) / 100;
   page.insertAdjacentHTML('beforeend', `<section class="ver"><div class="tag"><b>V${n} · ${name}.</b> ${line}</div>
-    <div class="scaler"><div class="frame v${n}" style="--gn:${gapNudge}px;font-size:${typeNudge}em">${DECK}<div class="drawer">${body()}</div></div></div></section>`);
+    <div class="scaler" style="aspect-ratio:1440/${frameH()}"><div class="frame v${n}${n > 10 ? ' wall11' : ''}" style="height:${frameH()}px;--gn:${gapNudge}px;font-size:${typeNudge}em">${DECK}<div class="drawer">${body()}</div></div></div></section>`);
 });
 if (only) document.body.classList.add('solo');
 function fit() { document.querySelectorAll('.scaler').forEach(sc => { sc.firstElementChild.style.transform = `scale(${sc.clientWidth / 1440})`; }); }
