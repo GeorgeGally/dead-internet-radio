@@ -22,7 +22,6 @@ const gallery = (() => {
     led_grid: { filters: [9], cutoff: 50, resonance: 35 },
     particle_drawings: { filters: [3], cutoff: 70, resonance: 60 },
     word_sparks: { filters: [4], cutoff: 90, resonance: 55 },
-    rising_triangles: { filters: [6], cutoff: 120, resonance: 60 },
     pulsing_squares: { filters: [1], cutoff: 100, resonance: 45 },
     grid: { filters: [1], cutoff: 100, resonance: 45 },
     trail: { filters: [4], cutoff: 140, resonance: 60 },
