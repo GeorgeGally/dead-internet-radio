@@ -256,6 +256,30 @@ body.solo .scaler { border-radius: 0; box-shadow: none; }
 .v12 .x { opacity: 0; }
 .v12 .tiles:hover .x { opacity: .9; }
 
+/* ================= V13–V16 · LED wall (cross in every tile) ================= */
+.led .drawer { background: #000; display: flex; flex-direction: column; }
+.led .fl { height: 40px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-family: var(--mono); font-size: 12px; color: #6a6a6a; }
+.led .fl span.on { color: var(--orange); }
+.led .wallbox { flex: 1; min-height: 0; position: relative; }
+.led .board { position: absolute; top: 0; }
+.led .t { position: absolute; overflow: hidden; background: #000; }
+.led .t .th { position: absolute; inset: 0; }
+.led .t .nm { position: absolute; left: 0; bottom: 0; padding: 5px 8px 4px; background: #000; color: #fff; font-family: var(--mono); font-size: 11px; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; opacity: 0; transition: opacity .3s ease; z-index: 3; }
+.led .t:hover .nm { opacity: 1; }
+.led .t.art { cursor: pointer; }
+.led .x { mix-blend-mode: difference; position: absolute; width: 15px; height: 15px; margin: -7px 0 0 -7px; pointer-events: none; z-index: 2; }
+.led .x::before, .led .x::after { content: ""; position: absolute; background: rgba(255,255,255,.92); }
+.led .x::before { left: 7px; top: 0; width: 1px; height: 15px; }
+.led .x::after { top: 7px; left: 0; height: 1px; width: 15px; }
+.led .x.on { mix-blend-mode: normal; }
+.led .x.on::before, .led .x.on::after { background: var(--orange); width: 2px; }
+.led .x.on::after { width: 15px; height: 2px; }
+.v15 .t .nm { left: 50%; bottom: auto; top: calc(50% + 14px); transform: translateX(-50%); background: none; padding: 0; font-size: 10.5px; }
+.led .t.fx .fnm { position: absolute; left: 8px; bottom: 6px; font-family: var(--mono); font-size: 10.5px; color: #8a8a8a; text-transform: uppercase; letter-spacing: .02em; }
+.led .t.fx.on .fnm { color: var(--orange); }
+.led .t.fx { cursor: pointer; border-right: 1px solid #111; }
+.led .t.fx:hover .fnm { color: #fff; }
+
 @media (max-width: 700px) { .tag { font-size: 13px; } }
 </style>
 </head>
@@ -269,7 +293,7 @@ const ART = [
   ['blocks', 'Generative Blocks'], ['isocubes', 'Isocubes'], ['bubbles', 'Bubbles'], ['particle_drawings', 'Particle Drawings'], ['pulsing_squares', 'Pulsing Squares'], ['four_dots', 'Four Dots'], ['patterns2', 'Patterns 2'], ['led_grid', 'LED Grid'],
   ['grid', 'Grid'], ['bouncy', 'Bouncy'], ['branches', 'Branches'], ['word_sparks', 'Word Sparks'], ['eyes', 'Eyes'], ['delayed_lerp_points7', 'Delayed Lerp Points 7'], ['self_avoiding_walk_3d', 'Self Avoiding Walk 3D'], ['sound_investigation1', 'Sound Investigation 1'],
   ['sound_investigation2', 'Sound Investigation 2'], ['wall_drawing_26', 'Wall Drawing No. 26'], ['cubes_token_sha', 'Cubes Token SHA'], ['bonk', 'Bonk'], ['delayed_lerp_points2c', 'Delayed Lerp Points 2C'], ['delayed_lerp_points_1600', 'Delayed Lerp Points 1600'], ['bios_webcam', 'BIOS Webcam'], ['prelinger_broll', 'Prelinger B-roll'],
-  ['system_terminal', 'System Terminal'], ['error_404', 'Error 404'], ['swiss_clock', 'Swiss Clock'], ['passbook_cam', 'Passbook Cam'],
+  ['system_terminal', 'System Terminal'], ['error_404', 'Error 404'], ['swiss_clock', 'Swiss Clock'], ['passbook_cam', 'Passbook Cam'], ['glyph_board', 'Glyph Board'],
 ];
 const ON_ART = 'eyes', ON_F = 10;
 const th = (id) => `<div class="th" style="background-image:url(../visuals/thumbs/${id}.jpg)"></div>`;
@@ -279,7 +303,7 @@ const short = (n) => SHORT[n] || n;
 const on = (c) => c ? ' on' : '';
 
 // Per-version seeds: sha256 of "12855g-N"; first 16 hex chars.
-const SEEDS = ['9f15091919c2d08d', '7ebcce09e89ec7f6', '16ae0532e4aa2320', 'f5667dc7e37bd049', '9c94d8c4a01b625c', 'ff5f5a867a97b7af', '8557a943d60626d9', 'b02ed37b64d75685', 'dfea63dc2ec02772', '94dd92ec74490e1b', '3c1e0d9b7a5f2e48', '61b0f2c94d8a7e15'];
+const SEEDS = ['9f15091919c2d08d', '7ebcce09e89ec7f6', '16ae0532e4aa2320', 'f5667dc7e37bd049', '9c94d8c4a01b625c', 'ff5f5a867a97b7af', '8557a943d60626d9', 'b02ed37b64d75685', 'dfea63dc2ec02772', '94dd92ec74490e1b', '3c1e0d9b7a5f2e48', '61b0f2c94d8a7e15', 'a41f7c2e9b03d658', '2e9d40b7c15a83f6', 'c7305e8a1fd942b0', '58b2e1f04a9c7d36'];
 
 const DECK = `<div class="deck"><div class="spk"></div><div class="btns"><div class="btn ej"></div><div class="btn on"></div><div class="btn"></div><div class="btn"></div></div>
 <div class="disp"><div><div class="row"><span class="k">SONG</span><span class="song">Neon Rift</span></div><div class="row"><span class="k">ARTIST</span><span>Waveform Decay</span></div></div>
@@ -348,6 +372,115 @@ function wall() {
 V.push(['Video wall', 'An LED video wall: square tiles with no gaps, a thin cross at every seam, the filters one quiet line above.', wall]);
 V.push(['Video wall, quiet', 'The same wall with the crosses only under the pointer and the filters along the bottom.', wall]);
 
+// ── LED walls: a cross in the middle of every panel, black panels between. ──
+function rng(seed) {
+  let a = parseInt(seed.slice(0, 8), 16) >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const shuffle = (arr, r) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+const filterLine = () => `<div class="fl">${FILTERS.map((f, i) => `<span class="${on(i === ON_F)}">${f}</span>`).join('')}</div>`;
+// tiles: [{x, y, w, h, id?, name?, fx?}] in panel units; crosses at every panel centre.
+function board(tiles, size, cols, top = 0) {
+  const W = 1440;
+  const left = Math.round((W - cols * size) / 2);
+  const out = tiles.map((t) => {
+    const style = `left:${t.x * size}px;top:${t.y * size}px;width:${t.w * size}px;height:${t.h * size}px`;
+    const xs = [];
+    for (let i = 0; i < t.w; i++) for (let j = 0; j < t.h; j++) xs.push(`<i class="x${t.onX ? ' on' : ''}" style="left:${(i + 0.5) * size}px;top:${(j + 0.5) * size}px"></i>`);
+    if (t.fx != null) return `<div class="t fx${on(t.fx === ON_F)}" style="${style}"><span class="fnm">${short(FILTERS[t.fx])}</span>${xs.join('')}</div>`;
+    if (!t.id) return `<div class="t" style="${style}">${xs.join('')}</div>`;
+    return `<div class="t art" style="${style}">${th(t.id)}<span class="nm">${t.name}</span>${xs.join('')}</div>`;
+  });
+  return `<div class="wallbox"><div class="board" style="left:${left}px;top:${top}px;width:${cols * size}px">${out.join('')}</div></div>`;
+}
+const wallH = () => frameH() - 128 - 40;
+
+// V13: half-tile column offsets, a few 2×2 panels, about a quarter black.
+function ledWall() {
+  const r = rng(SEEDS[12]);
+  const H = wallH(), n = ART.length;
+  for (let size = 150; size > 60; size -= 2) {
+    const cols = Math.floor(1440 / size);
+    const off = Array.from({ length: cols }, (_, c) => (c % 4 === 1 || c % 4 === 2) && c !== cols - 1 ? 0.5 : 0);
+    // Pairs of neighbouring columns share an offset, so 2×2 panels fit there.
+    const rowsOf = (c) => Math.floor((H - off[c] * size) / size);
+    const used = new Set(), tiles = [];
+    const spans = [];
+    for (let k = 0; k < 3; k++) {
+      for (let tries = 0; tries < 40; tries++) {
+        const c = Math.floor(r() * (cols - 1));
+        if (off[c] !== off[c + 1]) continue;
+        const rr = Math.floor(r() * (Math.min(rowsOf(c), rowsOf(c + 1)) - 1));
+        const keys = [[c, rr], [c + 1, rr], [c, rr + 1], [c + 1, rr + 1]].map(([a, b]) => a + ':' + b);
+        if (keys.some((q) => used.has(q))) continue;
+        keys.forEach((q) => used.add(q));
+        spans.push({ x: c, y: rr + off[c], w: 2, h: 2 });
+        break;
+      }
+    }
+    const free = [];
+    for (let c = 0; c < cols; c++) for (let rr = 0; rr < rowsOf(c); rr++) if (!used.has(c + ':' + rr)) free.push({ x: c, y: rr + off[c], w: 1, h: 1 });
+    const singles = n - spans.length;
+    if (free.length < singles / 0.72) continue;
+    const art = shuffle(ART.slice(), r);
+    spans.forEach((t, i) => Object.assign(t, { id: art[i][0], name: art[i][1] }));
+    const pick = shuffle(free.map((_, i) => i), r).slice(0, singles).sort((a, b) => a - b);
+    pick.forEach((fi, k) => Object.assign(free[fi], { id: art[spans.length + k][0], name: art[spans.length + k][1] }));
+    return filterLine() + board([...free, ...spans], size, cols);
+  }
+}
+
+// V14: strict grid in order; the playing artwork's cross turns orange.
+function ledBank() {
+  const H = wallH(), n = ART.length;
+  let best = { size: 0 };
+  for (let c = 1; c <= n; c++) {
+    const rows = Math.ceil(n / c), size = Math.floor(Math.min(1440 / c, H / rows));
+    if (size > best.size) best = { cols: c, rows, size };
+  }
+  const { cols, rows, size } = best;
+  const tiles = [];
+  for (let i = 0; i < cols * rows; i++) {
+    const a = ART[i];
+    tiles.push({ x: i % cols, y: Math.floor(i / cols), w: 1, h: 1, id: a?.[0], name: a?.[1], onX: a && a[0] === ON_ART });
+  }
+  return filterLine() + board(tiles, size, cols);
+}
+
+// V15: more black than art, like lit windows at night.
+function ledSparse() {
+  const r = rng(SEEDS[14]);
+  const H = wallH(), n = ART.length;
+  let best = { size: 0 };
+  for (let c = 1; c <= n * 2; c++) {
+    const rows = Math.ceil((n * 2) / c), size = Math.floor(Math.min(1440 / c, H / rows));
+    if (size > best.size) best = { cols: c, rows, size };
+  }
+  const { cols, rows, size } = best;
+  const slots = shuffle([...Array(cols * rows).keys()], r).slice(0, n).sort((a, b) => a - b);
+  const tiles = [...Array(cols * rows).keys()].map((i) => ({ x: i % cols, y: Math.floor(i / cols), w: 1, h: 1 }));
+  slots.forEach((s, k) => Object.assign(tiles[s], { id: ART[k][0], name: ART[k][1] }));
+  return filterLine() + board(tiles, size, cols);
+}
+
+// V16: the filters are panels too, the wall's first row.
+function ledFilters() {
+  const r = rng(SEEDS[15]);
+  const H = frameH() - 128, n = ART.length, cols = FILTERS.length;
+  const size = Math.floor(1440 / cols);
+  const rows = Math.floor(H / size);
+  const tiles = FILTERS.map((_, i) => ({ x: i, y: 0, w: 1, h: 1, fx: i }));
+  const slots = [...Array(cols * (rows - 1)).keys()];
+  const pick = shuffle(slots.slice(), r).slice(0, n).sort((a, b) => a - b);
+  const art = new Map(pick.map((s, k) => [s, ART[k]]));
+  slots.forEach((s) => { const a = art.get(s); tiles.push({ x: s % cols, y: 1 + Math.floor(s / cols), w: 1, h: 1, id: a?.[0], name: a?.[1] }); });
+  return board(tiles, size, cols, Math.floor((H - rows * size) / 2));
+}
+V.push(['Wall', 'Closest to the photographed LED wall: some columns dropped half a panel, a few artworks across four panels, black panels between.', ledWall]);
+V.push(['Monitor bank', 'A strict bank of panels in order; the playing artwork is marked only by its cross turning orange.', ledBank]);
+V.push(['Sparse', 'More dark panels than lit ones, like windows at night; the name appears under the cross.', ledSparse]);
+V.push(['Wall with filters', 'The filters are panels in the same wall, the first row, named small in the corner.', ledFilters]);
+
 const only = new URLSearchParams(location.search).get('v');
 const page = document.getElementById('page');
 V.forEach(([name, line, body], i) => {
@@ -358,7 +491,7 @@ V.forEach(([name, line, body], i) => {
   const gapNudge = parseInt(s[2], 16) % 4;
   const typeNudge = 1 + (parseInt(s[3], 16) % 5) / 100;
   page.insertAdjacentHTML('beforeend', `<section class="ver"><div class="tag"><b>V${n} · ${name}.</b> ${line}</div>
-    <div class="scaler" style="aspect-ratio:1440/${frameH()}"><div class="frame v${n}${n > 10 ? ' wall11' : ''}" style="height:${frameH()}px;--gn:${gapNudge}px;font-size:${typeNudge}em">${DECK}<div class="drawer">${body()}</div></div></div></section>`);
+    <div class="scaler" style="aspect-ratio:1440/${frameH()}"><div class="frame v${n}${n === 11 || n === 12 ? ' wall11' : n > 12 ? ' led' : ''}" style="height:${frameH()}px;--gn:${gapNudge}px;font-size:${typeNudge}em">${DECK}<div class="drawer">${body()}</div></div></div></section>`);
 });
 if (only) document.body.classList.add('solo');
 function fit() { document.querySelectorAll('.scaler').forEach(sc => { sc.firstElementChild.style.transform = `scale(${sc.clientWidth / 1440})`; }); }
