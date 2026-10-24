@@ -5,9 +5,9 @@
 # it swaps until the machine locks up and needs a hard reset. A failed track
 # can be resumed (generate.py --resume-dir); a frozen machine can't.
 #
-# Usage: ace-step-watchdog.sh [port]   (MIN_FREE_PCT=20 by default)
+# Usage: ace-step-watchdog.sh [port]   (MIN_FREE_PCT=12 by default)
 PORT="${1:-8001}"
-MIN_FREE_PCT="${MIN_FREE_PCT:-20}"
+MIN_FREE_PCT="${MIN_FREE_PCT:-12}"
 LOG="$(dirname "$0")/log/ace_step_watchdog.log"
 mkdir -p "$(dirname "$LOG")"
 
