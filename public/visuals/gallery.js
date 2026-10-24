@@ -615,6 +615,14 @@ const gallery = (() => {
     if (deckEl) ['pointerdown', 'wheel', 'keydown'].forEach((ev) => deckEl.addEventListener(ev, () => { _lastTouch = Date.now(); }, { passive: true }));
     setTimeout(driftSlot, 20000 + Math.random() * 55000);
     document.addEventListener('keydown', (e) => {
+      // Up and down turn the slot dial, like left and right step artworks.
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.metaKey && !e.ctrlKey && !e.altKey
+        && !e.target.closest('input,textarea,select,[contenteditable]')) {
+        e.preventDefault();
+        _lastTouch = Date.now();
+        nextSlot(e.key === 'ArrowUp' ? 1 : -1);
+        return;
+      }
       if ((e.key === 'g' || e.key === '/') && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
         e.preventDefault();
         toggle();
