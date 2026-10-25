@@ -1057,27 +1057,37 @@ V.push({
     c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
     c.font = MONO(fs, 500); c.textBaseline = 'top';
     const cw = c.measureText('M').width, lh = fs * 1.2, cols = Math.floor((w - 12 * u) / cw), R = 16;
-    if (!S.m || S.cols !== cols) { S.cols = cols; S.m = mask('DIR', cols * 2, R * 4); }
+    if (!S.m || S.cols !== cols) {
+      S.cols = cols; S.m = mask('DIR', cols * 2, R * 4);
+      // The columns that carry ink, so the banner centres on the letters.
+      const used = []; for (let x = 0; x < cols; x++) for (let y = 0; y < R * 4 && !used[x]; y++) if (S.m.on[y * S.m.W + x * 2] || S.m.on[y * S.m.W + x * 2 + 1]) used[x] = 1;
+      S.c0 = used.indexOf(1); S.c1 = used.lastIndexOf(1);
+      const rows = []; for (let r = 0; r < R; r++) for (let i = r * 4 * S.m.W; i < (r + 1) * 4 * S.m.W && !rows[r]; i++) if (S.m.on[i]) rows[r] = 1;
+      S.r0 = rows.indexOf(1); S.r1 = rows.lastIndexOf(1);
+    }
     const x0 = 6 * u, y0 = 6 * u, T0 = 1.5, PER = .085;
     const line = (i, s, col, a = 1) => { if (a > 0) { c.globalAlpha = a; c.fillStyle = col; c.fillText(s, x0, y0 + i * lh); } };
     const dim = 'rgba(232,228,218,.75)', cream = '#e8e4da';
     line(0, 'CONNECT 9600', dim, ramp(t, .3, .05));
     line(1, `dir-bbs 1.0  ·  88.8 MHz  ·  ${clock()}`, dim, ramp(t, .9, .05));
-    // the banner, one row per line feed, each row typed left to right; after that a wave keeps the cells cycling
-    for (let r = 0; r < R; r++) {
-      const n = Math.floor(ramp(t, T0 + r * PER, PER) * cols); if (!n) break;
+    // The banner sits in the middle of the screen, one row per line feed, each
+    // row typed left to right; after that a wave keeps the cells cycling.
+    const NR = S.r1 - S.r0 + 1, bx = (w - (S.c1 - S.c0 + 1) * cw) / 2, by = (h - NR * lh) / 2;
+    for (let k = 0; k < NR; k++) {
+      const r = S.r0 + k;
+      const n = Math.floor(ramp(t, T0 + k * PER, PER) * (S.c1 - S.c0 + 1)); if (!n) break;
       let s = '';
-      for (let x = 0; x < n; x++) {
+      for (let x = S.c0; x < S.c0 + n; x++) {
         let on = 0; for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 2; xx++) on += S.m.on[(r * 4 + yy) * S.m.W + x * 2 + xx];
         if (!on) { s += ' '; continue; }
         const d = on / 8 * 9 + 1.6 * Math.sin(x * .22 - t * 2.4 + r * .35);
         s += RAMP[Math.max(1, Math.min(9, Math.round(d)))];
       }
-      line(3 + r, s, ORANGE);
+      c.globalAlpha = 1; c.fillStyle = ORANGE; c.fillText(s, bx, by + k * lh);
     }
-    const T1 = T0 + R * PER;
-    line(4 + R, 'DEAD INTERNET RADIO', cream, ramp(t, T1 + .4, .05));
-    line(6 + R, '> ' + (Math.floor(t * 2) % 2 ? '▌' : ''), cream, ramp(t, T1 + 1.1, .05));
+    const T1 = T0 + NR * PER, ly = (i) => (by + (NR + i) * lh - y0) / lh;
+    line(ly(2), 'DEAD INTERNET RADIO', cream, ramp(t, T1 + .4, .05));
+    line(ly(4), '> ' + (Math.floor(t * 2) % 2 ? '▌' : ''), cream, ramp(t, T1 + 1.1, .05));
     c.globalAlpha = 1; c.textBaseline = 'alphabetic';
   },
 });
