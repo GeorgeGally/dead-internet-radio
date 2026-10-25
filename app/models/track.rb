@@ -17,6 +17,16 @@ class Track < ApplicationRecord
     resolve_media(voiceover_file)
   end
 
+  # The ACE-Step caption this track was rendered from. The caption column only
+  # holds "artist — title", the real one is in the show's prompt log.
+  def sound_caption
+    return nil if audio_file.blank? || show&.directory.blank?
+    log = Rails.root.join("output", show.directory, "prompts", "#{File.basename(audio_file, '.*')}.prompt.json")
+    JSON.parse(File.read(log)).dig("payload", "caption").presence if log.exist?
+  rescue JSON::ParserError
+    nil
+  end
+
   private
 
   def resolve_media(rel)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_23_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -65,6 +65,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_23_120000) do
     t.index ["status"], name: "index_shows_on_status"
   end
 
+  create_table "song_requests", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "artist", null: false
+    t.string "title", null: false
+    t.string "note"
+    t.integer "status", default: 0, null: false
+    t.string "rejection_reason"
+    t.bigint "matched_track_id"
+    t.bigint "track_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["matched_track_id"], name: "index_song_requests_on_matched_track_id"
+    t.index ["status"], name: "index_song_requests_on_status"
+    t.index ["track_id"], name: "index_song_requests_on_track_id"
+    t.index ["user_id", "created_at"], name: "index_song_requests_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_song_requests_on_user_id"
+  end
+
   create_table "tracks", force: :cascade do |t|
     t.bigint "show_id", null: false
     t.integer "position", null: false
@@ -90,6 +108,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_23_120000) do
     t.index ["show_id"], name: "index_tracks_on_show_id"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.string "google_uid", null: false
+    t.string "email"
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
+  end
+
   create_table "visual_modules", force: :cascade do |t|
     t.string "slug", null: false
     t.string "name"
@@ -102,5 +129,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_23_120000) do
 
   add_foreign_key "broadcast_segments", "tracks"
   add_foreign_key "generation_jobs", "shows"
+  add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
+  add_foreign_key "song_requests", "tracks", on_delete: :nullify
+  add_foreign_key "song_requests", "users"
   add_foreign_key "tracks", "shows"
 end
