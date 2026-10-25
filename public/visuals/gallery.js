@@ -14,7 +14,6 @@ const gallery = (() => {
     delayed_lerp_points_1600: { filters: [3], cutoff: 80, resonance: 70 },
     cubes_token_sha: { filters: [4], cutoff: 160, resonance: 65 },
     delayed_lerp_points8: { filters: [2], cutoff: 125, resonance: 50 },
-    isocubes: { filters: [6], cutoff: 100, resonance: 40 },
     giphy: { filters: [], cutoff: 130, resonance: 50 },
     four_dots: { filters: [9], cutoff: 60, resonance: 30 },
     patterns2: { filters: [6], cutoff: 140, resonance: 55 },
@@ -337,6 +336,7 @@ const gallery = (() => {
     const deck = document.getElementById('deck');
     deck.classList.remove('closing');
     deck.classList.add('ejected', 'expanded');
+    document.getElementById('gallery-led')?.classList.add('on');
     // Measure once the drawer has its height.
     requestAnimationFrame(buildWall);
   }
@@ -346,6 +346,7 @@ const gallery = (() => {
     isOpen = false;
     const deck = document.getElementById('deck');
     deck.classList.add('closing');
+    document.getElementById('gallery-led')?.classList.remove('on');
     deck.dispatchEvent(new CustomEvent('galleryclose'));
     setTimeout(() => {
       deck.classList.remove('closing', 'ejected');

@@ -382,11 +382,17 @@ function togglePlay() {
 }
 
 function updatePlayBtn() {
-  if (_flashActive) return;
   const audio = document.getElementById('player');
   const playing = audio && !audio.paused;
+  if (_flashActive) return;
   const led = document.getElementById('led-play');
   if (led) led.classList.toggle('on', !!playing);
+  // Play while stopped, stop while playing.
+  const btn = document.getElementById('btn-play');
+  if (btn) {
+    btn.textContent = playing ? '\u25a0' : '\u25b6';
+    btn.title = playing ? 'Stop' : 'Play';
+  }
 }
 
 function playAudio() {
@@ -495,31 +501,8 @@ function setupControls() {
   if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
   if (artNext) artNext.addEventListener('click', () => { visuals.next(); });
   const galleryBtn = document.getElementById('btn-gallery');
-  const galleryLed = document.getElementById('gallery-led');
   galleryBtn.addEventListener('click', () => {
     gallery.toggle();
-  });
-  const origToggle = gallery.toggle;
-  gallery.toggle = function() {
-    origToggle.call(gallery);
-    const panel = document.querySelector('.gallery-panel');
-    if (panel && panel.classList.contains('open')) {
-      if (galleryLed) galleryLed.classList.add('on');
-    } else {
-      if (galleryLed) galleryLed.classList.remove('on');
-    }
-  };
-  document.addEventListener('keydown', (e) => {
-    if ((e.key === 'g' || e.key === '/') && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
-      requestAnimationFrame(() => {
-        const panel = document.querySelector('.gallery-panel');
-        if (panel && panel.classList.contains('open')) {
-          if (galleryLed) galleryLed.classList.add('on');
-        } else {
-          if (galleryLed) galleryLed.classList.remove('on');
-        }
-      });
-    }
   });
 
   // The artwork's own dials: cutoff (5-255, rest 130), resonance (0-100, rest
