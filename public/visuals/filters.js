@@ -275,6 +275,15 @@ const canvasFilters = (() => {
     focus = i;
     notify();
   }
+  // Drag a slot to another position in the chain; focus follows its slot.
+  function moveSlot(from, to) {
+    if (from === to || !slots[from] || to < 0 || to > 2) return;
+    const focused = slots[focus];
+    const [moved] = slots.splice(from, 1);
+    slots.splice(to, 0, moved);
+    focus = slots.indexOf(focused);
+    notify();
+  }
   function setWet(v) {
     wet = Math.max(0, Math.min(1, v));
     window.filterStrength = wet * 100;
@@ -580,7 +589,7 @@ const canvasFilters = (() => {
     getSlots: () => slots.map((s) => ({ key: s.key, on: s.on, p: s.p.slice() })),
     getFocus: () => focus,
     getWet: () => wet,
-    setSlotFilter, setSlotOn, setParam, setFocus, setWet, getState, setState,
+    setSlotFilter, setSlotOn, setParam, setFocus, setWet, moveSlot, getState, setState,
     setActive, toggleActive, clearActive, getActiveKeys, hasActiveKey, getActiveName,
     setStrength, setThreshold, apply, applyToOverlay, applyToP5, setupKeybindings,
   };

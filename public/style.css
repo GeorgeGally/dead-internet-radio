@@ -835,6 +835,9 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on { color: rgba(255, 255, 255, 0.92); }
+.fx-row[data-slot="0"], .fx-row[data-slot="1"], .fx-row[data-slot="2"] { touch-action: none; }
+.fx-row.dragging { background: rgba(255, 90, 31, 0.18); cursor: grabbing; }
+.fx-row.drop { box-shadow: inset 0 1px 0 #ff5a1f, inset 0 -1px 0 #ff5a1f; }
 .fx-row.focus { background: rgba(255, 255, 255, 0.08); }
 .fx-row.focus .fx-name { color: #ff5a1f; }
 

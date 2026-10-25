@@ -80,8 +80,9 @@ const gallery = (() => {
 
   // ---- FX unit in the menubar: dry/wet, a four-row display, a filter dial
   // and two parameter knobs ----
-  // Rows 1-3 are the filter slots; click one to focus it, its box switches it
-  // on and off. The filter dial turns through filters for the focused slot and
+  // Rows 1-3 are the filter slots, stacked bottom-up over the artwork row:
+  // slot 1 is applied first. Click one to focus it, its box switches it on and
+  // off, drag it onto another row to reorder. The filter dial turns through filters for the focused slot and
   // the two knobs set its parameters. Row A is the playing artwork: focused, the
   // dial is its sensitivity and the knobs its cutoff and resonance.
   let artFocus = false;
@@ -127,8 +128,48 @@ const gallery = (() => {
     const el = document.querySelector('.deck-content');
     if (!el || !el.querySelector('.fx-lcd')) return;
 
+    // Drag a filter row onto another to reorder the stack. The artwork row
+    // stays at the bottom; a plain click still focuses.
+    let drag = null;
+    const slotRows = [...el.querySelectorAll('.fx-row')].filter((r) => Number(r.dataset.slot) >= 0);
+    const rowAt = (y) => slotRows.find((r) => { const b = r.getBoundingClientRect(); return y >= b.top && y < b.bottom; });
+    slotRows.forEach((row) => {
+      row.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.fx-on') || canvasFilters.getSlots()[Number(row.dataset.slot)].key == null) return;
+        drag = { row, from: Number(row.dataset.slot), y: e.clientY, moved: false };
+        try { row.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+      row.addEventListener('pointermove', (e) => {
+        if (!drag || drag.row !== row) return;
+        if (!drag.moved && Math.abs(e.clientY - drag.y) < 4) return;
+        drag.moved = true;
+        row.classList.add('dragging');
+        const over = rowAt(e.clientY);
+        slotRows.forEach((r) => r.classList.toggle('drop', r === over && r !== row));
+      });
+      const end = (e) => {
+        if (!drag || drag.row !== row) return;
+        const d = drag;
+        drag = null;
+        row.classList.remove('dragging');
+        slotRows.forEach((r) => r.classList.remove('drop'));
+        if (!d.moved) return;
+        const over = e && e.type === 'pointerup' ? rowAt(e.clientY) : null;
+        if (over) {
+          artFocus = false;
+          canvasFilters.moveSlot(d.from, Number(over.dataset.slot));
+        }
+        // Swallow the click that follows this pointerup, but only that one.
+        row._skipClick = true;
+        setTimeout(() => { row._skipClick = false; }, 0);
+      };
+      row.addEventListener('pointerup', end);
+      row.addEventListener('pointercancel', end);
+    });
+
     el.querySelectorAll('.fx-row').forEach((row) => {
       row.addEventListener('click', (e) => {
+        if (row._skipClick) { row._skipClick = false; return; }
         const i = Number(row.dataset.slot);
         if (i < 0) {
           artFocus = true;
