@@ -1,0 +1,19 @@
+<h2>Requests</h2>
+
+<table>
+  <tr><th>When</th><th>From</th><th>Artist</th><th>Title</th><th>Note</th><th>Status</th><th>Reason</th><th>Sounds like</th><th>Track</th><th></th></tr>
+  <% @requests.each do |req| %>
+    <tr>
+      <td><%= req.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+      <td title="<%= req.user.email %>"><%= req.user.name %></td>
+      <td><%= req.artist %></td>
+      <td><%= req.title %></td>
+      <td><%= req.note %></td>
+      <td><span class="status-badge status-<%= req.status %>"><%= req.status %></span></td>
+      <td><%= req.rejection_reason %></td>
+      <td><%= req.matched_track && "#{req.matched_track.artist} — #{req.matched_track.title}" %></td>
+      <td><% if req.track %><a href="/admin/shows/<%= req.track.show_id %>"><%= req.track.title %></a><% end %></td>
+      <td><%= button_to "Render", fulfill_admin_request_path(req) if req.queued? %></td>
+    </tr>
+  <% end %>
+</table>
