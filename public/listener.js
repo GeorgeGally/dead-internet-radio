@@ -170,8 +170,8 @@ const listenerReport = (() => {
     const rows = lines();
     // One font size for everything, as large as the longest line allows.
     const longest = Math.max(...rows.map((r) => r[0].length + (r[2] ? r[2].length + 3 : 0)));
-    const byWidth = (innerWidth * 0.92) / (longest * 0.6);
-    const byHeight = (innerHeight * 0.88) / (rows.length * 1.02);
+    const byWidth = (innerWidth * 0.75) / (longest * 0.6);
+    const byHeight = (innerHeight * 0.72) / (rows.length * 1.02);
     el.style.setProperty('--fs', `${Math.floor(Math.min(byWidth, byHeight))}px`);
     el.innerHTML = rows.map(([text, align, right], i) => {
       const cls = align === 'c' ? 'lr-row lr-label' : 'lr-row';
@@ -196,9 +196,6 @@ const listenerReport = (() => {
   function show() {
     render();
     el.classList.remove('lr-on');
-    // White inverted over the artwork, or phosphor green.
-    el.classList.toggle('lr-green', Math.random() < 0.4);
-    el.classList.toggle('lr-mono', !el.classList.contains('lr-green'));
     clearTimeout(el._hide);
     flicker(true, () => { el._hide = setTimeout(() => flicker(false), SHOW_MS); });
   }

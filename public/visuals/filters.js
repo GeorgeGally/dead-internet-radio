@@ -76,7 +76,7 @@ const canvasFilters = (() => {
       vec3 c = vec3(texture2D(uTex, uv + vec2(b, 0.0)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(b, 0.0)).b);
       c = mix(c, vec3(luma(c)), 0.25);
       float noise = step(0.995 - uP1 * 0.01, hash(vec2(floor(vUv.y * uRes.y / uScale), tick)));
-      return vec4(c + noise * 0.5, 1.0);` },
+      return vec4(c + noise * 0.16, 1.0);` },
 
     { key: 6, name: 'Posterize', params: [['levels', 0.5], ['mono', 0.0]], body: `
       vec4 c = texture2D(uTex, vUv);
@@ -87,8 +87,13 @@ const canvasFilters = (() => {
     { key: 7, name: 'Pixelate', params: [['size', 0.3], ['stretch', 0.0]], body: `
       float s = mix(4.0, 64.0, uP1 * uP1) * uScale;
       vec2 cell = vec2(s * (1.0 + uP2 * 4.0), s);
-      vec2 q = (floor(vUv * uRes / cell) + 0.5) * cell;
-      return texture2D(uTex, q / uRes);` },
+      // Average a 3x3 spread over the block, not one sample: a single tap
+      // lands on a scanline or a gap and the blocks flicker and band.
+      vec2 o = floor(vUv * uRes / cell) * cell;
+      vec4 acc = vec4(0.0);
+      for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+        acc += texture2D(uTex, (o + (vec2(float(i), float(j)) + 0.5) / 3.0 * cell) / uRes);
+      return acc / 9.0;` },
 
     { key: 8, name: 'Color Invert', params: [['solarize', 0.0], ['hue', 0.0]], body: `
       vec4 c = texture2D(uTex, vUv);

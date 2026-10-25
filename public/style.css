@@ -1106,7 +1106,7 @@ body.prewarming #block-canvas {
   position: fixed;
   inset: 0;
   z-index: 6;
-  color: #f2f2ee;
+  color: rgba(255, 255, 255, 0.6);
   font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
   font-weight: 400;
   font-size: var(--fs, 64px);
@@ -1120,17 +1120,6 @@ body.prewarming #block-canvas {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-}
-
-/* Over the artwork: white inverted against whatever is underneath (black on
-   light, white on dark), or phosphor green. */
-#listener-report.lr-mono {
-  color: rgba(255, 255, 255, 0.55);
-  mix-blend-mode: difference;
-}
-
-#listener-report.lr-green {
-  color: rgba(57, 255, 106, 0.55);
 }
 
 /* Flashes: on and off with no fade, like a signal cutting in. */

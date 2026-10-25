@@ -15,12 +15,12 @@ visuals.register('self_avoiding_walk_3d', (() => {
     myP5 = new p5((p) => {
       const spacing = 48;
       const BRANCH_COLORS = [
-        [34, 75, 83],    // deep teal
-        [160, 168, 176], // silver grey
-        [175, 96, 117],  // dusty rose
-        [160, 173, 162], // sage
-        [232, 230, 227], // warm white
-        [110, 106, 95],  // taupe
+        [70, 170, 205],  // cyan
+        [150, 200, 230], // ice blue
+        [100, 120, 160], // steel
+        [120, 105, 210], // cold violet
+        [215, 232, 242], // cold white
+        [255, 90, 31],   // station orange, the one warm line
       ];
       let colorIdx = 0;
       let cols, rows, depth;
@@ -120,7 +120,7 @@ visuals.register('self_avoiding_walk_3d', (() => {
       };
 
       p.draw = () => {
-        p.background('#d8d4cb');
+        p.background(0);
 
         const minXYZ = { x: Infinity, y: Infinity, z: Infinity };
         const maxXYZ = { x: 0, y: 0, z: 0 };
@@ -167,7 +167,7 @@ visuals.register('self_avoiding_walk_3d', (() => {
           const v1 = path[i];
           const v2 = path[i + 1];
           const c = v2.branchColor || BRANCH_COLORS[0];
-          p.stroke(c[0], c[1], c[2], 160);
+          p.stroke(c[0], c[1], c[2], 210);
           p.strokeWeight(4);
           p.line(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
         }

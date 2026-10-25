@@ -250,7 +250,7 @@ visuals.register('passbook_cam', (() => {
         const now = p.millis();
         const W = p.width;
         const H = p.height;
-        p.background('#d9d6cf');
+        p.background(0);
 
         const grid = sample(now);
         history.push([now, grid]);

@@ -239,8 +239,8 @@ visuals.register('patterns2', (() => {
       };
 
       p.draw = () => {
-        p.background(220);
-        p.fill(0);
+        p.background(0);
+        p.fill(220);
         p.noStroke();
 
         // Cutoff sets the resting grid: low = fine (64 cols), high = coarse (16)
