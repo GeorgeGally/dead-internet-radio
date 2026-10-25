@@ -511,5 +511,5 @@ visuals.register('prelinger_broll', (() => {
     }
   }
 
-  return { name: 'Prelinger B-roll', start, stop };
+  return { name: 'B-roll', start, stop };
 })());
