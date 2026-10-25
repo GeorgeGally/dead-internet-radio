@@ -22,7 +22,6 @@ const gallery = (() => {
     pulsing_squares: { filters: [1], cutoff: 100, resonance: 45 },
     grid: { filters: [1], cutoff: 100, resonance: 45 },
     trail: { filters: [4], cutoff: 140, resonance: 60 },
-    sound_investigation1: { filters: [5], cutoff: 130, resonance: 75 },
     particle_machine: { filters: [7], cutoff: 110, resonance: 50 },
     self_avoiding_walk_3d: { filters: [1], cutoff: 120, resonance: 45 },
     bonk: { filters: [6], cutoff: 130, resonance: 50 },
