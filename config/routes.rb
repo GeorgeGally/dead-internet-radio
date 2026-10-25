@@ -9,6 +9,11 @@ Rails.application.routes.draw do
       get "playlist", to: "playlist#show"
       get "now_playing", to: "now_playing#show"
       get "broadcast", to: "broadcast#show"
+
+      get "me", to: "sessions#me"
+      post "session/google", to: "sessions#google"
+      delete "session", to: "sessions#destroy"
+      resources :requests, only: [:index, :create]
     end
   end
 
@@ -29,6 +34,9 @@ Rails.application.routes.draw do
       end
     end
     resources :tracks, only: [:destroy]
+    resources :requests, only: [:index] do
+      post :fulfill, on: :member
+    end
     resources :visuals, only: [:index, :update]
     resources :generation, only: [:index, :new, :create, :show] do
       member do

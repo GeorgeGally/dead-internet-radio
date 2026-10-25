@@ -1,0 +1,75 @@
+# Request line blocklist. One term per line, matched as a whole word after
+# lowercasing and undoing leetspeak (0->o, 1->i, 3->e, 4->a, 5->s, 7->t).
+# Spaced-out letters ("t r u m p") are joined first. Edit freely;
+# the LLM screen catches what this misses.
+
+# slurs
+nigger
+nigga
+faggot
+fag
+dyke
+tranny
+retard
+spic
+chink
+kike
+wetback
+gook
+paki
+coon
+raghead
+towelhead
+
+# hate
+nazi
+hitler
+heil
+kkk
+white power
+white pride
+gas the
+genocide
+
+# sexual
+porn
+porno
+pussy
+cock
+cum
+blowjob
+handjob
+anal
+rape
+rapist
+hentai
+nsfw
+onlyfans
+dildo
+milf
+
+# politics
+trump
+biden
+obama
+maga
+putin
+netanyahu
+zelensky
+hamas
+idf
+democrat
+republican
+election
+brexit
+tory
+labour party
+
+# spam
+http
+www
+dot com
+telegram
+crypto
+bitcoin
+casino
