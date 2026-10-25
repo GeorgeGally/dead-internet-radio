@@ -1087,13 +1087,28 @@ body.prewarming #block-canvas {
 }
 
 /* ---- Listener report: occasional poster of what the browser gives away ---- */
+/* Anka/Coder (OFL), a narrow mono, for the listener poster. */
+@font-face {
+  font-family: "Anka Coder";
+  src: url("fonts/AnkaCoder-r.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anka Coder";
+  src: url("fonts/AnkaCoder-b.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
 #listener-report {
   position: fixed;
   inset: 0;
   z-index: 6;
   color: #f2f2ee;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-weight: 500;
+  font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
+  font-weight: 400;
   font-size: var(--fs, 64px);
   line-height: 1.02;
   letter-spacing: 0;
@@ -1111,12 +1126,12 @@ body.prewarming #block-canvas {
 /* Over the artwork: white inverted against whatever is underneath (black on
    light, white on dark), or phosphor green. */
 #listener-report.lr-mono {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.55);
   mix-blend-mode: difference;
 }
 
 #listener-report.lr-green {
-  color: #39ff6a;
+  color: rgba(57, 255, 106, 0.55);
 }
 
 #listener-report.lr-on {
