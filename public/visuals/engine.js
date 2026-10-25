@@ -11,13 +11,39 @@ const visuals = (() => {
 
   let notifEl = null;
 
+  // A label dropped somewhere random, with a line to a point near the
+  // middle of the artwork.
   function showNotification(text) {
     if (!notifEl) {
       notifEl = document.createElement('div');
       notifEl.id = 'visual-notification';
+      notifEl.innerHTML = '<svg><line class="vn-halo"></line><line></line><circle r="2.5"></circle></svg><span class="vn-label"></span>';
       document.body.appendChild(notifEl);
     }
-    notifEl.textContent = text;
+    const label = notifEl.querySelector('.vn-label');
+    label.textContent = text;
+    const W = innerWidth, H = innerHeight;
+    const lw = label.offsetWidth, lh = label.offsetHeight;
+    const deck = document.getElementById('deck');
+    const top = (deck ? deck.getBoundingClientRect().bottom : 0) + 24;
+    let lx, ly, tx, ty;
+    for (let i = 0; i < 12; i++) {
+      lx = 24 + Math.random() * Math.max(0, W - lw - 48);
+      ly = top + Math.random() * Math.max(0, H - top - lh - 24);
+      tx = W / 2 + (Math.random() - 0.5) * W * 0.2;
+      ty = H / 2 + (Math.random() - 0.5) * H * 0.2;
+      if (Math.hypot(lx + lw / 2 - tx, ly + lh / 2 - ty) > Math.min(W, H) * 0.25) break;
+    }
+    const ax = Math.min(Math.max(tx, lx), lx + lw);
+    const ay = Math.min(Math.max(ty, ly), ly + lh);
+    label.style.left = `${lx}px`;
+    label.style.top = `${ly}px`;
+    for (const line of notifEl.querySelectorAll('line')) {
+      line.setAttribute('x1', ax); line.setAttribute('y1', ay);
+      line.setAttribute('x2', tx); line.setAttribute('y2', ty);
+    }
+    const dot = notifEl.querySelector('circle');
+    dot.setAttribute('cx', tx); dot.setAttribute('cy', ty);
     notifEl.classList.add('visible');
     clearTimeout(notifEl._hideTimer);
     notifEl._hideTimer = setTimeout(() => notifEl.classList.remove('visible'), 2000);
@@ -347,6 +373,6 @@ const visuals = (() => {
 
   // Internal switches (next/prev/random/...) call api.activate so wrappers
   // installed on the public method (app.js preset load/save) always run.
-  const api = { register, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  const api = { register, showNotification, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
   return api;
 })();

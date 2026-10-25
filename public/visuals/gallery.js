@@ -419,13 +419,7 @@ const gallery = (() => {
     slotDirty = false;
     saveLit = true;
     updateSlotUI();
-    const el = document.getElementById('visual-notification');
-    if (el) {
-      el.textContent = `Slot ${slot} saved`;
-      el.classList.add('visible');
-      clearTimeout(el._hideTimer);
-      el._hideTimer = setTimeout(() => el.classList.remove('visible'), 1500);
-    }
+    visuals.showNotification(`Slot ${slot} saved`);
   }
 
   function loadSlot(id, slot) {

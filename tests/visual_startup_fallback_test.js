@@ -42,6 +42,8 @@ function createSandbox() {
         return {
           classList: { add() {}, remove() {} },
           style: {},
+          querySelector: () => ({ style: {}, setAttribute() {} }),
+          querySelectorAll: () => [],
         };
       },
       querySelectorAll(selector) {
@@ -55,6 +57,8 @@ function createSandbox() {
         return null;
       },
     },
+    innerWidth: 1280,
+    innerHeight: 800,
     window: {
       addEventListener() {},
     },

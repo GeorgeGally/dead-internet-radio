@@ -19,11 +19,13 @@ function loadVisuals() {
     console: { warn() {} },
     document: {
       body: { appendChild() {}, classList: { add() {}, remove() {} } },
-      createElement() { return { classList: { add() {}, remove() {} } }; },
+      createElement() { return { classList: { add() {}, remove() {} }, querySelector: () => ({ style: {}, setAttribute() {} }), querySelectorAll: () => [] }; },
       getElementById() { return null; },
       querySelectorAll() { return []; },
     },
     window: { addEventListener() {} },
+    innerWidth: 1280,
+    innerHeight: 800,
     setTimeout() { return null; },
     clearTimeout() {},
   });
