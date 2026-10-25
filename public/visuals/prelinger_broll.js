@@ -115,11 +115,11 @@ visuals.register('prelinger_broll', (() => {
       .filter((f) => /\.mp4$/i.test(f.name) && f.h > 0)
       .sort((a, b) => a.size - b.size);
     // ...but not the 120p postage stamps some items carry.
-    const pick = (files.find((f) => f.h >= 200) || files[0] || {}).name || null;
-    if (!pick) return null;
+    const file = files.find((f) => f.h >= 200) || files[0];
+    if (!file) return null;
     // Through the app's same-origin proxy: archive.org's storage hosts send no
     // CORS headers, which would taint the canvas and switch every filter off.
-    return `/broll/${encodeURIComponent(id)}/${pick.split('/').map(encodeURIComponent).join('/')}`;
+    return { url: `/broll/${encodeURIComponent(id)}/${file.name.split('/').map(encodeURIComponent).join('/')}`, size: file.size };
   }
 
   // Resolves once the film can start from a random point past its opening
@@ -181,14 +181,16 @@ visuals.register('prelinger_broll', (() => {
       if (token !== state.loadToken) return;
       if (films.length >= 3) break;
       try {
-        const url = await filmVideo(id);
-        if (!url) continue;
+        const found = await filmVideo(id);
+        if (!found) continue;
+        const { url, size } = found;
         const video = await makeVideo(url, 'canplay');
         if (token !== state.loadToken) {
           video.remove();
           return;
         }
         films.push({ id, url, video });
+        rememberFilm(id, url, size);
         if (films.length === 1) {
           video.play().catch(() => {});
           state.ready = true;
@@ -202,13 +204,51 @@ visuals.register('prelinger_broll', (() => {
     if (!films.length) throw new Error('no video');
   }
 
-  // Something to watch while the first film buffers: one Giphy clip, looped.
+  // Something to watch while the first film buffers: the film that was on
+  // screen, else the last film from an earlier visit, else one Giphy clip.
   // Giphy's media host sends CORS headers, so the filters still work on it.
   const GIPHY_API_KEY = '23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5';
   const STANDIN_TERMS = ['vintage film', 'old footage', '1950s', 'home movie', 'film grain', 'retro tv'];
   let standIn = null;
 
+  // The last film that played is kept in Cache Storage (one film, up to
+  // 80 MB), so the next visit starts on it at once instead of on Giphy.
+  const LAST_KEY = '/__broll-last-film';
+  const LAST_MAX_BYTES = 80 * 1024 * 1024;
+  async function rememberFilm(id, url, size) {
+    try {
+      if (!('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (localStorage.getItem('dir-broll-last') === id) return;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const cache = await caches.open('dir-broll');
+      await cache.put(LAST_KEY, res);
+      localStorage.setItem('dir-broll-last', id);
+    } catch (e) {}
+  }
+
+  async function cachedFilm() {
+    try {
+      if (!('caches' in window)) return null;
+      const res = await caches.match(LAST_KEY);
+      if (!res) return null;
+      const blobUrl = URL.createObjectURL(await res.blob());
+      const v = await makeVideo(blobUrl, 'canplay');
+      v._blobUrl = blobUrl;
+      return v;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function loadStandIn() {
+    const cached = await cachedFilm();
+    if (cached) {
+      if (state.ready || standIn) { cached.remove(); URL.revokeObjectURL(cached._blobUrl); return; }
+      cached.play().catch(() => {});
+      standIn = cached;
+      return;
+    }
     try {
       const q = encodeURIComponent(STANDIN_TERMS[Math.floor(Math.random() * STANDIN_TERMS.length)]);
       const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${q}&limit=25&rating=pg-13`);
@@ -232,6 +272,7 @@ visuals.register('prelinger_broll', (() => {
     if (!standIn) return;
     try { standIn.pause(); } catch (e) {}
     standIn.remove();
+    if (standIn._blobUrl) URL.revokeObjectURL(standIn._blobUrl);
     standIn = null;
   }
 
@@ -291,6 +332,13 @@ visuals.register('prelinger_broll', (() => {
           const token = state.loadToken;
           state.ready = false;
           state.failed = false;
+          // The film on screen keeps playing while the next reel loads.
+          const showing = state.films[state.shot];
+          if (showing && showing.video && !standIn) {
+            standIn = showing.video;
+            standIn.play().catch(() => {});
+            state.films = state.films.filter((f) => f !== showing);
+          }
           disposeVideos();
           state.films = [];
           if (!standIn) loadStandIn();
