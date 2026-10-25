@@ -90,7 +90,9 @@ const trackHud = (() => {
         name: d.categories && d.categories[0] ? (d.categories[0].categoryName || '').toUpperCase() : '',
         kp: (d.keypoints || []).map((k) => [k.x * innerWidth, k.y * innerHeight]),
       };
-    });
+    // A box near the size of the screen is the detector reading the whole
+    // pattern as one thing; keep to things that sit inside the picture.
+    }).filter((f) => f.h < innerHeight * 0.5 && f.w < innerWidth * 0.6);
     const next = [];
     for (const f of found) {
       const cx = f.x + f.w / 2;
