@@ -38,8 +38,8 @@ visuals.register('bonk', (() => {
           avg = t / frequencyData.length / 255;
         }
 
-        const baseStep = 0.0001 * Math.PI / 180;
-        const step = baseStep * speed * (1 + bass * react * 8);
+        const baseStep = 0.00004 * Math.PI / 180;
+        const step = baseStep * speed * (1 + bass * react * 3);
         const sizeMod = 1 + avg * react * 0.5;
         const spacing = 1.3 * sizeMod;
 
