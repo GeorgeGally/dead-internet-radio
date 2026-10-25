@@ -28,6 +28,7 @@ const gallery = (() => {
     particle_machine: { filters: [7], cutoff: 110, resonance: 50 },
     self_avoiding_walk_3d: { filters: [1], cutoff: 120, resonance: 45 },
     bonk: { filters: [6], cutoff: 130, resonance: 50 },
+    modem_symphony: { filters: [], cutoff: 130, resonance: 50 },
     sound_investigation2: { filters: [5], cutoff: 145, resonance: 80 },
     wall_drawing_26: { filters: [6], cutoff: 95, resonance: 40 },
     twirlz: { filters: [2], cutoff: 150, resonance: 65 },

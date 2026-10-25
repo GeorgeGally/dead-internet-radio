@@ -1114,6 +1114,11 @@ body.prewarming #block-canvas {
 /* ---- Listener report: occasional poster of what the browser gives away ---- */
 /* Anka/Coder (OFL), a narrow mono, for the listener poster. */
 @font-face {
+  font-family: "Dogica";
+  src: url("fonts/dogica.otf") format("opentype");
+}
+
+@font-face {
   font-family: "Anka Coder";
   src: url("fonts/AnkaCoder-r.ttf") format("truetype");
   font-weight: 400;
