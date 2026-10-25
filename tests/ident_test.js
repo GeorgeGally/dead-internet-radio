@@ -74,7 +74,7 @@ test('ident.js keeps the lab ident contract', () => {
   assert.equal(typeof idents.init, 'function');
   assert.equal(typeof idents.play, 'function');
   assert.equal(typeof idents.stop, 'function');
-  assert.ok(Array.isArray(idents.list) && idents.list.length >= 1);
+  assert.ok(Array.isArray(idents.list));
 
   for (const ident of idents.list) {
     assert.equal(typeof ident.id, 'string');
@@ -86,70 +86,16 @@ test('ident.js keeps the lab ident contract', () => {
   }
 });
 
-test('the block wall renders and the player ends on its own length', () => {
-  const { idents, canvas, classes, log, frame } = loadIdents();
-  idents.init();
-  idents.play();
-  assert.ok(classes.has('on'), 'ident canvas takes the stage');
-  assert.equal(canvas.width, 1920, 'sized to the viewport at capped dpr');
-  assert.equal(canvas.height, 1080);
-
-  frame(3000);
-  const text = log.filter((entry) => entry.text);
-  assert.ok(text.some((entry) => entry.text === '█'), 'block glyphs are drawn');
-  assert.ok(text.some((entry) => entry.style === '#ff5a1f'), 'the band locks in station orange');
-
-  frame(12000);
-  assert.ok(!classes.has('on'), 'hides itself once its length is up');
-});
-
-test('stop clears the frame so a skipped track cannot leave a half-drawn ident', () => {
-  const { idents, canvas, classes, log, frame } = loadIdents();
-  idents.init();
-  idents.play();
-  frame(3000);
-  log.length = 0;
-  idents.stop();
-  assert.ok(!classes.has('on'));
-  assert.ok(log.some((entry) => entry.clear), 'canvas is cleared');
-  assert.equal(canvas.width, 1920);
-});
-
-test('a load ident fills the wait, rotating until the audio starts', () => {
-  const { idents, classes, frame, flush } = loadIdents();
-  idents.init();
-  idents.load();
-  assert.ok(!classes.has('on'), 'a fast load does not flash an ident frame');
-  flush();
-  assert.ok(classes.has('on'), 'a real wait gets an ident');
-  frame(12000);
-  assert.ok(classes.has('on'), 'rolls on to the next ident instead of going blank');
-  idents.loadDone();
-  assert.ok(!classes.has('on'), 'clears the moment the audio starts');
-});
-
-test('audio that starts first cancels a queued load ident', () => {
+// The block wall was retired (visuals/archive/ident-ascii-block-wall.js);
+// with nothing in rotation the player never shows an ident.
+test('with no idents in rotation, nothing ever takes the stage', () => {
   const { idents, classes, flush } = loadIdents();
+  assert.equal(idents.list.length, 0);
   idents.init();
-  idents.load();
-  idents.loadDone();
-  flush();
-  assert.ok(!classes.has('on'), 'a load that finished waiting never flashes an ident');
-});
-
-test('a load ident already on screen keeps running when the audio re-arms the wait', () => {
-  const { idents, classes, frame, flush, log, setNow } = loadIdents();
-  idents.init();
+  idents.play();
   idents.load();
   flush();
-  frame(3000);
-  setNow(3000);
-  idents.load();
-  flush();
-  log.length = 0;
-  frame(3016);
-  assert.ok(classes.has('on'), 'the frame never goes blank');
-  assert.ok(log.some((entry) => entry.style === '#ff5a1f'), 'the ident carries on mid-reveal instead of restarting');
+  assert.ok(!classes.has('on'));
 });
 
 function loadApp() {
