@@ -9,7 +9,6 @@ const gallery = (() => {
     bubbles: { filters: [2], cutoff: 140, resonance: 55 },
     bugs3: { filters: [3], cutoff: 70, resonance: 50 },
     delayed_lerp_points2c: { filters: [4], cutoff: 120, resonance: 45 },
-    blocks: { filters: [7], cutoff: 100, resonance: 50 },
     delayed_lerp_points7: { filters: [5], cutoff: 130, resonance: 50 },
     delayed_lerp_points7b: { filters: [5], cutoff: 150, resonance: 60 },
     delayed_lerp_points_1600: { filters: [3], cutoff: 80, resonance: 70 },
