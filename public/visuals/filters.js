@@ -184,6 +184,16 @@ const canvasFilters = (() => {
       float e = clamp(length(vec2(gx, gy)) * (1.0 + uP1 * 3.0), 0.0, 1.0);
       vec3 c = texture2D(uTex, vUv).rgb;
       return vec4(mix(vec3(e), c * e * 1.6 + c * 0.15, uP2), 1.0);` },
+
+    // The picture through a fine dot screen; face_hud.js draws the tracking
+    // overlay (brackets, tag, dot trails) on top. p2 is how much of it.
+    { key: 15, name: 'Face Track', params: [['screen', 0.35], ['hud', 0.8]], hud: true, body: `
+      vec2 px = vUv * uRes;
+      float cell = mix(2.5, 7.0, uP1) * uScale;
+      vec2 f = fract(px / cell) - 0.5;
+      float m = 1.0 - smoothstep(0.3, 0.5, length(f));
+      vec4 c = texture2D(uTex, vUv);
+      return vec4(c.rgb * mix(0.45, 1.2, m), c.a);` },
   ];
   const byKey = new Map(FILTERS.map((f) => [f.key, f]));
 
@@ -422,6 +432,7 @@ const canvasFilters = (() => {
 
   function hide() {
     if (canvas && canvas.style.display !== 'none') canvas.style.display = 'none';
+    if (typeof faceHud !== 'undefined') faceHud.hide();
   }
 
   function render(src) {
@@ -469,6 +480,10 @@ const canvasFilters = (() => {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.activeTexture(gl.TEXTURE0);
     if (canvas.style.display !== 'block') canvas.style.display = 'block';
+    if (typeof faceHud !== 'undefined') {
+      const hud = slots.find((x) => x.on && byKey.get(x.key).hud);
+      faceHud.frame(hud ? src : null, hud ? hud.p[1] * wetNow : 0);
+    }
   }
 
   // The canvas the current artwork draws into, reported by the artwork each
