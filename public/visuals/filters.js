@@ -194,6 +194,15 @@ const canvasFilters = (() => {
       float m = 1.0 - smoothstep(0.3, 0.5, length(f));
       vec4 c = texture2D(uTex, vUv);
       return vec4(c.rgb * mix(0.45, 1.2, m), c.a);` },
+
+    // Thin semi-transparent diagonal lines laid over the picture.
+    { key: 16, name: 'Diagonals', params: [['spacing', 0.3], ['opacity', 0.35]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      vec2 px = vUv * uRes;
+      float s = mix(4.0, 28.0, uP1) * uScale;
+      float d = fract((px.x + px.y) / s);
+      float line = 1.0 - smoothstep(0.0, uScale * 1.2 / s, min(d, 1.0 - d));
+      return vec4(mix(c.rgb, vec3(1.0), line * uP2), c.a);` },
   ];
   const byKey = new Map(FILTERS.map((f) => [f.key, f]));
 
