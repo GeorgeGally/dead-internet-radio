@@ -11,7 +11,7 @@ const visuals = (() => {
 
   let notifEl = null;
 
-  // A label dropped somewhere random, with a line to a point near the
+  // A label dropped somewhere random, with a level line to a point near the
   // middle of the artwork.
   function showNotification(text) {
     if (!notifEl) {
@@ -24,18 +24,15 @@ const visuals = (() => {
     label.textContent = text;
     const W = innerWidth, H = innerHeight;
     const lw = label.offsetWidth, lh = label.offsetHeight;
-    const deck = document.getElementById('deck');
-    const top = (deck ? deck.getBoundingClientRect().bottom : 0) + 24;
-    let lx, ly, tx, ty;
-    for (let i = 0; i < 12; i++) {
-      lx = 24 + Math.random() * Math.max(0, W - lw - 48);
-      ly = top + Math.random() * Math.max(0, H - top - lh - 24);
-      tx = W / 2 + (Math.random() - 0.5) * W * 0.2;
-      ty = H / 2 + (Math.random() - 0.5) * H * 0.2;
-      if (Math.hypot(lx + lw / 2 - tx, ly + lh / 2 - ty) > Math.min(W, H) * 0.25) break;
-    }
-    const ax = Math.min(Math.max(tx, lx), lx + lw);
-    const ay = Math.min(Math.max(ty, ly), ly + lh);
+    const tx = W / 2 + (Math.random() - 0.5) * W * 0.2;
+    const ty = H / 2 + (Math.random() - 0.5) * H * 0.2;
+    const pick = (lo, hi) => lo + Math.random() * Math.max(0, hi - lo);
+    // Label level with the point, out to the left or right.
+    const ly = ty - lh / 2;
+    const left = Math.random() < 0.5;
+    const lx = left ? pick(24, tx - W * 0.15 - lw) : pick(tx + W * 0.15, W - lw - 24);
+    const ax = left ? lx + lw : lx;
+    const ay = ty;
     label.style.left = `${lx}px`;
     label.style.top = `${ly}px`;
     for (const line of notifEl.querySelectorAll('line')) {
