@@ -13,6 +13,50 @@ module ShowImporter
     data['tracks'].is_a?(Array) ? data : nil
   end
 
+  # Imports a rendered show folder as a Show with its Tracks; returns the Show.
+  def import_show(show_dir, gen_job)
+    root = Rails.root.to_s
+    data = scan_show(show_dir, root)
+    raise "No tracks found in #{show_dir}" unless data
+
+    # Track#audio_path resolves output/<directory>/<file>, so store the bare folder name.
+    show = Show.find_or_create_by!(directory: File.basename(show_dir)) do |s|
+      s.slot = gen_job.slot
+    end
+    show.update!(
+      slot: gen_job.slot,
+      name: data['showName'],
+      dj_name: data['djName'],
+      track_count: data['tracks'].length,
+      status: :complete,
+      generated_at: Time.current
+    )
+
+    data['tracks'].each_with_index do |track_data, idx|
+      Track.create!(
+        show: show,
+        position: idx + 1,
+        title: track_data['title'],
+        artist: track_data['artist'],
+        caption: track_data['caption'],
+        bpm: track_data['bpm'],
+        key: track_data['key'],
+        duration_ms: track_data['durationMs'],
+        audio_file: track_data['file'],
+        voiceover_file: track_data['voiceoverFile'],
+        script: track_data['script'],
+        lyrics: track_data['lyrics'],
+        brief: track_data['brief']
+      )
+    end
+
+    import_cues(show, root)
+    import_mix_file(show, root)
+
+    gen_job.update!(show: show)
+    show
+  end
+
   def import_cues(show, root)
     cues_dir = File.join(root, 'mixes')
     return unless Dir.exist?(cues_dir)
