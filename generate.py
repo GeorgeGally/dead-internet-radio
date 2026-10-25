@@ -492,6 +492,43 @@ def generate_announcement(text: str, output_path: Path, intensity: float = 0.5):
         print(f"    TTS skipped (kokoro python not found at {KOKORO_PYTHON})", flush=True)
 
 
+def request_block(request: dict) -> str:
+    """The DJ's brief for a listener request: their title and artist, our sound."""
+    block = (
+        f"\n\nLISTENER REQUEST — this track is \"{request['title']}\" by {request['artist']}. "
+        "Use exactly that title and artist. "
+    )
+    if request.get("seed_caption"):
+        block += (
+            "This artist has played on the station before. Make it sound like them, "
+            f"a new track in the same sound:\n{request['seed_caption']}\n"
+        )
+    else:
+        block += "A new artist: give them a sound of their own from the station's home families. "
+    if request.get("note"):
+        block += f"The listener asked for: {request['note']}. Let that shape the mood. "
+    return block + "The station's genre rules win over anything the listener asked for."
+
+
+def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
+    """The DJ reads a listener request on air. Falls back to a plain read."""
+    who, title, artist = request["requester"], request["title"], request["artist"]
+    plain = f"A request from {who}. \"{title}\" by {artist}. DJ {dj_name}, Dead Internet Radio."
+    note = f" Their note, for your ears only, never quote it: {request['note']}." if request.get("note") else ""
+    text = call_llm(
+        announcer_prompt,
+        f"Slot: {slot}\n\nTYPE: REQUEST\n\nThe DJ name is: {dj_name}. Read a listener request on air before it plays. "
+        f"It is a request from {who}, for \"{title}\" by {artist}.{note} "
+        f"Say \"a request from {who}\", the title and the artist, your DJ name and the station. Then one line of your own "
+        "in the station's voice: philosophical, odd, or the station's weather. Never cheesy, no radio cliches, "
+        "no shout-outs. 20-45 words. Only the spoken text.",
+    ).strip().strip('"').strip("'").strip()
+    low = text.lower()
+    if who.lower() not in low or title.lower() not in low or len(text.split()) > 70:
+        return plain
+    return text
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a song for Dead Internet Radio")
     parser.add_argument("slot", nargs="*", default=["midnight", "slot"],
@@ -510,6 +547,8 @@ def main():
                         help="Shut ACE-Step down once the tracks are rendered")
     parser.add_argument("--resume-dir", type=str, default="",
                         help="Resume from an existing show directory (skips producer, announcer, DJ phases)")
+    parser.add_argument("--request-json", type=str, default="",
+                        help="A listener request (requester, artist, title, note, seed_caption): one track, read on air")
     args = parser.parse_args()
 
     if not OPENROUTER_API_KEY:
@@ -517,6 +556,12 @@ def main():
         sys.exit(1)
 
     slot = " ".join(args.slot)
+
+    # A listener request is a one-track show: the DJ reads the request, then it plays.
+    request = json.loads(Path(args.request_json).read_text()) if args.request_json else None
+    if request:
+        args.tracks = 1
+        args.no_batch = True
 
     # ── Resume check & state loading ───────────────────────────
     track_history = []
@@ -595,7 +640,11 @@ def main():
         print()
 
         print("1. Producer writing show name and program brief...", flush=True)
-        raw = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a program brief for this slot.")
+        producer_input = f"Time slot: {slot}\n\nWrite a program brief for this slot."
+        if request:
+            producer_input = (f"Time slot: {slot}\n\nThis show is one listener request: \"{request['title']}\" "
+                              f"by {request['artist']}.\n\nWrite a program brief for it.")
+        raw = call_llm(producer_prompt, producer_input)
 
         try:
             result = extract_json(raw)
@@ -642,15 +691,20 @@ def main():
             print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
             time.sleep(args.delay)
 
-        dj_announce = call_llm(
-            announcer_prompt,
-            f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
-        ).strip().strip('"').strip("'").strip()
+        if request:
+            dj_announce = request_announcement(announcer_prompt, slot, dj_name, request)
+        else:
+            dj_announce = call_llm(
+                announcer_prompt,
+                f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
+            ).strip().strip('"').strip("'").strip()
         print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
 
+        # A request's read is a DJ voice at 00, so it rides on the track as its voiceover.
+        opening_stem = "00-DJ-voice-request-dead-internet-radio" if request else "00-dead-internet-radio-opening-dead-internet-radio"
         if not args.dry_run:
-            announce_wav = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.wav"
-            announce_mp3 = show_dir / "00-dead-internet-radio-opening-dead-internet-radio.mp3"
+            announce_wav = show_dir / f"{opening_stem}.wav"
+            announce_mp3 = show_dir / f"{opening_stem}.mp3"
             print("   Generating TTS...", flush=True)
             generate_announcement(dj_announce, announce_wav, intensity=0.3)
             if announce_wav.exists() and announce_wav.stat().st_size > 100:
@@ -661,7 +715,7 @@ def main():
                 print(f"   TTS produced empty file, skipping announcement", flush=True)
 
         # Save intro prompt log
-        intro_prompt_file = show_prompts_dir / "00-dead-internet-radio-opening-dead-internet-radio.prompt.json"
+        intro_prompt_file = show_prompts_dir / f"{opening_stem}.prompt.json"
         intro_prompt_data = {
             "track": 0,
             "slot": slot,
@@ -681,7 +735,8 @@ def main():
         print(f"  Announce prompt log → {intro_prompt_file}\n")
 
         ace_healthy = None
-        avoid = avoid_block()
+        # A request names its own artist, often one the station already played.
+        avoid = "" if request else avoid_block()
         if avoid:
             used_artists, used_titles = already_broadcast_names()
             print(f"   Anti-reuse list: {len(used_artists)} artist names, "
@@ -760,12 +815,16 @@ def main():
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
                     f"{avoid}"
                 )
+                if request:
+                    dj_input += request_block(request)
 
                 print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
                 song_json = call_llm(dj_prompt, dj_input)
                 song = extract_json(song_json)
                 if isinstance(song, list):
                     song = song[0]
+                if request:
+                    song["title"], song["artist"] = request["title"], request["artist"]
                 song["_prompt"] = dj_input
                 songs.append(song)
 
