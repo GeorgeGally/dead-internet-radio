@@ -123,8 +123,14 @@
     window.addEventListener('resize', () => { if (current) resize(); });
   }
 
+  // The welcome splash plays its own ident; nothing goes over it.
+  function splashUp() {
+    const el = document.getElementById('welcome-splash');
+    return !!el && el.style.display !== 'none' && !el.classList.contains('fade-out');
+  }
+
   function play(mode) {
-    if (!ctx || !IDENTS.length) return;
+    if (!ctx || !IDENTS.length || splashUp()) return;
     stop();
     kind = mode || '';
     current = IDENTS[nextIndex % IDENTS.length];
@@ -137,7 +143,7 @@
   }
 
   function load() {
-    if (loadTimer || kind === 'load' || !ctx) return;
+    if (loadTimer || kind === 'load' || !ctx || splashUp()) return;
     loadTimer = setTimeout(() => { loadTimer = 0; play('load'); }, 300);
   }
 

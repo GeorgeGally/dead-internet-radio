@@ -197,8 +197,8 @@ function loadApp() {
     return {
       serverTime: now,
       segments: [
-        { startsAt: now - 1000, durationMs: 60000, file: '/media/a.mp3', title: 'A' },
-        { startsAt: now + 59000, durationMs: 60000, file: '/media/b.mp3', title: 'B' },
+        { startsAt: now - 1000, durationMs: 60000, file: '/media/a.mp3', title: 'A', showName: 'Next Show' },
+        { startsAt: now + 59000, durationMs: 60000, file: '/media/b.mp3', title: 'B', showName: 'Next Show' },
       ],
     };
   };
@@ -210,7 +210,7 @@ function loadApp() {
     responses,
     run: (code) => vm.runInContext(code, sandbox),
     settle: async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); },
-    tuneLive: () => vm.runInContext(`playlist = { live: true, tracks: [{ startsAt: 0, durationMs: 1, file: '/media/x.mp3' }] };`, sandbox),
+    tuneLive: (showName = 'This Show') => vm.runInContext(`playlist = { live: true, tracks: [{ startsAt: 0, durationMs: 1, file: '/media/x.mp3', showName: ${JSON.stringify(showName)} }] }; currentTrack = 0;`, sandbox),
   };
 }
 
@@ -270,6 +270,15 @@ test('live: a set that ends on its own gets the between-set ident', async () => 
   assert.equal(app.player.src, '/media/a.mp3', 'tuned to the segment on air');
 });
 
+test('live: the next track of the same show plays without an ident', async () => {
+  const app = loadApp();
+  app.tuneLive('Next Show');
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.ok(!app.calls.includes('play'), app.calls.join(','));
+  assert.equal(app.player.src, '/media/a.mp3');
+});
+
 for (const control of ['nextTrack', 'prevTrack']) {
   test(`live: a manual ${control} resyncs without a between-set ident`, async () => {
     const app = loadApp();
@@ -294,23 +303,30 @@ function tuneArchive(app, trackCount) {
   `);
 }
 
-for (const [label, trackCount, src] of [['playlist', 3, '/media/t1.mp3'], ['single-track show', 1, '/media/n.mp3']]) {
-  test(`archive ${label}: natural end plays the ident, a skip does not`, async () => {
-    const natural = loadApp();
-    tuneArchive(natural, trackCount);
-    natural.run('onTrackEnd()');
-    await natural.settle();
-    assert.equal(natural.calls.at(-1), 'play');
-    assert.equal(natural.player.src, src);
+test('archive: the next track of the same show plays without an ident', async () => {
+  const app = loadApp();
+  tuneArchive(app, 3);
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.ok(!app.calls.includes('play'), app.calls.join(','));
+  assert.equal(app.player.src, '/media/t1.mp3');
+});
 
-    const skipped = loadApp();
-    tuneArchive(skipped, trackCount);
-    skipped.run('nextTrack()');
-    await skipped.settle();
-    assert.ok(!skipped.calls.includes('play'), skipped.calls.join(','));
-    assert.equal(skipped.player.src, src);
-  });
-}
+test('archive: a show that ends on its own plays the ident into the next, a skip does not', async () => {
+  const natural = loadApp();
+  tuneArchive(natural, 1);
+  natural.run('onTrackEnd()');
+  await natural.settle();
+  assert.equal(natural.calls.at(-1), 'play');
+  assert.equal(natural.player.src, '/media/n.mp3');
+
+  const skipped = loadApp();
+  tuneArchive(skipped, 1);
+  skipped.run('nextTrack()');
+  await skipped.settle();
+  assert.ok(!skipped.calls.includes('play'), skipped.calls.join(','));
+  assert.equal(skipped.player.src, '/media/n.mp3');
+});
 
 test('the static build ships ident.js alongside the player', () => {
   const dist = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dir-dist-'));

@@ -208,7 +208,8 @@ function advanceTrack(ident) {
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
-    if (ident) idents.play();
+    // Same show, next track: no ident. Idents mark a change of set
+    // (nextStation / selectShow / goLive when the show changes).
     const audio = document.getElementById('player');
     audio.volume = 1;
     audio.src = playlistBase + playlist.tracks[currentTrack].file;
@@ -707,13 +708,17 @@ async function goLive(fromTrackEnd, ident) {
     return;
   }
   stopVoiceover();
+  const showBefore = playlist && playlist.tracks && playlist.tracks[currentTrack] ? playlist.tracks[currentTrack].showName : null;
   playlist = next;
   playlistBase = '';
   currentShowId = null;
   if (fromTrackEnd) visuals.next();
   visuals.notify('trackChange');
   setupAudio();
-  if (ident) idents.play();
+  // The live timeline resyncs after every segment; the ident only plays when
+  // the segment belongs to a different show.
+  const showNow = playlist.tracks[currentTrack] ? playlist.tracks[currentTrack].showName : null;
+  if (ident && showNow !== showBefore) idents.play();
   updateTrackInfo();
   updatePlayBtn();
 }
