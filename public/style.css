@@ -375,6 +375,95 @@ body.prewarming #block-canvas {
 #btn-play    { --c: #ec6a1f; --txt: #fff; }
 #btn-play.stop { --c: #3b3f44; }
 #btn-gallery { --c: #8d9aa6; --txt: #fff; }
+#btn-request { font-size: 17px; }
+
+/* ---- Request card: a dark card over the artwork, fades like a TV ---- */
+.request-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(320px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  z-index: 9;
+  background: #000;
+  color: #fff;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  padding: 18px 20px 16px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.request-card.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease;
+}
+
+.rq-head {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 14px;
+}
+
+.rq-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rq-input {
+  font: inherit;
+  letter-spacing: inherit;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  padding: 6px 0;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.rq-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.rq-input:focus { border-bottom-color: #fff; }
+
+.rq-send {
+  align-self: flex-end;
+  margin-top: 6px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.rq-send:hover { background: #fff; color: #000; }
+.rq-send:disabled { opacity: 0.35; cursor: default; background: transparent; color: #fff; }
+
+.rq-msg {
+  min-height: 1.4em;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.rq-msg:empty { display: none; }
+
+.rq-count {
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.rq-google { margin-top: 12px; min-height: 32px; }
 
 /* ---- Display controls (knob + gallery) ---- */
 .display-ctrl {
