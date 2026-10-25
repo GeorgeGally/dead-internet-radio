@@ -1,12 +1,11 @@
 'use strict';
 
-// Overlays for the Face Track and Object Track filters: a machine looking at
-// what's on screen. MediaPipe detectors (loaded the first time each filter is
-// switched on) find faces, or everyday objects (the 80 COCO classes: person,
-// car, dog, cup...), in the artwork's canvas. Each gets corner brackets, a tag
+// The tracking layer, always on above every artwork and filter: a machine
+// looking at what's on screen. MediaPipe detectors (loaded with the first
+// frame) find faces and everyday objects (the 80 COCO classes: person, car,
+// dog, cup...) in the artwork's canvas. Each gets corner brackets, a tag
 // like "PAYLOAD 01 · WALKING 0.95" or "OBJECT 03 · CAR 0.91", a distance and
-// pace readout, and orange dot trails. The dot screen is the shader in
-// filters.js.
+// pace readout, and orange dot trails.
 //
 // Models vendored in lib/ (blaze_face_short_range, efficientdet_lite0); WASM
 // from jsdelivr.
@@ -19,12 +18,12 @@ const trackHud = (() => {
     face: {
       task: 'FaceDetector',
       options: { modelAssetPath: 'visuals/lib/face/blaze_face_short_range.tflite', minDetectionConfidence: 0.55 },
-      every: 90,
+      every: 120,
     },
     object: {
       task: 'ObjectDetector',
       options: { modelAssetPath: 'visuals/lib/objects/efficientdet_lite0.tflite', scoreThreshold: 0.45, maxResults: 6 },
-      every: 150,
+      every: 300,
     },
   };
   // Per mode: { detector, loading, failed, lastDetect, items, count }
@@ -100,7 +99,7 @@ const trackHud = (() => {
       let best = null;
       let bestD = Infinity;
       for (const o of m.items) {
-        if (o.name !== f.name) continue;
+        if (o.name !== f.name || next.includes(o)) continue;
         const d = Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy);
         if (d < bestD && d < Math.max(f.w, o.w)) { best = o; bestD = d; }
       }
@@ -110,11 +109,11 @@ const trackHud = (() => {
         best.kp = f.kp.map((p, i) => (best.kp[i] ? [best.kp[i][0] + (p[0] - best.kp[i][0]) * k, best.kp[i][1] + (p[1] - best.kp[i][1]) * k] : p));
         // Speed in face-widths per second, eased, for the state and pace.
         const dt = Math.max(1, now - best.seen) / 1000;
-        const v = bestD / Math.max(1, f.w) / dt;
+        const v = Math.min(3, bestD / Math.max(1, f.w) / dt);
         best.speed = (best.speed || 0) * 0.8 + v * 0.2;
         best.travel = (best.travel || 0) + bestD / Math.max(1, f.w) * 0.18;
         best.seen = now;
-        if (!next.includes(best)) next.push(best);
+        next.push(best);
       } else {
         m.count = (m.count % 99) + 1;
         const word = mode === 'face' ? ['MODEL', 'PAYLOAD', 'SUBJECT'][m.count % 3] : 'OBJECT';
@@ -244,23 +243,29 @@ const trackHud = (() => {
     }
   }
 
-  // Called by the FX unit every rendered frame with the source canvas and,
-  // per mode that is on ('face', 'object'), how much HUD (the filter's
-  // second knob). An empty map clears.
-  function frame(src, amount) {
-    const modes = Object.keys(amount || {});
-    if (src == null || !modes.length) { hide(); return; }
-    ensureCanvas();
+  // How much of the HUD shows: brackets, tag, readout, dot trail; the line to
+  // the screen edge (above 0.75) is left out.
+  const AMOUNT = { face: 0.7, object: 0.7 };
+  let lastFrame = 0;
+
+  // Called by canvasFilters.source() with each frame an artwork draws.
+  function frame(src) {
     const now = performance.now();
+    if (!src || now - lastFrame < 8) return; // once per animation frame
+    lastFrame = now;
+    ensureCanvas();
     for (const mode of Object.keys(MODES)) {
       if (!state[mode]) state[mode] = { detector: null, loading: false, failed: false, lastDetect: 0, items: [], count: 0 };
-      if (!modes.includes(mode)) { state[mode].items = []; continue; }
       if (!state[mode].detector) load(mode);
       track(mode, src, now);
     }
     canvas.style.display = 'block';
-    draw(now, amount);
+    draw(now, AMOUNT);
   }
+
+  // No frames for a moment (ident, splash, artwork switching): clear the
+  // boxes rather than leave them frozen on screen.
+  setInterval(() => { if (canvas && performance.now() - lastFrame > 500) hide(); }, 500);
 
   function hide() {
     if (canvas && canvas.style.display !== 'none') {

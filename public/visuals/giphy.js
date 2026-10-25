@@ -417,10 +417,9 @@ visuals.register('giphy', (() => {
     const h = overlayCanvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // The GIF is an <img> under this transparent canvas, so filters would only
-    // touch the text. While a filter is on, paint the GIF in first so the CPU
-    // filters (and the GPU pixelate, which samples this canvas) hit it too.
-    if (canvasFilters.getActiveKeys().size) drawGifFrame(ctx, w, h);
+    // The GIF is an <img> under this transparent canvas; paint it in first so
+    // the filters and the tracking layer, which sample this canvas, see it.
+    drawGifFrame(ctx, w, h);
 
     drawTextOverlay(ctx, w, h);
 
