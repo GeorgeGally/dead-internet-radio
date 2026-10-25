@@ -568,9 +568,20 @@ const gallery = (() => {
         nextSlot(e.key === 'ArrowUp' ? 1 : -1);
         return;
       }
-      if ((e.key === 'g' || e.key === '/') && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.target.closest('input,textarea')) {
         e.preventDefault();
         toggle();
+        return;
+      }
+      // A-Z play the artworks in drawer order, Shift+A on for the ones past
+      // Z. Stopped here so the old letter keys (v, d, x, b) don't fire too.
+      if (/^[a-z]$/i.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey
+        && !e.target.closest('input,textarea,select,[contenteditable]')) {
+        const i = e.key.toLowerCase().charCodeAt(0) - 97 + (e.shiftKey ? 26 : 0);
+        const item = visuals.getList()[i];
+        e.preventDefault();
+        e.stopPropagation();
+        if (item) visuals.activate(item.id);
       }
     });
   }

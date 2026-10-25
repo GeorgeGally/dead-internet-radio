@@ -392,6 +392,7 @@ function updatePlayBtn() {
   if (btn) {
     btn.textContent = playing ? '\u25a0' : '\u25b6';
     btn.title = playing ? 'Stop' : 'Play';
+    btn.classList.toggle('stop', !!playing);
   }
 }
 

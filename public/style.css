@@ -373,6 +373,7 @@ body.prewarming #block-canvas {
 
 /* Light-grey buttons with a single orange accent (Rams) */
 #btn-play    { --c: #ec6a1f; --txt: #fff; }
+#btn-play.stop { --c: #3b3f44; }
 #btn-gallery { --c: #8d9aa6; --txt: #fff; }
 
 /* ---- Display controls (knob + gallery) ---- */
