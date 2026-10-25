@@ -1120,7 +1120,6 @@ body.prewarming #block-canvas {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.8s ease, visibility 0s 0.8s;
 }
 
 /* Over the artwork: white inverted against whatever is underneath (black on
@@ -1134,22 +1133,16 @@ body.prewarming #block-canvas {
   color: rgba(57, 255, 106, 0.55);
 }
 
+/* Flashes: on and off with no fade, like a signal cutting in. */
 #listener-report.lr-on {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.8s ease, visibility 0s 0s;
 }
 
 #listener-report .lr-row {
   display: flex;
   justify-content: space-between;
   white-space: nowrap;
-  opacity: 0;
-}
-
-#listener-report.lr-on .lr-row {
-  animation: lr-in 0.5s ease forwards;
-  animation-delay: calc(0.6s + var(--i) * 0.18s);
 }
 
 #listener-report .lr-label {
@@ -1157,9 +1150,6 @@ body.prewarming #block-canvas {
   padding-right: 18%;
 }
 
-@keyframes lr-in {
-  to { opacity: 1; }
-}
 
 /* ---- Narrow screens: the menubar gives up the spectrum first, then the
    artwork/show lines, then shrinks its knobs and buttons ---- */

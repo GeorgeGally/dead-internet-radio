@@ -9,7 +9,7 @@
 //
 // window.showListenerReport() shows it at once; ?listener in the URL does too.
 const listenerReport = (() => {
-  const SHOW_MS = 12000;
+  const SHOW_MS = 3000;
   const STORE = 'dir-listener';
 
   function load() {
@@ -180,19 +180,30 @@ const listenerReport = (() => {
     }).join('');
   }
 
+  // A flash: it flickers on like a bad signal, holds a moment, flickers off.
+  function flicker(on, done) {
+    const steps = 2 + Math.floor(Math.random() * 3);
+    let i = 0;
+    const tick = () => {
+      el.classList.toggle('lr-on', i % 2 === (on ? 0 : 1));
+      i += 1;
+      if (i < steps * 2) setTimeout(tick, 40 + Math.random() * 110);
+      else { el.classList.toggle('lr-on', on); if (done) done(); }
+    };
+    tick();
+  }
+
   function show() {
     render();
     el.classList.remove('lr-on');
     // White inverted over the artwork, or phosphor green.
     el.classList.toggle('lr-green', Math.random() < 0.4);
     el.classList.toggle('lr-mono', !el.classList.contains('lr-green'));
-    void el.offsetWidth;
-    el.classList.add('lr-on');
     clearTimeout(el._hide);
-    el._hide = setTimeout(() => el.classList.remove('lr-on'), SHOW_MS);
+    flicker(true, () => { el._hide = setTimeout(() => flicker(false), SHOW_MS); });
   }
 
-  // Random, roughly every five minutes (3-7), never while the deck is open.
+  // Flashes up at random, every 2-5 minutes, never while the deck is open.
   function schedule() {
     clearTimeout(timer);
     timer = setTimeout(() => {
@@ -201,7 +212,7 @@ const listenerReport = (() => {
       const busy = (deck && deck.classList.contains('ejected')) || (splash && splash.style.display !== 'none' && splash.offsetParent);
       if (!busy) show();
       schedule();
-    }, (3 + Math.random() * 4) * 60000);
+    }, (2 + Math.random() * 3) * 60000);
   }
 
   schedule();
