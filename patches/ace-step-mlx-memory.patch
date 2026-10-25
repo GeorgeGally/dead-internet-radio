@@ -1,0 +1,72 @@
+diff --git a/acestep/core/generation/handler/init_service_setup.py b/acestep/core/generation/handler/init_service_setup.py
+index c7e7932..e6c6ee3 100644
+--- a/acestep/core/generation/handler/init_service_setup.py
++++ b/acestep/core/generation/handler/init_service_setup.py
+@@ -111,6 +111,51 @@ class InitServiceSetupMixin:
+                 "with this PyTorch build. Please install a compatible torchao version."
+             ) from exc
+ 
++    def _limit_mlx_cache(self) -> None:
++        """Cap MLX's buffer cache (ACESTEP_MLX_CACHE_LIMIT_GB) so memory freed
++        between the LM, diffusion and decode goes back to the system instead of
++        sitting in MLX's cache. Unset leaves MLX's default."""
++        import os
++
++        gb = os.environ.get("ACESTEP_MLX_CACHE_LIMIT_GB")
++        if not gb:
++            return
++        try:
++            import mlx.core as mx
++
++            mx.set_cache_limit(int(float(gb) * 1024**3))
++            logger.info(f"[MLX] Buffer cache limited to {gb} GB.")
++        except Exception as exc:  # noqa: BLE001
++            logger.warning(f"[MLX] Could not limit the buffer cache: {exc}")
++
++    def _drop_torch_dit_layers(self) -> None:
++        """Free the PyTorch DiT decoder's transformer layers once MLX has a copy.
++
++        Diffusion then runs only on the MLX decoder, so the 1.5B-parameter
++        PyTorch layers just hold memory (~3.5 GB on MPS). Lyric timestamps and
++        lyric scoring need them and stop working. Opt in with
++        ACESTEP_DROP_TORCH_DIT=1.
++        """
++        import os
++
++        if os.environ.get("ACESTEP_DROP_TORCH_DIT", "0").lower() not in ("1", "true", "yes"):
++            return
++        try:
++            import gc
++
++            import torch
++
++            decoder = getattr(self.model, "decoder", None)
++            if decoder is None or not hasattr(decoder, "layers"):
++                return
++            decoder.layers = torch.nn.ModuleList()
++            gc.collect()
++            if torch.backends.mps.is_available():
++                torch.mps.empty_cache()
++            logger.info("[MLX-DiT] Dropped PyTorch DiT decoder layers (ACESTEP_DROP_TORCH_DIT=1).")
++        except Exception as exc:  # noqa: BLE001
++            logger.warning(f"[MLX-DiT] Could not drop PyTorch DiT layers: {exc}")
++
+     def _initialize_mlx_backends(
+         self,
+         *,
+@@ -120,6 +165,7 @@ class InitServiceSetupMixin:
+     ) -> Tuple[str, str]:
+         """Initialize MLX DiT/VAE integrations and return status labels."""
+         mlx_dit_status = "Disabled"
++        self._limit_mlx_cache()
+         if use_mlx_dit and device in ("mps", "cpu"):
+             mlx_ok = self._init_mlx_dit(compile_model=mlx_compile_requested)
+             if mlx_ok:
+@@ -128,6 +174,7 @@ class InitServiceSetupMixin:
+                     if mlx_compile_requested
+                     else "Active (native MLX)"
+                 )
++                self._drop_torch_dit_layers()
+             else:
+                 mlx_dit_status = "Unavailable (PyTorch fallback)"
+         elif not use_mlx_dit:

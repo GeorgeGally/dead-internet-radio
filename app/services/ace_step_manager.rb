@@ -124,10 +124,12 @@ class AceStepManager
         'ACESTEP_LM_MODEL_PATH' => ENV.fetch('ACESTEP_LM_MODEL_PATH', 'acestep-5Hz-lm-4B'),
         # Same as start-ace-step.sh: 4B LM plans songs, smallest decode chunks.
         'ACESTEP_INIT_LLM' => ENV.fetch('ACESTEP_INIT_LLM', 'true'),
-        'ACESTEP_MLX_VAE_CHUNK' => ENV.fetch('ACESTEP_MLX_VAE_CHUNK', '192'),
+        'ACESTEP_MLX_VAE_CHUNK' => ENV.fetch('ACESTEP_MLX_VAE_CHUNK', '96'),
         'ACESTEP_VAE_DECODE_CHUNK_SIZE' => ENV.fetch('ACESTEP_VAE_DECODE_CHUNK_SIZE', '256'),
         'ACESTEP_MPS_DECODE_OFFLOAD' => ENV.fetch('ACESTEP_MPS_DECODE_OFFLOAD', '1'),
         'ACESTEP_MPS_HALF' => ENV.fetch('ACESTEP_MPS_HALF', '1'),
+        'ACESTEP_DROP_TORCH_DIT' => ENV.fetch('ACESTEP_DROP_TORCH_DIT', '1'),
+        'ACESTEP_MLX_CACHE_LIMIT_GB' => ENV.fetch('ACESTEP_MLX_CACHE_LIMIT_GB', '1'),
         'ACESTEP_MLX_VAE_FP16' => ENV.fetch('ACESTEP_MLX_VAE_FP16', '1'),
       }
       pid = Process.spawn(

@@ -39,8 +39,33 @@ watchdog. If `ACE-Step-1.5/` is re-cloned, re-apply:
 
     cd ACE-Step-1.5 && git apply ../patches/ace-step-mps-half.patch
 
-Still tight (system free memory bottomed at 12% with Chrome open). Next cut:
-drop the PyTorch DiT decoder once the MLX copy exists.
+Still tight (system free memory bottomed at 12% with Chrome open).
+
+### 2026-10-25: 29 GB -> 22 GB with the 4B LM on
+
+With the 4B LM switched back on for quality the peak was 29 GB on a Mac with
+28 GB usable, so every track swapped. Traced every 2 s through one 150 s track:
+
+| Phase | Before | After |
+|---|---|---|
+| PyTorch DiT + text encoder + VAE loaded | 15 GB | 13 GB |
+| + MLX DiT copy, + 4B LM | 21 GB | 19 GB |
+| Diffusion | 23 GB | 21 GB |
+| VAE decode (peak) | 27-29 GB | 21 GB |
+
+`patches/ace-step-mlx-memory.patch` adds two switches, on in
+`start-ace-step.sh` and `AceStepManager`:
+
+- `ACESTEP_DROP_TORCH_DIT=1`: once the MLX DiT exists, the PyTorch decoder's
+  1.5B transformer parameters are never used (diffusion runs on MLX), so they
+  are freed. Lyric timestamps and lyric scoring need them; we use neither.
+- `ACESTEP_MLX_CACHE_LIMIT_GB=1`: MLX keeps freed buffers in its own cache;
+  capped, memory freed between LM, diffusion and decode goes back to the
+  system. This removed the decode spike.
+
+Plus `ACESTEP_MLX_VAE_CHUNK=96` (was 192). Decode time unchanged (13.3 s vs
+14.7 s). Weights and precision are unchanged, so the sound is too. What's
+left is mostly the 4B LM (~8 GB); the 1.7B saves ~4.5 GB but sounded worse.
 
 ## 2. Saving: Homebrew upgraded x265 under FFmpeg 8
 
