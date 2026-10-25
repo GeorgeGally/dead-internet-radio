@@ -2,7 +2,8 @@
 
 // After Modem Symphony No. 1 (radarboy3000, 2023-24): a cursor types the
 // screen full of 24px cells, the waveform picking each one: pixel-font
-// text, stripes, checks, solid. Bands of the page swap places now and then.
+// text, stripes, checks, solid, edge to edge. Bands of the page swap places
+// now and then.
 visuals.register('modem_symphony', (() => {
   let myP5 = null;
 
@@ -50,23 +51,23 @@ visuals.register('modem_symphony', (() => {
       }
 
       function home() {
-        x = SZ;
-        y = SZ;
+        x = 0;
+        y = 0;
       }
 
-      // The typed area: whole cells inside a frame at least one cell wide.
-      const cols = () => Math.floor((p.width - SZ * 2) / SZ);
-      const rows = () => Math.floor((p.height - SZ * 2) / SZ);
+      // The typed area: the whole screen, edge cells running off it.
+      const cols = () => Math.ceil(p.width / SZ);
+      const rows = () => Math.ceil(p.height / SZ);
 
       function advance() {
-        const maxX = SZ * cols();
-        const maxY = SZ * rows();
+        const maxX = SZ * (cols() - 1);
+        const maxY = SZ * (rows() - 1);
         if (flow) {
           x += SZ;
-          if (x > maxX) { x = SZ; y += SZ; if (y > maxY) y = SZ; }
+          if (x > maxX) { x = 0; y += SZ; if (y > maxY) y = 0; }
         } else {
           y += SZ;
-          if (y > maxY) { y = SZ; x += SZ; if (x > maxX) x = SZ; }
+          if (y > maxY) { y = 0; x += SZ; if (x > maxX) x = 0; }
         }
       }
 
@@ -155,42 +156,31 @@ visuals.register('modem_symphony', (() => {
         if (Math.random() < 0.0008) flow = 1 - flow;
         if (!flow && Math.random() < 0.004) flow = 1;
 
-        p.background(255);
         p.image(page, 0, 0);
 
         // Every few seconds two bands of the page trade places.
-        const bh = Math.floor((rows() * SZ) / BANDS);
+        const bh = Math.ceil(p.height / BANDS);
         const now = p.millis();
         if (!swap && now - lastSwap > 1800 + Math.random() * 4000) {
           const a = Math.floor(Math.random() * BANDS);
           let b = Math.floor(Math.random() * BANDS);
           if (b === a) b = (a + 1) % BANDS;
-          swap = { a, b, t0: now, imgA: page.get(SZ, SZ + a * bh, cols() * SZ, bh), imgB: page.get(SZ, SZ + b * bh, cols() * SZ, bh) };
+          swap = { a, b, t0: now, imgA: page.get(0, a * bh, p.width, bh), imgB: page.get(0, b * bh, p.width, bh) };
         }
         if (swap) {
           const t = Math.min(1, (now - swap.t0) / 1200);
           const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-          const ya = SZ + swap.a * bh;
-          const yb = SZ + swap.b * bh;
-          p.image(swap.imgA, SZ, p.lerp(ya, yb, e));
-          p.image(swap.imgB, SZ, p.lerp(yb, ya, e));
+          const ya = swap.a * bh;
+          const yb = swap.b * bh;
+          p.image(swap.imgA, 0, p.lerp(ya, yb, e));
+          p.image(swap.imgB, 0, p.lerp(yb, ya, e));
           if (t >= 1) {
-            page.image(swap.imgA, SZ, yb);
-            page.image(swap.imgB, SZ, ya);
+            page.image(swap.imgA, 0, yb);
+            page.image(swap.imgB, 0, ya);
             swap = null;
             lastSwap = now;
           }
         }
-
-        // White frame round the page.
-        p.noStroke();
-        p.fill(255);
-        const right = SZ + cols() * SZ;
-        const bottom = SZ + rows() * SZ;
-        p.rect(0, 0, p.width, SZ);
-        p.rect(0, 0, SZ, p.height);
-        p.rect(right, 0, p.width - right, p.height);
-        p.rect(0, bottom, p.width, p.height - bottom);
 
         canvasFilters.applyToP5(p);
       };
