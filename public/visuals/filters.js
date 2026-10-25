@@ -138,17 +138,21 @@ const canvasFilters = (() => {
       vec3 paperC = green ? vec3(0.30, 1.0, 0.53) : vec3(0.914, 0.902, 0.875);
       return vec4(ink ? inkC : paperC, 1.0);` },
 
+    // Bursts of torn horizontal slices: a few frames of damage, then clean
+    // picture. Amount sets how often (bass hits add bursts), blocks how thick
+    // the slices are. The split colour lives only inside a torn slice.
     { key: 11, name: 'Glitch', params: [['amount', 0.4], ['blocks', 0.4]], body: `
-      float bs = mix(8.0, 90.0, uP2) * uScale;
-      vec2 blk = floor(vUv * uRes / vec2(bs * 3.0, bs));
-      float tick = floor(uTime * 12.0);
-      float h = hash(blk + tick);
-      float on = step(1.0 - uP1 * (0.35 + uLevel * 0.5), h);
-      vec2 uv = vUv + vec2((hash(blk * 1.7 + tick) - 0.5) * 0.15 * on, 0.0);
-      float split = on * uP1 * 10.0 * uScale / uRes.x;
-      vec3 c = vec3(texture2D(uTex, uv + vec2(split, 0.0)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(split, 0.0)).b);
-      if (on > 0.5 && hash(blk + tick + 9.0) > 0.85) c = 1.0 - c;
-      return vec4(c, 1.0);` },
+      float tick = floor(uTime * 14.0);
+      float burst = step(1.0 - (uP1 * 0.45 + uLevel * uP1 * 0.6), hash(vec2(tick, 7.3)));
+      float sliceH = mix(4.0, 70.0, uP2) * uScale;
+      float row = floor(vUv.y * uRes.y / sliceH);
+      float torn = burst * step(0.62, hash(vec2(row, tick)));
+      float shift = (hash(vec2(row * 1.3, tick + 2.0)) - 0.5) * 0.12 * torn;
+      vec2 uv = vec2(fract(vUv.x + shift), vUv.y);
+      float split = torn * (4.0 + uP1 * 10.0) * uScale / uRes.x;
+      vec4 c = texture2D(uTex, uv);
+      vec3 col = vec3(texture2D(uTex, uv + vec2(split, 0.0)).r, c.g, texture2D(uTex, uv - vec2(split, 0.0)).b);
+      return vec4(col, c.a);` },
 
     { key: 12, name: 'Black & White', params: [['contrast', 0.3], ['grain', 0.15]], body: `
       vec4 c = texture2D(uTex, vUv);
