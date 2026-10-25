@@ -32,6 +32,14 @@ const canvasFilters = (() => {
     float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
   `;
 
+  const DOT_SCREEN = `
+      vec2 px = vUv * uRes;
+      float cell = mix(2.5, 7.0, uP1) * uScale;
+      vec2 f = fract(px / cell) - 0.5;
+      float m = 1.0 - smoothstep(0.3, 0.5, length(f));
+      vec4 c = texture2D(uTex, vUv);
+      return vec4(c.rgb * mix(0.45, 1.2, m), c.a);`;
+
   // key: the old number-key binding, kept so saved slots and keys still work.
   const FILTERS = [
     { key: 1, name: 'Scanlines', params: [['spacing', 0.35], ['depth', 0.6]], body: `
@@ -189,15 +197,11 @@ const canvasFilters = (() => {
       vec3 c = texture2D(uTex, vUv).rgb;
       return vec4(mix(vec3(e), c * e * 1.6 + c * 0.15, uP2), 1.0);` },
 
-    // The picture through a fine dot screen; face_hud.js draws the tracking
+    // The picture through a fine dot screen; track_hud.js draws the tracking
     // overlay (brackets, tag, dot trails) on top. p2 is how much of it.
-    { key: 15, name: 'Face Track', params: [['screen', 0.35], ['hud', 0.8]], hud: true, body: `
-      vec2 px = vUv * uRes;
-      float cell = mix(2.5, 7.0, uP1) * uScale;
-      vec2 f = fract(px / cell) - 0.5;
-      float m = 1.0 - smoothstep(0.3, 0.5, length(f));
-      vec4 c = texture2D(uTex, vUv);
-      return vec4(c.rgb * mix(0.45, 1.2, m), c.a);` },
+    { key: 15, name: 'Face Track', params: [['screen', 0.35], ['hud', 0.8]], hud: 'face', body: DOT_SCREEN },
+    // The same, for everyday objects: people, cars, dogs, cups, phones.
+    { key: 17, name: 'Object Track', params: [['screen', 0.35], ['hud', 0.8]], hud: 'object', body: DOT_SCREEN },
 
     // Thin semi-transparent diagonal lines laid over the picture.
     { key: 16, name: 'Diagonals', params: [['spacing', 0.3], ['opacity', 0.35]], body: `
@@ -454,7 +458,7 @@ const canvasFilters = (() => {
 
   function hide() {
     if (canvas && canvas.style.display !== 'none') canvas.style.display = 'none';
-    if (typeof faceHud !== 'undefined') faceHud.hide();
+    if (typeof trackHud !== 'undefined') trackHud.hide();
   }
 
   function render(src) {
@@ -502,9 +506,10 @@ const canvasFilters = (() => {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.activeTexture(gl.TEXTURE0);
     if (canvas.style.display !== 'block') canvas.style.display = 'block';
-    if (typeof faceHud !== 'undefined') {
-      const hud = slots.find((x) => x.on && byKey.get(x.key).hud);
-      faceHud.frame(hud ? src : null, hud ? hud.p[1] * wetNow : 0);
+    if (typeof trackHud !== 'undefined') {
+      const hud = {};
+      slots.forEach((x) => { if (x.on && byKey.get(x.key).hud) hud[byKey.get(x.key).hud] = x.p[1] * wetNow; });
+      trackHud.frame(src, hud);
     }
   }
 

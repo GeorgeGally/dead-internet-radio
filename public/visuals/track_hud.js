@@ -1,43 +1,61 @@
 'use strict';
 
-// The Face Track filter's overlay: a machine looking at whoever is on screen.
-// MediaPipe's face detector (loaded only when the filter is first switched on)
-// finds faces in the artwork's canvas; each gets corner brackets,  running from
-// the ears along the jaw. The dot screen itself is the shader in filters.js.
+// Overlays for the Face Track and Object Track filters: a machine looking at
+// what's on screen. MediaPipe detectors (loaded the first time each filter is
+// switched on) find faces, or everyday objects (the 80 COCO classes: person,
+// car, dog, cup...), in the artwork's canvas. Each gets corner brackets, a tag
+// like "PAYLOAD 01 · WALKING 0.95" or "OBJECT 03 · CAR 0.91", a distance and
+// pace readout, and orange dot trails. The dot screen is the shader in
+// filters.js.
 //
-// Model: blaze_face_short_range (vendored in lib/face/), WASM from jsdelivr.
-const faceHud = (() => {
+// Models vendored in lib/ (blaze_face_short_range, efficientdet_lite0); WASM
+// from jsdelivr.
+const trackHud = (() => {
   const LIB = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
-  const MODEL = 'visuals/lib/face/blaze_face_short_range.tflite';
   const ORANGE = '#ff5a1f';
   const MONO = '"IBM Plex Mono", "Courier New", monospace';
 
-  let detector = null;
-  let loading = false;
-  let failed = false;
+  const MODES = {
+    face: {
+      task: 'FaceDetector',
+      options: { modelAssetPath: 'visuals/lib/face/blaze_face_short_range.tflite', minDetectionConfidence: 0.55 },
+      every: 90,
+    },
+    object: {
+      task: 'ObjectDetector',
+      options: { modelAssetPath: 'visuals/lib/objects/efficientdet_lite0.tflite', scoreThreshold: 0.45, maxResults: 6 },
+      every: 150,
+    },
+  };
+  // Per mode: { detector, loading, failed, lastDetect, items, count }
+  const state = {};
+  let vision = null;
+  let files = null;
   let canvas = null;
   let ctx = null;
-  let lastDetect = 0;
-  let faces = [];          // smoothed: { x, y, w, h, score, kp: [[x,y]...], look, seen }
-  let looks = 0;
 
-  async function load() {
-    if (detector || loading || failed) return;
-    loading = true;
+  async function load(mode) {
+    const m = state[mode];
+    if (m.detector || m.loading || m.failed) return;
+    m.loading = true;
     try {
-      const vision = await import(`${LIB}/vision_bundle.mjs`);
-      const files = await vision.FilesetResolver.forVisionTasks(`${LIB}/wasm`);
-      const make = (delegate) => vision.FaceDetector.createFromOptions(files, {
-        baseOptions: { modelAssetPath: MODEL, delegate },
+      if (!vision) {
+        vision = await import(`${LIB}/vision_bundle.mjs`);
+        files = await vision.FilesetResolver.forVisionTasks(`${LIB}/wasm`);
+      }
+      const { task, options } = MODES[mode];
+      const { modelAssetPath, ...rest } = options;
+      const make = (delegate) => vision[task].createFromOptions(files, {
+        baseOptions: { modelAssetPath, delegate },
         runningMode: 'VIDEO',
-        minDetectionConfidence: 0.55,
+        ...rest,
       });
-      detector = await make('GPU').catch(() => make('CPU'));
+      m.detector = await make('GPU').catch(() => make('CPU'));
     } catch (e) {
-      failed = true;
-      console.warn('face track: detector failed to load', e);
+      m.failed = true;
+      console.warn(`${mode} track: detector failed to load`, e);
     }
-    loading = false;
+    m.loading = false;
   }
 
   function ensureCanvas() {
@@ -56,13 +74,14 @@ const faceHud = (() => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  // New detections in screen pixels, eased into the tracked faces so the
+  // New detections in screen pixels, eased into the tracked ones so the
   // brackets glide instead of jumping.
-  function track(src, now) {
-    if (!detector || now - lastDetect < 90) return;
-    lastDetect = now;
+  function track(mode, src, now) {
+    const m = state[mode];
+    if (!m.detector || now - m.lastDetect < MODES[mode].every) return;
+    m.lastDetect = now;
     let res;
-    try { res = detector.detectForVideo(src, now); } catch (e) { return; }
+    try { res = m.detector.detectForVideo(src, now); } catch (e) { return; }
     const sx = innerWidth / src.width;
     const sy = innerHeight / src.height;
     const found = (res.detections || []).map((d) => {
@@ -70,6 +89,7 @@ const faceHud = (() => {
       return {
         x: b.originX * sx, y: b.originY * sy, w: b.width * sx, h: b.height * sy,
         score: d.categories && d.categories[0] ? d.categories[0].score : 0,
+        name: d.categories && d.categories[0] ? (d.categories[0].categoryName || '').toUpperCase() : '',
         kp: (d.keypoints || []).map((k) => [k.x * innerWidth, k.y * innerHeight]),
       };
     });
@@ -79,7 +99,8 @@ const faceHud = (() => {
       const cy = f.y + f.h / 2;
       let best = null;
       let bestD = Infinity;
-      for (const o of faces) {
+      for (const o of m.items) {
+        if (o.name !== f.name) continue;
         const d = Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy);
         if (d < bestD && d < Math.max(f.w, o.w)) { best = o; bestD = d; }
       }
@@ -93,16 +114,16 @@ const faceHud = (() => {
         best.speed = (best.speed || 0) * 0.8 + v * 0.2;
         best.travel = (best.travel || 0) + bestD / Math.max(1, f.w) * 0.18;
         best.seen = now;
-        next.push(best);
+        if (!next.includes(best)) next.push(best);
       } else {
-        looks = (looks % 99) + 1;
-        const word = ['MODEL', 'PAYLOAD', 'SUBJECT'][looks % 3];
-        next.push({ ...f, look: looks, word, dark: looks % 2 === 0, born: now, seen: now, speed: 0, travel: 0 });
+        m.count = (m.count % 99) + 1;
+        const word = mode === 'face' ? ['MODEL', 'PAYLOAD', 'SUBJECT'][m.count % 3] : 'OBJECT';
+        next.push({ ...f, look: m.count, word, dark: m.count % 2 === 0, born: now, seen: now, speed: 0, travel: 0 });
       }
     }
-    // Keep a lost face a moment, so a missed frame doesn't blink the box.
-    for (const o of faces) if (!next.includes(o) && now - o.seen < 400) next.push(o);
-    faces = next;
+    // Keep a lost one a moment, so a missed frame doesn't blink the box.
+    for (const o of m.items) if (!next.includes(o) && now - o.seen < 400) next.push(o);
+    m.items = next;
   }
 
   function brackets(x, y, w, h) {
@@ -159,8 +180,17 @@ const faceHud = (() => {
     return pts;
   }
 
+  // An object's trail drops from the middle of its base towards the floor.
+  function drop(f) {
+    const pts = [];
+    const step = Math.max(14, f.w * 0.06);
+    const x = f.x + f.w / 2;
+    for (let y = f.y + f.h + step, i = 0; y < innerHeight + step && i < 40; y += step, i++) pts.push([x, y]);
+    return pts;
+  }
+
   // What the face is doing, from how fast its box moves.
-  function state(f) {
+  function activity(f) {
     const v = f.speed || 0;
     if (v > 0.9) return 'WALKING';
     if (v > 0.35) return 'LOOK';
@@ -168,12 +198,13 @@ const faceHud = (() => {
     return 'STILL';
   }
 
-  // "MODEL 01 · LOOK 0.96" on a light or dark tag above the box.
+  // "MODEL 01 · LOOK 0.96" or "OBJECT 03 · CAR 0.91" on a light or dark tag.
   function label(f) {
     const fs = Math.max(10, Math.min(14, f.w * 0.045));
     ctx.font = `500 ${fs}px ${MONO}`;
     ctx.textBaseline = 'middle';
-    const text = `${f.word} ${String(f.look).padStart(2, '0')} \u00b7 ${state(f)} ${f.score.toFixed(2)}`;
+    const what = f.name ? (activity(f) === 'STILL' ? f.name : `${f.name} ${activity(f)}`) : activity(f);
+    const text = `${f.word} ${String(f.look).padStart(2, '0')} \u00b7 ${what} ${f.score.toFixed(2)}`;
     const tw = ctx.measureText(text).width;
     const pad = fs * 0.5;
     const y = f.y - fs * 1.4;
@@ -199,25 +230,34 @@ const faceHud = (() => {
     ctx.clearRect(0, 0, innerWidth, innerHeight);
     ctx.strokeStyle = 'rgba(245, 243, 238, 0.9)';
     ctx.lineWidth = 1.5;
-    for (const f of faces) {
-      // A touch larger than the detector's box, as on a camera's finder.
-      const g = { ...f, x: f.x - f.w * 0.12, y: f.y - f.h * 0.18, w: f.w * 1.24, h: f.h * 1.3 };
-      brackets(g.x, g.y, g.w, g.h);
-      if (amount > 0.2) label(g);
-      if (amount > 0.4) readout(g);
-      if (amount > 0.55) trail(jaw(f), now, f.born);
-      if (amount > 0.75) trail(sideline(f), now, f.born + 300);
+    for (const mode of Object.keys(amount)) {
+      const a = amount[mode];
+      for (const f of state[mode].items) {
+        // Faces get a finder a touch larger than the detector's box.
+        const g = mode === 'face' ? { ...f, x: f.x - f.w * 0.12, y: f.y - f.h * 0.18, w: f.w * 1.24, h: f.h * 1.3 } : f;
+        brackets(g.x, g.y, g.w, g.h);
+        if (a > 0.2) label(g);
+        if (a > 0.4) readout(g);
+        if (a > 0.55) trail(mode === 'face' ? jaw(f) : drop(f), now, f.born);
+        if (a > 0.75) trail(sideline(f), now, f.born + 300);
+      }
     }
   }
 
-  // Called by the FX unit every rendered frame: the source canvas and the
-  // filter's second parameter (how much HUD), or null to clear.
+  // Called by the FX unit every rendered frame with the source canvas and,
+  // per mode that is on ('face', 'object'), how much HUD (the filter's
+  // second knob). An empty map clears.
   function frame(src, amount) {
-    if (src == null) { hide(); return; }
+    const modes = Object.keys(amount || {});
+    if (src == null || !modes.length) { hide(); return; }
     ensureCanvas();
-    if (!detector) load();
     const now = performance.now();
-    track(src, now);
+    for (const mode of Object.keys(MODES)) {
+      if (!state[mode]) state[mode] = { detector: null, loading: false, failed: false, lastDetect: 0, items: [], count: 0 };
+      if (!modes.includes(mode)) { state[mode].items = []; continue; }
+      if (!state[mode].detector) load(mode);
+      track(mode, src, now);
+    }
     canvas.style.display = 'block';
     draw(now, amount);
   }
@@ -225,7 +265,7 @@ const faceHud = (() => {
   function hide() {
     if (canvas && canvas.style.display !== 'none') {
       canvas.style.display = 'none';
-      faces = [];
+      Object.values(state).forEach((m) => { m.items = []; });
     }
   }
 

@@ -13,7 +13,7 @@ const root = path.resolve(__dirname, '..');
 const dir = path.join(root, 'public/visuals');
 const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 
-const NOT_ARTWORKS = new Set(['engine.js', 'filters.js', 'face_hud.js', 'gallery.js']);
+const NOT_ARTWORKS = new Set(['engine.js', 'filters.js', 'track_hud.js', 'gallery.js']);
 const artworks = fs.readdirSync(dir)
   .filter((f) => f.endsWith('.js') && !NOT_ARTWORKS.has(f))
   .map((f) => ({ file: f, src: fs.readFileSync(path.join(dir, f), 'utf8') }))
