@@ -5,13 +5,12 @@
 // frame) find faces and everyday objects (the 80 COCO classes: person, car,
 // dog, cup...) in the artwork's canvas. Each gets corner brackets, a tag
 // like "PAYLOAD 01 · WALKING 0.95" or "OBJECT 03 · CAR 0.91", a distance and
-// pace readout, and orange dot trails.
+// and pace readout.
 //
 // Models vendored in lib/ (blaze_face_short_range, efficientdet_lite0); WASM
 // from jsdelivr.
 const trackHud = (() => {
   const LIB = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
-  const ORANGE = '#ff5a1f';
   const MONO = '"IBM Plex Mono", "Courier New", monospace';
 
   const MODES = {
@@ -136,58 +135,6 @@ const trackHud = (() => {
     ctx.stroke();
   }
 
-  // Square orange dots marching along a path, appearing one by one.
-  function trail(points, now, born) {
-    const shown = Math.min(points.length, Math.floor((now - born) / 45));
-    ctx.fillStyle = ORANGE;
-    for (let i = 0; i < shown; i++) {
-      const [px, py] = points[i];
-      const s = 5 + (i % 3 === 0 ? 1 : 0);
-      ctx.globalAlpha = 0.55 + 0.45 * Math.sin(now / 300 + i * 0.7) ** 2;
-      ctx.fillRect(px - s / 2, py - s / 2, s, s);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  function jaw(f) {
-    // Ear (keypoint 4 or 5) down round the jaw to under the chin, then on
-    // down the neck: a quarter ellipse plus a tail.
-    const pts = [];
-    const cx = f.x + f.w / 2;
-    const side = f.kp[5] && f.kp[4] ? (f.kp[5][0] > f.kp[4][0] ? 5 : 4) : null;
-    const ear = side != null ? f.kp[side] : [f.x + f.w, f.y + f.h * 0.45];
-    const rx = Math.abs(ear[0] - cx);
-    const ry = f.y + f.h * 1.02 - ear[1];
-    const dir = ear[0] > cx ? 1 : -1;
-    const step = Math.max(14, f.w * 0.07);
-    const n = Math.max(6, Math.round((Math.PI / 2) * Math.max(rx, ry) / step));
-    for (let i = 0; i <= n; i++) {
-      const a = (i / n) * (Math.PI / 2);
-      pts.push([cx + dir * rx * Math.cos(a), ear[1] + ry * Math.sin(a)]);
-    }
-    const [lx, ly] = pts[pts.length - 1];
-    for (let i = 1; i <= 8; i++) pts.push([lx - dir * i * step * 0.35, ly + i * step]);
-    return pts;
-  }
-
-  function sideline(f) {
-    // From the far ear out to the screen edge, slightly rising.
-    const pts = [];
-    const near = f.kp[4] && f.kp[5] ? (f.kp[4][0] < f.kp[5][0] ? f.kp[4] : f.kp[5]) : [f.x, f.y + f.h * 0.45];
-    const step = Math.max(16, f.w * 0.08);
-    for (let x = near[0] - step, i = 0; x > -step && i < 40; x -= step, i++) pts.push([x, near[1] - i * step * 0.06]);
-    return pts;
-  }
-
-  // An object's trail drops from the middle of its base towards the floor.
-  function drop(f) {
-    const pts = [];
-    const step = Math.max(14, f.w * 0.06);
-    const x = f.x + f.w / 2;
-    for (let y = f.y + f.h + step, i = 0; y < innerHeight + step && i < 40; y += step, i++) pts.push([x, y]);
-    return pts;
-  }
-
   // What the face is doing, from how fast its box moves.
   function activity(f) {
     const v = f.speed || 0;
@@ -237,14 +184,11 @@ const trackHud = (() => {
         brackets(g.x, g.y, g.w, g.h);
         if (a > 0.2) label(g);
         if (a > 0.4) readout(g);
-        if (a > 0.55) trail(mode === 'face' ? jaw(f) : drop(f), now, f.born);
-        if (a > 0.75) trail(sideline(f), now, f.born + 300);
       }
     }
   }
 
-  // How much of the HUD shows: brackets, tag, readout, dot trail; the line to
-  // the screen edge (above 0.75) is left out.
+  // How much of the HUD shows: brackets, tag, readout.
   const AMOUNT = { face: 0.7, object: 0.7 };
   let lastFrame = 0;
 

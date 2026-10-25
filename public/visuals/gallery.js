@@ -19,7 +19,6 @@ const gallery = (() => {
     giphy: { filters: [], cutoff: 130, resonance: 50 },
     four_dots: { filters: [9], cutoff: 60, resonance: 30 },
     patterns2: { filters: [6], cutoff: 140, resonance: 55 },
-    led_grid: { filters: [9], cutoff: 50, resonance: 35 },
     particle_drawings: { filters: [3], cutoff: 70, resonance: 60 },
     word_sparks: { filters: [4], cutoff: 90, resonance: 55 },
     pulsing_squares: { filters: [1], cutoff: 100, resonance: 45 },
