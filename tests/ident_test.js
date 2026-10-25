@@ -184,7 +184,7 @@ function loadApp() {
     requestAnimationFrame: () => 0,
     visuals: { init() {}, next() {}, notify() {} },
     canvasFilters: {},
-    gallery: { init() { throw new Error('boot stops after the ident wiring'); } },
+    gallery: { init() { throw new Error('boot stops after the ident wiring'); }, whenQuiet: (fn) => fn() },
     idents: {
       init() {}, load: () => calls.push('load'), loadDone: () => calls.push('loadDone'),
       play: () => calls.push('play'), stop: () => calls.push('stop'),

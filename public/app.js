@@ -204,7 +204,8 @@ function advanceTrack(ident) {
   try {
     stopVoiceover();
     currentTrack = (currentTrack + 1) % playlist.tracks.length;
-    visuals.next();
+    // A new track brings a new artwork, unless the listener is at the deck.
+    gallery.whenQuiet(() => visuals.next());
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
@@ -712,7 +713,7 @@ async function goLive(fromTrackEnd, ident) {
   playlist = next;
   playlistBase = '';
   currentShowId = null;
-  if (fromTrackEnd) visuals.next();
+  if (fromTrackEnd) gallery.whenQuiet(() => visuals.next());
   visuals.notify('trackChange');
   setupAudio();
   // The live timeline resyncs after every segment; the ident only plays when
@@ -967,6 +968,10 @@ let audioAnalysisReady = false;
   }
   idents.load();
   gallery.init();
+  // An artwork that finishes its own run hands over to another, but not
+  // while the listener is adjusting things.
+  const origEnded = visuals.artworkEnded;
+  visuals.artworkEnded = () => gallery.whenQuiet(() => origEnded.call(visuals));
   // engine.next/prev/random route through visuals.activate, so this wrapper
   // (and the per-visual preset) applies to every switch, not just gallery
   // clicks. random() relies on the boolean result.

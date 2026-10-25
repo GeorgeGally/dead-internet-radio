@@ -493,14 +493,37 @@ const gallery = (() => {
     return pick;
   }
 
-  // Now and then the dial moves on its own to another saved slot of the
-  // current artwork, at random times. It keeps its hands off while someone is
-  // at the deck or the drawer is open.
-  // Timing: every 20-75 s.
+  // Nothing changes on its own (artwork, slot) within 30 s of the listener
+  // touching the deck or pressing a key. Automatic changes go through
+  // whenQuiet: run now, or once 30 s have passed since the last touch (only
+  // the latest held change runs).
+  const QUIET_MS = 30000;
   let _lastTouch = 0;
+  let _held = null;
+  let _heldTimer = 0;
+  function touched() { _lastTouch = Date.now(); }
+  function isQuiet() { return Date.now() - _lastTouch >= QUIET_MS; }
+  function whenQuiet(fn) {
+    if (isQuiet() && !isOpen) { fn(); return; }
+    _held = fn;
+    clearTimeout(_heldTimer);
+    const wait = () => {
+      _heldTimer = setTimeout(() => {
+        if (!isQuiet() || isOpen) { wait(); return; }
+        const f = _held;
+        _held = null;
+        if (f) f();
+      }, Math.max(1000, QUIET_MS - (Date.now() - _lastTouch)));
+    };
+    wait();
+  }
+
+  // Now and then the dial moves on its own to another saved slot of the
+  // current artwork, at random times. Timing: every 20-75 s, never within
+  // 30 s of a touch or while the drawer is open.
   function driftSlot() {
     setTimeout(driftSlot, 20000 + Math.random() * 55000);
-    if (isOpen || slotDirty || Date.now() - _lastTouch < 60000) return;
+    if (isOpen || slotDirty || !isQuiet()) return;
     const id = visuals.getCurrentId();
     const saved = artPresets[id] || {};
     const slots = [];
@@ -540,14 +563,14 @@ const gallery = (() => {
 
   function init() {
     const deckEl = document.getElementById('deck');
-    if (deckEl) ['pointerdown', 'wheel', 'keydown'].forEach((ev) => deckEl.addEventListener(ev, () => { _lastTouch = Date.now(); }, { passive: true }));
+    if (deckEl) ['pointerdown', 'wheel', 'pointermove'].forEach((ev) => deckEl.addEventListener(ev, (e) => { if (ev !== 'pointermove' || e.buttons) touched(); }, { passive: true }));
+    document.addEventListener('keydown', touched, true);
     setTimeout(driftSlot, 20000 + Math.random() * 55000);
     document.addEventListener('keydown', (e) => {
       // Up and down turn the slot dial, like left and right step artworks.
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.metaKey && !e.ctrlKey && !e.altKey
         && !e.target.closest('input,textarea,select,[contenteditable]')) {
         e.preventDefault();
-        _lastTouch = Date.now();
         nextSlot(e.key === 'ArrowUp' ? 1 : -1);
         return;
       }
@@ -558,5 +581,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, bindFxUnit, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();
