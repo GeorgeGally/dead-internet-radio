@@ -344,6 +344,9 @@ def station_caption(caption: str) -> str:
 
 def call_ace_step(payload: dict) -> str:
     body = {
+        # Text to music only: the server refuses covers and reference audio
+        # (patches/ace-step-text2music-only.patch).
+        "task_type": "text2music",
         "prompt": station_caption(payload["caption"]),
         "lyrics": payload.get("lyrics", ""),
         "bpm": payload.get("bpm"),

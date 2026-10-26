@@ -1,0 +1,21 @@
+diff --git a/acestep/api/http/release_task_route.py b/acestep/api/http/release_task_route.py
+index 4422deb..ac73db0 100644
+--- a/acestep/api/http/release_task_route.py
++++ b/acestep/api/http/release_task_route.py
+@@ -63,6 +63,16 @@ def register_release_task_route(
+             lm_default_top_p=lm_default_top_p,
+         )
+ 
++        # Dead Internet Radio: text-to-music only. No covers, no reference or
++        # source audio, so nothing real can be fed in and copied.
++        if req.task_type != "text2music" or req.reference_audio_path or req.src_audio_path:
++            for temp_path in temp_files:
++                try:
++                    os.remove(temp_path)
++                except Exception:
++                    pass
++            raise HTTPException(status_code=403, detail="Only text2music is enabled on this server")
++
+         record = store.create()
+         queue_ref: asyncio.Queue = app.state.job_queue
+         if queue_ref.full():
