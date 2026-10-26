@@ -1,8 +1,8 @@
 module Api
   module V1
     # The request line. Every attempt counts toward the day's three, rejected
-    # or not, a real band (a cover) included, so the filter can't be probed
-    # for free.
+    # or not, so the filter can't be probed for free. Naming a real band (a
+    # cover) is the one mistake that gives the turn back.
     class RequestsController < ListenerController
       before_action :require_user
 
@@ -27,7 +27,12 @@ module Api
         end
 
         verdict = RequestFilter.check(artist: req.artist, title: req.title, note: req.note)
-        if verdict.accepted?
+        if verdict.cover?
+          # Naming a real band is a mistake, not abuse: the turn comes back.
+          req.destroy!
+          return render json: { status: "cover", message: verdict.reason, requests_left: current_user.requests_left_today },
+                        status: :ok
+        elsif verdict.accepted?
           req.update!(status: :queued, matched_track: SongRequest.match_artist(req.artist))
         else
           req.update!(status: :rejected, rejection_reason: verdict.reason)

@@ -74,6 +74,16 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 3, SongRequest.count
   end
 
+  test "naming a real band gives the turn back" do
+    token = sign_in
+    cover = RequestFilter::Result.new(false, "Bob James is real. We don't do covers.", true)
+    with_filter(cover) { post_json "/api/v1/requests", { artist: "Bob James", title: "Robot Love" }, token }
+    assert_response :success
+    assert_equal "cover", response.parsed_body["status"]
+    assert_equal 3, response.parsed_body["requests_left"]
+    assert_equal 0, SongRequest.count
+  end
+
   test "the site's own button signs in with a Google access token" do
     get "/api/v1/me"
     token = response.parsed_body["csrf_token"]

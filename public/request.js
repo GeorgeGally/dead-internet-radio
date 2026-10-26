@@ -148,6 +148,7 @@ const requestLine = (() => {
         leds = next;
       }
       if (data.status === 'queued') form.reset();
+      if (data.status === 'cover') { artist.input.select(); }
       go.disabled = me.requests_left <= 0;
     });
     setTimeout(() => artist.input.focus(), 0);

@@ -9,6 +9,14 @@ class User < ApplicationRecord
   end
 
   def requests_left_today
+    return SongRequest::DAILY_LIMIT if limit_exempt?
+
     [SongRequest::DAILY_LIMIT - song_requests.today.count, 0].max
+  end
+
+  # The station's own testers (REQUEST_LIMIT_EXEMPT, comma-separated emails)
+  # never run out.
+  def limit_exempt?
+    ENV.fetch("REQUEST_LIMIT_EXEMPT", "").split(",").map { |e| e.strip.downcase }.include?(email.to_s.downcase)
   end
 end
