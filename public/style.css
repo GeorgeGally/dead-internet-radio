@@ -424,17 +424,17 @@ body.prewarming #block-canvas {
   height: 32px;
   padding: 0;
   border: none;
-  border-radius: 50%;
-  font-size: 18px;
+  border-radius: 4px;
+  font-size: 16px;
   line-height: 1;
   color: #2a2a2a;
-  background: linear-gradient(160deg, #f4f2ed, #d9d4ca);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.15);
+  background: #d9d4ca;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.12);
   cursor: pointer;
   transition: background 0.2s ease;
 }
 
-.rq-close:hover { background: #d9d4ca; }
+.rq-close:hover { background: #cfc9bd; }
 
 .rq-body {
   flex: 1;
@@ -461,7 +461,7 @@ body.prewarming #block-canvas {
 .rq-row {
   display: grid;
   grid-template-columns: 32px 72px 1fr;
-  align-items: baseline;
+  align-items: end;
   gap: 0 12px;
   padding: 18px 0 12px;
   border-bottom: 1px solid #cfc9bd;
@@ -474,6 +474,7 @@ body.prewarming #block-canvas {
   min-width: 0;
   font: inherit;
   font-size: clamp(22px, 3.2vw, 40px);
+  line-height: 1.2;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: #1b1b1b;
@@ -483,6 +484,9 @@ body.prewarming #block-canvas {
   padding: 0;
   outline: none;
 }
+
+.rq-row .rq-num,
+.rq-row .rq-lab { padding-bottom: 0.6em; }
 
 .rq-input::placeholder { color: #bdb7ab; font-weight: 400; }
 
@@ -502,48 +506,70 @@ body.prewarming #block-canvas {
   color: #3a3a3a;
 }
 
-/* The day's three requests as three lights. */
-.rq-leds { display: flex; gap: 8px; }
+/* The day's three requests as three small square lights. */
+.rq-leds { display: flex; gap: 6px; }
 
 .rq-leds i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
   background: #c9c4b8;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .rq-leds i.on {
   background: #ec6a1f;
-  box-shadow: 0 0 6px rgba(236, 106, 31, 0.6);
+  box-shadow: 0 0 5px rgba(236, 106, 31, 0.55);
 }
 
-.rq-go-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
+/* Square key, Teenage Engineering style: the name printed top-left, the
+   arrow bottom-right. */
 .rq-go {
+  position: relative;
   width: 64px;
   height: 64px;
   padding: 0;
   border: none;
-  border-radius: 50%;
-  font-size: 22px;
+  border-radius: 4px;
   color: #fff;
-  background: linear-gradient(160deg, color-mix(in srgb, #ec6a1f 92%, #fff), #ec6a1f);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.55), inset 0 -2px 3px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.2);
+  background: #ec6a1f;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 -3px 0 rgba(0, 0, 0, 0.16);
   cursor: pointer;
   transition: background 0.2s ease;
 }
 
 .rq-go:hover { background: #d45a14; }
-.rq-go:disabled { background: #c9c4b8; cursor: default; }
+.rq-go:disabled { background: #d9d4ca; color: #9a948a; cursor: default; }
+
+.rq-go .rq-go-label {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  color: inherit;
+  font-size: 10px;
+}
+
+.rq-go-arrow {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.rq-note {
+  margin: 0;
+  position: absolute;
+  left: clamp(16px, 6vw, 96px);
+  bottom: 28px;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #8a857b;
+}
 
 @media (max-width: 600px) {
   .rq-row { grid-template-columns: 24px 1fr; }
+  .rq-note { position: static; margin-top: 32px; }
   .rq-lab { display: none; }
   .rq-foot { flex-wrap: wrap; gap: 20px; }
   .rq-msg { flex-basis: 100%; }

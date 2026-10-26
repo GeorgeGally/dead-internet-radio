@@ -37,14 +37,12 @@ const requestLine = (() => {
     return box;
   }
 
-  // The round orange button, labelled underneath like the deck's knobs.
+  // A square orange key with its name printed on it.
   function goButton(label, type) {
-    const wrap = el('div', 'rq-go-wrap');
-    const go = el('button', 'rq-go', '\u2192');
+    const go = el('button', 'rq-go');
     go.type = type || 'button';
-    go.setAttribute('aria-label', label);
-    wrap.append(go, el('span', 'rq-go-label', label));
-    return { wrap, go };
+    go.append(el('span', 'rq-go-label', label), el('span', 'rq-go-arrow', '\u2192'));
+    return { wrap: go, go };
   }
 
   function loadGsi() {
@@ -123,17 +121,16 @@ const requestLine = (() => {
     const title = field('02', 'Title', 'title', 80);
     // Free text, not a genre list: a style can be "midnight slo-mo disco".
     const style = field('03', 'Style', 'note', 140);
-    artist.input.placeholder = 'a band that never existed';
-    title.input.placeholder = 'the song';
     style.input.placeholder = STYLES[Math.floor(Math.random() * STYLES.length)];
-    const out = el('p', 'rq-msg', msg || '');
+    const done = me.requests_left <= 0 ? 'That\'s three today. The line opens again tomorrow.' : '';
+    const out = el('p', 'rq-msg', msg || done);
     const { wrap, go } = goButton('send', 'submit');
     let leds = lights(me.requests_left);
     const foot = el('div', 'rq-foot');
     foot.append(out, leds, wrap);
     if (me.requests_left <= 0) go.disabled = true;
     form.append(artist.row, title.row, style.row, foot);
-    body.append(form);
+    body.append(form, el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
