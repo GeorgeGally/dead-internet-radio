@@ -41,6 +41,9 @@ const gallery = (() => {
   // Per-artwork slot presets (slots 1-9, slot 0 = live state)
   let artPresets = {};
   let activeSlot = 0;
+  // Just saved: the dial stays on that slot (no drift) until the listener
+  // turns it or the artwork changes.
+  let slotPinned = false;
   // A saved slot stops being "the saved look" the moment a control moves.
   let slotDirty = false;
   let saveLit = false;
@@ -418,6 +421,7 @@ const gallery = (() => {
     saveArtPresets();
     slotDirty = false;
     saveLit = true;
+    slotPinned = true;
     updateSlotUI();
     visuals.showNotification(`Slot ${slot} saved`);
   }
@@ -454,6 +458,7 @@ const gallery = (() => {
     const target = activeSlot + step;
     if (target < 0 || target > 9) return;
     activeSlot = target;
+    slotPinned = false;
     updateSlotUI();
     const id = visuals.getCurrentId();
     if (activeSlot > 0) {
@@ -463,6 +468,7 @@ const gallery = (() => {
 
   function resetSlot() {
     activeSlot = 0;
+    slotPinned = false;
     slotDirty = false;
     saveLit = false;
     updateSlotUI();
@@ -472,6 +478,7 @@ const gallery = (() => {
   // same artwork returns looking different across switches.
   function applyRandomSlot(id) {
     id = id || visuals.getCurrentId();
+    slotPinned = false;
     const saved = artPresets[id] || {};
     const slots = [];
     for (let s = 1; s <= 9; s++) if (saved[s]) slots.push(s);
@@ -516,7 +523,7 @@ const gallery = (() => {
   // 30 s of a touch or while the drawer is open.
   function driftSlot() {
     setTimeout(driftSlot, 20000 + Math.random() * 55000);
-    if (isOpen || slotDirty || !isQuiet()) return;
+    if (isOpen || slotDirty || slotPinned || !isQuiet()) return;
     const id = visuals.getCurrentId();
     const saved = artPresets[id] || {};
     const slots = [];
@@ -547,6 +554,9 @@ const gallery = (() => {
     }
     const tick = knob.querySelector('.knob-tick');
     if (tick) tick.style.transform = `rotate(${-150 + activeSlot * 30}deg)`;
+    // The dial has no numbers; the label says where it is.
+    const label = knob.parentElement && knob.parentElement.querySelector('.knob-label');
+    if (label) label.textContent = activeSlot ? `slot ${activeSlot}` : 'slot off';
     const id = visuals.getCurrentId();
     const el = document.getElementById('slot-led');
     if (el) el.classList.toggle('on', activeSlot > 0 && slotHasPreset(id, activeSlot) && !slotDirty);
