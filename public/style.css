@@ -465,6 +465,51 @@ body.prewarming #block-canvas {
 
 .rq-google { margin-top: 12px; min-height: 32px; }
 
+/* ---- Info: the "i" in the bottom-left corner ---- */
+#info-btn {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 9;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font: 500 12px "IBM Plex Mono", "Courier New", monospace;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+#info-btn:hover,
+#info-btn.on { color: #000; background: #fff; }
+
+#info-card {
+  position: fixed;
+  left: 16px;
+  bottom: 48px;
+  z-index: 9;
+  width: min(300px, calc(100vw - 32px));
+  background: #000;
+  color: #fff;
+  font: 13px/1.45 "IBM Plex Mono", "Courier New", monospace;
+  letter-spacing: 0.02em;
+  padding: 14px 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+#info-card.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease;
+}
+
+#info-card p { margin: 0; }
+#info-card .info-dim { margin-top: 10px; color: rgba(255, 255, 255, 0.5); }
+
 /* ---- Display controls (knob + gallery) ---- */
 .display-ctrl {
   flex-shrink: 0;
