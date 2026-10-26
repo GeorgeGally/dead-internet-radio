@@ -378,124 +378,190 @@ body.prewarming #block-canvas {
 #btn-request { font-size: 17px; }
 
 /* ---- Request card: a dark card over the artwork, fades like a TV ---- */
+/* ---- Request line: a full-screen page in the deck's colours (Rams, TE) ---- */
 .request-card {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  width: min(320px, calc(100vw - 32px));
-  transform: translate(-50%, -50%);
-  z-index: 9;
-  background: #000;
-  color: #fff;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  padding: 18px 20px 16px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  inset: 0;
+  /* Above the artwork labels (100) too. */
+  z-index: 101;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 28px clamp(16px, 6vw, 96px) clamp(24px, 6vh, 64px);
+  background: #e9e6df;
+  color: #1b1b1b;
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", sans-serif;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+  transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
 .request-card.open {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.3s ease;
 }
 
-.rq-head {
+.rq-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rq-head,
+.rq-num,
+.rq-lab,
+.rq-go-label {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 11px;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.45);
-  margin-bottom: 14px;
+  text-transform: uppercase;
+  color: #8a857b;
 }
 
-.rq-form {
+.rq-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  color: #2a2a2a;
+  background: linear-gradient(160deg, #f4f2ed, #d9d4ca);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.rq-close:hover { background: #d9d4ca; }
+
+.rq-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
 }
 
-.rq-input {
-  font: inherit;
-  letter-spacing: inherit;
-  color: #fff;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 0;
-  padding: 6px 0;
-  outline: none;
+.rq-lede {
+  margin: 0;
+  max-width: 16em;
+  font-size: clamp(26px, 3.4vw, 40px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.rq-form { display: flex; flex-direction: column; }
+
+/* 01  ARTIST  [ big input ] on one hairline row. */
+.rq-row {
+  display: grid;
+  grid-template-columns: 32px 72px 1fr;
+  align-items: baseline;
+  gap: 0 12px;
+  padding: 18px 0 12px;
+  border-bottom: 1px solid #cfc9bd;
   transition: border-color 0.2s ease;
 }
 
-.rq-input::placeholder { color: rgba(255, 255, 255, 0.35); }
-.rq-input:focus { border-bottom-color: #fff; }
+.rq-row:focus-within { border-bottom-color: #ec6a1f; }
 
-.rq-send {
-  align-self: flex-end;
-  margin-top: 6px;
+.rq-input {
+  min-width: 0;
   font: inherit;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: #fff;
+  font-size: clamp(22px, 3.2vw, 40px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #1b1b1b;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  padding: 4px 12px;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  outline: none;
 }
 
-.rq-send:hover { background: #fff; color: #000; }
-.rq-send:disabled { opacity: 0.35; cursor: default; background: transparent; color: #fff; }
+.rq-input::placeholder { color: #bdb7ab; font-weight: 400; }
+
+.rq-foot {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-top: 40px;
+}
 
 .rq-msg {
-  min-height: 1.4em;
-  margin-top: 12px;
-  line-height: 1.4;
+  flex: 1;
+  margin: 0;
+  padding-right: 8%;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #3a3a3a;
 }
 
-.rq-msg:empty { display: none; }
+/* The day's three requests as three lights. */
+.rq-leds { display: flex; gap: 8px; }
 
-.rq-count {
-  margin-top: 8px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+.rq-leds i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c9c4b8;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
-.rq-google { margin-top: 12px; min-height: 32px; }
+.rq-leds i.on {
+  background: #ec6a1f;
+  box-shadow: 0 0 6px rgba(236, 106, 31, 0.6);
+}
 
-/* ---- Info: the "i" in the bottom-left corner ---- */
-#info-btn {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  z-index: 9;
-  width: 24px;
-  height: 24px;
+.rq-go-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rq-go {
+  width: 64px;
+  height: 64px;
   padding: 0;
-  font: 500 12px "IBM Plex Mono", "Courier New", monospace;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(0, 0, 0, 0.6);
   border: none;
+  border-radius: 50%;
+  font-size: 22px;
+  color: #fff;
+  background: linear-gradient(160deg, color-mix(in srgb, #ec6a1f 92%, #fff), #ec6a1f);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.55), inset 0 -2px 3px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
 
-#info-btn:hover,
-#info-btn.on { color: #000; background: #fff; }
+.rq-go:hover { background: #d45a14; }
+.rq-go:disabled { background: #c9c4b8; cursor: default; }
 
+@media (max-width: 600px) {
+  .rq-row { grid-template-columns: 24px 1fr; }
+  .rq-lab { display: none; }
+  .rq-foot { flex-wrap: wrap; gap: 20px; }
+  .rq-msg { flex-basis: 100%; }
+}
+
+/* Info card: the same black glass as the menubar display. */
 #info-card {
   position: fixed;
-  left: 16px;
-  bottom: 48px;
   z-index: 9;
-  width: min(300px, calc(100vw - 32px));
-  background: #000;
+  box-sizing: border-box;
+  background: linear-gradient(160deg, #1c1c1c 0%, #101010 45%, #060606 100%);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 12px 32px rgba(0, 0, 0, 0.45);
   color: #fff;
-  font: 13px/1.45 "IBM Plex Mono", "Courier New", monospace;
-  letter-spacing: 0.02em;
-  padding: 14px 16px;
+  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s ease, visibility 0s linear 0.25s;
@@ -507,8 +573,53 @@ body.prewarming #block-canvas {
   transition: opacity 0.25s ease;
 }
 
+/* ---- Info: the "i" in the bottom-left corner ---- */
+#info-btn {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 9;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  font: 600 12px "Plus Jakarta Sans", "IBM Plex Mono", sans-serif;
+  color: #2a2a2a;
+  background: linear-gradient(160deg, #f1eee8, #d9d4ca);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+#info-btn:hover,
+#info-btn.on { color: #fff; background: #ec6a1f; }
+
+#info-card {
+  left: 16px;
+  bottom: 52px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 18px 20px;
+}
+
 #info-card p { margin: 0; }
-#info-card .info-dim { margin-top: 10px; color: rgba(255, 255, 255, 0.5); }
+
+#info-card .info-lead {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #ec6a1f;
+}
+
+#info-card .info-dim {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
 
 /* ---- Display controls (knob + gallery) ---- */
 .display-ctrl {

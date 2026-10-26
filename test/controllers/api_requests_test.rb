@@ -74,6 +74,15 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 3, SongRequest.count
   end
 
+  test "the site's own button signs in with a Google access token" do
+    get "/api/v1/me"
+    token = response.parsed_body["csrf_token"]
+    claims = { "sub" => "g-2", "email" => "sam@example.com", "name" => "Sam Roe" }
+    stub(GoogleIdToken, :verify_access_token, claims) { post_json "/api/v1/session/google", { access_token: "x" }, token }
+    assert_response :success
+    assert_equal true, response.parsed_body["signed_in"]
+  end
+
   private
 
   def sign_in

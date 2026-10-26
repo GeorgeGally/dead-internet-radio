@@ -3,8 +3,9 @@ require "net/http"
 # The station's editorial ear for listener requests. A blocklist first, then
 # one OpenRouter call. Fail-closed: anything that isn't a clean "accept" is a no.
 module RequestFilter
-  Result = Struct.new(:accepted, :reason) do
+  Result = Struct.new(:accepted, :reason, :cover) do
     def accepted? = accepted
+    def cover? = !!cover
   end
 
   OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions".freeze
@@ -36,9 +37,11 @@ module RequestFilter
 
     If the artist, or the artist and song together, is a real band or
     musician (any era, any country, famous or cult), the verdict is "cover".
-    A made-up name that only sounds like a real one is fine.
+    A made-up name that only sounds like a real one is fine. For a cover, add
+    "who": who they are in a few plain words, e.g. "a jazz keyboardist known
+    for Angela and Nautilus" or "the Düsseldorf electronic band".
 
-    Reply with JSON only: {"verdict": "accept" | "reject" | "cover", "reason": "..."}
+    Reply with JSON only: {"verdict": "accept" | "reject" | "cover", "reason": "...", "who": "..."}
     The reason is said to the listener in the station's voice: one short line,
     dry and calm, under 12 words, never preachy, never naming a rule.
     Like: "That one doesn't play here." "Wrong frequency for that." "The servers
@@ -50,6 +53,17 @@ module RequestFilter
     return Result.new(false, NO_LINES.sample) if blocked?(text)
 
     moderate(artist: artist, title: title, note: note)
+  end
+
+  # "Bob James is real: a jazz keyboardist known for Angela. We don't do
+  # covers. Describe a band that should exist."
+  def self.cover_line(artist, who)
+    who = who.to_s.strip.delete('"').sub(/\.\z/, "")
+    return COVER_LINE if who.empty? || who.length > 90
+
+    who = who.sub(/\A(A|An|The) /) { |m| m.downcase }
+
+    "#{artist} is real: #{who}. #{COVER_LINE}"
   end
 
   def self.blocked?(text)
@@ -71,7 +85,7 @@ module RequestFilter
 
     body = {
       model: MODEL,
-      max_tokens: 120,
+      max_tokens: 160,
       reasoning: { enabled: false },
       temperature: 0.2,
       messages: [
@@ -91,7 +105,7 @@ module RequestFilter
     reason = NO_LINES.sample if reason.empty? || reason.length > 90
     case verdict["verdict"]
     when "accept" then Result.new(true, nil)
-    when "cover" then Result.new(false, COVER_LINE)
+    when "cover" then Result.new(false, cover_line(fields[:artist], verdict["who"]), true)
     else Result.new(false, reason)
     end
   rescue StandardError => e

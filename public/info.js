@@ -10,7 +10,7 @@
   const card = document.createElement('div');
   card.id = 'info-card';
   card.setAttribute('role', 'dialog');
-  card.innerHTML = '<p>Every band on DIR never existed. Until now.</p>'
+  card.innerHTML = '<p class="info-lead">Every band on DIR never existed. Until now.</p>'
     + '<p class="info-dim">Written, sung and spun by machines, for whoever is still out there.</p>';
 
   const toggle = (open) => {

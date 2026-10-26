@@ -7,7 +7,11 @@ module Api
       end
 
       def google
-        claims = GoogleIdToken.verify(params[:credential])
+        claims = if params[:access_token].present?
+          GoogleIdToken.verify_access_token(params[:access_token])
+        else
+          GoogleIdToken.verify(params[:credential])
+        end
         return render json: { message: "Google didn't vouch for that." }, status: :unauthorized unless claims
 
         user = User.find_or_initialize_by(google_uid: claims["sub"])

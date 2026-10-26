@@ -1,4 +1,4 @@
-// The request line: a small card over the artwork. Google sign-in is asked
+// The request line: a full-screen page over the artwork. Google sign-in is asked
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
@@ -29,12 +29,26 @@ const requestLine = (() => {
     return me;
   }
 
-  function left(n) {
-    return n === 1 ? '1 left today' : `${n} left today`;
+  // Three lights for the day's three requests: lit = still yours.
+  function lights(n) {
+    const box = el('div', 'rq-leds');
+    for (let i = 0; i < 3; i++) box.appendChild(el('i', i < n ? 'on' : ''));
+    box.title = n === 1 ? '1 left today' : `${n} left today`;
+    return box;
+  }
+
+  // The round orange button, labelled underneath like the deck's knobs.
+  function goButton(label, type) {
+    const wrap = el('div', 'rq-go-wrap');
+    const go = el('button', 'rq-go', '\u2192');
+    go.type = type || 'button';
+    go.setAttribute('aria-label', label);
+    wrap.append(go, el('span', 'rq-go-label', label));
+    return { wrap, go };
   }
 
   function loadGsi() {
-    if (window.google && google.accounts && google.accounts.id) return Promise.resolve();
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
     if (gsiLoading) return gsiLoading;
     gsiLoading = new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -47,65 +61,99 @@ const requestLine = (() => {
     return gsiLoading;
   }
 
-  async function onCredential(resp) {
-    const { ok, data } = await call('POST', '/session/google', { credential: resp.credential });
+  async function signIn(tokenResp) {
+    if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
+    const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
     if (ok) { me = data; render(); } else render(data.message || 'Google didn\'t vouch for that.');
   }
 
+  // The site's own button opens Google's popup (Google's rendered button
+  // can't be styled). The token client is made once Google's script is in,
+  // so the click can open the popup straight away.
+  let tokenClient = null;
   function renderSignIn(body, msg) {
+    const lede = el('p', 'rq-lede');
+    body.appendChild(lede);
     if (!me || !me.google_client_id) {
-      body.appendChild(el('p', 'rq-msg', 'Sign-in isn\'t set up yet.'));
+      lede.textContent = 'Sign-in isn\'t set up yet.';
       return;
     }
-    body.appendChild(el('p', 'rq-msg', msg || 'Sign in to request.'));
-    const slot = el('div', 'rq-google');
-    body.appendChild(slot);
+    lede.textContent = 'Name a band that never existed. The station makes the song.';
+    const foot = el('div', 'rq-foot');
+    const out = el('p', 'rq-msg', msg || 'Sign in with Google to send one.');
+    const { wrap, go } = goButton('google');
+    go.disabled = true;
+    foot.append(out, wrap);
+    body.appendChild(foot);
     loadGsi().then(() => {
-      google.accounts.id.initialize({ client_id: me.google_client_id, callback: onCredential });
-      google.accounts.id.renderButton(slot, { theme: 'filled_black', size: 'medium', shape: 'rectangular', text: 'signin' });
-    }).catch(() => { slot.textContent = 'Google is out of reach.'; });
+      tokenClient = tokenClient || google.accounts.oauth2.initTokenClient({
+        client_id: me.google_client_id,
+        scope: 'openid email profile',
+        callback: signIn,
+      });
+      go.disabled = false;
+    }).catch(() => { out.textContent = 'Google is out of reach.'; });
+    go.addEventListener('click', () => { if (tokenClient) tokenClient.requestAccessToken(); });
   }
 
-  function field(name, max) {
+  const STYLES = [
+    'midnight slo-mo disco',
+    'cold Detroit electro',
+    'Berlin warehouse EBM',
+    'disco-punk with a broken drum machine',
+    'electroclash for an empty mall',
+    'slow dark minimal techno in the snow',
+    'cosmic disco from a dead satellite',
+  ];
+
+  function field(num, label, name, max) {
+    const row = el('label', 'rq-row');
     const input = el('input', 'rq-input');
     input.name = name;
-    input.placeholder = name;
     input.maxLength = max;
     input.autocomplete = 'off';
     input.spellcheck = false;
-    return input;
+    row.append(el('span', 'rq-num', num), el('span', 'rq-lab', label), input);
+    return { row, input };
   }
 
   function renderForm(body, msg) {
     const form = el('form', 'rq-form');
-    const artist = field('artist', 60);
-    const title = field('title', 80);
-    const note = field('note', 140);
-    const send = el('button', 'rq-send', 'send');
-    send.type = 'submit';
+    const artist = field('01', 'Artist', 'artist', 60);
+    const title = field('02', 'Title', 'title', 80);
+    // Free text, not a genre list: a style can be "midnight slo-mo disco".
+    const style = field('03', 'Style', 'note', 140);
+    artist.input.placeholder = 'a band that never existed';
+    title.input.placeholder = 'the song';
+    style.input.placeholder = STYLES[Math.floor(Math.random() * STYLES.length)];
     const out = el('p', 'rq-msg', msg || '');
-    const count = el('p', 'rq-count', left(me.requests_left));
-    if (me.requests_left <= 0) send.disabled = true;
-    form.append(artist, title, note, send);
-    body.append(form, out, count);
+    const { wrap, go } = goButton('send', 'submit');
+    let leds = lights(me.requests_left);
+    const foot = el('div', 'rq-foot');
+    foot.append(out, leds, wrap);
+    if (me.requests_left <= 0) go.disabled = true;
+    form.append(artist.row, title.row, style.row, foot);
+    body.append(form);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (send.disabled) return;
-      send.disabled = true;
-      out.textContent = '…';
+      if (go.disabled) return;
+      go.disabled = true;
+      out.textContent = '\u2026';
       const { data } = await call('POST', '/requests', {
-        artist: artist.value, title: title.value, note: note.value,
+        artist: artist.input.value, title: title.input.value, note: style.input.value,
       });
       out.textContent = data.message || 'The line went dead. Try again later.';
       if (typeof data.requests_left === 'number') {
         me.requests_left = data.requests_left;
-        count.textContent = left(data.requests_left);
+        const next = lights(data.requests_left);
+        leds.replaceWith(next);
+        leds = next;
       }
       if (data.status === 'queued') form.reset();
-      send.disabled = me.requests_left <= 0;
+      go.disabled = me.requests_left <= 0;
     });
-    setTimeout(() => artist.focus(), 0);
+    setTimeout(() => artist.input.focus(), 0);
   }
 
   function render(msg) {
@@ -119,7 +167,7 @@ const requestLine = (() => {
     if (isOpen()) return;
     card.classList.add('open');
     led.classList.add('on');
-    card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '…'));
+    card.querySelector('.rq-body').replaceChildren();
     await refreshMe();
     if (isOpen()) render(me ? '' : 'The line went dead. Try again later.');
   }
@@ -140,7 +188,13 @@ const requestLine = (() => {
     card.id = 'request-card';
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-label', 'Request a song');
-    card.append(el('div', 'rq-head', 'REQUEST'), el('div', 'rq-body'));
+    const top = el('div', 'rq-top');
+    const x = el('button', 'rq-close', '\u00d7');
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Close');
+    x.addEventListener('click', close);
+    top.append(el('span', 'rq-head', 'Request line'), x);
+    card.append(top, el('div', 'rq-body'));
     document.body.appendChild(card);
 
     btn.addEventListener('click', () => (isOpen() ? close() : open()));

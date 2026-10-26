@@ -1,7 +1,8 @@
 module Api
   module V1
     # The request line. Every attempt counts toward the day's three, rejected
-    # or not, so the filter can't be probed for free.
+    # or not, a real band (a cover) included, so the filter can't be probed
+    # for free.
     class RequestsController < ListenerController
       before_action :require_user
 
