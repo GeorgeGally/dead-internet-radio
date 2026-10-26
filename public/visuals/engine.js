@@ -120,7 +120,6 @@ const visuals = (() => {
     removeP5Canvases();
     if (!startArtwork(id, artwork)) return false;
     currentId = id;
-    showNotification(artwork.name || id);
     if (onChange) onChange(id);
 
     setTimeout(() => captureThumbnail(id), 600);
