@@ -91,8 +91,9 @@ while macOS pushes everything into swap, and a full swap is what hangs it.
 
 - `AceStepManager.check_memory!` refuses to start ACE-Step unless
   free + inactive + purgeable is at least `ACESTEP_MIN_FREE_GB` (default 20)
-  and 2 GB of swap is left. The job fails with the numbers instead.
-- `ace-step-watchdog.sh` also kills ACE-Step when swap free drops under
-  `MIN_SWAP_FREE_MB` (default 1024).
+  and no more than 8 GB is already in swap (swap "free" means little: macOS
+  grows the swap files on demand). The job fails with the numbers instead.
+- `ace-step-watchdog.sh` also kills ACE-Step when swap used passes
+  `MAX_SWAP_USED_MB` (default 12288).
 - The freeze also took down Postgres on 5433 (Homebrew postgresql@14, started
   by hand): `pg_ctl -D /opt/homebrew/var/postgresql@14 -o "-p 5433" start`.

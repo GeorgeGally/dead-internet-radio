@@ -158,27 +158,28 @@ class AceStepManager
     # Kills ACE-Step if free memory drops too low, instead of letting the Mac freeze.
     # One per Rails process is enough; it idles while nothing listens on the port.
     # ACE-Step peaks near 21 GB. Started with less than that free, or with
-    # swap already full, the Mac swaps until it freezes, so don't start.
+    # lots already swapped out, the Mac swaps until it freezes, so don't start.
+    # (Swap "free" means little: macOS grows the swap files on demand.)
     MIN_FREE_GB = ENV.fetch('ACESTEP_MIN_FREE_GB', '20').to_f
-    MIN_SWAP_FREE_GB = 2.0
+    MAX_SWAP_USED_GB = 8.0
 
     def check_memory!
-      free, swap_free = memory_gb
+      free, swap_used = memory_gb
       return if free.nil?
-      return if free >= MIN_FREE_GB && (swap_free.nil? || swap_free >= MIN_SWAP_FREE_GB)
+      return if free >= MIN_FREE_GB && (swap_used.nil? || swap_used <= MAX_SWAP_USED_GB)
 
-      raise StartupError, format('not enough memory to render: %.0f GB free (needs %.0f), %.1f GB swap left. ' \
-                                 'Close Chrome tabs or other apps and retry.', free, MIN_FREE_GB, swap_free.to_f)
+      raise StartupError, format('not enough memory to render: %.0f GB free (needs %.0f), %.1f GB in swap. ' \
+                                 'Quit Chrome or other apps and retry.', free, MIN_FREE_GB, swap_used.to_f)
     end
 
-    # [GB the system can hand out now, GB of swap left]; nils if unknown.
+    # [GB the system can hand out now, GB swapped out]; nils if unknown.
     def memory_gb
       vm = `vm_stat 2>/dev/null`
       page = vm[/page size of (\d+)/, 1].to_i
       return [nil, nil] if page.zero?
 
       pages = %w[free inactive speculative purgeable].sum { |k| vm[/Pages #{k}:\s+(\d+)/, 1].to_i }
-      swap = `sysctl -n vm.swapusage 2>/dev/null`[/free = ([\d.]+)M/, 1]
+      swap = `sysctl -n vm.swapusage 2>/dev/null`[/used = ([\d.]+)M/, 1]
       [pages * page / 1024.0**3, swap && swap.to_f / 1024]
     end
 
