@@ -43,6 +43,11 @@ DJ_NAMES = [
     "c^$", "Kode Red", "Agent Orange", "Static", "Void", "Echo",
     "Ghost", "Synthia", "Reaper", "Blade", "Circuit", "Pixel",
     "Zero", "Neon", "Cipher", "Rust", "Glitch", "Hex",
+    "Null Set", "Carrier", "Mainframe", "Dial Tone", "Kilohertz", "Vector",
+    "Mira Volt", "Dead Pixel", "Sector 9", "Halogen", "Cold Boot", "Ferrite",
+    "Lux Ultra", "Teletype", "Modem", "Oscilla", "Black Box", "Dr. Ohm",
+    "Vanta", "Cathode", "Syntax Error", "Relay", "Nova Grid", "Loop Station",
+    "Chrome Widow", "Baud", "Sub Zero", "Ultravox Unit", "Polygon", "Night Bus",
 ]
 
 
