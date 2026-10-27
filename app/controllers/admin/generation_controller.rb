@@ -23,7 +23,7 @@ module Admin
       )
 
       if @job.save
-        GenerateShowJob.perform_later(@job.id)
+        (@job.options&.dig('kind') == 'set' ? BuildSetJob : GenerateShowJob).perform_later(@job.id)
         redirect_to admin_generation_path(@job), notice: 'Generation started'
       else
         render :new, status: :unprocessable_entity
