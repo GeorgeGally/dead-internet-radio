@@ -70,7 +70,7 @@ fetch("/admin/ace_step/status.json")
   <% @recent_jobs.each do |job| %>
     <tr>
       <td><a href="/admin/generation/<%= job.id %>"><%= job.slot %></a></td>
-      <td><%= job.track_count %></td>
+      <td><%= job.tracks_shown %></td>
       <td>
         <span class="status-badge status-<%= job.status %>"><%= job.status %></span>
         <% if job.failed? %>

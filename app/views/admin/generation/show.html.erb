@@ -87,7 +87,7 @@
           <button type="submit" class="btn-sm">↻</button>
         <% end %>
       <% end %>
-      <span><%= @job.track_count %> tracks</span>
+      <span><%= @job.tracks_shown %> tracks</span>
       <span>DJ: <span id="p-dj-name"><%= @job.options&.dig("dj_name") || @job.dj_name || "—" %></span></span>
       <% if @job.dry_run? %><span>Dry run</span><% end %>
       <% if @job.running? %><span class="pulse-dot">&#9679;</span><% end %>

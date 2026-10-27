@@ -20,4 +20,13 @@ class GenerationJob < ApplicationRecord
   def dry_run?
     [true, '1'].include?(options&.dig('dry_run'))
   end
+
+  def set?
+    options&.dig('kind') == 'set'
+  end
+
+  # A set picks its songs as it builds, so its count comes from the show.
+  def tracks_shown
+    set? ? show&.tracks&.count.to_i : track_count
+  end
 end
