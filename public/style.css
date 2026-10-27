@@ -1470,3 +1470,21 @@ body.prewarming #block-canvas {
   }
   .slot-tick { transform-origin: 50% 16px; }
 }
+
+/* Slot saved: a black box in the middle of the screen. */
+#saved-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  padding: 14px 22px;
+  background: #000;
+  color: #fff;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#saved-box.show { opacity: 1; }

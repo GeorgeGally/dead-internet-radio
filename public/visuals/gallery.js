@@ -423,7 +423,21 @@ const gallery = (() => {
     saveLit = true;
     slotPinned = true;
     updateSlotUI();
-    visuals.showNotification(`Slot ${slot} saved`);
+    savedBox(`Slot ${slot} saved`);
+  }
+
+  // A plain black box, dead centre, then gone.
+  let savedEl = null;
+  function savedBox(text) {
+    if (!savedEl) {
+      savedEl = document.createElement('div');
+      savedEl.id = 'saved-box';
+      document.body.appendChild(savedEl);
+    }
+    savedEl.textContent = text;
+    savedEl.classList.add('show');
+    clearTimeout(savedEl._t);
+    savedEl._t = setTimeout(() => savedEl.classList.remove('show'), 1400);
   }
 
   function loadSlot(id, slot) {
