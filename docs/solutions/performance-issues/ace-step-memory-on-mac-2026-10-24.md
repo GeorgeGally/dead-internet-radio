@@ -81,3 +81,18 @@ encodes the MP3 itself with the `ffmpeg` on PATH. A failed encode keeps the WAV.
 
     footprint -p $(lsof -ti tcp:8001 -sTCP:LISTEN) | grep phys_footprint
     cat log/ace_step_watchdog.log
+
+### 2026-10-27: froze again, with Chrome at 19 GB and swap full
+
+One song froze the Mac. ACE-Step itself finished (track saved, ~21 GB peak),
+but Chrome held 19 GB and swap was already 13.6 of 15 GB used before the
+render. The watchdog never fired: memory_pressure's "free %" stays above 12%
+while macOS pushes everything into swap, and a full swap is what hangs it.
+
+- `AceStepManager.check_memory!` refuses to start ACE-Step unless
+  free + inactive + purgeable is at least `ACESTEP_MIN_FREE_GB` (default 20)
+  and 2 GB of swap is left. The job fails with the numbers instead.
+- `ace-step-watchdog.sh` also kills ACE-Step when swap free drops under
+  `MIN_SWAP_FREE_MB` (default 1024).
+- The freeze also took down Postgres on 5433 (Homebrew postgresql@14, started
+  by hand): `pg_ctl -D /opt/homebrew/var/postgresql@14 -o "-p 5433" start`.

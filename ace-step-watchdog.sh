@@ -19,6 +19,12 @@ while :; do
       echo "$(date '+%F %T') free=${free}% < ${MIN_FREE_PCT}% — killing ACE-Step ($pids)" >> "$LOG"
       kill -9 $pids 2>/dev/null
     fi
+    # Swap nearly full freezes the Mac even while "free" still looks fine.
+    swapfree=$(sysctl -n vm.swapusage 2>/dev/null | sed -n 's/.*free = \([0-9]*\)\..*/\1/p')
+    if [ -n "$swapfree" ] && [ "$swapfree" -lt "${MIN_SWAP_FREE_MB:-1024}" ]; then
+      echo "$(date '+%F %T') swap free=${swapfree}M — killing ACE-Step ($pids)" >> "$LOG"
+      kill -9 $pids 2>/dev/null
+    fi
   fi
   sleep 2
 done
