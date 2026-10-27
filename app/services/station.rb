@@ -1,8 +1,9 @@
 # The station clock. Keeps the broadcast timeline filled ahead of "now" by
-# rotating through completed shows (one whole show at a time, so DJ drops
-# stay in order), and lets requests jump the queue.
+# rotating through completed shows and library sets (one whole show at a time,
+# so DJ drops stay in order). Planned hours ahead so a listener whose request
+# lands in a set can be told when it airs.
 class Station
-  HORIZON = 1.hour
+  HORIZON = ENV.fetch("STATION_HORIZON_HOURS", "6").to_f.hours
   LOCK_KEY = 0x0D1A  # pg advisory lock id for timeline writes
 
   # Current segment first, then what's coming.
@@ -24,8 +25,15 @@ class Station
   end
 
   def self.fill!(at = Time.current)
-    return if BroadcastSegment.where("ends_at > ?", at + HORIZON).exists?
+    booked = book!(at)
+    RequestNotifier.scheduled!(booked) if booked.any?
+    SetPlanner.tick!(at)
+  end
 
+  def self.book!(at)
+    return [] if BroadcastSegment.where("ends_at > ?", at + HORIZON).exists?
+
+    booked = []
     locked do
       last = BroadcastSegment.chronological.last
       # Dead air (server was off): restart the timeline at now.
@@ -36,17 +44,18 @@ class Station
         break if tracks.empty?
         tracks.each do |track|
           ends = cursor + track.duration_ms / 1000.0
-          BroadcastSegment.create!(track: track, starts_at: cursor, ends_at: ends)
+          booked << BroadcastSegment.create!(track: track, starts_at: cursor, ends_at: ends)
           cursor = ends
         end
       end
     end
+    booked
   end
 
-  # Least-recently-aired completed show with playable tracks.
+  # Least-recently-aired show or set with playable tracks; never-aired first.
   def self.next_show_tracks
     last_aired = BroadcastSegment.joins(:track).group("tracks.show_id").maximum(:starts_at)
-    shows = Show.completed.includes(:tracks).sort_by { |s| [last_aired[s.id] || Time.at(0), s.id] }
+    shows = Show.airable.includes(:tracks).sort_by { |s| [last_aired[s.id] || Time.at(0), s.id] }
     shows.each do |show|
       tracks = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
       return tracks if tracks.any?
@@ -60,5 +69,5 @@ class Station
       yield
     end
   end
-  private_class_method :next_show_tracks, :locked
+  private_class_method :book!, :next_show_tracks, :locked
 end

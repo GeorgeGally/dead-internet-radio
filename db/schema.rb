@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -61,7 +61,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
     t.datetime "generated_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "kind", default: "show", null: false
     t.index ["directory"], name: "index_shows_on_directory", unique: true
+    t.index ["kind"], name: "index_shows_on_kind"
     t.index ["status"], name: "index_shows_on_status"
   end
 
@@ -76,6 +78,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
     t.bigint "track_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "time_zone"
+    t.datetime "notified_at"
     t.index ["matched_track_id"], name: "index_song_requests_on_matched_track_id"
     t.index ["status"], name: "index_song_requests_on_status"
     t.index ["track_id"], name: "index_song_requests_on_track_id"
@@ -104,6 +108,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.float "cue_seconds"
+    t.bigint "origin_track_id"
+    t.integer "up_votes", default: 0, null: false
+    t.integer "down_votes", default: 0, null: false
+    t.datetime "vetoed_at"
+    t.index ["origin_track_id"], name: "index_tracks_on_origin_track_id"
     t.index ["show_id", "position"], name: "index_tracks_on_show_id_and_position", unique: true
     t.index ["show_id"], name: "index_tracks_on_show_id"
   end
@@ -127,10 +136,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_25_120000) do
     t.index ["slug"], name: "index_visual_modules_on_slug", unique: true
   end
 
+  create_table "votes", force: :cascade do |t|
+    t.bigint "track_id", null: false
+    t.string "voter", null: false
+    t.integer "value", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["track_id", "voter"], name: "index_votes_on_track_id_and_voter", unique: true
+    t.index ["track_id"], name: "index_votes_on_track_id"
+  end
+
   add_foreign_key "broadcast_segments", "tracks"
   add_foreign_key "generation_jobs", "shows"
   add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", on_delete: :nullify
   add_foreign_key "song_requests", "users"
   add_foreign_key "tracks", "shows"
+  add_foreign_key "tracks", "tracks", column: "origin_track_id", on_delete: :nullify
+  add_foreign_key "votes", "tracks", on_delete: :cascade
 end

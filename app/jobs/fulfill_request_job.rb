@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 # Renders one queued listener request as a 1-track show: generate.py with
-# --request-json, then djmix.py, then import, then onto the timeline next.
-# Local only: it needs ACE-Step. Shares the render lock with GenerateShowJob.
+# --request-json, then djmix.py, then import. The song waits in the library
+# until a set picks it up (SetPlanner); the listener is emailed once that set
+# is on the timeline. Local only: it needs ACE-Step. Shares the render lock
+# with GenerateShowJob.
 class FulfillRequestJob < ApplicationJob
   include ShowImporter
   include SubprocessRunner
@@ -53,10 +55,10 @@ class FulfillRequestJob < ApplicationJob
         raise "djmix.py failed with exit #{exit2}" if exit2 != 0
 
         show = import_show(@show_dir, @gen_job)
+        show.update!(kind: 'request')
         track = show.tracks.ordered.last
         req.update!(status: :ready, track: track)
-        say("Ready: track ##{track.id}")
-        air_next(track)
+        say("Ready: track ##{track.id}, waiting for a set")
       end
 
       @gen_job.update!(status: :done, completed_at: Time.current)
@@ -85,12 +87,5 @@ class FulfillRequestJob < ApplicationJob
       seed_caption: req.matched_track&.sound_caption
     ))
     path.to_s
-  end
-
-  def air_next(track)
-    Station.insert_next(track)
-    say('Slotted next on the broadcast.')
-  rescue StandardError => e
-    say("Could not slot it on the broadcast: #{e.message}")
   end
 end

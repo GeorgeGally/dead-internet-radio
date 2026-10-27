@@ -139,6 +139,7 @@ const requestLine = (() => {
       out.textContent = '\u2026';
       const { data } = await call('POST', '/requests', {
         artist: artist.input.value, title: title.input.value, note: style.input.value,
+        time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       out.textContent = data.message || 'The line went dead. Try again later.';
       if (typeof data.requests_left === 'number') {

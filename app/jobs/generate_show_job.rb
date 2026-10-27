@@ -34,6 +34,8 @@ class GenerateShowJob < ApplicationJob
       end
 
       resume_dir = detect_resume_dir(gen_job, root)
+      # The DJ writing new songs hears how listeners voted on the old ones.
+      Library.write_taste!
 
       cmd1 = [Rails.configuration.x.python, 'generate.py', gen_job.slot, '--tracks', gen_job.track_count.to_s]
       cmd1 += ['--dj-name', gen_job.dj_name] if gen_job.dj_name

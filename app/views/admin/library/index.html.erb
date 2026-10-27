@@ -1,0 +1,49 @@
+<h2>Library</h2>
+
+<div class="stats">
+  <div class="stat-card"><div class="num"><%= @songs.size %></div><div class="label">Songs</div></div>
+  <div class="stat-card"><div class="num"><%= (@songs.sum { |s| s.duration_ms.to_i } / 3_600_000.0).round(1) %>h</div><div class="label">Music</div></div>
+  <div class="stat-card"><div class="num"><%= @songs.count { |s| @plays[s.id].to_i.zero? } %></div><div class="label">Never aired</div></div>
+  <div class="stat-card"><div class="num"><%= @songs.count { |s| s.vetoed_at || s.retired? } %></div><div class="label">Out</div></div>
+</div>
+
+<%= form_with url: build_admin_library_index_path, method: :post, class: "inline-form" do %>
+  <input type="text" name="slot" placeholder="<%= SetPlanner.slot_for(Time.current) %>" size="24">
+  <select name="minutes">
+    <% [40, 60, 90, 120].each do |m| %><option value="<%= m %>" <%= "selected" if m == 60 %>><%= m %> min</option><% end %>
+  </select>
+  <button type="submit">Build a set</button>
+<% end %>
+
+<% if @sets.any? %>
+<table>
+  <tr><th>Set</th><th>Slot</th><th>Status</th><th>Started</th></tr>
+  <% @sets.each do |job| %>
+    <tr>
+      <td><a href="<%= admin_generation_path(job) %>"><%= job.show&.name || "##{job.id}" %></a></td>
+      <td><%= job.slot %></td>
+      <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
+      <td><%= job.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+    </tr>
+  <% end %>
+</table>
+<% end %>
+
+<table>
+  <tr><th>Artist</th><th>Title</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>+</th><th>&minus;</th><th>Request</th><th></th></tr>
+  <% @songs.each do |song| %>
+    <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
+      <td><%= song.artist %></td>
+      <td><a href="/admin/shows/<%= song.show_id %>"><%= song.title %></a></td>
+      <td><%= song.bpm %></td>
+      <td><%= song.key %></td>
+      <td><%= Time.at(song.duration_ms / 1000).utc.strftime("%-M:%S") %></td>
+      <td><%= @plays[song.id].to_i %></td>
+      <td><%= @last_aired[song.id]&.strftime("%-d %b %H:%M") %></td>
+      <td><%= song.up_votes %></td>
+      <td><%= song.down_votes %></td>
+      <td><%= @requests[song.id]&.user&.name %></td>
+      <td><%= button_to(song.vetoed_at ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-sm") %></td>
+    </tr>
+  <% end %>
+</table>

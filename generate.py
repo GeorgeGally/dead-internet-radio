@@ -277,6 +277,26 @@ def avoid_block() -> str:
     )
 
 
+LISTENER_TASTE_PATH = OUTPUT_DIR / "listener-taste.json"
+
+
+def taste_block() -> str:
+    """What listeners voted for and turned away, written by Rails (Library.write_taste!)."""
+    try:
+        taste = json.loads(LISTENER_TASTE_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return ""
+    liked, turned = taste.get("liked") or [], taste.get("turned_away") or []
+    if not liked and not turned:
+        return ""
+    block = "\n\nLISTENERS — how the station's listeners voted on earlier songs. Lessons, not templates: never copy a sound.\n"
+    if liked:
+        block += "They kept coming back for:\n" + "\n".join(f"- {c[:240]}" for c in liked) + "\n"
+    if turned:
+        block += "They turned these away; steer clear of what made them:\n" + "\n".join(f"- {c[:240]}" for c in turned) + "\n"
+    return block
+
+
 def wait_for_memory(threshold_pct=25, max_wait_s=1800):
     """Block until macOS reports enough free memory (backpressure between tracks).
 
@@ -739,7 +759,7 @@ def main():
 
         ace_healthy = None
         # A request names its own artist, often one the station already played.
-        avoid = "" if request else avoid_block()
+        avoid = "" if request else avoid_block() + taste_block()
         if avoid:
             used_artists, used_titles = already_broadcast_names()
             print(f"   Anti-reuse list: {len(used_artists)} artist names, "

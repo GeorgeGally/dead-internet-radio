@@ -8,6 +8,8 @@ class Show < ApplicationRecord
   validates :directory, uniqueness: true, allow_nil: true
 
   scope :completed, -> { where(status: :complete) }
+  # Requests render on their own but only ever air inside a set.
+  scope :airable, -> { completed.where.not(kind: "request") }
   scope :recent, -> { order(generated_at: :desc) }
 
   # DB stores a link to the mix (e.g. "dist/audio/foo.mp3"); the canonical

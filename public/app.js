@@ -265,6 +265,7 @@ function updateTrackInfo() {
     }
 
     if (trackEl) trackEl.textContent = track.title || track.caption || track.file || '—';
+    if (typeof votes !== 'undefined') votes.show(track);
     if (artistEl) artistEl.textContent = track.artist || 'Dead Internet Radio';
 
     const visName = visuals.getCurrentName ? visuals.getCurrentName() : '';

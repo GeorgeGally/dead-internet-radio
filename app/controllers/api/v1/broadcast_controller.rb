@@ -8,6 +8,7 @@ module Api
           {
             id: seg.id,
             trackId: t.id,
+            songId: t.votable? ? t.song_id : nil,
             startsAt: (seg.starts_at.to_f * 1000).round,
             durationMs: seg.duration_ms,
             source: seg.source,

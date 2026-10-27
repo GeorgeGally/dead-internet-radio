@@ -13,6 +13,8 @@ module Api
 
       def create
         req = current_user.song_requests.new(params.slice(:artist, :title, :note).permit(:artist, :title, :note).to_h)
+        # The listener's own clock, for the "it airs at" email.
+        req.time_zone = params[:time_zone] if ActiveSupport::TimeZone[params[:time_zone].to_s]
         unless req.valid?
           blank = req.errors.any? { |e| e.type == :blank }
           return render json: { status: "invalid", message: blank ? "Artist and title. Both." : "Shorter. The line is thin." },
@@ -38,7 +40,7 @@ module Api
           req.update!(status: :rejected, rejection_reason: verdict.reason)
         end
 
-        render json: request_json(req).merge(message: verdict.accepted? ? "Logged. Somewhere a machine starts writing it." : verdict.reason,
+        render json: request_json(req).merge(message: verdict.accepted? ? "Logged. When it's on the schedule, we'll email you the time." : verdict.reason,
                                              requests_left: current_user.requests_left_today),
                status: :created
       end

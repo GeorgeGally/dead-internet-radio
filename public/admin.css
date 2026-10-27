@@ -358,3 +358,5 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .vo-done .btn-play { color: #0055cc; margin-top: 2px; }
 .vo-done .btn-play:hover { background: rgba(0,85,204,0.1); }
 .vo-text { flex: 1; font-style: italic; font-size: 13px; }
+
+.inline-form { display: flex; gap: 8px; align-items: center; margin-bottom: 24px; }

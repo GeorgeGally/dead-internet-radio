@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       post "session/google", to: "sessions#google"
       delete "session", to: "sessions#destroy"
       resources :requests, only: [:index, :create]
+      post "songs/:song_id/vote", to: "votes#create", as: :song_vote
     end
   end
 
@@ -34,6 +35,10 @@ Rails.application.routes.draw do
       end
     end
     resources :tracks, only: [:destroy]
+    resources :library, only: [:index] do
+      post :veto, on: :member
+      post :build, on: :collection
+    end
     resources :requests, only: [:index] do
       post :fulfill, on: :member
     end

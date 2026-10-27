@@ -376,6 +376,8 @@ body.prewarming #block-canvas {
 #btn-play.stop { --c: #3b3f44; }
 #btn-gallery { --c: #8d9aa6; --txt: #fff; }
 #btn-request { font-size: 17px; }
+.abtn.vote { font-size: 20px; }
+.abtn.vote:disabled { cursor: default; color: rgba(42, 42, 42, .3); }
 
 /* ---- Request card: a dark card over the artwork, fades like a TV ---- */
 /* ---- Request line: a full-screen page in the deck's colours (Rams, TE) ---- */
