@@ -3,6 +3,7 @@
 module Library
   RESTING = 6.hours   # a song that just aired sits out this long
   POOL_SIZE = 80
+  MIN_FRESH = 40      # fewer rested songs than this and the resting ones come back
 
   # Library song id => last time it aired (or is booked to).
   def self.last_aired
@@ -25,9 +26,14 @@ module Library
     waiting = SongRequest.waiting_for_set.includes(:user).index_by(&:track_id)
     songs = self.songs.where(vetoed_at: nil).to_a.select { |t| t.audio_path && File.exist?(t.audio_path) }
     songs.reject! { |t| t.retired? && !waiting.key?(t.id) }
-    songs.reject! { |t| !waiting.key?(t.id) && aired[t.id] && aired[t.id] > at - RESTING }
-    songs.sort_by! { |t| [waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id] }
-    songs.first(POOL_SIZE).map { |t| candidate(t, waiting[t.id]) }
+    # While the library is small the station loops it, so every song has aired
+    # or is booked within hours: the resting ones then join at the back,
+    # longest unheard first, rather than leaving the DJ nothing.
+    resting, fresh = songs.partition { |t| !waiting.key?(t.id) && aired[t.id] && aired[t.id] > at - RESTING }
+    fresh.sort_by! { |t| [waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id] }
+    resting.sort_by! { |t| [aired[t.id], t.id] } if fresh.size < MIN_FRESH
+    pool = fresh.size < MIN_FRESH ? fresh + resting : fresh
+    pool.first(POOL_SIZE).map { |t| candidate(t, waiting[t.id]) }
   end
 
   def self.candidate(track, request)

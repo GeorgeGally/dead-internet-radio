@@ -1,5 +1,6 @@
 require 'net/http'
 require 'open3'
+require 'socket'
 
 class AceStepManager
   class StartupError < StandardError; end
@@ -18,13 +19,23 @@ class AceStepManager
       http.open_timeout = HEALTH_TIMEOUT
       http.read_timeout = HEALTH_TIMEOUT
       resp = http.get(HEALTH_PATH)
-      resp.is_a?(Net::HTTPOK) || resp.is_a?(Net::HTTPNoContent)
-    rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Net::OpenTimeout, Net::ReadTimeout, Errno::EADDRNOTAVAIL
+      # Same test as generate.py: another app on the port can answer 200 too.
+      resp.is_a?(Net::HTTPOK) && JSON.parse(resp.body).dig('data', 'status') == 'ok'
+    rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Net::OpenTimeout, Net::ReadTimeout, Errno::EADDRNOTAVAIL, JSON::ParserError, TypeError
+      false
+    end
+
+    def port_taken?
+      uri = URI(ace_step_url)
+      Socket.tcp(uri.host, uri.port, connect_timeout: HEALTH_TIMEOUT).close
+      true
+    rescue SystemCallError, SocketError, IOError
       false
     end
 
     def start!
       return true if healthy?
+      raise StartupError, "port #{ace_step_port} is taken by another app" if port_taken?
 
       start_cmd = startup_command
       Rails.logger.info "[AceStepManager] Starting ACE-Step: #{start_cmd}"
