@@ -90,7 +90,8 @@ render. The watchdog never fired: memory_pressure's "free %" stays above 12%
 while macOS pushes everything into swap, and a full swap is what hangs it.
 
 - `AceStepManager.check_memory!` refuses to start ACE-Step unless
-  free + inactive + purgeable is at least `ACESTEP_MIN_FREE_GB` (default 20)
+  free + inactive + purgeable is at least `ACESTEP_MIN_FREE_GB` (default 14: macOS finds the rest by compressing
+  idle apps, which is how renders always ran with Chrome open)
   and no more than 8 GB is already in swap (swap "free" means little: macOS
   grows the swap files on demand). The job fails with the numbers instead.
 - `ace-step-watchdog.sh` also kills ACE-Step when swap used passes

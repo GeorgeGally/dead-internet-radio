@@ -157,10 +157,12 @@ class AceStepManager
 
     # Kills ACE-Step if free memory drops too low, instead of letting the Mac freeze.
     # One per Rails process is enough; it idles while nothing listens on the port.
-    # ACE-Step peaks near 21 GB. Started with less than that free, or with
-    # lots already swapped out, the Mac swaps until it freezes, so don't start.
+    # ACE-Step peaks near 21 GB; macOS finds the rest by compressing idle
+    # apps (Chrome) and swapping, which is how renders always ran. With
+    # swap already deep, that has nowhere to go and the Mac freezes
+    # (2026-10-27: 13.6 GB in swap), so don't start.
     # (Swap "free" means little: macOS grows the swap files on demand.)
-    MIN_FREE_GB = ENV.fetch('ACESTEP_MIN_FREE_GB', '20').to_f
+    MIN_FREE_GB = ENV.fetch('ACESTEP_MIN_FREE_GB', '14').to_f
     MAX_SWAP_USED_GB = 8.0
 
     def check_memory!
