@@ -977,7 +977,10 @@ let audioAnalysisReady = false;
     updateTrackInfo();
     if (ok) {
       gallery.loadPreset(id);
-      gallery.applyRandomSlot(id);
+      const slot = gallery.applyRandomSlot(id);
+      // Only the listener's own switches say where they landed; automatic
+      // ones run when it's quiet and stay silent.
+      if (!gallery.isQuiet()) gallery.box(slot ? `${visuals.getCurrentName()} / slot ${slot}` : visuals.getCurrentName());
     }
     return ok;
   };
