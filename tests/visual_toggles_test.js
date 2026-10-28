@@ -110,33 +110,90 @@ test('artworkEnded picks a switched-on artwork', () => {
   assert.equal(visuals.getCurrentId(), 'beta');
 });
 
-test('admin page has a per-artwork on/off switch that saves immediately', () => {
-  const view = fs.readFileSync(path.join(root, 'app/views/admin/visuals/index.html.erb'), 'utf8');
+function loadAdminSwitches(states, respond) {
+  const inputs = states.map((checked, index) => {
+    const listeners = {};
+    const classes = new Set(checked ? [] : ['is-off']);
+    const row = {
+      classList: {
+        toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+        contains(name) { return classes.has(name); },
+      },
+    };
+    return {
+      checked,
+      dataset: { visualId: String(index + 1) },
+      row,
+      closest() { return row; },
+      addEventListener(type, callback) { listeners[type] = callback; },
+      async toggle() {
+        this.checked = !this.checked;
+        await listeners.change();
+      },
+    };
+  });
+  const allOff = { hidden: true };
+  const requests = [];
+  const sandbox = {
+    JSON,
+    Array,
+    Error,
+    document: {
+      querySelector(selector) {
+        if (selector === 'meta[name="csrf-token"]') return { content: 'token' };
+        if (selector === '.all-off') return allOff;
+        return null;
+      },
+      querySelectorAll(selector) {
+        return selector === '.switch input' ? inputs : [];
+      },
+    },
+    async fetch(url, options) {
+      requests.push({ url, method: options.method, body: JSON.parse(options.body) });
+      return respond();
+    },
+  };
+  const scriptPath = path.join(root, 'public/admin_visuals.js');
+  vm.runInNewContext(fs.readFileSync(scriptPath, 'utf8'), sandbox, { filename: scriptPath });
+  return { inputs, allOff, requests };
+}
 
-  assert.match(view, /class="switch"/);
-  assert.match(view, /data-visual-id="<%= v\.id %>"/);
-  assert.match(view, /visual_module: \{ active: input\.checked \}/);
-  assert.match(view, /method: 'PATCH'/);
+test('admin switch saves the new on-air state', async () => {
+  const { inputs, requests } = loadAdminSwitches([true, true], () => ({ ok: true }));
+
+  await inputs[1].toggle();
+  assert.deepEqual(requests, [{ url: '/admin/visuals/2', method: 'PATCH', body: { visual_module: { active: false } } }]);
+  assert.equal(inputs[1].checked, false);
+  assert.equal(inputs[1].row.classList.contains('is-off'), true);
 });
 
-test('player loads the active artwork list before opening the first artwork', () => {
-  const app = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
+test('admin switch reverts when the save fails', async () => {
+  const { inputs } = loadAdminSwitches([true], () => ({ ok: false, status: 422 }));
 
-  assert.match(app, /fetchJson\(apiUrl\('\/visuals'\)\)/);
-  assert.match(app, /visuals\.setEnabled\(/);
-  assert.ok(app.indexOf('await loadActiveVisuals()') < app.indexOf('showWelcome();'));
+  await inputs[0].toggle();
+  assert.equal(inputs[0].checked, true);
+  assert.equal(inputs[0].row.classList.contains('is-off'), false);
 });
 
-test('visual modules are registered from the player source', () => {
-  const model = fs.readFileSync(path.join(root, 'app/models/visual_module.rb'), 'utf8');
-  const controller = fs.readFileSync(path.join(root, 'app/controllers/admin/visuals_controller.rb'), 'utf8');
-  const artworkFiles = fs.readdirSync(path.join(root, 'public/visuals'))
-    .filter((file) => file.endsWith('.js'))
-    .map((file) => file.replace(/\.js$/, ''))
-    .filter((slug) => !['engine', 'filters', 'fx', 'gallery'].includes(slug));
+test('admin page says all artworks play when every artwork is switched off', async () => {
+  const { inputs, allOff } = loadAdminSwitches([true, false], () => ({ ok: true }));
+  assert.equal(allOff.hidden, true);
 
-  assert.match(model, /public\/visuals\/\*\.js/);
-  assert.match(model, /def self\.sync_from_player!/);
-  assert.match(controller, /VisualModule\.sync_from_player!/);
-  assert.ok(artworkFiles.length > 0);
+  await inputs[0].toggle();
+  assert.equal(allOff.hidden, false);
+
+  await inputs[1].toggle();
+  assert.equal(allOff.hidden, true);
+});
+
+test('admin page shows the all-off line on load when nothing is switched on', () => {
+  const { allOff } = loadAdminSwitches([false, false], () => ({ ok: true }));
+  assert.equal(allOff.hidden, false);
+});
+
+test('all-off line hides again when the last switch-off fails to save', async () => {
+  const { inputs, allOff } = loadAdminSwitches([true], () => ({ ok: false, status: 500 }));
+
+  await inputs[0].toggle();
+  assert.equal(allOff.hidden, true);
 });

@@ -2,6 +2,7 @@ module Api
   module V1
     class VisualsController < ApplicationController
       def index
+        VisualModule.sync_from_player!
         visuals = VisualModule.active.order(:name)
         render json: visuals.map { |v|
           {

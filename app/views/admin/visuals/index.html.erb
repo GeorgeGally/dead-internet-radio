@@ -1,5 +1,7 @@
 <h2>Visual Modules</h2>
 
+<p class="all-off" hidden>The player is showing all artworks because none are switched on.</p>
+
 <table class="visuals">
   <thead>
     <tr><th>Name</th><th>Slug</th><th>Thumbnail</th><th>On air</th></tr>
@@ -21,32 +23,4 @@
   </tbody>
 </table>
 
-<script>
-  (() => {
-    const token = document.querySelector('meta[name="csrf-token"]').content;
-
-    document.querySelectorAll('.switch input').forEach((input) => {
-      input.addEventListener('change', async () => {
-        const row = input.closest('tr');
-        const paint = () => row.classList.toggle('is-off', !input.checked);
-        paint();
-
-        try {
-          const response = await fetch(`/admin/visuals/${input.dataset.visualId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': token,
-              Accept: 'application/json',
-            },
-            body: JSON.stringify({ visual_module: { active: input.checked } }),
-          });
-          if (!response.ok) throw new Error(`save failed: ${response.status}`);
-        } catch (error) {
-          input.checked = !input.checked;
-          paint();
-        }
-      });
-    });
-  })();
-</script>
+<script src="/admin_visuals.js" defer></script>
