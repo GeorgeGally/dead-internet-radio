@@ -426,8 +426,7 @@ const gallery = (() => {
     savedBox(`Slot ${slot} saved`);
   }
 
-  // A plain black box, dead centre, then gone: saves, and the listener's own
-  // artwork and slot changes.
+  // A plain black box, dead centre, then gone: saves and slot changes.
   let savedEl = null;
   function savedBox(text) {
     if (!savedEl) {
@@ -627,5 +626,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, erratic, box: savedBox, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();
