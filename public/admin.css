@@ -360,3 +360,5 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .vo-text { flex: 1; font-style: italic; font-size: 13px; }
 
 .inline-form { display: flex; gap: 8px; align-items: center; margin-bottom: 24px; }
+
+.show-mix { display: block; width: 100%; max-width: 560px; margin: 16px 0; }

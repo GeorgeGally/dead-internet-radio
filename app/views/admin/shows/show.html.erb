@@ -8,6 +8,10 @@
   <% if @show.mix_file %>&middot; Mix: ready<% end %>
 </p>
 
+<% if @show.mix_path && File.exist?(@show.mix_path) %>
+  <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@show) %>"></audio>
+<% end %>
+
 <p style="margin:16px 0;">
   <%= button_to "Remix", remix_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-run djmix.py on this show?" } %>
   <%= button_to "Re‑import", reimport_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-read filesystem data into DB?" } %>
@@ -31,7 +35,13 @@
   </tr>
   <% @tracks.each do |track| %>
     <tr>
-      <td><%= track.position %></td>
+      <td>
+        <% if track.audio_path && File.exist?(track.audio_path) %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(track) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% else %>
+          <%= track.position %>
+        <% end %>
+      </td>
       <td><%= track.title %></td>
       <td><%= track.artist %></td>
       <td><%= track.bpm %></td>
@@ -50,3 +60,18 @@
     </tr>
   <% end %>
 </table>
+
+<script>
+  // One player for the table: a row's ▶ plays it, pressing again stops.
+  var trackAudio = new Audio();
+  function playTrack(btn) {
+    var playing = btn.textContent === '\u23F8';
+    document.querySelectorAll('.btn-play').forEach(function(b) { b.textContent = '\u25B6'; });
+    document.querySelectorAll('audio.show-mix').forEach(function(a) { a.pause(); });
+    if (playing) { trackAudio.pause(); return; }
+    trackAudio.src = btn.dataset.src;
+    trackAudio.play();
+    btn.textContent = '\u23F8';
+    trackAudio.onended = function() { btn.textContent = '\u25B6'; };
+  }
+</script>

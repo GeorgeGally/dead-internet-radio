@@ -155,6 +155,9 @@
       <p class="job-show-link">
         Show: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>
       </p>
+      <% if @job.show.mix_path && File.exist?(@job.show.mix_path) %>
+        <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@job.show) %>"></audio>
+      <% end %>
     <% end %>
 
     <% if @job.output_log.present? %>

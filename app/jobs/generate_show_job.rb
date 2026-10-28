@@ -53,7 +53,7 @@ class GenerateShowJob < ApplicationJob
         AceStepManager.stop! if AceStepManager.healthy?
         cmd2 = [Rails.configuration.x.python, 'djmix.py', @show_dir, '--crossfade', gen_job.crossfade.to_s]
         say('Running: djmix.py')
-        exit2 = run_and_stream(cmd2, chdir: root)
+        exit2 = run_and_stream(cmd2, chdir: root) { |line| @mix_output = Regexp.last_match(1) if line =~ /^Done! (\S+\.mp3)/ }
         say("Exit: #{exit2}")
 
         say('Importing into database...')

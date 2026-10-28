@@ -10,7 +10,7 @@ class Show < ApplicationRecord
   scope :completed, -> { where(status: :complete) }
   # Requests render on their own but only ever air inside a set.
   scope :airable, -> { completed.where.not(kind: "request") }
-  scope :recent, -> { order(generated_at: :desc) }
+  scope :recent, -> { order(Arel.sql("generated_at DESC NULLS LAST, id DESC")) }
 
   # DB stores a link to the mix (e.g. "dist/audio/foo.mp3"); the canonical
   # master lives in mixes/<basename>. Returns nil if unresolvable.

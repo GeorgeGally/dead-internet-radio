@@ -57,16 +57,16 @@ module ShowImporter
     show
   end
 
+  # djmix names the mix after the show's artists, not its folder, so the job
+  # hands over the path djmix printed ("Done! mixes/<name>.mp3"); the cue
+  # sheet sits beside it. A re-import keeps the mix it already has.
   def import_cues(show, root)
-    cues_dir = File.join(root, 'mixes')
-    return unless Dir.exist?(cues_dir)
-
-    show_basename = show.directory.split('/').last
-    cues_file = Dir.glob(File.join(cues_dir, '*.cues.json'))
-                   .detect { |f| File.basename(f).start_with?(show_basename) }
-    return unless cues_file
+    mix = mix_output || show.mix_file
+    cues_file = mix && File.join(root, mix.sub(/\.mp3\z/, '.cues.json'))
+    return unless cues_file && File.exist?(cues_file)
 
     cues = JSON.parse(File.read(cues_file))
+    cues = cues['tracks'] if cues.is_a?(Hash)
     return unless cues.is_a?(Array)
 
     cues.each do |cue|
@@ -76,14 +76,12 @@ module ShowImporter
   end
 
   def import_mix_file(show, root)
-    mix_dir = File.join(root, 'mixes')
-    return unless Dir.exist?(mix_dir)
+    return unless mix_output && File.exist?(File.join(root, mix_output))
 
-    mix_file = Dir.glob(File.join(mix_dir, '*.mp3'))
-                  .select { |f| File.basename(f).start_with?(show.directory.split('/').last) }
-                  .first
-    return unless mix_file
+    show.update!(mix_file: mix_output)
+  end
 
-    show.update!(mix_file: mix_file.sub("#{root}/", ''))
+  def mix_output
+    @mix_output
   end
 end

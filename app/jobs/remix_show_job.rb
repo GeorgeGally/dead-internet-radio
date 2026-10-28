@@ -25,7 +25,7 @@ class RemixShowJob < ApplicationJob
 
     begin
       say('Running: djmix.py (remix)')
-      exit_status = run_and_stream([Rails.configuration.x.python, 'djmix.py', show.directory], chdir: root)
+      exit_status = run_and_stream([Rails.configuration.x.python, 'djmix.py', show.directory], chdir: root) { |line| @mix_output = Regexp.last_match(1) if line =~ /^Done! (\S+\.mp3)/ }
       say("Exit: #{exit_status}")
 
       import_cues(show, root)
