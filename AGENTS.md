@@ -19,7 +19,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 - Job adapter: `solid_queue` (not Sidekiq — see `config/application.rb`).
 - `Gemfile` is Rails, `requirements.txt` is Python.
 - `config/initializers/cors.rb` — allows all origins for `/api/*`.
-- `bin/dev` starts the Rails dev server (see `Procfile.dev`).
+- `bin/dev` starts the Rails dev server and the job worker `bin/jobs` (see `Procfile.dev`). Dev jobs run in that worker, from their own database (`dead_internet_radio_development_queue`): nothing renders without it, and in-process jobs used to freeze the admin on every code reload.
 - Media served via `MediaController` with HTTP Range support — no static copies.
 
 **Frontend** — static teletext/dead-broadcast player in `public/` (vanilla JS, p5 visuals).
