@@ -1466,7 +1466,7 @@ body.prewarming #block-canvas {
 }
 
 @media (max-width: 1200px) {
-  .npd-group:nth-of-type(2) { display: none; }
+  .npd-art-group { display: none; }
   .deck-content { gap: 18px; }
   .deck-display { gap: 8px; }
   .deck-transport { gap: 8px; }
