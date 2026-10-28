@@ -534,11 +534,27 @@ const gallery = (() => {
     wait();
   }
 
-  // Now and then the dial moves on its own to another saved slot of the
-  // current artwork, at random times. Timing: every 20-75 s, never within
-  // 30 s of a touch or while the drawer is open.
+  // An erratic clock for the station's own changes: it falls into bursts of
+  // fast cuts (1.5-6 s, for a few in a row), ordinary gaps (10-40 s) and long
+  // holds (60-150 s). Each caller keeps its own, so artwork and slots drift
+  // out of step.
+  function erratic() {
+    let burst = 0;
+    return function next() {
+      if (burst > 0) { burst--; return 1500 + Math.random() * 4500; }
+      const r = Math.random();
+      if (r < 0.2) { burst = 2 + Math.floor(Math.random() * 5); return 1500 + Math.random() * 4500; }
+      if (r < 0.75) return 10000 + Math.random() * 30000;
+      return 60000 + Math.random() * 90000;
+    };
+  }
+
+  // The dial moves on its own to another saved slot of the current artwork,
+  // on the erratic clock; never within 30 s of a touch or while the drawer
+  // is open.
+  const slotClock = erratic();
   function driftSlot() {
-    setTimeout(driftSlot, 20000 + Math.random() * 55000);
+    setTimeout(driftSlot, slotClock());
     if (isOpen || slotDirty || slotPinned || !isQuiet()) return;
     const id = visuals.getCurrentId();
     const saved = artPresets[id] || {};
@@ -584,7 +600,7 @@ const gallery = (() => {
     const deckEl = document.getElementById('deck');
     if (deckEl) ['pointerdown', 'wheel', 'pointermove'].forEach((ev) => deckEl.addEventListener(ev, (e) => { if (ev !== 'pointermove' || e.buttons) touched(); }, { passive: true }));
     document.addEventListener('keydown', touched, true);
-    setTimeout(driftSlot, 20000 + Math.random() * 55000);
+    setTimeout(driftSlot, slotClock());
     document.addEventListener('keydown', (e) => {
       // Up and down turn the slot dial, like left and right step artworks.
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.metaKey && !e.ctrlKey && !e.altKey
@@ -611,5 +627,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, box: savedBox, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, erratic, box: savedBox, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();

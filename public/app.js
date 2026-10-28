@@ -959,16 +959,17 @@ let audioAnalysisReady = false;
   // (and the per-visual preset) applies to every switch, not just gallery
   // clicks. random() relies on the boolean result.
   const origActivate = visuals.activate;
-  // Now and then an artwork gets a short run (6-20 s) so the screen cuts fast
-  // for a while; it still waits out the 30 s after the listener touches
-  // anything.
+  // The artwork also moves on its own on an erratic clock (bursts of fast
+  // cuts, ordinary runs, long holds), besides changing with the music; it
+  // still waits out the 30 s after the listener touches anything.
   let quickCut = 0;
+  const artClock = gallery.erratic();
   visuals.activate = function(id) {
     gallery.saveCurrentPreset();
     const ok = origActivate.call(visuals, id);
     if (ok) {
       clearTimeout(quickCut);
-      if (Math.random() < 0.25) quickCut = setTimeout(() => gallery.whenQuiet(() => visuals.random()), 6000 + Math.random() * 14000);
+      quickCut = setTimeout(() => gallery.whenQuiet(() => visuals.random()), artClock());
     }
     updateTrackInfo();
     if (ok) {
