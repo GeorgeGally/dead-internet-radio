@@ -163,6 +163,11 @@
       <% if @job.show.mix_path && File.exist?(@job.show.mix_path) %>
         <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@job.show) %>"></audio>
       <% end %>
+      <% unless @job.running? %>
+        <% tracks = @job.show.tracks.ordered.includes(:origin_track) %>
+        <%= render "admin/shows/tracks", show: @job.show, tracks: tracks,
+              mine: Vote.where(voter: Vote::ADMIN, track_id: tracks.map(&:song_id)).pluck(:track_id, :value).to_h %>
+      <% end %>
     <% end %>
 
     <% if @job.output_log.present? %>
