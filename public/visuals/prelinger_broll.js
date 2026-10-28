@@ -21,6 +21,9 @@ visuals.register('prelinger_broll', (() => {
     scifi:     { q: 'collection:sciencefiction', words: ['sci', 'fi', 'robot', 'alien', 'planet', 'galaxy'] },
   };
   const QUIRKY = ['ufo', 'mind', 'tomorrow', 'computers', 'atomic', 'broadcast', 'scifi'];
+  // A b-roll clip only needs a few seconds of picture; anything past this takes
+  // longer to seek into than a shot lasts.
+  const MAX_CLIP_BYTES = 45e6;
   // Single subjects in the spirit of the Giphy artwork's search list, looked up
   // across the old-film collections: a surprise picture for every track.
   const SUBJECTS = [
@@ -37,6 +40,7 @@ visuals.register('prelinger_broll', (() => {
 
   const state = {
     films: [],
+    pending: [],
     shot: 0,
     prevShot: 0,
     shotAt: 0,
@@ -114,8 +118,11 @@ visuals.register('prelinger_broll', (() => {
       .map((f) => ({ name: String(f.name || ''), size: Number(f.size) || Infinity, h: Number(f.height) || 0 }))
       .filter((f) => /\.mp4$/i.test(f.name) && f.h > 0)
       .sort((a, b) => a.size - b.size);
-    // ...but not the 120p postage stamps some items carry.
-    const file = files.find((f) => f.h >= 200) || files[0];
+    // ...but not the 120p postage stamps some items carry. And skip the items
+    // whose only mp4 is a 1 GB+ master (3-hour double bills): seeking into one
+    // means waiting on archive.org for a hundred megabytes of hunt, which is
+    // exactly the loader this artwork must avoid.
+    const file = files.find((f) => f.h >= 200 && f.size <= MAX_CLIP_BYTES) || files.find((f) => f.size <= MAX_CLIP_BYTES);
     if (!file) return null;
     // Through the app's same-origin proxy: archive.org's storage hosts send no
     // CORS headers, which would taint the canvas and switch every filter off.
@@ -143,7 +150,11 @@ visuals.register('prelinger_broll', (() => {
       };
       const timer = setTimeout(fail, 30000);
       v.addEventListener('loadedmetadata', () => {
-        if (isFinite(v.duration) && v.duration > 30) v.currentTime = v.duration * (0.1 + Math.random() * 0.6);
+        // Skip the opening titles, but stay in the first couple of minutes: the
+        // further in, the longer archive.org takes to find that part of the file.
+        if (isFinite(v.duration) && v.duration > 30) {
+          v.currentTime = Math.min(v.duration * (0.1 + Math.random() * 0.6), 120);
+        }
       }, { once: true });
       v.addEventListener(readyEvent, () => {
         if (!v.videoWidth) return fail();
@@ -155,13 +166,29 @@ visuals.register('prelinger_broll', (() => {
     });
   }
 
-  function disposeVideos() {
-    state.films.forEach((f) => {
+  function disposeVideos(list = state.films) {
+    list.forEach((f) => {
       if (f.video) {
         try { f.video.pause(); } catch (e) {}
         f.video.remove();
       }
     });
+  }
+
+  // The new reel takes the screen only once its first film can play, so the
+  // outgoing reel keeps playing instead of the leader showing through the
+  // search, the metadata lookups and the buffering.
+  function promoteReel(films) {
+    const outgoing = state.films;
+    state.films = films;
+    state.pending = [];
+    state.ready = true;
+    state.failed = false;
+    state.shot = 0;
+    state.prevShot = 0;
+    state.shotAt = performance.now();
+    films[0].video.play().catch(() => {});
+    disposeVideos(outgoing);
   }
 
   async function loadForTrack(info, token) {
@@ -170,38 +197,35 @@ visuals.register('prelinger_broll', (() => {
     const lists = await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
     let ids = [];
     for (let i = 0; i < 6; i++) lists.forEach((l) => { if (l[i]) ids.push(l[i]); });
-    ids = [...new Set(ids)];
+    ids = [...new Set(ids)].slice(0, 6);
     if (!ids.length) throw new Error('none');
 
-    // One film at a time: the first starts as soon as it can play through, and
-    // each next one only joins the rotation once it is fully buffered.
+    // Look every candidate up at once (the metadata is tiny), then open the
+    // films one after another: the first gets the bandwidth it needs to start,
+    // and the two behind it buffer while it plays.
+    const found = (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
+      .filter(Boolean);
+    if (!found.length) throw new Error('no video');
+
     const films = [];
-    state.films = films;
-    for (const id of ids) {
-      if (token !== state.loadToken) return;
-      if (films.length >= 3) break;
-      try {
-        const found = await filmVideo(id);
-        if (!found) continue;
-        const { url, size } = found;
-        const video = await makeVideo(url, 'canplay');
-        if (token !== state.loadToken) {
-          video.remove();
-          return;
-        }
-        films.push({ id, url, video });
+    state.pending = films;
+    for (const { id, url, size } of found) {
+      if (token !== state.loadToken || films.length >= 3) break;
+      const video = await makeVideo(url, 'canplay').catch(() => null);
+      if (!video) continue;
+      if (token !== state.loadToken || films.length >= 3) {
+        video.remove();
+        break;
+      }
+      films.push({ id, url, size, video });
+      if (films.length === 1) {
+        promoteReel(films);
+        // Only the film on screen is worth keeping for the next visit; caching
+        // the others would spend the bandwidth the reel needs.
         rememberFilm(id, url, size);
-        if (films.length === 1) {
-          video.play().catch(() => {});
-          state.ready = true;
-          state.failed = false;
-          state.shot = 0;
-          state.prevShot = 0;
-          state.shotAt = performance.now();
-        }
-      } catch (e) {}
+      }
     }
-    if (!films.length) throw new Error('no video');
+    if (!films.length) state.failed = token === state.loadToken && !state.films.length;
   }
 
   // Something to watch while the first film buffers: the film that was on
@@ -296,6 +320,8 @@ visuals.register('prelinger_broll', (() => {
 
   function stopVideos() {
     dropStandIn();
+    disposeVideos(state.pending);
+    state.pending = [];
     disposeVideos();
   }
 
@@ -330,21 +356,18 @@ visuals.register('prelinger_broll', (() => {
           state.trackKey = info.key;
           state.loadToken += 1;
           const token = state.loadToken;
-          state.ready = false;
           state.failed = false;
-          // The film on screen keeps playing while the next reel loads.
-          const showing = state.films[state.shot];
-          if (showing && showing.video && !standIn) {
-            standIn = showing.video;
-            standIn.play().catch(() => {});
-            state.films = state.films.filter((f) => f !== showing);
+          // The reel on screen keeps playing while the next one loads; it is
+          // handed over only when the new first film can play.
+          disposeVideos(state.pending);
+          state.pending = [];
+          if (!state.films.length) {
+            state.ready = false;
+            if (!standIn) loadStandIn();
           }
-          disposeVideos();
-          state.films = [];
-          if (!standIn) loadStandIn();
           loadForTrack(info, token).catch((err) => {
             console.error('prelinger b-roll load failed:', err && err.message);
-            if (token === state.loadToken) state.failed = true;
+            if (token === state.loadToken && !state.films.length) state.failed = true;
           });
         }
       }
@@ -551,8 +574,9 @@ visuals.register('prelinger_broll', (() => {
 
   function stop() {
     state.ready = false;
-    state.films = [];
+    state.loadToken += 1;
     stopVideos();
+    state.films = [];
     if (myP5) {
       myP5.remove();
       myP5 = null;

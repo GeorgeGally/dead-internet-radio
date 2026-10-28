@@ -12,6 +12,10 @@ class BrollController < ApplicationController
   # Ad files are named like "1968 Easter Seals with Carol Burnett.mp4".
   FILE = %r{\A[^\0\\]+\.mp4\z}
 
+  # A clip is public and never changes; the session cookie only stops proxies
+  # and the browser cache keeping it, and every range request pays for it.
+  before_action :skip_session_cookie, only: :show
+
   def show
     item = params[:item].to_s
     file = params[:file].to_s
@@ -28,6 +32,10 @@ class BrollController < ApplicationController
 
   private
 
+  def skip_session_cookie
+    request.session_options[:skip] = true
+  end
+
   def fetch(uri, redirects, path)
     Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) do |http|
       req = Net::HTTP::Get.new(uri)
@@ -39,10 +47,13 @@ class BrollController < ApplicationController
         end
 
         response.status = res.code.to_i
-        %w[Content-Type Content-Length Content-Range Accept-Ranges].each do |h|
+        %w[Content-Type Content-Length Content-Range Accept-Ranges ETag Last-Modified].each do |h|
           response.headers[h] = res[h] if res[h]
         end
-        response.headers["Cache-Control"] = "public, max-age=86400"
+        # The bytes behind a URL never change, so the browser may keep them and
+        # skip both this proxy and archive.org on a replay.
+        response.headers["Accept-Ranges"] ||= "bytes" if res["Content-Range"]
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         res.read_body { |chunk| response.stream.write(chunk) }
       end
     end
