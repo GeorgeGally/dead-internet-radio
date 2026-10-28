@@ -1532,7 +1532,7 @@ body.prewarming #block-canvas {
     flex-wrap: wrap;
     align-content: center;
     gap: 12px 20px;
-    padding: 0 16px;
+    padding: 0 12px;
   }
 
   #deck.expanded .deck-logo,
