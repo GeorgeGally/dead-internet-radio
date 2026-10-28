@@ -1,13 +1,18 @@
 <h2>Requests</h2>
 
-<table>
-  <tr><th>When</th><th>From</th><th>Artist</th><th>Title</th><th>Note</th><th>Status</th><th>Reason</th><th>Sounds like</th><th>Track</th><th></th></tr>
+<table class="requests">
+  <tr><th></th><th>When</th><th>From</th><th>Artist</th><th>Title</th><th>Note</th><th>Status</th><th>Airs</th><th>Reason</th><th>Sounds like</th><th></th></tr>
   <% @requests.each do |req| %>
     <tr>
-      <td><%= req.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+      <td class="play-cell">
+        <% if req.track&.audio_path && File.exist?(req.track.audio_path) %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(req.track) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% end %>
+      </td>
+      <td><%= local_time(req.created_at) %></td>
       <td title="<%= req.user.email %>"><%= req.user.name %></td>
       <td><%= req.artist %></td>
-      <td><%= req.title %></td>
+      <td data-scrub><%= req.track ? link_to(req.title, admin_track_path(req.track)) : req.title %></td>
       <td><%= req.note %></td>
       <td>
         <span class="status-badge status-<%= req.status %>"><%= req.status %></span>
@@ -18,9 +23,9 @@
           </a>
         <% end %>
       </td>
+      <td><%= (at = req.track_id && @airs[req.track_id]) ? local_time(at) : (req.ready? ? "next set" : "") %></td>
       <td><%= req.rejection_reason %></td>
       <td><%= req.matched_track && "#{req.matched_track.artist} — #{req.matched_track.title}" %></td>
-      <td><% if req.track %><a href="/admin/shows/<%= req.track.show_id %>"><%= req.track.title %></a><% end %></td>
       <td><%= button_to "Render", fulfill_admin_request_path(req) if req.queued? %></td>
     </tr>
   <% end %>

@@ -6,6 +6,11 @@ module Admin
       @requests = SongRequest.recent.includes(:user, :track, :matched_track).limit(200)
       # The render job behind each request that's being made now.
       ids = @requests.select(&:generating?).map { |r| r.id.to_s }
+      # When each request's song airs next (it plays inside a set, as a copy).
+      song_ids = @requests.filter_map(&:track_id)
+      @airs = BroadcastSegment.joins(:track).where("broadcast_segments.ends_at > ?", Time.current)
+                              .where("COALESCE(tracks.origin_track_id, tracks.id) IN (?)", song_ids.presence || [0])
+                              .group("COALESCE(tracks.origin_track_id, tracks.id)").minimum(:starts_at)
       @render_jobs = GenerationJob.where("options->>'request_id' IN (?)", ids).order(:id)
                                   .index_by { |j| j.options['request_id'].to_i }
     end

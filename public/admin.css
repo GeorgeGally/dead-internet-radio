@@ -104,6 +104,7 @@ td {
   text-transform: uppercase;
 }
 .status-done, .status-complete, .status-ready { background: #1f6b2c; color: #fff; }
+.status-scheduled { background: #ec6a1f; color: #fff; }
 .status-running, .status-generating { background: #e0a100; color: #1a1a1a; }
 .status-failed, .status-rejected { background: #b3261e; color: #fff; }
 .status-pending, .status-draft, .status-queued { background: rgba(0,0,0,0.12); color: #1a1a1a; }
@@ -463,3 +464,5 @@ td form { margin: 0; }
 .prompt dd { margin: 0; }
 .lyrics { white-space: pre-wrap; font: inherit; font-size: 13px; margin: 0; padding: 0; background: none; color: inherit; border: none; }
 .track-section .rerender-form { margin: 0; }
+
+.requests td:nth-child(2), .requests td:nth-child(8) { white-space: nowrap; }
