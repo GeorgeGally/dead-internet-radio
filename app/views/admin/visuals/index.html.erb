@@ -1,13 +1,52 @@
 <h2>Visual Modules</h2>
 
-<table>
-  <tr><th>Name</th><th>Slug</th><th>Active</th><th>Thumbnail</th></tr>
-  <% @visuals.each do |v| %>
-    <tr>
-      <td><%= v.name %></td>
-      <td><%= v.slug %></td>
-      <td><%= v.active ? "Yes" : "No" %></td>
-      <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
-    </tr>
-  <% end %>
+<table class="visuals">
+  <thead>
+    <tr><th>Name</th><th>Slug</th><th>Thumbnail</th><th>On air</th></tr>
+  </thead>
+  <tbody>
+    <% @visuals.each do |v| %>
+      <tr class="<%= 'is-off' unless v.active %>">
+        <td><%= v.name %></td>
+        <td class="slug"><%= v.slug %></td>
+        <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
+        <td class="switch-cell">
+          <label class="switch">
+            <input type="checkbox" data-visual-id="<%= v.id %>" aria-label="<%= v.name %> on air" <%= "checked" if v.active %>>
+            <span class="switch-track"></span>
+          </label>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
 </table>
+
+<script>
+  (() => {
+    const token = document.querySelector('meta[name="csrf-token"]').content;
+
+    document.querySelectorAll('.switch input').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const row = input.closest('tr');
+        const paint = () => row.classList.toggle('is-off', !input.checked);
+        paint();
+
+        try {
+          const response = await fetch(`/admin/visuals/${input.dataset.visualId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': token,
+              Accept: 'application/json',
+            },
+            body: JSON.stringify({ visual_module: { active: input.checked } }),
+          });
+          if (!response.ok) throw new Error(`save failed: ${response.status}`);
+        } catch (error) {
+          input.checked = !input.checked;
+          paint();
+        }
+      });
+    });
+  })();
+</script>

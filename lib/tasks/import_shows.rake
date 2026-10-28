@@ -67,50 +67,7 @@ namespace :import do
 
   desc "Import visual modules from the player source"
   task visuals: :environment do
-    src_dir = Rails.root.join("src/visuals")
-    unless src_dir.directory?
-      puts "No src/visuals directory found"
-      return
-    end
-
-    js_files = Dir.glob(src_dir.join("*.js"))
-    excluded = %w[engine.js filters.js gallery.js lib]
-    known_names = {
-      "giphy" => "Giphy Feed",
-      "blocks" => "Generative Blocks",
-      "grid" => "Grid",
-      "trail" => "Trail",
-      "isocubes" => "Iso Cubes",
-      "bouncy" => "Bouncy",
-      "twirlz" => "Twirlz",
-      "bubbles" => "Bubbles",
-      "branches" => "Branches",
-      "particle_drawings" => "Particle Drawings",
-      "particle_machine" => "Particle Machine",
-      "four_dots" => "Four Dots",
-      "delayed_lerp_points2c" => "Delayed Lerp Points 2C",
-      "delayed_lerp_points8" => "Delayed Lerp Points 8",
-      "delayed_lerp_points7" => "Delayed Lerp Points 7",
-      "delayed_lerp_points7b" => "Delayed Lerp Points 7B",
-      "delayed_lerp_points_1600" => "Delayed Lerp Points 1600",
-      "patterns2" => "Patterns 2",
-      "wall_drawing_26" => "Wall Drawing 26",
-      "self_avoiding_walk_3d" => "Self Avoiding Walk 3D",
-      "cubes_token_sha" => "Cubes Token SHA",
-      "led_grid" => "LED Grid Visual",
-    }
-
-    js_files.each do |path|
-      slug = File.basename(path, ".js")
-      next if excluded.include?(slug)
-
-      name = known_names[slug] || slug.humanize.titleize
-      VisualModule.find_or_create_by!(slug: slug) do |v|
-        v.name = name
-        v.active = true
-      end
-    end
-
+    VisualModule.sync_from_player!
     puts "Done. Total visual modules: #{VisualModule.count}"
   end
 end

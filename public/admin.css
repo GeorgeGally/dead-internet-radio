@@ -358,3 +358,47 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .vo-done .btn-play { color: #0055cc; margin-top: 2px; }
 .vo-done .btn-play:hover { background: rgba(0,85,204,0.1); }
 .vo-text { flex: 1; font-style: italic; font-size: 13px; }
+
+.visuals td { padding: 14px; vertical-align: middle; }
+.visuals .slug { color: rgba(0,0,0,0.35); font-size: 12px; }
+.visuals th:last-child { text-align: right; white-space: nowrap; }
+.visuals tr.is-off td:not(.switch-cell) { color: rgba(0,0,0,0.3); }
+.switch-cell { width: 96px; text-align: right; }
+.switch {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+.switch-track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.12);
+  transition: background 0.18s ease;
+}
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f2efe8;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transition: transform 0.18s ease;
+}
+.switch input:checked + .switch-track { background: #ff5a1f; }
+.switch input:checked + .switch-track::after { transform: translateX(20px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid #1a1a1a; outline-offset: 3px; }
