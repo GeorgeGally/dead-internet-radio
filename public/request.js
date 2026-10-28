@@ -2,7 +2,7 @@
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, gsiLoading = null;
+  let card, led, me = null, gsiLoading = null, wentFull = false;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -188,6 +188,11 @@ const requestLine = (() => {
 
   async function open() {
     if (isOpen()) return;
+    // The request line takes the whole screen; leave it the way it was found.
+    const root = document.documentElement;
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      root.requestFullscreen().then(() => { wentFull = true; }, () => {});
+    }
     card.classList.add('open');
     led.classList.add('on');
     card.querySelector('.rq-body').replaceChildren();
@@ -198,6 +203,8 @@ const requestLine = (() => {
   function close() {
     card.classList.remove('open');
     led.classList.remove('on');
+    if (wentFull && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    wentFull = false;
     if (document.activeElement && card.contains(document.activeElement)) document.activeElement.blur();
   }
 
@@ -228,6 +235,10 @@ const requestLine = (() => {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && isOpen()) close();
+    });
+    // Esc in full screen is the browser's: it leaves full screen, so close too.
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && wentFull) { wentFull = false; close(); }
     });
   }
 
