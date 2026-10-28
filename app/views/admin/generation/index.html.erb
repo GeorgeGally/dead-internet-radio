@@ -16,8 +16,8 @@
           <% end %>
         <% end %>
       </td>
-      <td><%= job.started_at&.strftime("%Y-%m-%d %H:%M") %></td>
-      <td><%= job.completed_at&.strftime("%Y-%m-%d %H:%M") %></td>
+      <td><%= local_time(job.started_at) %></td>
+      <td><%= local_time(job.completed_at) %></td>
     </tr>
   <% end %>
 </table>

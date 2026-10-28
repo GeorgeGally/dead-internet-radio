@@ -6,8 +6,12 @@ module Admin
     def index
       @songs = Library.songs.order(id: :desc).to_a
       @mine = Vote.where(voter: Vote::ADMIN, track_id: @songs.map(&:id)).pluck(:track_id, :value).to_h
-      @plays = Library.plays
-      @last_aired = Library.last_aired
+      # What has aired so far; Library.plays / last_aired also count bookings
+      # (the set builder rests songs that are about to air).
+      aired = BroadcastSegment.joins(:track).where("broadcast_segments.starts_at <= ?", Time.current)
+                              .group("COALESCE(tracks.origin_track_id, tracks.id)")
+      @plays = aired.count
+      @last_aired = aired.maximum(:starts_at)
       @requests = SongRequest.where(track_id: @songs.map(&:id)).includes(:user).index_by(&:track_id)
       @sets = GenerationJob.where("options->>'kind' = 'set'").recent.limit(5)
     end

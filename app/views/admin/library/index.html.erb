@@ -23,7 +23,7 @@
       <td><a href="<%= admin_generation_path(job) %>"><%= job.show&.name || "##{job.id}" %></a></td>
       <td><%= job.slot %></td>
       <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
-      <td><%= job.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+      <td><%= local_time(job.created_at) %></td>
     </tr>
   <% end %>
 </table>
@@ -42,9 +42,9 @@
       <td><%= artist_link(song.artist) %></td>
       <td><%= song.bpm %></td>
       <td><%= song.key %></td>
-      <td><%= Time.at(song.duration_ms / 1000).utc.strftime("%-M:%S") %></td>
+      <td><%= mmss(song.duration_ms.to_i / 1000.0) %></td>
       <td><%= @plays[song.id].to_i %></td>
-      <td><%= @last_aired[song.id]&.strftime("%-d %b %H:%M") %></td>
+      <td><%= local_time(@last_aired[song.id]) %></td>
       <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
       <td><%= @requests[song.id]&.user&.name %></td>
       <td><%= button_to(song.vetoed_at ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-quiet") %></td>

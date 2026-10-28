@@ -96,8 +96,8 @@
     </div>
 
     <div class="job-times">
-      <span>Started: <%= @job.started_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
-      <span>Completed: <%= @job.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></span>
+      <span>Started: <%= local_time(@job.started_at) %></span>
+      <span>Completed: <%= @job.completed_at ? local_time(@job.completed_at) : "—" %></span>
     </div>
 
     <% if @job.running? %>
