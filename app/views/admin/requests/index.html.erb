@@ -3,21 +3,24 @@
 <table class="requests">
   <tr><th></th><th>When</th><th>From</th><th>Title</th><th>Artist</th><th>Note</th><th>Status</th><th>Airs</th><th>Reason</th><th>Sounds like</th><th></th></tr>
   <% @requests.each do |req| %>
+    <% song = req.track %>
+    <% notes = song && (song.prompt_log.dig("rerender", "notes") || req.note) %>
+    <% playable = song && song.audio_path && File.exist?(song.audio_path) %>
     <tr>
       <td class="play-cell">
-        <% if req.track&.audio_path && File.exist?(req.track.audio_path) %>
-          <button type="button" class="btn-play" data-src="<%= media_track_path(req.track) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% if playable %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
         <% end %>
       </td>
       <td><%= local_time(req.created_at) %></td>
       <td title="<%= req.user.email %>"><%= req.user.name %></td>
-      <td data-scrub><%= req.track ? link_to(req.title, admin_track_path(req.track)) : req.title %></td>
-      <td><%= req.track ? artist_link(req.artist) : req.artist %></td>
+      <td data-scrub><%= song ? link_to(req.title, admin_track_path(song)) : req.title %></td>
+      <td><%= song ? artist_link(req.artist) : req.artist %></td>
       <td><%= req.note %></td>
       <td>
         <%= render "admin/requests/status", req: req, seg: req.track_id && @airs[req.track_id] %>
         <% if (job = @render_jobs[req.id]) %>
-          <a class="render-progress" href="<%= admin_generation_path(job) %>" data-progress="<%= progress_admin_generation_path(job) %>">
+          <a class="render-progress" href="<%= admin_generation_path(job) %>" data-progress="<%= progress_admin_generation_path(job) %>" data-kind="<%= job.options['kind'] %>">
             <span class="progress-bar"><span class="progress-fill" style="width:0"></span></span>
             <span class="render-stage">writing</span>
           </a>
@@ -26,8 +29,32 @@
       <td><% if (seg = req.track_id && @airs[req.track_id]) %><%= link_to local_time(seg.starts_at), admin_schedule_path(anchor: "seg-#{seg.id}") %><% elsif req.ready? %>next set<% end %></td>
       <td><%= req.rejection_reason %></td>
       <td><%= req.matched_track && "#{req.matched_track.artist} — #{req.matched_track.title}" %></td>
-      <td><%= button_to "Render", fulfill_admin_request_path(req) if req.queued? %></td>
+      <td class="track-actions">
+        <% if song %>
+          <% if playable %><%= link_to "Download", download_media_track_path(song), class: "btn-key" %><% end %>
+          <%= button_to "Re-render", rerender_admin_track_path(song), class: "btn-key",
+                        params: { instructions: "Same sound, same lyrics, a new take.", request_id: req.id, inline: 1 },
+                        form: { style: "display:inline" } %>
+          <button type="button" class="btn-key" data-notes="<%= notes %>" onclick="openNotes(this, 'edit')">Edit</button>
+          <button type="button" class="btn-key" onclick="openNotes(this, 'remix')">Remix</button>
+        <% end %>
+        <%= button_to "Render", fulfill_admin_request_path(req), class: "btn" if req.queued? %>
+      </td>
     </tr>
+    <% if song %>
+      <tr class="notes-row" hidden>
+        <td></td>
+        <td colspan="10">
+          <%= form_tag rerender_admin_track_path(song), class: "rerender-form" do %>
+            <input type="hidden" name="request_id" value="<%= req.id %>">
+            <input type="hidden" name="inline" value="1">
+            <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+                   placeholder="How should it change? Slower, darker bass, more space…">
+            <button type="submit" class="btn-key btn-key-go">Re-render</button>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
   <% end %>
 </table>
 
@@ -36,11 +63,14 @@
   // a percentage, then mixing. When a render ends the page reloads.
   document.querySelectorAll('.render-progress').forEach(function(el) {
     var fill = el.querySelector('.progress-fill'), stage = el.querySelector('.render-stage');
+    var rerender = el.dataset.kind === 'rerender';
     function tick() {
       fetch(el.dataset.progress, { credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(p) {
         if (p.status === 'done' || p.status === 'failed') { location.reload(); return; }
         var t = (p.tracks || {})['1'] || {};
-        if (t.status === 'done' || p.complete) {
+        if (rerender) {
+          fill.style.width = '35%'; stage.textContent = 're-rendering';
+        } else if (t.status === 'done' || p.complete) {
           fill.style.width = '100%'; stage.textContent = 'mixing';
         } else if (t.elapsed_s != null) {
           var pct = Math.min(Math.round(t.elapsed_s / (t.estimated_s || 180) * 100), 95);

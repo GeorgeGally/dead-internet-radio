@@ -4,12 +4,12 @@ module Admin
   class RequestsController < Admin::BaseController
     def index
       @requests = SongRequest.recent.includes(:user, :track, :matched_track).limit(200)
-      # The render job behind each request that's being made now.
-      ids = @requests.select(&:generating?).map { |r| r.id.to_s }
-      # When each request's song airs next (it plays inside a set, as a copy).
-      song_ids = @requests.filter_map(&:track_id)
-      @airs = BroadcastSegment.next_for(song_ids)
-      @render_jobs = GenerationJob.where("options->>'request_id' IN (?)", ids).order(:id)
+      # The render job behind each request that's being made now, including
+      # re-renders started from a row.
+      @airs = BroadcastSegment.next_for(@requests.filter_map(&:track_id))
+      @render_jobs = GenerationJob.where(status: %i[pending running])
+                                  .where("options->>'request_id' IS NOT NULL")
+                                  .order(:id)
                                   .index_by { |j| j.options['request_id'].to_i }
     end
 

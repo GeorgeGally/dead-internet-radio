@@ -6,6 +6,16 @@ class MediaController < ApplicationController
     stream Track.find(params[:id]).audio_path
   end
 
+  # The same master as a file the browser saves: "artist - title.mp3".
+  def download
+    track = Track.find(params[:id])
+    path = track.audio_path
+    return head :not_found unless path && File.exist?(path)
+
+    send_file path, type: "audio/mpeg", disposition: "attachment",
+                    filename: "#{track.artist} - #{track.title}".gsub(%r{[/\\]}, "-") + ".mp3"
+  end
+
   def voiceover
     stream Track.find(params[:id]).voiceover_path
   end

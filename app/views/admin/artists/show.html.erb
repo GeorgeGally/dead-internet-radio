@@ -5,7 +5,7 @@
 </p>
 
 <table class="songs">
-  <tr><th></th><th>Title</th><th>Show</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th></tr>
+  <tr><th></th><th>Title</th><th>Show</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th><th></th></tr>
   <% @songs.each do |song| %>
     <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
       <td class="play-cell">
@@ -24,6 +24,7 @@
       <td><%= @plays[song.id].to_i %></td>
       <td><%= local_time(@last_aired[song.id]) %></td>
       <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
+      <td class="track-actions"><% if song.audio_path && File.exist?(song.audio_path) %><%= link_to "Download", download_media_track_path(song), class: "btn-key" %><% end %></td>
     </tr>
   <% end %>
 </table>

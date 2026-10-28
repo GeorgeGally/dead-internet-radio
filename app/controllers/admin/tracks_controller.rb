@@ -51,8 +51,11 @@ module Admin
 
       job = GenerationJob.create!(slot: 'rerender', track_count: 1, status: :pending,
                                   options: { 'kind' => 'rerender', 'track_id' => song.id, 'instructions' => notes,
-                                             'show_name' => "#{song.artist} — #{song.title}" })
+                                             'request_id' => params[:request_id].presence,
+                                             'show_name' => "#{song.artist} — #{song.title}" }.compact)
       RerenderTrackJob.perform_later(job.id)
+      return redirect_to admin_requests_path, notice: "Re-rendering #{song.artist} — #{song.title}" if params[:inline].present?
+
       redirect_to admin_generation_path(job)
     end
 
