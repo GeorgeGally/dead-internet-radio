@@ -173,16 +173,33 @@ body.prewarming #block-canvas {
   transform: scale(1.1);
 }
 
-#deck.expanded .speaker {
+#deck.expanded .deck-logo,
+#deck.ejected .deck-logo {
+  flex: 0 0 116px;
+  width: 116px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+#deck.expanded .deck-logo { height: 100%; }
+#deck.ejected .deck-logo { height: var(--deck-h); }
+
+#deck.expanded .speaker,
+#deck.ejected .speaker {
   width: 80px;
   height: 80px;
-  /* .deck-logo stays 36px tall; centre the grille in the 138px deck instead */
-  align-self: flex-start;
-  margin-top: 29px;
+  align-self: center;
+  margin-top: 0;
   background-image: radial-gradient(circle at center, #2a2a2a 0 1.3px, transparent 1.7px);
   background-size: 7px 7px;
   opacity: 1;
 }
+
+#deck.expanded .logo-text,
+#deck.expanded .logo-cursor,
+#deck.ejected .logo-text,
+#deck.ejected .logo-cursor { display: none; }
 
 .logo-text {
   font-size: 15px;
@@ -212,7 +229,11 @@ body.prewarming #block-canvas {
 
 /* ---- Mini track info (visible when retracted) ---- */
 .deck-mini {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -255,18 +276,18 @@ body.prewarming #block-canvas {
 }
 
 /* ---- Expanded content (fades in on expand) ----
-   Absolutely positioned + viewport-centered so it never reflows horizontally
-   when the deck opens/closes (the mini-bar re-flowing was shoving the controls
-   sideways during the height animation). It only fades in place now. */
+   A flow item in the deck's own row, so it starts after the speaker column and
+   cannot overlap it. The mini bar is out of the flow, so opening the deck never
+   shoves the controls sideways. */
 .deck-content {
-  position: absolute;
-  inset: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: 28px;
-  /* Left padding clears the speaker grille so the transport starts just past it. */
-  padding: 0 16px 0 116px;
+  padding: 0 16px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -279,7 +300,7 @@ body.prewarming #block-canvas {
 
 #deck.ejected .deck-content {
   height: var(--deck-h);
-  bottom: auto;
+  align-self: flex-start;
 }
 
 /* Stagger the three control clusters (transport, npd-stack, display) on expand */
@@ -1511,20 +1532,35 @@ body.prewarming #block-canvas {
     flex-wrap: wrap;
     align-content: center;
     gap: 12px 20px;
-    padding: 0 16px 0 116px;
+    padding: 0 16px;
+  }
+
+  #deck.expanded .deck-logo,
+  #deck.ejected .deck-logo {
+    flex-basis: 92px;
+    width: 92px;
+  }
+
+  #deck.expanded .speaker,
+  #deck.ejected .speaker {
+    width: 64px;
+    height: 64px;
   }
 
   .npd-stack {
     order: 0;
     flex: 0 0 100%;
-    max-width: 900px;
-    align-self: center;
+    max-width: none;
   }
 
   .deck-transport { order: 1; }
   .deck-display { order: 2; }
 
-  #np-display { width: 100%; }
+  #np-display {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+  }
 
   .npd-lines {
     flex: 0 1 auto;
@@ -1542,7 +1578,7 @@ body.prewarming #block-canvas {
   .gallery-close { right: 16px; }
 }
 
-@media (max-width: 699px) {
+@media (max-width: 767px) {
   :root { --deck-h: min(392px, calc(100vh - 100px)); }
 
   .deck-content {
@@ -1565,7 +1601,15 @@ body.prewarming #block-canvas {
   .deck-display { order: 2; width: 100%; gap: 8px; }
   .ctrl { gap: 6px; }
 
-  #deck.expanded .speaker { display: none; }
+  #deck.expanded .deck-logo,
+  #deck.ejected .deck-logo {
+    flex-basis: 0;
+    width: 0;
+    overflow: hidden;
+  }
+
+  #deck.expanded .speaker,
+  #deck.ejected .speaker { display: none; }
 
   #np-display {
     flex-direction: column;
@@ -1687,7 +1731,7 @@ body.prewarming #block-canvas {
   .mini-dot::after { content: "▾"; }
 }
 
-@media (hover: none) and (max-width: 699px) {
+@media (hover: none) and (max-width: 767px) {
   .npd-nav {
     width: 44px;
     height: 44px;
@@ -1716,8 +1760,7 @@ body.prewarming #block-canvas {
   .npd-stack {
     order: 0;
     flex: 0 0 100%;
-    max-width: 900px;
-    align-self: center;
+    max-width: none;
   }
 
   .deck-transport { order: 1; }
