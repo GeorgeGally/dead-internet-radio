@@ -84,28 +84,53 @@ module RequestFilter
     @blocklist ||= BLOCKLIST_PATH.read.lines.map { |l| normalize(l.sub(/#.*/, "")) }.reject(&:empty?)
   end
 
+  # The paid model first; when it can't answer (out of credit, down), the
+  # free models the pipeline uses, then OpenRouter's free router.
+  def self.models
+    free = ENV["OPENROUTER_MODEL"].to_s.split(",").map(&:strip).select { |m| m.end_with?(":free") }
+    [MODEL, *free, "openrouter/free"].uniq
+  end
+
   def self.moderate(fields)
     key = ENV["OPENROUTER_API_KEY"].presence
     return dead("no OPENROUTER_API_KEY") unless key
 
+    failures = []
+    models.each do |model|
+      verdict = ask(model, key, fields)
+      Rails.logger.info("request filter answered by #{model}") if model != MODEL
+      return judge(verdict, fields)
+    rescue StandardError => e
+      failures << "#{model}: #{e.message.to_s[0, 160]}"
+    end
+    dead(failures.join(" | "))
+  end
+
+  def self.ask(model, key, fields)
     body = {
-      model: MODEL,
-      max_tokens: 160,
-      reasoning: { enabled: false },
+      model: model,
+      max_tokens: model == MODEL ? 160 : 600,
       temperature: 0.2,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: "<request>#{fields.to_json}</request>" },
       ],
     }
+    body[:reasoning] = { enabled: false } if model == MODEL
     uri = URI(OPENROUTER_URL)
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 25) do |http|
       http.post(uri.path, body.to_json, "Authorization" => "Bearer #{key}", "Content-Type" => "application/json")
     end
-    return dead("OpenRouter #{res.code}: #{res.body.to_s[0, 200]}") unless res.is_a?(Net::HTTPSuccess)
+    raise "HTTP #{res.code} #{res.body.to_s[0, 120]}" unless res.is_a?(Net::HTTPSuccess)
 
     content = JSON.parse(res.body).dig("choices", 0, "message", "content").to_s
     verdict = JSON.parse(content[/\{.*\}/m].to_s)
+    raise "no verdict" unless %w[accept reject cover].include?(verdict["verdict"])
+
+    verdict
+  end
+
+  def self.judge(verdict, fields)
     reason = verdict["reason"].to_s.strip.delete('"')
     reason = NO_LINES.sample if reason.empty? || reason.length > 90
     case verdict["verdict"]
@@ -115,8 +140,6 @@ module RequestFilter
       verdict["who"].to_s.strip.length >= 8 ? Result.new(false, cover_line(fields[:artist], verdict["who"]), true) : Result.new(true, nil)
     else Result.new(false, reason)
     end
-  rescue StandardError => e
-    dead("#{e.class}: #{e.message}")
   end
 
   def self.dead(why)
