@@ -866,8 +866,8 @@ function startClock() {
   }, 1000);
 }
 
-async function fetchJson(path) {
-  const response = await fetch(path);
+async function fetchJson(path, options) {
+  const response = await fetch(path, options);
   if (!response.ok) throw new Error(`${path}: ${response.status}`);
   return response.json();
 }
@@ -891,7 +891,7 @@ function apiUrl(path) {
 // or every artwork switched off leaves the full list in place.
 async function loadActiveVisuals() {
   try {
-    const active = await fetchJson(apiUrl('/visuals'));
+    const active = await fetchJson(apiUrl('/visuals'), { signal: AbortSignal.timeout(3000) });
     visuals.setEnabled(active.map(v => v.slug));
   } catch (e) {
     // Fall back to every registered artwork.

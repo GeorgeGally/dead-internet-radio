@@ -40,10 +40,12 @@ class VisualModule < ApplicationRecord
 
   # Every artwork the player can register needs a row to be switchable.
   def self.sync_from_player!
-    registered_slugs.each do |slug|
-      find_or_create_by!(slug: slug) do |visual|
-        visual.name = KNOWN_NAMES[slug] || slug.humanize.titleize
-      end
+    slugs = registered_slugs
+    (slugs - where(slug: slugs).pluck(:slug)).each do |slug|
+      create!(slug: slug, name: KNOWN_NAMES[slug] || slug.humanize.titleize)
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+      next
     end
+    where(slug: slugs)
   end
 end

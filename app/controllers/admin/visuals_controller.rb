@@ -3,8 +3,7 @@
 module Admin
   class VisualsController < Admin::BaseController
     def index
-      VisualModule.sync_from_player!
-      @visuals = VisualModule.order(:name)
+      @visuals = VisualModule.sync_from_player!.order(:name)
     end
 
     def update
