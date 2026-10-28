@@ -66,10 +66,12 @@
       if (!audio) return;
       if (audio.paused) {
         audio.play();
-        btn.textContent = '\u23F8';
-        audio.addEventListener('ended', function() { btn.textContent = '\u25B6'; });
+        btn.classList.add('playing');
+        btn.textContent = '\u25A0';
+        audio.addEventListener('ended', function() { btn.classList.remove('playing'); btn.textContent = '\u25B6'; });
       } else {
         audio.pause();
+        btn.classList.remove('playing');
         btn.textContent = '\u25B6';
       }
     }
