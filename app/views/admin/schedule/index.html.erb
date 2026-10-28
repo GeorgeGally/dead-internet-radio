@@ -25,8 +25,8 @@
             <% end %>
           </td>
           <td class="sched-time"><%= local_time(seg.starts_at, format: "time") %></td>
-          <td><%= t.artist == Track::STATION_ARTIST && show.dj_name.present? ? "DJ #{show.dj_name}" : t.artist %></td>
           <td data-scrub><%= t.song.votable? ? link_to(t.title, admin_track_path(t)) : t.title %></td>
+          <td><%= t.artist == Track::STATION_ARTIST && show.dj_name.present? ? "DJ #{show.dj_name}" : artist_link(t.artist) %></td>
           <td>
             <% if (req = @requests[t.song_id]) %>
               <span class="sched-req">request · <%= req.user.first_name %></span>

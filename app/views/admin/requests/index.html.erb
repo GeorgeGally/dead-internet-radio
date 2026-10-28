@@ -1,7 +1,7 @@
 <h2>Requests</h2>
 
 <table class="requests">
-  <tr><th></th><th>When</th><th>From</th><th>Artist</th><th>Title</th><th>Note</th><th>Status</th><th>Airs</th><th>Reason</th><th>Sounds like</th><th></th></tr>
+  <tr><th></th><th>When</th><th>From</th><th>Title</th><th>Artist</th><th>Note</th><th>Status</th><th>Airs</th><th>Reason</th><th>Sounds like</th><th></th></tr>
   <% @requests.each do |req| %>
     <tr>
       <td class="play-cell">
@@ -11,8 +11,8 @@
       </td>
       <td><%= local_time(req.created_at) %></td>
       <td title="<%= req.user.email %>"><%= req.user.name %></td>
-      <td><%= req.artist %></td>
       <td data-scrub><%= req.track ? link_to(req.title, admin_track_path(req.track)) : req.title %></td>
+      <td><%= req.track ? artist_link(req.artist) : req.artist %></td>
       <td><%= req.note %></td>
       <td>
         <span class="status-badge status-<%= req.status %>"><%= req.status %></span>

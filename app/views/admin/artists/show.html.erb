@@ -1,0 +1,37 @@
+<h2><%= @name %></h2>
+<p class="meta">
+  <%= pluralize(@songs.size, "song") %> · <%= pluralize(@plays.values.sum, "play") %>
+  · <span class="vote-up">+<%= @songs.sum(&:up_votes) %></span> <span class="vote-down">&minus;<%= @songs.sum(&:down_votes) %></span>
+</p>
+
+<table class="songs">
+  <tr><th></th><th>Title</th><th>Show</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th></tr>
+  <% @songs.each do |song| %>
+    <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
+      <td class="play-cell">
+        <% if song.audio_path && File.exist?(song.audio_path) %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% end %>
+      </td>
+      <td data-scrub>
+        <%= link_to song.title, admin_track_path(song) %>
+        <% if (req = @requests[song.id]) %><span class="sched-req">request · <%= req.user.first_name %></span><% end %>
+      </td>
+      <td><a href="<%= admin_show_path(song.show) %>"><%= song.show.name || song.show.slot %></a></td>
+      <td><%= song.bpm %></td>
+      <td><%= song.key %></td>
+      <td><%= mmss(song.duration_ms.to_i / 1000.0) %></td>
+      <td><%= @plays[song.id].to_i %></td>
+      <td><%= local_time(@last_aired[song.id]) %></td>
+      <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
+    </tr>
+  <% end %>
+</table>
+
+<% sounds = @songs.filter_map { |s| s.prompt_log.dig("payload", "caption").presence } %>
+<% if sounds.any? %>
+  <section class="track-section">
+    <h3>Their sound</h3>
+    <% sounds.each do |caption| %><p class="artist-sound"><%= caption %></p><% end %>
+  </section>
+<% end %>

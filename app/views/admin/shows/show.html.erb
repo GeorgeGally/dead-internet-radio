@@ -44,7 +44,7 @@
         <% end %>
       </td>
       <td data-scrub><%= track.song.votable? ? link_to(track.title, admin_track_path(track)) : track.title %></td>
-      <td><%= track.artist %></td>
+      <td><%= artist_link(track.artist) %></td>
       <td><%= track.bpm %></td>
       <td><%= track.key %></td>
       <td><%= mmss(track.duration_ms && track.duration_ms / 1000.0) %></td>

@@ -35,6 +35,7 @@ Rails.application.routes.draw do
       end
     end
     get "schedule", to: "schedule#index", as: :schedule
+    get "artists/:name", to: "artists#show", as: :artist, constraints: { name: %r{[^/]+} }
     resources :tracks, only: [:show, :destroy] do
       post :rerender, on: :member
       post :like, on: :member

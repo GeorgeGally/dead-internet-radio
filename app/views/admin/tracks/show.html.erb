@@ -1,5 +1,6 @@
 <p class="meta"><a href="<%= admin_show_path(@song.show) %>"><%= @song.show.name || @song.show.slot %></a></p>
-<h2><%= @song.artist %> — <%= @song.title %></h2>
+<h2><%= @song.title %></h2>
+<p class="track-artist"><%= artist_link(@song.artist) %></p>
 
 <table class="track-head">
   <tr>

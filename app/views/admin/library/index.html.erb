@@ -30,7 +30,7 @@
 <% end %>
 
 <table class="songs">
-  <tr><th></th><th>Artist</th><th>Title</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th><th>Request</th><th></th></tr>
+  <tr><th></th><th>Title</th><th>Artist</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th><th>Request</th><th></th></tr>
   <% @songs.each do |song| %>
     <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
       <td>
@@ -38,8 +38,8 @@
           <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
         <% end %>
       </td>
-      <td><%= song.artist %></td>
       <td data-scrub><%= link_to song.title, admin_track_path(song) %></td>
+      <td><%= artist_link(song.artist) %></td>
       <td><%= song.bpm %></td>
       <td><%= song.key %></td>
       <td><%= Time.at(song.duration_ms / 1000).utc.strftime("%-M:%S") %></td>
