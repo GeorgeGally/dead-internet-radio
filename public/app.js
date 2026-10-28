@@ -494,10 +494,6 @@ function setupControls() {
   document.getElementById('btn-play').addEventListener('click', () => {
     togglePlay();
   });
-  const songPrev = document.getElementById('npd-song-prev');
-  const songNext = document.getElementById('npd-song-next');
-  if (songPrev) songPrev.addEventListener('click', () => prevTrack());
-  if (songNext) songNext.addEventListener('click', () => nextTrack());
   const artPrev = document.getElementById('npd-art-prev');
   const artNext = document.getElementById('npd-art-next');
   if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
