@@ -70,6 +70,14 @@ const gallery = (() => {
 
     panel = container;
 
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'gallery-close';
+    closeBtn.type = 'button';
+    closeBtn.textContent = 'Close';
+    closeBtn.setAttribute('aria-label', 'Close gallery');
+    closeBtn.addEventListener('click', close);
+    panel.appendChild(closeBtn);
+
     wall = document.createElement('div');
     wall.className = 'gallery-wall';
     panel.appendChild(wall);

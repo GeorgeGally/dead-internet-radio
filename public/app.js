@@ -350,6 +350,23 @@ function setupDeckRetraction() {
     clearTimeout(idleTimer);
     expand();
   });
+
+  if (!matchMedia('(hover: hover)').matches) {
+    const toggle = () => {
+      if (deck.classList.contains('ejected')) return;
+      if (deck.classList.contains('expanded')) deck.classList.remove('expanded');
+      else expand();
+    };
+    deck.addEventListener('click', (e) => {
+      if (e.target.closest('button, .rams-knob')) return;
+      toggle();
+    });
+    hitZone.addEventListener('click', toggle);
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#deck') || deck.classList.contains('ejected')) return;
+      deck.classList.remove('expanded');
+    });
+  }
 }
 
 function setupLogoHover() {
