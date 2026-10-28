@@ -22,6 +22,20 @@ function stopWelcomeIdent() {
   if (frame) frame.src = 'about:blank';
 }
 
+// The site opens on a random artwork, never the one it opened on last time.
+function openingArtwork() {
+  let last = null;
+  try { last = localStorage.getItem('opening-artwork'); } catch (e) {}
+  const ids = visuals.getList().map((v) => v.id).filter((id) => id !== last);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  const id = ids.find((x) => visuals.activate(x));
+  if (!id) return;
+  try { localStorage.setItem('opening-artwork', id); } catch (e) {}
+}
+
 function showWelcome() {
   const splash = document.getElementById('welcome-splash');
   const audio = document.getElementById('welcome-audio');
@@ -45,7 +59,7 @@ function showWelcome() {
     _welcomeActive = false;
     setTimeout(() => {
       visuals.cancelPrewarm();
-      visuals.random();
+      openingArtwork();
       splash.style.display = 'none';
       if (playlist && playlist.tracks.length > 0) {
         setupAudio();

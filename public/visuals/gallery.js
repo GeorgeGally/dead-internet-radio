@@ -533,18 +533,19 @@ const gallery = (() => {
     wait();
   }
 
-  // An erratic clock for the station's own changes: it falls into bursts of
-  // fast cuts (1.5-6 s, for a few in a row), ordinary gaps (10-40 s) and long
-  // holds (60-150 s). Each caller keeps its own, so artwork and slots drift
-  // out of step.
+  // An erratic clock for the station's own changes. Mostly fast: bursts of
+  // quick cuts (1-4 s, several in a row) and single fast cuts (3-8 s); then
+  // ordinary gaps (12-30 s) and the odd long hold (45-120 s). It opens with a
+  // burst. Each caller keeps its own, so artwork and slots drift out of step.
   function erratic() {
-    let burst = 0;
+    let burst = 2 + Math.floor(Math.random() * 4);
     return function next() {
-      if (burst > 0) { burst--; return 1500 + Math.random() * 4500; }
+      if (burst > 0) { burst--; return 1000 + Math.random() * 3000; }
       const r = Math.random();
-      if (r < 0.2) { burst = 2 + Math.floor(Math.random() * 5); return 1500 + Math.random() * 4500; }
-      if (r < 0.75) return 10000 + Math.random() * 30000;
-      return 60000 + Math.random() * 90000;
+      if (r < 0.35) { burst = 2 + Math.floor(Math.random() * 7); return 1000 + Math.random() * 3000; }
+      if (r < 0.65) return 3000 + Math.random() * 5000;
+      if (r < 0.9) return 12000 + Math.random() * 18000;
+      return 45000 + Math.random() * 75000;
     };
   }
 
