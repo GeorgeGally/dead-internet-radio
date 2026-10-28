@@ -50,4 +50,24 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     assert File.exist?(File.join(@show_dir, ".removed", "02-bad-track-DJ-voice-test.mp3"))
     assert File.exist?(File.join(@show_dir, "01-keep-me.mp3")), "sibling tracks must be untouched"
   end
+
+  test "re-render queues a job for the library song with the notes" do
+    ActiveJob::Base.queue_adapter = :test
+    set = Show.create!(slot: "late night", name: "A Set", kind: "set", directory: "#{@show_dir}-set", status: :complete)
+    copy = Track.create!(show: set, position: 1, title: "Bad Track", artist: "Test Artist", origin_track: @track)
+
+    assert_enqueued_with(job: RerenderTrackJob) do
+      post rerender_admin_track_path(copy), params: { instructions: "darker bass, no hi-hats" }
+    end
+    job = GenerationJob.last
+    assert_redirected_to admin_generation_path(job)
+    assert_equal @track.id, job.options["track_id"], "a set's track re-renders its song"
+    assert_equal "darker bass, no hi-hats", job.options["instructions"]
+  end
+
+  test "re-render needs notes" do
+    assert_no_difference -> { GenerationJob.count } do
+      post rerender_admin_track_path(@track), params: { instructions: " " }
+    end
+  end
 end

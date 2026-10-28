@@ -34,7 +34,10 @@ Rails.application.routes.draw do
         post :reimport
       end
     end
-    resources :tracks, only: [:destroy]
+    get "schedule", to: "schedule#index", as: :schedule
+    resources :tracks, only: [:destroy] do
+      post :rerender, on: :member
+    end
     resources :library, only: [:index] do
       post :veto, on: :member
       post :build, on: :collection

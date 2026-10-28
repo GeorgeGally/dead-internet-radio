@@ -1,16 +1,18 @@
 <h2>Shows</h2>
 
 <table>
-  <tr><th>Name</th><th>Slot</th><th>DJ</th><th>Tracks</th><th>Status</th><th>Generated</th><th></th></tr>
+  <tr><th>Name</th><th>Kind</th><th>DJ</th><th>Tracks</th><th>Plays</th><th>Last aired</th><th>Next</th><th>Made</th><th></th></tr>
   <% @shows.each do |show| %>
     <tr>
       <td><a href="/admin/shows/<%= show.id %>"><%= show.name || show.slot %></a></td>
-      <td><%= show.slot %></td>
+      <td><%= show.kind %></td>
       <td><%= show.dj_name %></td>
       <td><%= show.track_count %></td>
-      <td><span class="status-badge status-<%= show.status %>"><%= show.status %></span></td>
-      <td><%= show.generated_at&.strftime("%Y-%m-%d %H:%M") %></td>
-      <td><%= button_to "Delete", admin_show_path(show), method: :delete, data: { confirm: "Delete this show?" } %></td>
+      <td><%= @airings[show.id] || 0 %></td>
+      <td><%= local_time(@last_aired[show.id]) %></td>
+      <td><%= local_time(@next_on[show.id]) %></td>
+      <td><%= local_time(show.generated_at) %></td>
+      <td><%= button_to "Delete", admin_show_path(show), method: :delete, class: "btn-quiet", data: { confirm: "Delete this show?" } %></td>
     </tr>
   <% end %>
 </table>

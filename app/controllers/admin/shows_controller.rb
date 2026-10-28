@@ -4,6 +4,15 @@ module Admin
   class ShowsController < Admin::BaseController
     def index
       @shows = Show.recent
+      # Times each show has aired (its opening track started), when it last
+      # did and when it's next on.
+      now = Time.current
+      segs = BroadcastSegment.joins(:track).group("tracks.show_id")
+      @airings = segs.where("broadcast_segments.starts_at <= ?", now)
+                     .where("tracks.position = (SELECT MIN(t2.position) FROM tracks t2 WHERE t2.show_id = tracks.show_id)")
+                     .count
+      @last_aired = segs.where("broadcast_segments.starts_at <= ?", now).maximum(:starts_at)
+      @next_on = segs.where("broadcast_segments.starts_at > ?", now).minimum(:starts_at)
     end
 
     def show

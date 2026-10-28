@@ -11,6 +11,21 @@ module Admin
       redirect_to admin_show_path(show), notice: "Track '#{@track.title}' removed from show — click Remix to rebuild the mix"
     end
 
+    # Render the song again with notes. A set's track points at its library
+    # song, so the song is what gets re-rendered.
+    def rerender
+      track = Track.find(params[:id])
+      song = track.song
+      notes = params[:instructions].to_s.strip
+      return redirect_back(fallback_location: admin_show_path(track.show), alert: 'Say what to change.') if notes.blank?
+
+      job = GenerationJob.create!(slot: 'rerender', track_count: 1, status: :pending,
+                                  options: { 'kind' => 'rerender', 'track_id' => song.id, 'instructions' => notes,
+                                             'show_name' => "#{song.artist} — #{song.title}" })
+      RerenderTrackJob.perform_later(job.id)
+      redirect_to admin_generation_path(job)
+    end
+
     private
 
     # Moves audio + voiceover files into <show_dir>/.removed/ rather than deleting,

@@ -11,6 +11,7 @@
   <nav>
     <h1>DIR Control</h1>
     <a href="/admin">Dashboard</a>
+    <a href="/admin/schedule">Schedule</a>
     <a href="/admin/shows">Shows</a>
     <a href="/admin/library">Library</a>
     <a href="/admin/requests">Requests</a>
@@ -25,5 +26,14 @@
     <% end %>
     <%= yield %>
   </main>
+  <script>
+    // Times arrive in UTC; show them in this browser's zone.
+    document.querySelectorAll('time[data-local]').forEach(function(t) {
+      var d = new Date(t.getAttribute('datetime')), pad = function(n) { return String(n).padStart(2, '0'); };
+      var clock = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      t.textContent = t.dataset.local === 'time' ? clock
+        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + clock;
+    });
+  </script>
 </body>
 </html>

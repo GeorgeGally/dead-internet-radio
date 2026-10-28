@@ -46,16 +46,23 @@
       <td><%= track.artist %></td>
       <td><%= track.bpm %></td>
       <td><%= track.key %></td>
-      <td><%= track.duration_ms.present? ? "#{(track.duration_ms / 1000).to_i}s" : "" %></td>
-      <td>
-        <% if track.cue_seconds %>
-          <%= "#{track.cue_seconds.round(1)}s" %>
-        <% else %>
-          —
+      <td><%= mmss(track.duration_ms && track.duration_ms / 1000.0) %></td>
+      <td><%= track.cue_seconds ? mmss(track.cue_seconds) : "—" %></td>
+      <td class="track-actions">
+        <% if track.song.votable? %>
+          <button type="button" class="btn-key" onclick="openRerender(this)">Re-render</button>
         <% end %>
+        <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn-quiet", form: { style: "display:inline" }, data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
       </td>
-      <td>
-        <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn", style: "background:#cc0000;", data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
+    </tr>
+    <tr class="rerender-row" hidden>
+      <td></td>
+      <td colspan="7">
+        <%= form_tag rerender_admin_track_path(track), class: "rerender-form" do %>
+          <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+                 placeholder="What to change: slower, darker bass, no hi-hats, more space…">
+          <button type="submit" class="btn-key btn-key-go">Render</button>
+        <% end %>
       </td>
     </tr>
   <% end %>
@@ -103,4 +110,11 @@
     btn.closest('tr').children[1].appendChild(scrub);
   }
   trackAudio.addEventListener('ended', stopAll);
+
+  // Re-render opens a notes field under its track.
+  function openRerender(btn) {
+    var row = btn.closest('tr').nextElementSibling;
+    row.hidden = !row.hidden;
+    if (!row.hidden) row.querySelector('input').focus();
+  }
 </script>

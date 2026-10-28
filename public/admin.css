@@ -379,3 +379,41 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .render-progress .progress-bar { flex: 1; height: 4px; display: block; }
 .render-progress .progress-fill { display: block; background: #ec6a1f; }
 .render-stage { font-size: 11px; color: #8a857b; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Small square-shouldered keys in the request-page style. */
+.btn-key {
+  height: 28px; padding: 0 12px; border: none; border-radius: 4px;
+  background: #efede8; color: #1a1a1a; font: inherit; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+  cursor: pointer; transition: background 0.2s ease;
+}
+.btn-key:hover { background: #e4e1da; }
+.btn-key-go { background: #ec6a1f; color: #fff; }
+.btn-key-go:hover { background: #d95f1a; }
+.btn-quiet {
+  border: none; background: none; padding: 0 4px; font: inherit; font-size: 11px; color: #8a857b;
+  letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; transition: color 0.2s ease;
+}
+.btn-quiet:hover { color: #b3261e; }
+.track-actions { white-space: nowrap; text-align: right; }
+.track-actions form { display: inline; }
+.rerender-form { display: flex; gap: 8px; align-items: center; padding: 4px 0 12px; }
+.rerender-notes {
+  flex: 1; max-width: 560px; height: 28px; padding: 0 10px; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 4px;
+  background: #f4f2ee; font: inherit; font-size: 13px;
+}
+.rerender-notes:focus { outline: none; border-color: #ec6a1f; }
+
+.sched-block { margin: 0 0 32px; }
+.sched-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.sched-head a { font-size: 16px; }
+.sched-time { font-variant-numeric: tabular-nums; color: #8a857b; width: 56px; }
+.sched-len { text-align: right; color: #8a857b; font-variant-numeric: tabular-nums; }
+.sched-on { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; background: #ec6a1f; padding: 2px 6px; border-radius: 3px; }
+.sched-playing td { color: #ec6a1f; }
+.sched-req { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #ec6a1f; }
+.sched-block table { table-layout: fixed; width: 100%; }
+.sched-block td:nth-child(1) { width: 80px; }
+.sched-block td:nth-child(4) { width: 200px; }
+.sched-block td:nth-child(5) { width: 70px; }
+.rerender-row td { padding-top: 0; border-top: none; }

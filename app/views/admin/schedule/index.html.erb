@@ -1,0 +1,34 @@
+<h2>Schedule</h2>
+
+<% if @blocks.empty? %>
+  <p class="meta">Nothing booked. The station needs a finished show or set to play.</p>
+<% end %>
+
+<% @blocks.each_with_index do |segs, i| %>
+  <% show = segs.first.track.show %>
+  <section class="sched-block<%= ' sched-now' if i.zero? %>">
+    <div class="sched-head">
+      <span class="sched-time"><%= local_time(segs.first.starts_at, format: "time") %></span>
+      <a href="<%= admin_show_path(show) %>"><%= show.name || show.slot %></a>
+      <span class="meta"><%= show.kind %> · DJ <%= show.dj_name %> · <%= mmss(segs.sum { |s| s.ends_at - s.starts_at }) %></span>
+      <% if i.zero? %><span class="sched-on">on air</span><% end %>
+    </div>
+    <table>
+      <% segs.each do |seg| %>
+        <% t = seg.track %>
+        <% playing = seg.starts_at <= @now && seg.ends_at > @now %>
+        <tr class="<%= 'sched-playing' if playing %>">
+          <td class="sched-time"><%= local_time(seg.starts_at, format: "time") %></td>
+          <td><%= t.artist %></td>
+          <td><%= t.title %></td>
+          <td>
+            <% if (req = @requests[t.song_id]) %>
+              <span class="sched-req">request · <%= req.user.first_name %></span>
+            <% end %>
+          </td>
+          <td class="sched-len"><%= mmss(seg.ends_at - seg.starts_at) %></td>
+        </tr>
+      <% end %>
+    </table>
+  </section>
+<% end %>
