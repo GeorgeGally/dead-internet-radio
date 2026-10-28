@@ -142,6 +142,12 @@ const requestLine = (() => {
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       out.textContent = data.message || 'The line went dead. Try again later.';
+      // A cover: the station's line is marked in orange.
+      const COVER = "We don't do covers. Describe a band that should exist.";
+      if (data.status === 'cover' && out.textContent.includes(COVER)) {
+        const [before] = out.textContent.split(COVER);
+        out.replaceChildren(before, el('mark', 'rq-mark', COVER));
+      }
       if (typeof data.requests_left === 'number') {
         me.requests_left = data.requests_left;
         const next = lights(data.requests_left);

@@ -499,6 +499,14 @@ body.prewarming #block-canvas {
   margin-top: 40px;
 }
 
+.rq-mark {
+  background: #ec6a1f;
+  color: #fff;
+  padding: 1px 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .rq-msg {
   flex: 1;
   margin: 0;
