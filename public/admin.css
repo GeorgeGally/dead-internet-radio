@@ -417,3 +417,28 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .sched-block td:nth-child(4) { width: 200px; }
 .sched-block td:nth-child(5) { width: 70px; }
 .rerender-row td { padding-top: 0; border-top: none; }
+
+.like-cell { white-space: nowrap; }
+.votes { font-size: 12px; font-variant-numeric: tabular-nums; color: #8a857b; margin-right: 10px; }
+.vote-up { color: #1f6b2c; }
+.vote-down { color: #b3261e; }
+.btn-like {
+  width: 28px; height: 28px; padding: 0; border: none; border-radius: 4px; vertical-align: middle;
+  background: #efede8; color: #8a857b; font-size: 13px; line-height: 1; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.btn-like:hover { color: #1a1a1a; }
+.btn-like.liked { background: #ec6a1f; color: #fff; }
+
+/* Buttons in table cells sit in forms (button_to); keep rows tight. */
+td form { margin: 0; }
+
+.songs td { white-space: nowrap; }
+.songs td:nth-child(2), .songs td:nth-child(3) { white-space: normal; }
+.songs td, .songs th { padding: 8px 10px; }
+.songs td:nth-child(2), .songs td:nth-child(3) { min-width: 180px; }
+
+.dash-h { margin-top: 32px; }
+.on-air { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+.play-cell { width: 44px; }

@@ -1,19 +1,23 @@
 <h2>Dashboard</h2>
 
+<% if @on_air %>
+  <% t = @on_air.track %>
+  <div class="on-air">
+    <span class="sched-on">on air</span>
+    <span><%= t.artist %> — <%= t.title %></span>
+    <a class="meta" href="<%= admin_show_path(t.show) %>"><%= t.show.name || t.show.slot %></a>
+    <a class="meta" href="<%= admin_schedule_path %>">Schedule</a>
+  </div>
+<% end %>
+
 <div class="stats">
-  <div class="stat-card">
-    <div class="num"><%= @show_count %></div>
-    <div class="label">Shows</div>
-  </div>
-  <div class="stat-card">
-    <div class="num"><%= @track_count %></div>
-    <div class="label">Tracks</div>
-  </div>
+  <div class="stat-card"><div class="num"><%= @song_count %></div><div class="label">Songs</div></div>
+  <div class="stat-card"><div class="num"><%= @vote_count %></div><div class="label">Votes</div></div>
+  <div class="stat-card"><div class="num"><%= @waiting %></div><div class="label">Requests waiting</div></div>
 </div>
 
 <p style="margin-bottom:24px;">
   <a href="/admin/generation/new" class="btn" style="display:inline-block;text-decoration:none;">New Mix</a>
-  <%= button_to "Build Site", admin_build_site_path, method: :post, class: "btn", style: "display:inline;margin-left:8px;", data: { confirm: "Run build_site.py to rebuild dist/?" } %>
 </p>
 
 <div class="ace-step-status">
@@ -49,22 +53,82 @@ fetch("/admin/ace_step/status.json")
   });
 </script>
 
-<h3>Recent Shows</h3>
+<h3 class="dash-h">Recent shows</h3>
 <table>
-  <tr><th>Name</th><th>Slot</th><th>DJ</th><th>Tracks</th><th>Status</th><th>Generated</th></tr>
+  <tr><th></th><th>Name</th><th>Kind</th><th>DJ</th><th>Tracks</th><th>Made</th></tr>
   <% @recent_shows.each do |show| %>
+    <% first = show.tracks.ordered.detect { |t| t.audio_path && File.exist?(t.audio_path) } %>
     <tr>
-      <td><a href="/admin/shows/<%= show.id %>"><%= show.name || show.slot %></a></td>
-      <td><%= show.slot %></td>
+      <td class="play-cell">
+        <% if show.mix_path && File.exist?(show.mix_path) %>
+          <button type="button" class="btn-play" data-src="<%= media_show_mix_path(show) %>" onclick="playTrack(this)" aria-label="Play the mix">▶</button>
+        <% elsif first %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(first) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% end %>
+      </td>
+      <td data-scrub><a href="/admin/shows/<%= show.id %>"><%= show.name || show.slot %></a></td>
+      <td><%= show.kind %></td>
       <td><%= show.dj_name %></td>
       <td><%= show.track_count %></td>
-      <td><span class="status-badge status-<%= show.status %>"><%= show.status %></span></td>
-      <td><%= show.generated_at&.strftime("%Y-%m-%d %H:%M") %></td>
+      <td><%= local_time(show.generated_at) %></td>
     </tr>
   <% end %>
 </table>
 
-<h3 style="margin-top:24px;">Recent Jobs</h3>
+<h3 class="dash-h">Recent tracks</h3>
+<table>
+  <tr><th></th><th>Artist</th><th>Title</th><th>Show</th><th>Length</th><th>Votes</th></tr>
+  <% @recent_songs.each do |song| %>
+    <tr>
+      <td class="play-cell"><% if song.audio_path && File.exist?(song.audio_path) %><button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button><% end %></td>
+      <td><%= song.artist %></td>
+      <td data-scrub><%= song.title %></td>
+      <td><a href="<%= admin_show_path(song.show) %>"><%= song.show.name || song.show.slot %></a></td>
+      <td><%= mmss(song.duration_ms.to_i / 1000.0) %></td>
+      <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
+    </tr>
+  <% end %>
+</table>
+
+<h3 class="dash-h">Recent votes</h3>
+<% if @recent_votes.empty? %>
+  <p class="meta">No votes yet.</p>
+<% else %>
+  <table>
+    <tr><th></th><th>When</th><th>Vote</th><th>Song</th><th>From</th></tr>
+    <% @recent_votes.each do |vote| %>
+      <% song = vote.track %>
+      <tr>
+        <td class="play-cell"><% if song.audio_path && File.exist?(song.audio_path) %><button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button><% end %></td>
+        <td><%= local_time(vote.updated_at) %></td>
+        <td class="<%= vote.value.positive? ? 'vote-up' : 'vote-down' %>"><%= vote.value.positive? ? "+1" : "−1" %></td>
+        <td data-scrub><%= song.artist %> — <%= song.title %></td>
+        <td><%= vote.voter == Vote::ADMIN ? "you" : "listener" %></td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>
+
+<h3 class="dash-h">Recent requests</h3>
+<% if @recent_requests.empty? %>
+  <p class="meta">No requests yet.</p>
+<% else %>
+  <table>
+    <tr><th></th><th>When</th><th>From</th><th>Request</th><th>Status</th></tr>
+    <% @recent_requests.each do |req| %>
+      <tr>
+        <td class="play-cell"><% if req.track&.audio_path && File.exist?(req.track.audio_path) %><button type="button" class="btn-play" data-src="<%= media_track_path(req.track) %>" onclick="playTrack(this)" aria-label="Play">▶</button><% end %></td>
+        <td><%= local_time(req.created_at) %></td>
+        <td><%= req.user.name %></td>
+        <td data-scrub><%= req.artist %> — <%= req.title %></td>
+        <td><span class="status-badge status-<%= req.status %>"><%= req.status %></span></td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>
+<p class="meta"><a href="<%= admin_requests_path %>">All requests</a></p>
+
+<h3 class="dash-h">Recent jobs</h3>
 <table>
   <tr><th>Slot</th><th>Tracks</th><th>Status</th><th>Started</th></tr>
   <% @recent_jobs.each do |job| %>
@@ -79,7 +143,7 @@ fetch("/admin/ace_step/status.json")
           <% end %>
         <% end %>
       </td>
-      <td><%= job.started_at&.strftime("%H:%M") %></td>
+      <td><%= local_time(job.started_at) %></td>
     </tr>
   <% end %>
 </table>

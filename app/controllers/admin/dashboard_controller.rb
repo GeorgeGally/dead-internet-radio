@@ -3,15 +3,18 @@
 module Admin
   class DashboardController < Admin::BaseController
     def index
-      @show_count = Show.count
-      @track_count = Track.count
-      @recent_jobs = GenerationJob.recent.limit(5)
+      now = Time.current
+      @on_air = BroadcastSegment.upcoming(now).includes(track: :show).first
+      @song_count = Track.songs.count
+      @vote_count = Vote.count
+      @waiting = SongRequest.waiting_for_set.count
       @recent_shows = Show.completed.recent.limit(5)
-    end
-
-    def build_site
-      BuildSiteJob.perform_later
-      redirect_to admin_generation_index_path, notice: 'Build site started'
+      @recent_songs = Track.songs.includes(:show).order(id: :desc).limit(8)
+      @recent_votes = Vote.includes(:track).order(updated_at: :desc).limit(8)
+      @recent_requests = SongRequest.recent.includes(:user, :track).limit(6)
+      # Retried jobs count as recent: newest start first.
+      @recent_jobs = GenerationJob.order(Arel.sql("COALESCE(started_at, created_at) DESC")).limit(5)
+      @mine = Vote.where(voter: Vote::ADMIN, track_id: @recent_songs.map(&:id)).pluck(:track_id, :value).to_h
     end
   end
 end

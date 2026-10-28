@@ -54,7 +54,6 @@ Rails.application.routes.draw do
         get "file/*file_path", to: "generation#output", as: :output_file
       end
     end
-    post "build_site", to: "dashboard#build_site", as: :build_site
     get "login", to: "sessions#new"
     post "login", to: "sessions#create"
     delete "logout", to: "sessions#destroy"
