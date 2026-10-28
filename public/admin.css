@@ -374,3 +374,8 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 }
 .scrub-fill { height: 2px; background: #ec6a1f; pointer-events: none; }
 .scrub-time { font-size: 11px; color: #8a857b; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.render-progress { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-width: 180px; text-decoration: none; }
+.render-progress .progress-bar { flex: 1; height: 4px; display: block; }
+.render-progress .progress-fill { display: block; background: #ec6a1f; }
+.render-stage { font-size: 11px; color: #8a857b; white-space: nowrap; font-variant-numeric: tabular-nums; }

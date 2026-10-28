@@ -21,19 +21,14 @@ default: &default
 
 
 development:
-  <<: *default
-  database: dead_internet_radio_development
-
-  # Use same database for queue in development
+  primary:
+    <<: *default
+    database: dead_internet_radio_development
+  # Jobs (solid_queue) keep their own database; bin/jobs works from it.
   queue:
     <<: *default
-    database: dead_internet_radio_development
+    database: dead_internet_radio_development_queue
     migrations_paths: db/queue_migrate
-
-  cable:
-    <<: *default
-    database: dead_internet_radio_development
-    migrations_paths: db/cable_migrate
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.

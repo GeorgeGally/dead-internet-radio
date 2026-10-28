@@ -9,7 +9,15 @@
       <td><%= req.artist %></td>
       <td><%= req.title %></td>
       <td><%= req.note %></td>
-      <td><span class="status-badge status-<%= req.status %>"><%= req.status %></span></td>
+      <td>
+        <span class="status-badge status-<%= req.status %>"><%= req.status %></span>
+        <% if (job = @render_jobs[req.id]) %>
+          <a class="render-progress" href="<%= admin_generation_path(job) %>" data-progress="<%= progress_admin_generation_path(job) %>">
+            <span class="progress-bar"><span class="progress-fill" style="width:0"></span></span>
+            <span class="render-stage">writing</span>
+          </a>
+        <% end %>
+      </td>
       <td><%= req.rejection_reason %></td>
       <td><%= req.matched_track && "#{req.matched_track.artist} — #{req.matched_track.title}" %></td>
       <td><% if req.track %><a href="/admin/shows/<%= req.track.show_id %>"><%= req.track.title %></a><% end %></td>
@@ -17,3 +25,27 @@
     </tr>
   <% end %>
 </table>
+
+<script>
+  // Each rendering request polls its job: writing (the LLM), rendering with
+  // a percentage, then mixing. When a render ends the page reloads.
+  document.querySelectorAll('.render-progress').forEach(function(el) {
+    var fill = el.querySelector('.progress-fill'), stage = el.querySelector('.render-stage');
+    function tick() {
+      fetch(el.dataset.progress, { credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(p) {
+        if (p.status === 'done' || p.status === 'failed') { location.reload(); return; }
+        var t = (p.tracks || {})['1'] || {};
+        if (t.status === 'done' || p.complete) {
+          fill.style.width = '100%'; stage.textContent = 'mixing';
+        } else if (t.elapsed_s != null) {
+          var pct = Math.min(Math.round(t.elapsed_s / (t.estimated_s || 180) * 100), 95);
+          fill.style.width = pct + '%'; stage.textContent = 'rendering ' + pct + '%';
+        } else {
+          fill.style.width = '4%'; stage.textContent = 'writing';
+        }
+        setTimeout(tick, 3000);
+      }).catch(function() { setTimeout(tick, 6000); });
+    }
+    tick();
+  });
+</script>
