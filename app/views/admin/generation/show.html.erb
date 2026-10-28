@@ -78,9 +78,8 @@
   </script>
 <% end %>
 
-<div class="tx-page">
-  <div class="job-detail">
-    <h2>Job: <span id="p-show-name"><%= @job.options&.dig("show_name") || @job.slot %></span></h2>
+<div class="job-detail">
+    <h2 id="p-show-name"><% name = @job.options&.dig("show_name") || @job.slot %><%= @job.show && !@job.running? ? link_to(name, admin_show_path(@job.show)) : name %></h2>
 
     <div class="job-info">
       <span class="status-badge status-<%= @job.status %>"><%= @job.status %></span>
@@ -93,11 +92,7 @@
       <span>DJ: <span id="p-dj-name"><%= @job.options&.dig("dj_name") || @job.dj_name || "—" %></span></span>
       <% if @job.dry_run? %><span>Dry run</span><% end %>
       <% if @job.running? %><span class="pulse-dot">&#9679;</span><% end %>
-    </div>
-
-    <div class="job-times">
-      <span>Started: <%= local_time(@job.started_at) %></span>
-      <span>Completed: <%= @job.completed_at ? local_time(@job.completed_at) : "—" %></span>
+      <span class="job-times"><%= local_time(@job.started_at) %><% if @job.completed_at %> – <%= local_time(@job.completed_at, format: "time") %><% end %></span>
     </div>
 
     <% if @job.running? %>
@@ -157,9 +152,9 @@
       <p class="job-show-link">Track: <%= link_to @job.options['show_name'], admin_track_path(@job.options['track_id']) %></p>
     <% end %>
     <% if @job.show %>
-      <p class="job-show-link">
-        Show: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>
-      </p>
+      <% if @job.running? %>
+        <p class="job-show-link"><%= link_to "Show", admin_show_path(@job.show) %></p>
+      <% end %>
       <% if @job.show.mix_path && File.exist?(@job.show.mix_path) %>
         <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@job.show) %>"></audio>
       <% end %>
@@ -171,15 +166,15 @@
     <% end %>
 
     <% if @job.output_log.present? %>
-      <h3>Output</h3>
-      <pre id="output-log"><%= @job.output_log %></pre>
+      <details class="job-log"<%= " open" if @job.running? || @job.failed? %>>
+        <summary>Output</summary>
+        <pre id="output-log"><%= @job.output_log %></pre>
+      </details>
     <% end %>
 
     <div class="job-actions">
-      <a href="/admin/generation" class="btn">&larr; Back</a>
       <% if @job.done? || @job.failed? %>
-        <a href="/admin/generation/new" class="btn">+ New generation</a>
+        <a href="/admin/generation/new" class="btn-key">New generation</a>
       <% end %>
     </div>
-  </div>
 </div>
