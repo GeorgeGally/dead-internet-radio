@@ -6,6 +6,7 @@
     <span class="sched-on">on air</span>
     <span><%= t.artist %> — <%= t.title %></span>
     <a class="meta" href="<%= admin_show_path(t.show) %>"><%= t.show.name || t.show.slot %></a>
+    <% if t.show.dj_name.present? %><span class="meta">DJ <%= t.show.dj_name %></span><% end %>
     <a class="meta" href="<%= admin_schedule_path %>">Schedule</a>
   </div>
 <% end %>

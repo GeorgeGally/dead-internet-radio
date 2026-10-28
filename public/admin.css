@@ -415,8 +415,11 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .sched-block table { table-layout: fixed; width: 100%; }
 .sched-block td:nth-child(1) { width: 44px; }
 .sched-block td:nth-child(2) { width: 70px; }
-.sched-block td:nth-child(5) { width: 200px; }
-.sched-block td:nth-child(6) { width: 70px; }
+.sched-block td:nth-child(5) { width: 180px; }
+.sched-block td:nth-child(6) { width: 90px; }
+.sched-block td:nth-child(7) { width: 120px; }
+.sched-block td:nth-child(8) { width: 60px; }
+.sched-plays { color: #8a857b; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sched-block td { padding: 6px 10px; }
 .rerender-row td { padding-top: 0; border-top: none; }
 
@@ -444,3 +447,5 @@ td form { margin: 0; }
 .dash-h { margin-top: 32px; }
 .on-air { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
 .play-cell { width: 44px; }
+
+.sched-dj { font-size: 14px; color: #1a1a1a; }

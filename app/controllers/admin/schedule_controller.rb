@@ -11,6 +11,12 @@ module Admin
       @blocks = segments.chunk_while { |a, b| a.track.show_id == b.track.show_id }.to_a
       requested = SongRequest.where(track_id: segments.map { |s| s.track.song_id }).includes(:user)
       @requests = requested.index_by(&:track_id)
+      song_ids = segments.map { |s| s.track.song_id }
+      # Plays so far (aired, not booked), counted on the song across shows and sets.
+      @plays = BroadcastSegment.joins(:track).where("broadcast_segments.starts_at <= ?", now)
+                               .where("COALESCE(tracks.origin_track_id, tracks.id) IN (?)", song_ids)
+                               .group("COALESCE(tracks.origin_track_id, tracks.id)").count
+      @mine = Vote.where(voter: Vote::ADMIN, track_id: song_ids).pluck(:track_id, :value).to_h
     end
   end
 end

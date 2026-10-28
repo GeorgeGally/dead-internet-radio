@@ -10,7 +10,8 @@
     <div class="sched-head">
       <span class="sched-time"><%= local_time(segs.first.starts_at, format: "time") %></span>
       <a href="<%= admin_show_path(show) %>"><%= show.name || show.slot %></a>
-      <span class="meta"><%= show.kind %> · DJ <%= show.dj_name %> · <%= mmss(segs.sum { |s| s.ends_at - s.starts_at }) %></span>
+      <% if show.dj_name.present? %><span class="sched-dj">DJ <%= show.dj_name %></span><% end %>
+      <span class="meta"><%= show.kind %> · <%= mmss(segs.sum { |s| s.ends_at - s.starts_at }) %></span>
       <% if i.zero? %><span class="sched-on">on air</span><% end %>
     </div>
     <table>
@@ -24,13 +25,15 @@
             <% end %>
           </td>
           <td class="sched-time"><%= local_time(seg.starts_at, format: "time") %></td>
-          <td><%= t.artist %></td>
+          <td><%= t.artist == Track::STATION_ARTIST && show.dj_name.present? ? "DJ #{show.dj_name}" : t.artist %></td>
           <td data-scrub><%= t.title %></td>
           <td>
             <% if (req = @requests[t.song_id]) %>
               <span class="sched-req">request · <%= req.user.first_name %></span>
             <% end %>
           </td>
+          <td class="sched-plays"><%= pluralize(@plays[t.song_id].to_i, "play") if t.song.votable? %></td>
+          <td class="like-cell"><%= render "admin/tracks/like", song: t.song, mine: @mine[t.song_id] %></td>
           <td class="sched-len"><%= mmss(seg.ends_at - seg.starts_at) %></td>
         </tr>
       <% end %>
