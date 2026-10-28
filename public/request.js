@@ -154,11 +154,29 @@ const requestLine = (() => {
         leds.replaceWith(next);
         leds = next;
       }
-      if (data.status === 'queued') form.reset();
+      if (data.status === 'queued') {
+        renderSent(body, { artist: artist.input.value, title: title.input.value }, data.message);
+        return;
+      }
       if (data.status === 'cover') { artist.input.select(); }
       go.disabled = me.requests_left <= 0;
     });
     setTimeout(() => artist.input.focus(), 0);
+  }
+
+  // Sent: the form goes; what was asked for stays on the page.
+  function renderSent(body, req, msg) {
+    body.replaceChildren();
+    const done = el('div', 'rq-sent');
+    done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
+    const foot = el('div', 'rq-foot');
+    foot.append(el('p', 'rq-msg', msg), lights(me.requests_left));
+    if (me.requests_left > 0) {
+      const { wrap, go } = goButton('another');
+      go.addEventListener('click', () => render());
+      foot.append(wrap);
+    }
+    body.append(done, foot);
   }
 
   function render(msg) {
