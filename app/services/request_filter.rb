@@ -35,11 +35,14 @@ module RequestFilter
     You may also reject a request that is simply not this station's taste.
     Otherwise accept. Odd, dark, funny and strange requests are welcome.
 
-    If the artist, or the artist and song together, is a real band or
-    musician (any era, any country, famous or cult), the verdict is "cover".
-    A made-up name that only sounds like a real one is fine. For a cover, add
-    "who": who they are in a few plain words, e.g. "a jazz keyboardist known
-    for Angela and Nautilus" or "the Düsseldorf electronic band".
+    If the artist is a real band or musician (any era, any country, famous or
+    cult) and you are certain of it, the verdict is "cover". Certain means you
+    can name a real record of theirs or a real fact about them. A made-up name
+    that only sounds like a real one, or one you only half recognise, is not a
+    cover: accept it. Most requests are invented names; when unsure, accept.
+    For a cover, "who" says who they are in a few plain words with that record
+    or fact, e.g. "a jazz keyboardist known for Angela and Nautilus" or "the
+    Düsseldorf electronic band behind Autobahn".
 
     Reply with JSON only: {"verdict": "accept" | "reject" | "cover", "reason": "...", "who": "..."}
     The reason is said to the listener in the station's voice: one short line,
@@ -105,7 +108,9 @@ module RequestFilter
     reason = NO_LINES.sample if reason.empty? || reason.length > 90
     case verdict["verdict"]
     when "accept" then Result.new(true, nil)
-    when "cover" then Result.new(false, cover_line(fields[:artist], verdict["who"]), true)
+    # A cover has to say who the real act is; a bare "cover" is a guess.
+    when "cover"
+      verdict["who"].to_s.strip.length >= 8 ? Result.new(false, cover_line(fields[:artist], verdict["who"]), true) : Result.new(true, nil)
     else Result.new(false, reason)
     end
   rescue StandardError => e
