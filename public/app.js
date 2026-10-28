@@ -22,16 +22,30 @@ function stopWelcomeIdent() {
   if (frame) frame.src = 'about:blank';
 }
 
+// The station's own picks lean on the first two artworks (Giphy and the
+// video archive): about half of all changes land on one of them.
+const FAVOURED_ART = 2;
+const FAVOURED_SHARE = 0.5;
+// The other artworks in a weighted random order, the current one left out.
+function artworkOrder(skip) {
+  const ids = visuals.getList().map((v) => v.id).filter((id) => !skip.includes(id));
+  const fav = new Set(visuals.getList().slice(0, FAVOURED_ART).map((v) => v.id));
+  const rest = ids.filter((id) => !fav.has(id)).length || 1;
+  const favCount = ids.filter((id) => fav.has(id)).length || 1;
+  const weight = (id) => fav.has(id) ? FAVOURED_SHARE / favCount : (1 - FAVOURED_SHARE) / rest;
+  // Weighted shuffle: smaller key goes first.
+  return ids.map((id) => [id, -Math.log(Math.random()) / weight(id)]).sort((a, b) => a[1] - b[1]).map((p) => p[0]);
+}
+
+function randomArtwork() {
+  return artworkOrder([visuals.getCurrentId()]).some((id) => visuals.activate(id));
+}
+
 // The site opens on a random artwork, never the one it opened on last time.
 function openingArtwork() {
   let last = null;
   try { last = localStorage.getItem('opening-artwork'); } catch (e) {}
-  const ids = visuals.getList().map((v) => v.id).filter((id) => id !== last);
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-  const id = ids.find((x) => visuals.activate(x));
+  const id = artworkOrder([last]).find((x) => visuals.activate(x));
   if (!id) return;
   try { localStorage.setItem('opening-artwork', id); } catch (e) {}
 }
@@ -967,8 +981,7 @@ let audioAnalysisReady = false;
   gallery.init();
   // An artwork that finishes its own run hands over to another, but not
   // while the listener is adjusting things.
-  const origEnded = visuals.artworkEnded;
-  visuals.artworkEnded = () => gallery.whenQuiet(() => origEnded.call(visuals));
+  visuals.artworkEnded = () => gallery.whenQuiet(() => setTimeout(randomArtwork, 0));
   // engine.next/prev/random route through visuals.activate, so this wrapper
   // (and the per-visual preset) applies to every switch, not just gallery
   // clicks. random() relies on the boolean result.
@@ -983,7 +996,7 @@ let audioAnalysisReady = false;
     const ok = origActivate.call(visuals, id);
     if (ok) {
       clearTimeout(quickCut);
-      quickCut = setTimeout(() => gallery.whenQuiet(() => visuals.random()), artClock());
+      quickCut = setTimeout(() => gallery.whenQuiet(randomArtwork), artClock());
     }
     updateTrackInfo();
     if (ok) {

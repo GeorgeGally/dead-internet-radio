@@ -95,7 +95,7 @@ test('JavaScript renders the overlay and waveform', () => {
   assert.match(js, /function feedWave/);
   assert.match(js, /function drawWave/);
   assert.match(js, /visuals\.init\(\)/);
-  assert.match(js, /visuals\.random\(\)/);
+  assert.match(js, /randomArtwork/);
   assert.match(js, /WAVE_BARS/);
   const stopPlayback = js.match(/function stopPlayback\(\) \{[\s\S]*?\n\}/)[0];
   assert.doesNotMatch(stopPlayback, /waveHistory\s*=\s*\[\]/);
