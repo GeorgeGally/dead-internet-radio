@@ -17,6 +17,21 @@ module Admin
       @request = SongRequest.includes(:user).find_by(track_id: @song.id)
     end
 
+    # Library songs that could take this set slot: closest tempo first, or a search.
+    def swap_options
+      @track = Track.find(params[:id])
+      @songs = SetSwap.candidates(@track, query: params[:q])
+      render partial: 'swap_options'
+    end
+
+    def swap
+      track = Track.find(params[:id])
+      SetSwap.swap!(track, Track.find(params[:song_id]))
+      redirect_to admin_show_path(track.show), notice: "Swapped in #{track.reload.artist} — #{track.title}"
+    rescue SetSwap::Error => e
+      redirect_to admin_show_path(track.show), alert: e.message
+    end
+
     def destroy
       @track = Track.find(params[:id])
       show = @track.show

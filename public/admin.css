@@ -466,3 +466,7 @@ td form { margin: 0; }
 .track-section .rerender-form { margin: 0; }
 
 .requests td:nth-child(2), .requests td:nth-child(8) { white-space: nowrap; }
+
+.swap-row td { padding-top: 0; border-top: none; }
+.swap-search { width: 100%; max-width: 560px; margin: 4px 0 8px; }
+.swap-list td { padding: 4px 10px 4px 0; border-bottom: none; }

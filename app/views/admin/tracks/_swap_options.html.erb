@@ -1,0 +1,16 @@
+<%# Songs that could take @track's place in its set. %>
+<% if @songs.empty? %>
+  <p class="meta">Nothing in the library fits.</p>
+<% else %>
+  <table class="swap-list">
+    <% @songs.each do |song| %>
+      <tr>
+        <td class="play-cell"><button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button></td>
+        <td data-scrub><%= link_to "#{song.artist} — #{song.title}", admin_track_path(song) %></td>
+        <td class="meta"><%= [song.bpm && "#{song.bpm} BPM", song.key, mmss(song.duration_ms.to_i / 1000.0)].compact_blank.join(" · ") %></td>
+        <td class="meta"><%= "+#{song.up_votes} −#{song.down_votes}" %></td>
+        <td><%= button_to "Use", swap_admin_track_path(@track, song_id: song.id), class: "btn-key btn-key-go" %></td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>

@@ -38,6 +38,8 @@ Rails.application.routes.draw do
     resources :tracks, only: [:show, :destroy] do
       post :rerender, on: :member
       post :like, on: :member
+      get :swap_options, on: :member
+      post :swap, on: :member
     end
     resources :library, only: [:index] do
       post :veto, on: :member

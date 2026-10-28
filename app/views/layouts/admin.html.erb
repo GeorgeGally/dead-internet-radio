@@ -25,6 +25,9 @@
     <% if notice %>
       <div class="flash notice"><%= notice %></div>
     <% end %>
+    <% if alert %>
+      <div class="flash notice"><%= alert %></div>
+    <% end %>
     <%= yield %>
   </main>
   <script>
