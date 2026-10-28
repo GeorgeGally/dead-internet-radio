@@ -18,9 +18,14 @@
         <% t = seg.track %>
         <% playing = seg.starts_at <= @now && seg.ends_at > @now %>
         <tr class="<%= 'sched-playing' if playing %>">
+          <td class="play-cell">
+            <% if t.audio_path && File.exist?(t.audio_path) %>
+              <button type="button" class="btn-play" data-src="<%= media_track_path(t) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+            <% end %>
+          </td>
           <td class="sched-time"><%= local_time(seg.starts_at, format: "time") %></td>
           <td><%= t.artist %></td>
-          <td><%= t.title %></td>
+          <td data-scrub><%= t.title %></td>
           <td>
             <% if (req = @requests[t.song_id]) %>
               <span class="sched-req">request · <%= req.user.first_name %></span>

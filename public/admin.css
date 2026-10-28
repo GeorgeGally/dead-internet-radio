@@ -413,9 +413,11 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 .sched-playing td { color: #ec6a1f; }
 .sched-req { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #ec6a1f; }
 .sched-block table { table-layout: fixed; width: 100%; }
-.sched-block td:nth-child(1) { width: 80px; }
-.sched-block td:nth-child(4) { width: 200px; }
-.sched-block td:nth-child(5) { width: 70px; }
+.sched-block td:nth-child(1) { width: 44px; }
+.sched-block td:nth-child(2) { width: 70px; }
+.sched-block td:nth-child(5) { width: 200px; }
+.sched-block td:nth-child(6) { width: 70px; }
+.sched-block td { padding: 6px 10px; }
 .rerender-row td { padding-top: 0; border-top: none; }
 
 .like-cell { white-space: nowrap; }
