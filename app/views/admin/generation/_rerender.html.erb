@@ -1,0 +1,51 @@
+<div class="rr">
+  <% if track %>
+    <div class="rr-track">
+      <% if job.done? && track.audio_path && File.exist?(track.audio_path) %>
+        <button type="button" class="btn-play" data-src="<%= media_track_path(track) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+      <% end %>
+      <span data-scrub><%= link_to "#{track.artist} — #{track.title}", admin_track_path(track) %></span>
+      <% if job.done? %><span class="like-cell"><%= render "admin/tracks/like", song: track, mine: Vote.find_by(voter: Vote::ADMIN, track_id: track.id)&.value %></span><% end %>
+    </div>
+  <% end %>
+
+  <% if job.options['instructions'].present? %>
+    <section>
+      <h3>Notes</h3>
+      <p class="rr-notes"><%= job.options['instructions'] %></p>
+    </section>
+  <% end %>
+
+  <% if review['diagnosis'].present? %>
+    <section>
+      <h3>Why it missed</h3>
+      <p><%= review['diagnosis'] %></p>
+    </section>
+  <% end %>
+
+  <% if review['changes'].present? %>
+    <section>
+      <h3>Changes</h3>
+      <ul class="rr-changes">
+        <% review['changes'].each do |c| %><li><%= c %></li><% end %>
+      </ul>
+    </section>
+  <% end %>
+
+  <div class="rr-compare">
+    <% [['Before', review['before']], ['After', review['after']]].each do |label, p| %>
+      <section>
+        <h3><%= label %></h3>
+        <% if p.present? %>
+          <p class="rr-spec"><%= [p['bpm'] && "#{p['bpm']} BPM", p['keyscale'].presence, p['duration'] && mmss(p['duration'])].compact.join(' · ') %></p>
+          <p><%= p['caption'] %></p>
+          <% if p['lyrics'].present? && p['lyrics'].gsub(/\[[^\]]*\]/, '').strip.present? %>
+            <p class="rr-lyrics"><%= p['lyrics'] %></p>
+          <% end %>
+        <% else %>
+          <p class="rr-wait"><%= job.running? || job.pending? ? "Writing…" : "—" %></p>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</div>

@@ -24,7 +24,11 @@ class RerenderTrackJob < ApplicationJob
       @ace_session = AceStepManager.acquire
       cmd = [Rails.configuration.x.python, 'rerender.py', '--track-json', write_spec(track), '--stop-ace-step']
       say("Re-render: #{track.artist} — #{track.title}")
-      exit_status = run_and_stream(cmd, chdir: root) { |line| spec = JSON.parse(Regexp.last_match(1)) if line =~ /^Spec: (\{.*\})$/ }
+      exit_status = run_and_stream(cmd, chdir: root) do |line|
+        spec = JSON.parse(Regexp.last_match(1)) if line =~ /^Spec: (\{.*\})$/
+        # The producer's read on what went wrong and what it changed, for the job page.
+        @gen_job.reload.update!(options: @gen_job.options.merge('review' => JSON.parse(Regexp.last_match(1)))) if line =~ /^Review: (\{.*\})$/
+      end
       say("Exit: #{exit_status}")
       raise "rerender.py failed with exit #{exit_status}" if exit_status != 0 || spec.nil?
 

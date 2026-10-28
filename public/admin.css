@@ -479,3 +479,18 @@ a.status-badge:hover { opacity: 0.85; }
 .sched-req { white-space: nowrap; }
 
 a.btn-key { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* Re-render job: notes, the producer's read, before and after. */
+.rr { max-width: 1100px; }
+.rr section { margin-bottom: 28px; }
+.rr h3 { font-size: 12px; margin-bottom: 8px; }
+.rr p { font-size: 15px; line-height: 1.55; color: #1a1a1a; }
+.rr-track { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; font-size: 16px; }
+.rr-track [data-scrub] { min-width: 240px; }
+.rr-notes { font-size: 18px !important; }
+.rr-changes { margin: 0; padding-left: 18px; font-size: 15px; line-height: 1.6; }
+.rr-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 24px; }
+.rr-spec { color: rgba(0,0,0,0.45) !important; font-size: 13px !important; margin-bottom: 8px; }
+.rr-lyrics { white-space: pre-wrap; color: rgba(0,0,0,0.5) !important; font-size: 13px !important; margin-top: 12px; }
+.rr-wait { color: rgba(0,0,0,0.35) !important; }
+@media (max-width: 800px) { .rr-compare { grid-template-columns: 1fr; gap: 24px; } }

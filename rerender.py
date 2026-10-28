@@ -58,6 +58,9 @@ def main():
         "keyscale": str(new.get("keyscale") or old.get("keyscale") or ""),
         "duration": min(max(duration, g.MIN_TRACK_SECONDS), g.MAX_TRACK_SECONDS),
     }
+    before = {k: old.get(k) for k in ("caption", "lyrics", "bpm", "keyscale", "duration")}
+    changes = new.get("changes") if isinstance(new.get("changes"), list) else []
+    print(f"Review: {json.dumps({'diagnosis': str(new.get('diagnosis') or ''), 'changes': [str(c) for c in changes], 'before': before, 'after': song})}", flush=True)
     print(f"   {song['bpm']} BPM, {song['keyscale']}, {song['duration']}s")
     print(f"   {song['caption']}")
 

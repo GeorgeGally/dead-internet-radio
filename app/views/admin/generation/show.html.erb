@@ -88,8 +88,10 @@
           <button type="submit" class="btn-sm">↻</button>
         <% end %>
       <% end %>
+      <% unless @review %>
       <span><%= @job.tracks_shown %> tracks</span>
       <span>DJ: <span id="p-dj-name"><%= @job.options&.dig("dj_name") || @job.dj_name || "—" %></span></span>
+      <% end %>
       <% if @job.dry_run? %><span>Dry run</span><% end %>
       <% if @job.running? %><span class="pulse-dot">&#9679;</span><% end %>
       <span class="job-times"><%= local_time(@job.started_at) %><% if @job.completed_at %> – <%= local_time(@job.completed_at, format: "time") %><% end %></span>
@@ -132,6 +134,7 @@
           <% end %>
         </ol>
       </div>
+      <% unless @review %>
       <div class="track-progress">
         <h3>Voiceovers</h3>
         <ol id="p-vo-list">
@@ -146,10 +149,11 @@
           <% end %>
         </ol>
       </div>
+      <% end %>
     <% end %>
 
-    <% if @job.options&.dig('kind') == 'rerender' %>
-      <p class="job-show-link">Track: <%= link_to @job.options['show_name'], admin_track_path(@job.options['track_id']) %></p>
+    <% if @review %>
+      <%= render "rerender", job: @job, track: @track, review: @review %>
     <% end %>
     <% if @job.show %>
       <% if @job.running? %>

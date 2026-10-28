@@ -45,6 +45,7 @@ module Admin
 
     def show
       @job = GenerationJob.find(params[:id])
+      rerender_review if @job.options&.dig('kind') == 'rerender'
     end
 
     def progress
@@ -80,6 +81,34 @@ module Admin
       else
         head :not_found
       end
+    end
+
+    private
+
+    # Before and after for a re-render: what the producer said went wrong and
+    # what it changed. Jobs from before it said so fall back to the prompt logs.
+    def rerender_review
+      @track = Track.find_by(id: @job.options['track_id'])
+      @review = (@job.options['review'] || {}).dup
+      return unless @track
+
+      log = @track.prompt_log
+      if @job.done?
+        @review['after'] ||= log['payload']
+        @review['before'] ||= replaced_payload(@track)
+      else
+        @review['before'] ||= log['payload']
+      end
+    end
+
+    def replaced_payload(track)
+      return unless track.audio_path
+
+      stem = track.audio_path.basename('.mp3').to_s
+      path = Dir[track.audio_path.dirname.join('.replaced', "#{stem}-*.prompt.json").to_s].max
+      path && JSON.parse(File.read(path))['payload']
+    rescue JSON::ParserError
+      nil
     end
   end
 end
