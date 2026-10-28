@@ -29,21 +29,25 @@
 </table>
 <% end %>
 
-<table>
-  <tr><th>Artist</th><th>Title</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>+</th><th>&minus;</th><th>Request</th><th></th></tr>
+<table class="songs">
+  <tr><th></th><th>Artist</th><th>Title</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th><th>Request</th><th></th></tr>
   <% @songs.each do |song| %>
     <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
+      <td>
+        <% if song.audio_path && File.exist?(song.audio_path) %>
+          <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+        <% end %>
+      </td>
       <td><%= song.artist %></td>
-      <td><a href="/admin/shows/<%= song.show_id %>"><%= song.title %></a></td>
+      <td data-scrub><a href="/admin/shows/<%= song.show_id %>"><%= song.title %></a></td>
       <td><%= song.bpm %></td>
       <td><%= song.key %></td>
       <td><%= Time.at(song.duration_ms / 1000).utc.strftime("%-M:%S") %></td>
       <td><%= @plays[song.id].to_i %></td>
       <td><%= @last_aired[song.id]&.strftime("%-d %b %H:%M") %></td>
-      <td><%= song.up_votes %></td>
-      <td><%= song.down_votes %></td>
+      <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
       <td><%= @requests[song.id]&.user&.name %></td>
-      <td><%= button_to(song.vetoed_at ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-sm") %></td>
+      <td><%= button_to(song.vetoed_at ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-quiet") %></td>
     </tr>
   <% end %>
 </table>

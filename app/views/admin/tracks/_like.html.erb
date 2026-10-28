@@ -1,0 +1,5 @@
+<%# Listener votes on a song and the station's like key. %>
+<% if song.votable? %>
+  <span class="votes" data-votes><span class="vote-up">+<%= song.up_votes %></span> <span class="vote-down">&minus;<%= song.down_votes %></span></span>
+  <button type="button" class="btn-like<%= ' liked' if mine == 1 %>" data-like="<%= like_admin_track_path(song) %>" aria-label="Like" title="Like">&#9829;</button>
+<% end %>

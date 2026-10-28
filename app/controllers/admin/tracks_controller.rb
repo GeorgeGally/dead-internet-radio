@@ -26,6 +26,16 @@ module Admin
       redirect_to admin_generation_path(job)
     end
 
+    # The station's own like: a vote from "admin" on the song, counted with
+    # the listeners' and read by the songwriter like theirs. 0 takes it back.
+    def like
+      song = Track.find(params[:id]).song
+      return head :unprocessable_entity unless song.votable?
+
+      song = Vote.cast!(song, Vote::ADMIN, params[:value].to_i.clamp(-1, 1))
+      render json: { up: song.up_votes, down: song.down_votes, mine: song.votes.find_by(voter: Vote::ADMIN)&.value.to_i }
+    end
+
     private
 
     # Moves audio + voiceover files into <show_dir>/.removed/ rather than deleting,

@@ -1,6 +1,7 @@
 # One listener's thumbs on one song. Listeners are browsers: a signed cookie,
 # no sign-in. Counters on the song keep the library page and set builder cheap.
 class Vote < ApplicationRecord
+  ADMIN = "admin"  # the station's own votes, from the admin
   belongs_to :track
 
   validates :voter, presence: true

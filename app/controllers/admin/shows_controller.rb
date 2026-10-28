@@ -17,7 +17,8 @@ module Admin
 
     def show
       @show = Show.find(params[:id])
-      @tracks = @show.tracks.ordered
+      @tracks = @show.tracks.ordered.includes(:origin_track)
+      @mine = Vote.where(voter: Vote::ADMIN, track_id: @tracks.map(&:song_id)).pluck(:track_id, :value).to_h
     end
 
     def destroy

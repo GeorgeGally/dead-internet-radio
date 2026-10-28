@@ -70,4 +70,11 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
       post rerender_admin_track_path(@track), params: { instructions: " " }
     end
   end
+
+  test "like counts as the station's vote and pressing again takes it back" do
+    post like_admin_track_path(@track), params: { value: 1 }, as: :json
+    assert_equal({ "up" => 1, "down" => 0, "mine" => 1 }, response.parsed_body)
+    post like_admin_track_path(@track), params: { value: 0 }, as: :json
+    assert_equal({ "up" => 0, "down" => 0, "mine" => 0 }, response.parsed_body)
+  end
 end

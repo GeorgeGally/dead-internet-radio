@@ -5,6 +5,7 @@ module Admin
   class LibraryController < Admin::BaseController
     def index
       @songs = Library.songs.order(id: :desc).to_a
+      @mine = Vote.where(voter: Vote::ADMIN, track_id: @songs.map(&:id)).pluck(:track_id, :value).to_h
       @plays = Library.plays
       @last_aired = Library.last_aired
       @requests = SongRequest.where(track_id: @songs.map(&:id)).includes(:user).index_by(&:track_id)

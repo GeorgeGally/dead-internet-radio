@@ -6,6 +6,7 @@
   <title>DIR Control</title>
   <%= csrf_meta_tags %>
   <link rel="stylesheet" href="/admin.css">
+  <script src="/admin-player.js" defer></script>
 </head>
 <body>
   <nav>
@@ -27,6 +28,24 @@
     <%= yield %>
   </main>
   <script>
+    // Like keys: press to like a song, press again to take it back.
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-like]');
+      if (!btn) return;
+      var liked = btn.classList.contains('liked');
+      fetch(btn.dataset.like, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content },
+        body: JSON.stringify({ value: liked ? 0 : 1 }),
+      }).then(function(r) { return r.ok ? r.json() : null; }).then(function(v) {
+        if (!v) return;
+        btn.classList.toggle('liked', v.mine === 1);
+        var box = btn.parentElement.querySelector('[data-votes]');
+        box.querySelector('.vote-up').textContent = '+' + v.up;
+        box.querySelector('.vote-down').textContent = '\u2212' + v.down;
+      });
+    });
+
     // Times arrive in UTC; show them in this browser's zone.
     document.querySelectorAll('time[data-local]').forEach(function(t) {
       var d = new Date(t.getAttribute('datetime')), pad = function(n) { return String(n).padStart(2, '0'); };
