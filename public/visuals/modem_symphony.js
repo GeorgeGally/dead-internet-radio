@@ -1,10 +1,11 @@
 'use strict';
 
-// After Modem Symphony No. 1 (radarboy3000, 2023): mostly an empty field. A
-// cursor types down a few narrow columns (stacked text, bars, outline
-// cells), and now and then one row or column of pixels is smeared across
-// the screen into fine lines. The music cuts it to a new field and starts
-// again.
+// After Modem Symphony No. 1 (radarboy3000, 2023): the whole screen at once.
+// A field of columns, each typing itself down at its own width and cell
+// height - bars hung with hairlines, thin vertical rules, stacked pixel
+// text, outline cells, the odd colour block. It is seeded full the moment it
+// appears. The music cuts it to a new field, and now and then one row or
+// column of pixels is smeared across the screen.
 visuals.register('modem_symphony', (() => {
   let myP5 = null;
 
@@ -16,14 +17,23 @@ visuals.register('modem_symphony', (() => {
     '++ I WILL LOVE YOU FOREVER ++ ',
   ];
 
-  // Field, ink, and colours a smear may pick up. Mostly paper.
+  // Field, ink, and the colours a block or a smear may pick up.
   const SCENES = [
-    { w: 5, bg: '#fafafa', ink: ['#000'] },
-    { w: 2, bg: '#000', ink: ['#fff', '#777'] },
-    { w: 1, bg: '#00ffff', ink: ['#000', '#fff'] },
-    { w: 1, bg: '#00b5b0', ink: ['#000', '#7ff', '#3355ff', '#ff3355'] },
-    { w: 1, bg: '#fafafa', ink: ['#000', '#ff0000', '#00cc44', '#0000ff', '#ff00ff', '#00ffff', '#ffee00'] },
+    { w: 6, bg: '#fafafa', ink: '#000', accents: ['#000', '#000', '#00b5b0', '#ff3355'] },
+    { w: 2, bg: '#000', ink: '#fff', accents: ['#fff', '#777', '#00ffff'] },
+    { w: 1, bg: '#00ffff', ink: '#000', accents: ['#000', '#fff'] },
+    { w: 1, bg: '#00b5b0', ink: '#000', accents: ['#000', '#fff', '#3355ff', '#ff3355'] },
+    { w: 1, bg: '#fafafa', ink: '#000', accents: ['#ff0000', '#00cc44', '#0000ff', '#ff00ff', '#00ffff', '#ffee00'] },
   ];
+
+  // Column widths and cell heights, in px: slabs and lanes side by side.
+  const WIDTHS = [12, 16, 16, 24, 32, 32, 48, 64, 96];
+  const HEIGHTS = [6, 8, 10, 12, 14, 18, 24];
+
+  // Blank lane, text, bar with hairlines, vertical rules, outline cell,
+  // colour block, half bar. Bars and text most of the time, a lane of paper
+  // left open here and there.
+  const WEIGHTS = [0.10, 0.22, 0.30, 0.12, 0.12, 0.05, 0.09];
 
   function start() {
     const blockCanvas = document.getElementById('block-canvas');
@@ -35,15 +45,11 @@ visuals.register('modem_symphony', (() => {
 
     myP5 = new p5((p) => {
       let page;
-      let sz = 24;
       let scene = SCENES[0];
-      let x = 0, y = 0;
-      let left = 0, span = 1;  // the band of columns the cursor works in
-      let run = 1;
-      let text = '';
-      let ti = 0;
+      let cols = [];
       let sceneAt = 0;
       let sceneFor = 1000;
+      let fs = 0;
       const td = new Uint8Array(256);
 
       const pickOf = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -59,89 +65,110 @@ visuals.register('modem_symphony', (() => {
         return SCENES[0];
       }
 
-      // Wipe to a new field and drop the cursor at the top of a fresh band.
-      function newScene(now, level) {
-        scene = pickScene();
-        sz = pickOf([12, 16, 24, 24, 32]);
-        page.textSize(sz * 0.62);
-        page.background(scene.bg);
-        newBand();
-        sceneAt = now;
-        sceneFor = 300 + Math.random() * (level > 0.1 ? 1800 : 4000);
-      }
-
-      function newBand() {
-        const cols = Math.floor(p.width / sz);
-        span = 2 + Math.floor(Math.random() * Math.random() * 10);
-        left = Math.floor(Math.random() * Math.max(1, cols - span)) * sz;
-        x = left;
-        y = Math.floor(Math.random() * 6) * sz;
-        run = pickKind();
-      }
-
-      // Down the column; at the bottom, across to the next one in the band.
-      function advance() {
-        y += sz;
-        if (y >= p.height) {
-          y = 0;
-          x += sz;
-          if (x >= left + span * sz) newBand();
-        }
-      }
-
-      // Text most, then bars and outline cells, a solid or a gap now and then.
-      const WEIGHTS = [0.12, 0.34, 0.16, 0.12, 0.12, 0.08, 0.06];
-      function pickKind() {
+      // A wide lane left blank is a hole in the field; narrow ones read as paper
+      // between columns, so only they are allowed to go empty.
+      function pickKind(c) {
         let r = Math.random();
-        for (let k = 0; k < WEIGHTS.length; k++) { r -= WEIGHTS[k]; if (r < 0) return k; }
+        for (let k = 0; k < WEIGHTS.length; k++) {
+          r -= WEIGHTS[k];
+          if (r < 0) return k === 0 && c.w > 32 ? 2 : k;
+        }
         return 1;
       }
 
-      function cell(k) {
-        const g = page;
-        const ink = Math.random() < 0.85 ? scene.ink[0] : pickOf(scene.ink);
-        g.noStroke();
-        g.fill(scene.bg);
-        g.rect(x, y, sz, sz);
-        if (k === 0) return;
-        g.fill(ink);
-        if (k === 1) {
-          if (ti >= text.length) { text = words(); ti = 0; }
-          g.text(text[ti++], x + sz / 2, y + sz / 2 + 1);
-        } else if (k === 2) {
-          // Fat bar across the middle of the cell: the ladder rungs.
-          g.rect(x + sz * 0.15, y + sz * 0.3, sz * 0.7, sz * 0.4);
-        } else if (k === 3) {
-          for (let i = 0; i < 3; i++) g.rect(x + i * sz / 3, y, Math.max(1, sz / 12), sz);
-        } else if (k === 4) {
-          g.noFill();
-          g.stroke(ink);
-          g.strokeWeight(1);
-          g.rect(x + 0.5, y + 0.5, sz - 1, sz - 1);
-        } else if (k === 5) {
-          g.rect(x, y, sz, sz);
-        } else {
-          g.rect(x, y, sz / 2, sz);
+      // A new composition: columns of mixed width edge to edge, each with its
+      // own cell height, ink, and where it has got to.
+      function makeColumns() {
+        cols = [];
+        let x = 0;
+        while (x < p.width) {
+          const w = Math.min(pickOf(WIDTHS), p.width - x);
+          const h = pickOf(HEIGHTS);
+          const c = {
+            x, w, h,
+            y: 0,
+            ink: Math.random() < 0.15 ? pickOf(scene.accents) : scene.ink,
+            accent: pickOf(scene.accents),
+            text: '', ti: 0,
+          };
+          c.kind = pickKind(c);
+          cols.push(c);
+          x += w;
         }
       }
 
-      // One row or column of pixels pulled out across the page.
+      // Fill each column from the top down to somewhere: full screen at once,
+      // ragged at the bottom, and the typing carries on from there.
+      function seed() {
+        for (const c of cols) {
+          const until = p.height * (0.4 + Math.random() * 0.6);
+          c.y = 0;
+          while (c.y < until) { cell(c); c.y += c.h; }
+        }
+      }
+
+      function cell(c) {
+        const g = page;
+        const { x, y, w, h } = c;
+        g.noStroke();
+        g.fill(scene.bg);
+        g.rect(x, y, w, h);
+        if (c.kind === 0) return;
+        g.fill(c.ink);
+        if (c.kind === 1) {
+          if (c.ti >= c.text.length) { c.text = words(); c.ti = 0; }
+          const ts = Math.max(6, Math.min(12, Math.min(w, h) * 0.85));
+          if (fs !== ts) { g.textSize(ts); fs = ts; }
+          g.text(c.text[c.ti++], x + w / 2, y + h / 2 + 1);
+        } else if (c.kind === 2) {
+          // Bar, hung with a hairline. Stacked cells read as a ruled slab.
+          g.rect(x, y, w, h);
+          g.stroke(scene.bg);
+          g.strokeWeight(1);
+          g.line(x, y + h / 2, x + w, y + h / 2);
+        } else if (c.kind === 3) {
+          for (let i = 0; i < 3; i++) g.rect(x + (i + 0.5) * w / 3 - 0.5, y, Math.max(1, w / 24), h);
+        } else if (c.kind === 4) {
+          g.noFill();
+          g.stroke(c.ink);
+          g.strokeWeight(1);
+          g.rect(x + 0.5, y + 0.5, w - 1, h - 1);
+        } else if (c.kind === 5) {
+          g.fill(c.accent);
+          g.rect(x, y, w, h);
+        } else {
+          g.rect(x, y, w, h * 0.5);
+        }
+      }
+
+      // One row or column of pixels pulled out across part of the page: fine
+      // lines, never a wipe of the whole field.
       function smear() {
         const c = page.drawingContext;
         const el = page.elt;
         c.imageSmoothingEnabled = false;
         if (Math.random() < 0.6) {
           // A 1px row dragged down: fine vertical lines.
-          const sy = Math.min(p.height - 1, Math.max(0, y - 1));
-          const x0 = Math.random() < 0.5 ? 0 : left;
-          const x1 = Math.random() < 0.5 ? p.width : left + span * sz;
-          c.drawImage(el, x0, sy, x1 - x0, 1, x0, sy, x1 - x0, p.height - sy);
+          const sy = Math.floor(Math.random() * (p.height - 1));
+          const len = Math.max(8, (p.height - sy) * (0.25 + Math.random() * 0.75));
+          c.drawImage(el, 0, sy, p.width, 1, 0, sy, p.width, len);
         } else {
           // A 1px column dragged sideways: fine horizontal lines.
-          const sx = Math.min(p.width - 1, x + Math.floor(sz / 2));
-          if (Math.random() < 0.5) c.drawImage(el, sx, 0, 1, p.height, 0, 0, sx, p.height);
-          else c.drawImage(el, sx, 0, 1, p.height, sx, 0, p.width - sx, p.height);
+          const sx = Math.floor(Math.random() * (p.width - 1));
+          const left = Math.random() < 0.5;
+          const len = Math.max(8, (left ? sx : p.width - sx) * (0.25 + Math.random() * 0.75));
+          c.drawImage(el, sx, 0, 1, p.height, left ? sx - len : sx, 0, len, p.height);
         }
+      }
+
+      // Wipe to a new field: new colours, new columns, full again.
+      function newScene(now, level) {
+        scene = pickScene();
+        page.background(scene.bg);
+        makeColumns();
+        seed();
+        sceneAt = now;
+        sceneFor = 900 + Math.random() * (level > 0.1 ? 3000 : 7000);
       }
 
       function makePage() {
@@ -149,13 +176,13 @@ visuals.register('modem_symphony', (() => {
         page.pixelDensity(1);
         page.textFont('Dogica');
         page.textAlign(p.CENTER, p.CENTER);
+        fs = 0;
       }
 
       p.setup = () => {
         visuals.setupP5Canvas(p);
         p.noSmooth();
         makePage();
-        text = words();
         newScene(0, 0);
       };
 
@@ -183,11 +210,20 @@ visuals.register('modem_symphony', (() => {
           newScene(now, level);
         }
 
-        const steps = Math.max(1, Math.round((2 + level * 50) * speed));
-        for (let i = 0; i < steps; i++) {
-          if (Math.random() < 0.08) run = pickKind();
-          cell(run);
-          advance();
+        // Every column types at once; louder music types faster. A column
+        // keeps its treatment for the length of a pass.
+        const steps = 1 + Math.round(level * 8 * speed);
+        for (const c of cols) {
+          if (Math.random() < 0.01) c.kind = pickKind(c);
+          for (let i = 0; i < steps; i++) {
+            cell(c);
+            c.y += c.h;
+            if (c.y >= p.height) {
+              c.y = 0;
+              c.kind = pickKind(c);
+              c.ink = Math.random() < 0.15 ? pickOf(scene.accents) : scene.ink;
+            }
+          }
         }
         if (Math.random() < 0.02 + level * react * 0.1) smear();
 
