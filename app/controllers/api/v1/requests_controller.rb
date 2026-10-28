@@ -29,11 +29,13 @@ module Api
         end
 
         verdict = RequestFilter.check(artist: req.artist, title: req.title, note: req.note)
-        if verdict.cover?
-          # Naming a real band is a mistake, not abuse: the turn comes back.
+        if verdict.cover? || verdict.dead?
+          # Naming a real band is a mistake, not abuse, and a dead line is
+          # ours: either way the turn comes back.
           req.destroy!
-          return render json: { status: "cover", message: verdict.reason, requests_left: current_user.requests_left_today },
-                        status: :ok
+          return render json: { status: verdict.cover? ? "cover" : "dead", message: verdict.reason,
+                                requests_left: current_user.requests_left_today },
+                        status: verdict.cover? ? :ok : :service_unavailable
         elsif verdict.accepted?
           req.update!(status: :queued, matched_track: SongRequest.match_artist(req.artist))
         else

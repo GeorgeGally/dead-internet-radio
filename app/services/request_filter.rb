@@ -3,9 +3,11 @@ require "net/http"
 # The station's editorial ear for listener requests. A blocklist first, then
 # one OpenRouter call. Fail-closed: anything that isn't a clean "accept" is a no.
 module RequestFilter
-  Result = Struct.new(:accepted, :reason, :cover) do
+  Result = Struct.new(:accepted, :reason, :cover, :dead) do
     def accepted? = accepted
     def cover? = !!cover
+    # The filter itself failed (no key, no credit, no answer): not the listener's fault.
+    def dead? = !!dead
   end
 
   OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions".freeze
@@ -84,7 +86,7 @@ module RequestFilter
 
   def self.moderate(fields)
     key = ENV["OPENROUTER_API_KEY"].presence
-    return Result.new(false, DEAD_LINE) unless key
+    return dead("no OPENROUTER_API_KEY") unless key
 
     body = {
       model: MODEL,
@@ -100,7 +102,7 @@ module RequestFilter
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 25) do |http|
       http.post(uri.path, body.to_json, "Authorization" => "Bearer #{key}", "Content-Type" => "application/json")
     end
-    return Result.new(false, DEAD_LINE) unless res.is_a?(Net::HTTPSuccess)
+    return dead("OpenRouter #{res.code}: #{res.body.to_s[0, 200]}") unless res.is_a?(Net::HTTPSuccess)
 
     content = JSON.parse(res.body).dig("choices", 0, "message", "content").to_s
     verdict = JSON.parse(content[/\{.*\}/m].to_s)
@@ -114,7 +116,11 @@ module RequestFilter
     else Result.new(false, reason)
     end
   rescue StandardError => e
-    Rails.logger.warn("request filter failed closed: #{e.class}: #{e.message}")
-    Result.new(false, DEAD_LINE)
+    dead("#{e.class}: #{e.message}")
+  end
+
+  def self.dead(why)
+    Rails.logger.warn("request filter failed closed: #{why}")
+    Result.new(false, DEAD_LINE, false, true)
   end
 end
