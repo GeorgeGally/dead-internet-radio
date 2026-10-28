@@ -77,4 +77,10 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     post like_admin_track_path(@track), params: { value: 0 }, as: :json
     assert_equal({ "up" => 0, "down" => 0, "mine" => 0 }, response.parsed_body)
   end
+
+  test "dislike swaps the station's vote" do
+    post like_admin_track_path(@track), params: { value: 1 }, as: :json
+    post like_admin_track_path(@track), params: { value: -1 }, as: :json
+    assert_equal({ "up" => 0, "down" => 1, "mine" => -1 }, response.parsed_body)
+  end
 end

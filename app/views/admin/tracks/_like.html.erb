@@ -1,5 +1,8 @@
-<%# Listener votes on a song and the station's like key. %>
+<%# Listener votes on a song and the station's own like / dislike keys. %>
 <% if song.votable? %>
   <span class="votes" data-votes><span class="vote-up">+<%= song.up_votes %></span> <span class="vote-down">&minus;<%= song.down_votes %></span></span>
-  <button type="button" class="btn-like<%= ' liked' if mine == 1 %>" data-like="<%= like_admin_track_path(song) %>" aria-label="Like" title="Like"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z" fill="currentColor"/></svg></button>
+  <span class="vote-keys">
+    <button type="button" class="btn-like<%= ' liked' if mine == 1 %>" data-like="<%= like_admin_track_path(song) %>" data-value="1" aria-label="Like" title="Like"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z" fill="currentColor"/></svg></button>
+    <button type="button" class="btn-like btn-dislike<%= ' disliked' if mine == -1 %>" data-like="<%= like_admin_track_path(song) %>" data-value="-1" aria-label="Dislike" title="Dislike"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" fill="currentColor"/></svg></button>
+  </span>
 <% end %>

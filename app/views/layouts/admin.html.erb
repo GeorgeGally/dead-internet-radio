@@ -28,21 +28,22 @@
     <%= yield %>
   </main>
   <script>
-    // Like keys: press to like a song, press again to take it back.
+    // Like / dislike keys: press to vote, press the lit key again to take it back.
     document.addEventListener('click', function(e) {
       var btn = e.target.closest('[data-like]');
       if (!btn) return;
-      var liked = btn.classList.contains('liked');
+      var value = Number(btn.dataset.value), lit = btn.classList.contains('liked') || btn.classList.contains('disliked');
       fetch(btn.dataset.like, {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content },
-        body: JSON.stringify({ value: liked ? 0 : 1 }),
+        body: JSON.stringify({ value: lit ? 0 : value }),
       }).then(function(r) { return r.ok ? r.json() : null; }).then(function(v) {
         if (!v) return;
-        btn.classList.toggle('liked', v.mine === 1);
-        var box = btn.parentElement.querySelector('[data-votes]');
-        box.querySelector('.vote-up').textContent = '+' + v.up;
-        box.querySelector('.vote-down').textContent = '\u2212' + v.down;
+        var cell = btn.closest('.like-cell') || btn.parentElement.parentElement;
+        cell.querySelector('[data-value="1"]').classList.toggle('liked', v.mine === 1);
+        cell.querySelector('[data-value="-1"]').classList.toggle('disliked', v.mine === -1);
+        cell.querySelector('.vote-up').textContent = '+' + v.up;
+        cell.querySelector('.vote-down').textContent = '\u2212' + v.down;
       });
     });
 
