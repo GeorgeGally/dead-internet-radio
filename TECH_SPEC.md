@@ -305,7 +305,7 @@ Indexes: `(show_id, position)` unique
 | GET | `/api/v1/shows` | List all completed shows |
 | GET | `/api/v1/shows/:id` | Show detail with tracks |
 | GET | `/api/v1/tracks/:id` | Single track detail |
-| GET | `/api/v1/visuals` | All visual modules with thumbnail URLs |
+| GET | `/api/v1/visuals` | Visual modules switched on in the admin, with thumbnail URLs |
 | GET | `/api/v1/playlist` | Full playlist JSON (replaces static file) |
 
 #### Admin-facing (basic HTTP auth or session-based)
