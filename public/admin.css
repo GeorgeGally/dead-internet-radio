@@ -479,3 +479,10 @@ td form { margin: 0; }
 .rerender-notes, .swap-search { margin: 0; height: 36px; width: auto; }
 .rerender-form .btn-key { height: 36px; }
 .swap-search { margin: 4px 0 8px; width: 100%; }
+
+a.status-badge { text-decoration: none; }
+a.status-badge:hover { opacity: 0.85; }
+/* Arriving from a request: its slot is marked and sits clear of the top. */
+.sched-block tr:target td { background: rgba(236, 106, 31, 0.12); }
+.sched-block tr { scroll-margin-top: 120px; }
+.sched-req { white-space: nowrap; }

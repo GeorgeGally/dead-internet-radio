@@ -1,0 +1,6 @@
+<%# A request's status badge; once booked it opens the Schedule at its slot. %>
+<% if seg %>
+  <%= link_to req.status, admin_schedule_path(anchor: "seg-#{seg.id}"), class: "status-badge status-#{req.status}", title: "Airs #{seg.starts_at.utc.iso8601}" %>
+<% else %>
+  <span class="status-badge status-<%= req.status %>"><%= req.status %></span>
+<% end %>

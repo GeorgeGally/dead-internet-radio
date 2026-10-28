@@ -18,7 +18,7 @@
       <% segs.each do |seg| %>
         <% t = seg.track %>
         <% playing = seg.starts_at <= @now && seg.ends_at > @now %>
-        <tr class="<%= 'sched-playing' if playing %>">
+        <tr id="seg-<%= seg.id %>" class="<%= 'sched-playing' if playing %>">
           <td class="play-cell">
             <% if t.audio_path && File.exist?(t.audio_path) %>
               <button type="button" class="btn-play" data-src="<%= media_track_path(t) %>" onclick="playTrack(this)" aria-label="Play">▶</button>

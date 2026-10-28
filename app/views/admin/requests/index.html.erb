@@ -15,7 +15,7 @@
       <td><%= req.track ? artist_link(req.artist) : req.artist %></td>
       <td><%= req.note %></td>
       <td>
-        <span class="status-badge status-<%= req.status %>"><%= req.status %></span>
+        <%= render "admin/requests/status", req: req, seg: req.track_id && @airs[req.track_id] %>
         <% if (job = @render_jobs[req.id]) %>
           <a class="render-progress" href="<%= admin_generation_path(job) %>" data-progress="<%= progress_admin_generation_path(job) %>">
             <span class="progress-bar"><span class="progress-fill" style="width:0"></span></span>
@@ -23,7 +23,7 @@
           </a>
         <% end %>
       </td>
-      <td><%= (at = req.track_id && @airs[req.track_id]) ? local_time(at) : (req.ready? ? "next set" : "") %></td>
+      <td><% if (seg = req.track_id && @airs[req.track_id]) %><%= link_to local_time(seg.starts_at), admin_schedule_path(anchor: "seg-#{seg.id}") %><% elsif req.ready? %>next set<% end %></td>
       <td><%= req.rejection_reason %></td>
       <td><%= req.matched_track && "#{req.matched_track.artist} — #{req.matched_track.title}" %></td>
       <td><%= button_to "Render", fulfill_admin_request_path(req) if req.queued? %></td>
