@@ -83,7 +83,7 @@ fetch("/admin/ace_step/status.json")
     <tr>
       <td class="play-cell"><% if song.audio_path && File.exist?(song.audio_path) %><button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button><% end %></td>
       <td><%= song.artist %></td>
-      <td data-scrub><%= song.title %></td>
+      <td data-scrub><%= link_to song.title, admin_track_path(song) %></td>
       <td><a href="<%= admin_show_path(song.show) %>"><%= song.show.name || song.show.slot %></a></td>
       <td><%= mmss(song.duration_ms.to_i / 1000.0) %></td>
       <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
@@ -103,7 +103,7 @@ fetch("/admin/ace_step/status.json")
         <td class="play-cell"><% if song.audio_path && File.exist?(song.audio_path) %><button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button><% end %></td>
         <td><%= local_time(vote.updated_at) %></td>
         <td class="<%= vote.value.positive? ? 'vote-up' : 'vote-down' %>"><%= vote.value.positive? ? "+1" : "−1" %></td>
-        <td data-scrub><%= song.artist %> — <%= song.title %></td>
+        <td data-scrub><%= link_to "#{song.artist} — #{song.title}", admin_track_path(song) %></td>
         <td><%= vote.voter == Vote::ADMIN ? "you" : "listener" %></td>
       </tr>
     <% end %>

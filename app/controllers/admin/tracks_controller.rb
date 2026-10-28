@@ -2,6 +2,21 @@
 
 module Admin
   class TracksController < Admin::BaseController
+    # One song: hear it, read what it was made from, say what's wrong and
+    # render it again. A set's copy shows its library song.
+    def show
+      track = Track.find(params[:id])
+      @song = track.song
+      @log = @song.prompt_log
+      @payload = @log['payload'] || {}
+      @appears = Track.where(id: @song.id).or(Track.where(origin_track_id: @song.id)).includes(:show).map(&:show).compact.uniq
+      @plays = BroadcastSegment.joins(:track).where('broadcast_segments.starts_at <= ?', Time.current)
+                               .where('COALESCE(tracks.origin_track_id, tracks.id) = ?', @song.id)
+      @mine = Vote.find_by(voter: Vote::ADMIN, track_id: @song.id)&.value
+      @rerenders = GenerationJob.where("options->>'kind' = 'rerender' AND options->>'track_id' = ?", @song.id.to_s).recent
+      @request = SongRequest.includes(:user).find_by(track_id: @song.id)
+    end
+
     def destroy
       @track = Track.find(params[:id])
       show = @track.show

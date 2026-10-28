@@ -35,7 +35,7 @@ Rails.application.routes.draw do
       end
     end
     get "schedule", to: "schedule#index", as: :schedule
-    resources :tracks, only: [:destroy] do
+    resources :tracks, only: [:show, :destroy] do
       post :rerender, on: :member
       post :like, on: :member
     end

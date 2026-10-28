@@ -43,7 +43,7 @@
           <%= track.position %>
         <% end %>
       </td>
-      <td data-scrub><%= track.title %></td>
+      <td data-scrub><%= track.song.votable? ? link_to(track.title, admin_track_path(track)) : track.title %></td>
       <td><%= track.artist %></td>
       <td><%= track.bpm %></td>
       <td><%= track.key %></td>

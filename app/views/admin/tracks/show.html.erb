@@ -1,0 +1,80 @@
+<p class="meta"><a href="<%= admin_show_path(@song.show) %>"><%= @song.show.name || @song.show.slot %></a></p>
+<h2><%= @song.artist %> — <%= @song.title %></h2>
+
+<table class="track-head">
+  <tr>
+    <td class="play-cell">
+      <% if @song.audio_path && File.exist?(@song.audio_path) %>
+        <button type="button" class="btn-play" data-src="<%= media_track_path(@song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+      <% end %>
+    </td>
+    <td data-scrub>
+      <span class="meta">
+        <%= [@song.bpm && "#{@song.bpm} BPM", @song.key, mmss(@song.duration_ms.to_i / 1000.0)].compact_blank.join(" · ") %>
+        · <%= pluralize(@plays.count, "play") %><% if (last = @plays.maximum(:starts_at)) %>, last <%= local_time(last) %><% end %>
+      </span>
+    </td>
+    <td class="like-cell"><%= render "admin/tracks/like", song: @song, mine: @mine %></td>
+  </tr>
+</table>
+
+<% if @song.votable? %>
+  <section class="track-section">
+    <h3>What's wrong with it?</h3>
+    <%= form_tag rerender_admin_track_path(@song), class: "rerender-form" do %>
+      <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+             placeholder="Slower, darker bass, no hi-hats, more space…">
+      <button type="submit" class="btn-key btn-key-go">Re-render</button>
+    <% end %>
+  </section>
+<% end %>
+
+<section class="track-section">
+  <h3>Prompt</h3>
+  <% if @payload.empty? %>
+    <p class="meta">No prompt log for this track.</p>
+  <% else %>
+    <dl class="prompt">
+      <dt>Sound</dt><dd><%= @payload['caption'] %></dd>
+      <% %w[frequency_band modulation_type signal_path].each do |k| %>
+        <% if @payload[k].present? %><dt><%= k.humanize %></dt><dd><%= @payload[k] %></dd><% end %>
+      <% end %>
+      <dt>Tempo</dt><dd><%= @payload['bpm'] %> BPM · <%= @payload['keyscale'] %> · <%= mmss(@payload['duration']) %></dd>
+      <% if @log['rerender'] %>
+        <dt>Last notes</dt><dd><%= @log['rerender']['notes'] %></dd>
+      <% end %>
+      <dt>Lyrics</dt><dd><pre class="lyrics"><%= @payload['lyrics'] %></pre></dd>
+    </dl>
+  <% end %>
+  <% if @request %>
+    <p class="meta">Requested by <%= @request.user.name %>: “<%= @request.note %>”</p>
+  <% end %>
+</section>
+
+<% if @log['brief'].present? || @log['user_prompt'].present? %>
+  <details class="track-section">
+    <summary>What the DJ was asked</summary>
+    <% if @log['brief'].present? %><h4>Brief</h4><pre class="lyrics"><%= @log['brief'] %></pre><% end %>
+    <% if @log['user_prompt'].present? %><h4>Prompt</h4><pre class="lyrics"><%= @log['user_prompt'] %></pre><% end %>
+  </details>
+<% end %>
+
+<section class="track-section">
+  <h3>Aired in</h3>
+  <p><% @appears.each_with_index do |s, i| %><%= ", " if i > 0 %><a href="<%= admin_show_path(s) %>"><%= s.name || s.slot %></a> <span class="meta"><%= s.kind %></span><% end %></p>
+</section>
+
+<% if @rerenders.any? %>
+  <section class="track-section">
+    <h3>Re-renders</h3>
+    <table>
+      <% @rerenders.each do |job| %>
+        <tr>
+          <td><%= local_time(job.started_at || job.created_at) %></td>
+          <td><a href="<%= admin_generation_path(job) %>"><%= job.options['instructions'] %></a></td>
+          <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
+        </tr>
+      <% end %>
+    </table>
+  </section>
+<% end %>

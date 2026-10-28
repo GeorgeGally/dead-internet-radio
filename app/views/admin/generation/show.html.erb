@@ -153,6 +153,9 @@
       </div>
     <% end %>
 
+    <% if @job.options&.dig('kind') == 'rerender' %>
+      <p class="job-show-link">Track: <%= link_to @job.options['show_name'], admin_track_path(@job.options['track_id']) %></p>
+    <% end %>
     <% if @job.show %>
       <p class="job-show-link">
         Show: <a href="/admin/shows/<%= @job.show.id %>"><%= @job.show.name || @job.show.slot %></a>

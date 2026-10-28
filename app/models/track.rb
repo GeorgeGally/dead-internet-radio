@@ -47,6 +47,15 @@ class Track < ApplicationRecord
     resolve_media(audio_file)
   end
 
+  # What the song was made from: generate.py's prompt log beside the audio
+  # (caption, lyrics, tempo, key, length; the DJ's prompts; re-render notes).
+  def prompt_log
+    path = audio_path && audio_path.dirname.join("prompts", "#{audio_path.basename('.mp3')}.prompt.json")
+    path && File.exist?(path) ? JSON.parse(File.read(path)) : {}
+  rescue JSON::ParserError
+    {}
+  end
+
   def voiceover_path
     resolve_media(voiceover_file)
   end
