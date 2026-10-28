@@ -44,6 +44,7 @@ trackAudio.addEventListener('ended', stopAll);
 // Re-render opens a notes field under its track.
 function openRerender(btn) {
   var row = btn.closest('tr').nextElementSibling;
+  while (row && !row.classList.contains('rerender-row')) row = row.nextElementSibling;
   row.hidden = !row.hidden;
   if (!row.hidden) row.querySelector('input').focus();
 }
