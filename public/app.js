@@ -717,6 +717,7 @@ async function loadActiveVisuals() {
   try {
     const active = await fetchJson(apiUrl('/visuals'), { signal: AbortSignal.timeout(3000) });
     visuals.setEnabled(active.map(v => v.slug));
+    visuals.setNames(Object.fromEntries(active.filter(v => v.name).map(v => [v.slug, v.name])));
   } catch (e) {
     // Fall back to every registered artwork.
   }

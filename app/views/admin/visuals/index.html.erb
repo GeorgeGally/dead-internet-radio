@@ -9,9 +9,9 @@
   <tbody>
     <% @visuals.each do |v| %>
       <tr class="<%= 'is-off' unless v.active %>">
-        <td><%= v.name %></td>
+        <td class="name-cell" contenteditable="true" role="textbox" aria-label="<%= v.name %> name" data-visual-id="<%= v.id %>" data-name="<%= v.name %>"><%= v.name %></td>
         <td class="slug"><%= v.slug %></td>
-        <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
+        <td><div class="thumb" style="background-image: url(/visuals/thumbs/<%= v.slug %>.jpg)"></div></td>
         <td class="switch-cell">
           <label class="switch">
             <input type="checkbox" data-visual-id="<%= v.id %>" aria-label="<%= v.name %> on air" <%= "checked" if v.active %>>

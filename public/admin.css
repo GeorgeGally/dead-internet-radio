@@ -503,6 +503,15 @@ a.btn-key { display: inline-flex; align-items: center; text-decoration: none; }
 
 .visuals td { padding: 14px; vertical-align: middle; }
 .visuals .slug { color: rgba(0,0,0,0.35); font-size: 12px; }
+.visuals .name-cell { cursor: text; }
+.visuals .name-cell:hover { color: #c03f0d; }
+.visuals .name-cell:focus { outline: none; background: #fffdf8; box-shadow: 0 0 0 1px rgba(0,0,0,0.18); border-radius: 3px; }
+/* Same fixed preview the player's gallery wall shows. */
+.visuals .thumb {
+  width: 64px; height: 64px; border-radius: 3px;
+  background-color: #e2ddd2; background-size: cover; background-position: center;
+}
+.visuals tr.is-off .thumb { opacity: 0.4; }
 .visuals th:last-child { text-align: right; white-space: nowrap; }
 .visuals tr.is-off td:not(.switch-cell) { color: rgba(0,0,0,0.3); }
 .switch-cell { width: 96px; text-align: right; }

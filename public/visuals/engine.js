@@ -6,6 +6,7 @@ const visuals = (() => {
   let currentId = null;
   let onChange = null;
   let enabledIds = null;
+  const adminNames = new Map();
   const _thumbnails = new Map();
   let prewarmToken = 0;
   let prewarmSavedOnChange = null;
@@ -68,6 +69,17 @@ const visuals = (() => {
   function setEnabled(ids) {
     const next = Array.isArray(ids) ? new Set(ids) : null;
     enabledIds = next && next.size ? next : null;
+  }
+
+  // The admin page renames artworks; the player shows the admin's name.
+  function setNames(names) {
+    adminNames.clear();
+    Object.entries(names || {}).forEach(([id, name]) => { if (name) adminNames.set(id, name); });
+  }
+
+  function nameOf(id) {
+    const artwork = registry.get(id);
+    return adminNames.get(id) || (artwork && artwork.name) || id;
   }
 
   // Shared p5 canvas setup for artworks: create canvas, pixel density,
@@ -352,10 +364,7 @@ const visuals = (() => {
   }
 
   function getList() {
-    return pool().map(id => {
-      const artwork = registry.get(id);
-      return { id, name: artwork ? (artwork.name || id) : id };
-    });
+    return pool().map(id => ({ id, name: nameOf(id) }));
   }
 
   function getCurrentId() {
@@ -365,7 +374,7 @@ const visuals = (() => {
   function getCurrentName() {
     if (!currentId) return '';
     const artwork = registry.get(currentId);
-    return artwork ? (artwork.name || currentId) : '';
+    return artwork ? nameOf(currentId) : '';
   }
 
   function getThumbnail(id) {
@@ -398,6 +407,6 @@ const visuals = (() => {
 
   // Internal switches (next/prev/random/...) call api.activate so wrappers
   // installed on the public method (app.js preset load/save) always run.
-  const api = { register, showNotification, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, setEnabled, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  const api = { register, showNotification, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, setEnabled, setNames, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
   return api;
 })();

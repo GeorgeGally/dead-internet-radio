@@ -31,4 +31,44 @@
       }
     });
   });
+
+  const nameCells = Array.from(document.querySelectorAll('.name-cell'));
+  nameCells.forEach((cell) => {
+    let saved = cell.dataset.name;
+    const restore = () => { cell.textContent = saved; };
+    cell.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        cell.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        restore();
+        cell.blur();
+      }
+    });
+    cell.addEventListener('blur', async () => {
+      const name = cell.textContent.replace(/\s+/g, ' ').trim();
+      if (!name || name === saved) {
+        restore();
+        return;
+      }
+      cell.textContent = name;
+      try {
+        const response = await fetch(`/admin/visuals/${cell.dataset.visualId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': token,
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ visual_module: { name } }),
+        });
+        if (!response.ok) throw new Error(`save failed: ${response.status}`);
+        saved = name;
+        cell.dataset.name = name;
+      } catch (error) {
+        restore();
+      }
+    });
+  });
 })();
