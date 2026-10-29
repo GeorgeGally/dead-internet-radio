@@ -3,13 +3,16 @@
 module Admin
   class VisualsController < Admin::BaseController
     def index
-      @visuals = VisualModule.order(:name)
+      @visuals = VisualModule.sync_from_player!.order(:name)
     end
 
     def update
       @visual = VisualModule.find(params[:id])
-      @visual.update(params.expect(visual_module: %i[name active thumbnail]))
-      redirect_to admin_visuals_path, notice: 'Visual updated'
+      saved = @visual.update(params.expect(visual_module: %i[name active thumbnail]))
+      respond_to do |format|
+        format.html { redirect_to admin_visuals_path, notice: saved ? 'Visual updated' : 'Visual not saved' }
+        format.json { head(saved ? :no_content : :unprocessable_entity) }
+      end
     end
   end
 end

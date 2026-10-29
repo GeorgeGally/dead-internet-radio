@@ -5,6 +5,7 @@ const visuals = (() => {
   const order = [];
   let currentId = null;
   let onChange = null;
+  let enabledIds = null;
   const _thumbnails = new Map();
   let prewarmToken = 0;
   let prewarmSavedOnChange = null;
@@ -53,6 +54,20 @@ const visuals = (() => {
     }
     registry.set(id, artwork);
     order.push(id);
+  }
+
+  // The admin page switches artworks off; only enabled ones play. A missing,
+  // empty or unmatched list falls back to everything so the screen is never
+  // blank.
+  function pool() {
+    if (!enabledIds) return order;
+    const enabled = order.filter(id => enabledIds.has(id));
+    return enabled.length ? enabled : order;
+  }
+
+  function setEnabled(ids) {
+    const next = Array.isArray(ids) ? new Set(ids) : null;
+    enabledIds = next && next.size ? next : null;
   }
 
   // Shared p5 canvas setup for artworks: create canvas, pixel density,
@@ -127,15 +142,17 @@ const visuals = (() => {
   }
 
   function next() {
-    if (order.length < 2) return;
-    const idx = order.indexOf(currentId);
-    api.activate(order[(idx + 1) % order.length]);
+    const list = pool();
+    if (list.length < 2) return;
+    const idx = list.indexOf(currentId);
+    api.activate(list[(idx + 1) % list.length]);
   }
 
   function prev() {
-    if (order.length < 2) return;
-    const idx = order.indexOf(currentId);
-    api.activate(order[(idx - 1 + order.length) % order.length]);
+    const list = pool();
+    if (list.length < 2) return;
+    const idx = list.indexOf(currentId);
+    api.activate(list[(idx - 1 + list.length) % list.length]);
   }
 
   function handleKeyDown(e) {
@@ -221,10 +238,11 @@ const visuals = (() => {
   }
 
   function random() {
-    if (!order.length) return;
-    const startIdx = Math.floor(Math.random() * order.length);
-    for (let offset = 0; offset < order.length; offset++) {
-      if (api.activate(order[(startIdx + offset) % order.length])) return true;
+    const list = pool();
+    if (!list.length) return;
+    const startIdx = Math.floor(Math.random() * list.length);
+    for (let offset = 0; offset < list.length; offset++) {
+      if (api.activate(list[(startIdx + offset) % list.length])) return true;
     }
     return false;
   }
@@ -236,9 +254,10 @@ const visuals = (() => {
 
   function artworkEnded() {
     setTimeout(() => {
-      const others = order.filter(id => id !== currentId);
-      const pool = others.length ? others : order;
-      api.activate(pool[Math.floor(Math.random() * pool.length)]);
+      const list = pool();
+      const others = list.filter(id => id !== currentId);
+      const candidates = others.length ? others : list;
+      api.activate(candidates[Math.floor(Math.random() * candidates.length)]);
     }, 0);
   }
 
@@ -268,21 +287,22 @@ const visuals = (() => {
     document.body.classList.add('prewarming');
 
     let idx = 0;
+    const list = pool();
 
     function next() {
       if (token !== prewarmToken) return;
-      if (idx >= order.length) {
+      if (idx >= list.length) {
         if (onChange === null) onChange = savedOnChange;
         prewarmSavedOnChange = null;
         document.body.classList.remove('prewarming');
-        const randId = savedId || order[Math.floor(Math.random() * order.length)];
+        const randId = savedId || list[Math.floor(Math.random() * list.length)];
         // Internal activate: currentId is still the last prewarmed sketch, and
         // the wrapper would save the live filter set as that sketch's preset.
         if (!activate(randId)) random();
         return;
       }
 
-      const id = order[idx];
+      const id = list[idx];
       idx++;
 
       if (_thumbnails.has(id)) {
@@ -332,7 +352,7 @@ const visuals = (() => {
   }
 
   function getList() {
-    return order.map(id => {
+    return pool().map(id => {
       const artwork = registry.get(id);
       return { id, name: artwork ? (artwork.name || id) : id };
     });
@@ -378,6 +398,6 @@ const visuals = (() => {
 
   // Internal switches (next/prev/random/...) call api.activate so wrappers
   // installed on the public method (app.js preset load/save) always run.
-  const api = { register, showNotification, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
+  const api = { register, showNotification, setupP5Canvas, stopP5, activate, next, prev, random, resetTimer, artworkEnded, prewarmThumbnails, cancelPrewarm, notify, init, drawScanlines, getList, getCurrentId, getCurrentName, getThumbnail, captureThumbnail, setEnabled, get onChange() { return onChange; }, set onChange(v) { onChange = v; } };
   return api;
 })();

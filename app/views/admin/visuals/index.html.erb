@@ -1,13 +1,26 @@
 <h2>Visual Modules</h2>
 
-<table>
-  <tr><th>Name</th><th>Slug</th><th>Active</th><th>Thumbnail</th></tr>
-  <% @visuals.each do |v| %>
-    <tr>
-      <td><%= v.name %></td>
-      <td><%= v.slug %></td>
-      <td><%= v.active ? "Yes" : "No" %></td>
-      <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
-    </tr>
-  <% end %>
+<p class="all-off" hidden>The player is showing all artworks because none are switched on.</p>
+
+<table class="visuals">
+  <thead>
+    <tr><th>Name</th><th>Slug</th><th>Thumbnail</th><th>On air</th></tr>
+  </thead>
+  <tbody>
+    <% @visuals.each do |v| %>
+      <tr class="<%= 'is-off' unless v.active %>">
+        <td><%= v.name %></td>
+        <td class="slug"><%= v.slug %></td>
+        <td><%= v.thumbnail.present? ? "Captured" : "Pending" %></td>
+        <td class="switch-cell">
+          <label class="switch">
+            <input type="checkbox" data-visual-id="<%= v.id %>" aria-label="<%= v.name %> on air" <%= "checked" if v.active %>>
+            <span class="switch-track"></span>
+          </label>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
 </table>
+
+<script src="/admin_visuals.js" defer></script>
