@@ -1,0 +1,42 @@
+[
+  {
+    "time": 4,
+    "title": "Buffer Overrun",
+    "artist": "Datacorp FM"
+  },
+  {
+    "time": 144.0,
+    "title": "Signal Ghost",
+    "artist": "Sector Admin"
+  },
+  {
+    "time": 284.0,
+    "title": "Cold Core",
+    "artist": "Grid Failure"
+  },
+  {
+    "time": 424.1,
+    "title": "Rusty Compass",
+    "artist": "Signal Void"
+  },
+  {
+    "time": 564.1,
+    "title": "Echo Chamber",
+    "artist": "Terminal 7"
+  },
+  {
+    "time": 704.1,
+    "title": "Static Veil",
+    "artist": "Binary Ruin"
+  },
+  {
+    "time": 844.1,
+    "title": "Broken Telemetry",
+    "artist": "Cold Storage"
+  },
+  {
+    "time": 984.2,
+    "title": "Frozen Data Stream",
+    "artist": "Waveform Decay"
+  }
+]

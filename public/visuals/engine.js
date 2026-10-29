@@ -143,7 +143,16 @@ const visuals = (() => {
       e.preventDefault();
       if (e.shiftKey) prev();
       else next();
+      return;
     }
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // Leave arrows to text fields and sliders (e.g. the sensitivity knob).
+    const el = document.activeElement;
+    if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+    e.preventDefault();
+    if (e.key === 'ArrowRight') next();
+    else prev();
   }
 
   function notify(event, data) {

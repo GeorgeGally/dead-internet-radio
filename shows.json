@@ -78,6 +78,39 @@
       "mixCues": "audio/static-bureau-grid-failure-waveform-decay-terminal-7-datacorp-fm-afternoon-drive-time-lonely-slomo-disco.cues.json"
     },
     {
+      "id": "afternoon-smog-dub-20261027-220612",
+      "name": "Smog Dub Transmission",
+      "showName": "Smog Dub Transmission",
+      "timestamp": "20261027-220612",
+      "djName": "Mainframe",
+      "trackCount": 5,
+      "playlist": "shows/afternoon-smog-dub-20261027-220612/playlist.json",
+      "mixFile": "audio/vent-array-scrubber-logic-compressor-ghost-equalizer-void-afternoon-smog-dub.mp3",
+      "mixCues": "audio/vent-array-scrubber-logic-compressor-ghost-equalizer-void-afternoon-smog-dub.cues.json"
+    },
+    {
+      "id": "drive-time-20261027-232606",
+      "name": "Deadhead Miles",
+      "showName": "Deadhead Miles",
+      "timestamp": "20261027-232606",
+      "djName": "c^$",
+      "trackCount": 1,
+      "playlist": "shows/drive-time-20261027-232606/playlist.json",
+      "mixFile": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.mp3",
+      "mixCues": "audio/signal-void-grid-failure-sector-admin-cold-storage-terminal-7-afternoon-drive-time-berlin-slow-dark-minimal-techno.cues.json"
+    },
+    {
+      "id": "drive-time-set-20261027-233616",
+      "name": "Concrete Pulse",
+      "showName": "Concrete Pulse",
+      "timestamp": "20261027-233616",
+      "djName": "c^$",
+      "trackCount": 22,
+      "playlist": "shows/drive-time-set-20261027-233616/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
       "id": "electronic-robots-rock-n-roll-friday-night-20260622-124110",
       "name": "Robot Synth Friday",
       "showName": "Robot Synth Friday",
@@ -89,11 +122,77 @@
       "mixCues": "audio/the-archive-sync-the-void-projection-celeste-damp-cipher-core-nox-nexus-electronic-robots-rock-n-roll-friday-night.cues.json"
     },
     {
+      "id": "late-night-20261024-122928",
+      "name": "Deep Cycle",
+      "showName": "Deep Cycle",
+      "timestamp": "20261024-122928",
+      "djName": "Pixel",
+      "trackCount": 1,
+      "playlist": "shows/late-night-20261024-122928/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
+      "id": "late-night-20261024-124654",
+      "name": "Static Hours",
+      "showName": "Static Hours",
+      "timestamp": "20261024-124654",
+      "djName": "Static",
+      "trackCount": 5,
+      "playlist": "shows/late-night-20261024-124654/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
+      "id": "late-night-20261024-190827",
+      "name": "Ghost Shift",
+      "showName": "Ghost Shift",
+      "timestamp": "20261024-190827",
+      "djName": "Blade",
+      "trackCount": 1,
+      "playlist": "shows/late-night-20261024-190827/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
+      "id": "late-night-20261024-191742",
+      "name": "Static Hours",
+      "showName": "Static Hours",
+      "timestamp": "20261024-191742",
+      "djName": "Synthia",
+      "trackCount": 3,
+      "playlist": "shows/late-night-20261024-191742/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
+      "id": "late-night-20261024-192844",
+      "name": "Static Hours",
+      "showName": "Static Hours",
+      "timestamp": "20261024-192844",
+      "djName": "Hex",
+      "trackCount": 6,
+      "playlist": "shows/late-night-20261024-192844/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
+      "id": "late-night-20261024-200451",
+      "name": "Static Hour Zero",
+      "showName": "Static Hour Zero",
+      "timestamp": "20261024-200451",
+      "djName": "Void",
+      "trackCount": 6,
+      "playlist": "shows/late-night-20261024-200451/playlist.json",
+      "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
+      "mixCues": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.cues.json"
+    },
+    {
       "id": "late-night-ambient-cinematic-slomo-folk-disco-20260614-180406",
       "name": "Late Night Ambient Cinematic Slomo Folk Disco",
       "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260614-180406",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260614-180406/playlist.json",
       "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
@@ -104,7 +203,7 @@
       "name": "Late Night Ambient Cinematic Slomo Folk Disco",
       "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260615-211320",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260615-211320/playlist.json",
       "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
@@ -115,7 +214,7 @@
       "name": "Late Night Ambient Cinematic Slomo Folk Disco",
       "showName": "Late Night Ambient Cinematic Slomo Folk Disco",
       "timestamp": "20260616-181002",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 5,
       "playlist": "shows/late-night-ambient-cinematic-slomo-folk-disco-20260616-181002/playlist.json",
       "mixFile": "audio/datacorp-fm-grid-failure-datacorp-fm-pulse-datacorp-fm-ghostwave-late-night-ambient-cinematic-slomo-folk-disco.mp3",
@@ -155,11 +254,33 @@
       "mixCues": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.cues.json"
     },
     {
+      "id": "late-night-ambient-melancholic-cinematic-slomo-fol-20260823-213838",
+      "name": "Eclipse Frequency",
+      "showName": "Eclipse Frequency",
+      "timestamp": "20260823-213838",
+      "djName": "Glitch",
+      "trackCount": 1,
+      "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-fol-20260823-213838/playlist.json",
+      "mixFile": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.cues.json"
+    },
+    {
+      "id": "late-night-ambient-melancholic-cinematic-slomo-fol-20260823-220755",
+      "name": "Hollow Hoedown Circuit",
+      "showName": "Hollow Hoedown Circuit",
+      "timestamp": "20260823-220755",
+      "djName": "Neon",
+      "trackCount": 6,
+      "playlist": "shows/late-night-ambient-melancholic-cinematic-slomo-fol-20260823-220755/playlist.json",
+      "mixFile": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.mp3",
+      "mixCues": "audio/vacuum-choir-pulse-archive-servo-null-late-night-ambient-melancholic-cinematic-slomo-folk-disco.cues.json"
+    },
+    {
       "id": "late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757",
       "name": "Late Night Deep Soulful Minimal Slomo Robot Bass",
       "showName": "Late Night Deep Soulful Minimal Slomo Robot Bass",
       "timestamp": "20260614-081757",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-deep-soulful-minimal-slomo-robot-bass-20260614-081757/playlist.json",
       "mixFile": "audio/dead-internet-radio-data-ghosts-null-cast-ghost-frequency-glitch-core-late-night-deep-soulful-minimal-slomo-robot-bass.mp3",
@@ -170,18 +291,29 @@
       "name": "Late Night Disco Clubbing",
       "showName": "Late Night Disco Clubbing",
       "timestamp": "20260614-220202",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-disco-clubbing-20260614-220202/playlist.json",
       "mixFile": "audio/dead-internet-radio-signal-static-datacorp-fm-neon-grid-late-night-disco-clubbing.mp3",
       "mixCues": "audio/dead-internet-radio-signal-static-datacorp-fm-neon-grid-late-night-disco-clubbing.cues.json"
     },
     {
+      "id": "late-night-set-20261027-120524",
+      "name": "Null Frequency Drift",
+      "showName": "Null Frequency Drift",
+      "timestamp": "20261027-120524",
+      "djName": "Neon",
+      "trackCount": 16,
+      "playlist": "shows/late-night-set-20261027-120524/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
       "id": "late-night-slomo-disco-vocoder-bass-20260614-150625",
       "name": "Late Night Slomo Disco Vocoder Bass",
       "showName": "Late Night Slomo Disco Vocoder Bass",
       "timestamp": "20260614-150625",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-slomo-disco-vocoder-bass-20260614-150625/playlist.json",
       "mixFile": "audio/lobby-archive-01-dead-internet-radio-signal-void-null-cast-echoes-late-night-slomo-disco-vocoder-bass.mp3",
@@ -192,7 +324,7 @@
       "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "showName": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084243",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 1,
       "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084243/playlist.json",
       "mixFile": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.mp3",
@@ -203,11 +335,77 @@
       "name": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "showName": "Late Night Soulful Minimal Slomo Vocoder Bass",
       "timestamp": "20260614-084509",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 6,
       "playlist": "shows/late-night-soulful-minimal-slomo-vocoder-bass-20260614-084509/playlist.json",
       "mixFile": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.mp3",
       "mixCues": "audio/dead-internet-radio-null-cast-ghost-assembly-null-cast-archive-wound-late-night-soulful-minimal-slomo-vocoder-bass.cues.json"
+    },
+    {
+      "id": "night-set-20261027-232710",
+      "name": "Midnight Circuit Drift",
+      "showName": "Midnight Circuit Drift",
+      "timestamp": "20261027-232710",
+      "djName": "Hex",
+      "trackCount": 24,
+      "playlist": "shows/night-set-20261027-232710/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
+      "id": "old-school-electro-sci-fi-robots-20260825-151830",
+      "name": "Chrome Lullabies for Sleeping Androids",
+      "showName": "Chrome Lullabies for Sleeping Androids",
+      "timestamp": "20260825-151830",
+      "djName": "Pixel",
+      "trackCount": 1,
+      "playlist": "shows/old-school-electro-sci-fi-robots-20260825-151830/playlist.json",
+      "mixFile": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.mp3",
+      "mixCues": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.cues.json"
+    },
+    {
+      "id": "old-school-electro-sci-fi-robots-20260825-152725",
+      "name": "Circuit Riders of the Void",
+      "showName": "Circuit Riders of the Void",
+      "timestamp": "20260825-152725",
+      "djName": "c^$",
+      "trackCount": 9,
+      "playlist": "shows/old-school-electro-sci-fi-robots-20260825-152725/playlist.json",
+      "mixFile": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.mp3",
+      "mixCues": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.cues.json"
+    },
+    {
+      "id": "old-school-electro-sci-fi-robots-20260825-202736",
+      "name": "Robotic Pulse",
+      "showName": "Robotic Pulse",
+      "timestamp": "20260825-202736",
+      "djName": "Cipher",
+      "trackCount": 14,
+      "playlist": "shows/old-school-electro-sci-fi-robots-20260825-202736/playlist.json",
+      "mixFile": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.mp3",
+      "mixCues": "audio/datacorp-fm-sector-admin-grid-failure-signal-void-terminal-7-binary-ruin-cold-storage-waveform-decay-old-school-electro-sci-fi-robots.cues.json"
+    },
+    {
+      "id": "post-punk-20261024-130002",
+      "name": "Cold Wire Transmission",
+      "showName": "Cold Wire Transmission",
+      "timestamp": "20261024-130002",
+      "djName": "Void",
+      "trackCount": 1,
+      "playlist": "shows/post-punk-20261024-130002/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
+      "id": "request-line-20261028-082946",
+      "name": "Phantom Request Queue",
+      "showName": "Phantom Request Queue",
+      "timestamp": "20261028-082946",
+      "djName": "Syntax Error",
+      "trackCount": 1,
+      "playlist": "shows/request-line-20261028-082946/playlist.json",
+      "mixFile": "audio/metal-rainbow-robots-request-line.mp3",
+      "mixCues": "audio/metal-rainbow-robots-request-line.cues.json"
     },
     {
       "id": "saturday-afternoon-disco-folk-20260708-233952",
@@ -250,8 +448,8 @@
       "djName": "Password123",
       "trackCount": 1,
       "playlist": "shows/slow-sunday-folk-20260703-233249/playlist.json",
-      "mixFile": null,
-      "mixCues": null
+      "mixFile": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.mp3",
+      "mixCues": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.cues.json"
     },
     {
       "id": "slow-sunday-folk-20260704-101237",
@@ -261,8 +459,8 @@
       "djName": "Blade",
       "trackCount": 1,
       "playlist": "shows/slow-sunday-folk-20260704-101237/playlist.json",
-      "mixFile": null,
-      "mixCues": null
+      "mixFile": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.mp3",
+      "mixCues": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.cues.json"
     },
     {
       "id": "slow-sunday-folk-20260704-102500",
@@ -272,8 +470,19 @@
       "djName": "Pixel",
       "trackCount": 1,
       "playlist": "shows/slow-sunday-folk-20260704-102500/playlist.json",
-      "mixFile": null,
-      "mixCues": null
+      "mixFile": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.mp3",
+      "mixCues": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.cues.json"
+    },
+    {
+      "id": "slow-sunday-folk-20261027-232854",
+      "name": "Dust Hymn Circuit",
+      "showName": "Dust Hymn Circuit",
+      "timestamp": "20261027-232854",
+      "djName": "Ghost",
+      "trackCount": 6,
+      "playlist": "shows/slow-sunday-folk-20261027-232854/playlist.json",
+      "mixFile": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.mp3",
+      "mixCues": "audio/silo-breath-wire-tension-vowel-decay-fan-syncopate-scheduler-rite-slow-sunday-folk.cues.json"
     },
     {
       "id": "sunrise-drive-time-lonely-berlin-minimal-lofi-arp-20260617-191548",
@@ -287,15 +496,37 @@
       "mixCues": null
     },
     {
+      "id": "sunrise-set-20261028-084049",
+      "name": "First Light Failure",
+      "showName": "First Light Failure",
+      "timestamp": "20261028-084049",
+      "djName": "Void",
+      "trackCount": 24,
+      "playlist": "shows/sunrise-set-20261028-084049/playlist.json",
+      "mixFile": null,
+      "mixCues": null
+    },
+    {
       "id": "sunrise-slow-deep-disco-20260616-110423",
       "name": "Sunrise Slow Deep Disco",
       "showName": "Sunrise Slow Deep Disco",
       "timestamp": "20260616-110423",
-      "djName": "0rdin41",
+      "djName": "Singu1arity",
       "trackCount": 7,
       "playlist": "shows/sunrise-slow-deep-disco-20260616-110423/playlist.json",
       "mixFile": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.mp3",
       "mixCues": "audio/neon-core-cold-storage-grid-failure-datastride-x-datacorp-fm-sunrise-slow-deep-disco.cues.json"
+    },
+    {
+      "id": "techno-electroclash-scifi-slopcore-20261025-120725",
+      "name": "Slopcore Signal Rot",
+      "showName": "Slopcore Signal Rot",
+      "timestamp": "20261025-120725",
+      "djName": "Blade",
+      "trackCount": 2,
+      "playlist": "shows/techno-electroclash-scifi-slopcore-20261025-120725/playlist.json",
+      "mixFile": "audio/salvage-code-techno-electroclash-scifi-slopcore.mp3",
+      "mixCues": "audio/salvage-code-techno-electroclash-scifi-slopcore.cues.json"
     }
   ]
 }

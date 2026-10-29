@@ -74,7 +74,7 @@ visuals.register('branches', (() => {
           const i = this.segments.length - 1;
           const seg = this.segments[i];
           if (this.line_width > 0.2) this.line_width *= 0.99;
-          p.stroke(0);
+          p.stroke(255);
           p.strokeWeight(this.line_width);
           if (i > 0 && this.moving) {
             const prev = this.segments[i - 1];
@@ -154,7 +154,7 @@ visuals.register('branches', (() => {
         visuals.setupP5Canvas(p);
 
         addBranch();
-        p.background('#d8d4cb');
+        p.background(0);
       };
 
       p.draw = () => {
