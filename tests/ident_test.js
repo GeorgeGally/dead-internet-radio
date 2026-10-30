@@ -86,15 +86,35 @@ test('ident.js keeps the lab ident contract', () => {
   }
 });
 
-// The block wall was retired (visuals/archive/ident-ascii-block-wall.js);
-// with nothing in rotation the player never shows an ident.
-test('with no idents in rotation, nothing ever takes the stage', () => {
-  const { idents, classes, flush } = loadIdents();
-  assert.equal(idents.list.length, 0);
+test('the block wall is the ident in rotation and draws its word', () => {
+  const { idents, log, classes, frame, setNow } = loadIdents();
+  assert.deepEqual([...idents.list].map((ident) => ident.id), ['ascii-block-wall']);
+  setNow(0);
   idents.init();
   idents.play();
+  frame(0);
+  assert.ok(classes.has('on'));
+  const glyphs = log.filter((entry) => typeof entry.text === 'string').map((entry) => entry.text);
+  assert.ok(glyphs.some((glyph) => '█▓▒░'.includes(glyph)), 'draws block glyphs');
+});
+
+test('the ident steps back to the player when its run ends', () => {
+  const { idents, classes, frame, setNow } = loadIdents();
+  setNow(0);
+  idents.init();
+  idents.play();
+  frame(0);
+  frame(11500);
+  assert.ok(!classes.has('on'));
+});
+
+test('a load ident keeps the screen until the audio starts', () => {
+  const { idents, classes, flush } = loadIdents();
+  idents.init();
   idents.load();
   flush();
+  assert.ok(classes.has('on'));
+  idents.loadDone();
   assert.ok(!classes.has('on'));
 });
 
