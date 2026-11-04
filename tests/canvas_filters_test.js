@@ -33,6 +33,19 @@ test('every filter has a name, two named parameters with 0-1 defaults, and a sha
   for (const k of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) assert.ok(keys.has(k), `key ${k} kept`);
 });
 
+test('minus and equals, after the number row, pick Stretch and Speed Lines', () => {
+  const handlers = {};
+  const win = { addEventListener(type, fn) { handlers[type] = fn; } };
+  const fx = new Function('window', 'document', `${source}\nreturn canvasFilters;`)(win, {});
+  const press = (key, shiftKey = false) => handlers.keydown({ key, shiftKey, preventDefault() {} });
+  press('-');
+  assert.equal(fx.getActiveName(), 'Stretch');
+  press('=');
+  assert.equal(fx.getActiveName(), 'Speed Lines');
+  press('+', true);
+  assert.equal(fx.getActiveName(), 'none');
+});
+
 test('picking a filter fills the focused slot and turns it on; 0 clears', () => {
   const { fx } = loadFilters();
   fx.setFocus(1);

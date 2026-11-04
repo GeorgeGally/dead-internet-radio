@@ -59,6 +59,6 @@ One entry in `FILTERS` (`public/visuals/filters.js`): `key`, `name`, two
 `params` as `[label, default]` (labels ≤ 8 characters, they sit under the
 knobs), and a GLSL `body` that returns a `vec4`. Uniforms: `uTex`, `uRes`,
 `uP1`/`uP2` (0-1), `uTime` (s), `uScale` (canvas px per CSS px — multiply
-sizes by it), `uLevel` (bass 0-1 × sensitivity). Helpers: `hash`, `luma`,
-`bayer8`. `tests/canvas_filters_test.js` checks the shape; a shader compile
+sizes by it), `uLevel` (bass 0-1 × sensitivity), `uAge` (s since the slot started playing
+this filter). Helpers: `hash`, `luma`, `bayer8`, `sideDir`. `tests/canvas_filters_test.js` checks the shape; a shader compile
 error shows as `fx shader compile failed` in the console.

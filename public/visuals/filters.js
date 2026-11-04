@@ -24,12 +24,17 @@ const canvasFilters = (() => {
     uniform float uTime;
     uniform float uScale;
     uniform float uLevel;
+    uniform float uAge;
     varying vec2 vUv;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
     float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
     float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
     float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+    vec2 sideDir(float k) {
+      float s = floor(k * 3.99);
+      return s < 0.5 ? vec2(0.0, -1.0) : s < 1.5 ? vec2(1.0, 0.0) : s < 2.5 ? vec2(0.0, 1.0) : vec2(-1.0, 0.0);
+    }
   `;
 
   // key: the old number-key binding, kept so saved slots and keys still work.
@@ -203,6 +208,29 @@ const canvasFilters = (() => {
       float d = fract((px.x + px.y) / s);
       float line = 1.0 - smoothstep(0.0, uScale * 1.2 / s, min(d, 1.0 - d));
       return vec4(mix(c.rgb, vec3(1.0), line * uP2), c.a);` },
+
+    // From Fragments: one line of pixels just off centre is pulled out to the
+    // edge of the frame, growing there when the filter comes on, then holding.
+    { key: 17, name: 'Stretch', params: [['start', 0.15], ['side', 0.4]], body: `
+      vec2 dir = sideDir(uP2);
+      float start = uP1 * 0.4;
+      float reach = (0.5 - start) * smoothstep(0.0, 1.4, uAge);
+      float t = dot(vUv - 0.5, dir) - start;
+      if (t <= 0.0 || t > reach) return texture2D(uTex, vUv);
+      return texture2D(uTex, vUv - dir * t);` },
+
+    // From Fragments: 1px lines from the centre to the edge, each holding the
+    // colour it finds at the centre, with the picture showing between them.
+    { key: 18, name: 'Speed Lines', params: [['spacing', 0.125], ['side', 0.4]], body: `
+      vec2 dir = sideDir(uP2);
+      float t = dot(vUv - 0.5, dir);
+      float reach = 0.5 * (1.0 - exp(-uAge * 4.6));
+      vec2 across = abs(dir.yx);
+      float c = dot(vUv * uRes, across);
+      float s = mix(1.5, 13.5, uP1) * uScale;
+      float row = floor(c / s);
+      if (t <= 0.0 || t > reach || c - row * s >= uScale) return texture2D(uTex, vUv);
+      return texture2D(uTex, vUv - dir * t + across * (row * s + uScale * 0.5 - c) / uRes);` },
   ];
   const byKey = new Map(FILTERS.map((f) => [f.key, f]));
 
@@ -227,7 +255,7 @@ const canvasFilters = (() => {
   `;
 
   // ---- State ----
-  const blank = () => ({ key: null, on: false, p: [0.5, 0.5] });
+  const blank = () => ({ key: null, on: false, p: [0.5, 0.5], live: null, since: 0 });
   const slots = [blank(), blank(), blank()];
   let focus = 0;
   let wet = 1;          // target, 0-1
@@ -235,6 +263,11 @@ const canvasFilters = (() => {
   const listeners = new Set();
 
   function notify() {
+    // uAge counts from the moment a slot starts playing its filter.
+    for (const s of slots) {
+      const live = s.on ? s.key : null;
+      if (live !== s.live) { s.live = live; s.since = performance.now(); }
+    }
     listeners.forEach((fn) => { try { fn(); } catch (e) { console.warn(e); } });
     wake();
   }
@@ -364,7 +397,7 @@ const canvasFilters = (() => {
       return null;
     }
     const loc = {};
-    ['uTex', 'uFx', 'uRes', 'uP1', 'uP2', 'uTime', 'uScale', 'uLevel', 'uWet'].forEach((n) => { loc[n] = gl.getUniformLocation(p, n); });
+    ['uTex', 'uFx', 'uRes', 'uP1', 'uP2', 'uTime', 'uScale', 'uLevel', 'uAge', 'uWet'].forEach((n) => { loc[n] = gl.getUniformLocation(p, n); });
     loc.aPos = gl.getAttribLocation(p, 'aPos');
     return { program: p, loc };
   }
@@ -443,6 +476,7 @@ const canvasFilters = (() => {
     gl.uniform1f(prog.loc.uTime, performance.now() / 1000);
     gl.uniform1f(prog.loc.uScale, scale);
     gl.uniform1f(prog.loc.uLevel, lvl);
+    gl.uniform1f(prog.loc.uAge, (performance.now() - s.since) / 1000);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -563,7 +597,7 @@ const canvasFilters = (() => {
         return;
       }
       const letter = e.ctrlKey || e.metaKey ? '' : e.key.toLowerCase();
-      const num = { d: 10, x: 11, b: 12 }[letter] ?? parseInt(e.key, 10);
+      const num = { d: 10, x: 11, b: 12, '-': 17, _: 17, '=': 18, '+': 18 }[letter] ?? parseInt(e.key, 10);
       if (byKey.has(num)) {
         e.preventDefault();
         if (e.shiftKey) toggleActive(num);
