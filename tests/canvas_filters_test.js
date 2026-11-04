@@ -95,3 +95,9 @@ test('dry/wet takes the old 0-100 strength and clamps', () => {
   fx.setWet(3);
   assert.equal(fx.getWet(), 1);
 });
+
+test('the filter dial is built from the filter list and can drag through it sideways', () => {
+  const gallery = fs.readFileSync(path.join(root, 'public/visuals/gallery.js'), 'utf8');
+  assert.match(gallery, /FX_KEYS = \[null, \.\.\.canvasFilters\.list\(\)\.map/);
+  assert.match(gallery, /acc \+= e\.movementX - e\.movementY/);
+});

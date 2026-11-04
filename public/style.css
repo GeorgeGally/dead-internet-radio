@@ -807,6 +807,8 @@ body.prewarming #block-canvas {
   touch-action: none;
 }
 
+.rams-knob.fx-pick { cursor: nesw-resize; }
+
 .rams-knob.dragging {
   box-shadow:
     0 0 0 1px rgba(0,0,0,.15),

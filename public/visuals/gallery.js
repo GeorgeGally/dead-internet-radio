@@ -95,7 +95,9 @@ const gallery = (() => {
   // dial is its sensitivity and the knobs its cutoff and resonance.
   let artFocus = false;
 
-  // Drag up/down or scroll. A detented knob steps once per `detent` pixels.
+  // Drag up/down or scroll. A detented knob steps once per `detent` pixels and
+  // also counts sideways travel: the deck sits at the top of the screen, so
+  // there is not enough room above it to drag through a long list.
   function bindKnob(el, { get, set, reset, detent }) {
     let dragging = false;
     let acc = 0;
@@ -109,7 +111,7 @@ const gallery = (() => {
       if (!dragging) return;
       const step = detent();
       if (step) {
-        acc -= e.movementY;
+        acc += e.movementX - e.movementY;
         while (Math.abs(acc) >= step) {
           set(get() + Math.sign(acc));
           acc -= Math.sign(acc) * step;
