@@ -48,18 +48,87 @@ const gallery = (() => {
   let slotDirty = false;
   let saveLit = false;
 
+  // Looks live on the server. This browser keeps a copy for when it can't
+  // reach it. OLD_LOOKS is where looks were saved before that: it stays
+  // untouched until an admin's browser has uploaded it.
+  const LOOKS_CACHE = 'visual-looks-cache';
+  const OLD_LOOKS = 'visual-slot-presets';
+  const OLD_LOOKS_SENT = 'visual-slot-presets-sent';
+  let looksAdmin = false;
+  let looksToken = null;
+
   function loadArtPresets() {
     try {
-      const raw = localStorage.getItem('visual-slot-presets');
+      const raw = localStorage.getItem(LOOKS_CACHE) || localStorage.getItem(OLD_LOOKS);
       if (raw) artPresets = JSON.parse(raw);
     } catch (e) {}
   }
   loadArtPresets();
 
-  function saveArtPresets() {
+  function cacheLooks() {
     try {
-      localStorage.setItem('visual-slot-presets', JSON.stringify(artPresets));
+      localStorage.setItem(LOOKS_CACHE, JSON.stringify(artPresets));
     } catch (e) {}
+  }
+
+  async function looksCall(path, method, body) {
+    try {
+      const res = await fetch(`/api/v1/looks/${path}`, {
+        method,
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': looksToken },
+        body: JSON.stringify(body),
+      });
+      return res.ok ? await res.json() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function useLooks(looks) {
+    artPresets = looks || {};
+    cacheLooks();
+    const id = visuals.getCurrentId();
+    if (activeSlot > 0 ? !slotHasPreset(id, activeSlot) : isQuiet()) applyRandomSlot(id);
+    else updateSlotUI();
+  }
+
+  // An admin's first visit from a browser holding old looks sends them up.
+  // The server keeps what it has, so nothing there is overwritten.
+  async function uploadOldLooks() {
+    let raw = null;
+    let looks = null;
+    try {
+      raw = localStorage.getItem(OLD_LOOKS);
+      looks = raw && JSON.parse(raw);
+    } catch (e) {}
+    if (!looks) return;
+    const res = await looksCall('merge', 'POST', { looks });
+    if (!res) return;
+    try {
+      localStorage.setItem(OLD_LOOKS_SENT, raw);
+      localStorage.removeItem(OLD_LOOKS);
+    } catch (e) {}
+    useLooks(res.looks);
+    const sent = res.added + res.moved;
+    if (sent || res.left_out) {
+      savedBox(`${sent} ${sent === 1 ? 'look' : 'looks'} uploaded${res.left_out ? `, ${res.left_out} left out` : ''}`, 5000);
+    }
+  }
+
+  async function syncLooks() {
+    let state = null;
+    try {
+      const res = await fetch('/api/v1/looks', { credentials: 'same-origin' });
+      if (res.ok) state = await res.json();
+    } catch (e) {}
+    if (!state) return;
+    looksAdmin = !!state.admin;
+    looksToken = state.csrf_token || null;
+    const save = document.getElementById('save-slot-ctrl');
+    if (save) save.hidden = !looksAdmin;
+    useLooks(state.looks);
+    if (looksAdmin) await uploadOldLooks();
   }
 
   function build() {
@@ -418,27 +487,32 @@ const gallery = (() => {
     return activeSlot;
   }
 
-  function saveSlot(slot) {
+  async function saveSlot(slot) {
     const id = visuals.getCurrentId();
-    if (!id || slot < 1 || slot > 9) return;
-    if (!artPresets[id]) artPresets[id] = {};
-    artPresets[id][slot] = {
+    if (!looksAdmin || !id || slot < 1 || slot > 9) return;
+    const look = {
       fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
       resonance: window._resonanceVal != null ? window._resonanceVal : 50,
       strength: window._filterStrengthVal != null ? window._filterStrengthVal : 100,
     };
-    saveArtPresets();
+    slotPinned = true;
+    if (!await looksCall(`${id}/${slot}`, 'PUT', { look })) {
+      savedBox(`Slot ${slot} not saved`);
+      return;
+    }
+    if (!artPresets[id]) artPresets[id] = {};
+    artPresets[id][slot] = look;
+    cacheLooks();
     slotDirty = false;
     saveLit = true;
-    slotPinned = true;
     updateSlotUI();
     savedBox(`Slot ${slot} saved`);
   }
 
   // A plain black box, dead centre, then gone: saves and slot changes.
   let savedEl = null;
-  function savedBox(text) {
+  function savedBox(text, ms = 1400) {
     if (!savedEl) {
       savedEl = document.createElement('div');
       savedEl.id = 'saved-box';
@@ -447,7 +521,7 @@ const gallery = (() => {
     savedEl.textContent = text;
     savedEl.classList.add('show');
     clearTimeout(savedEl._t);
-    savedEl._t = setTimeout(() => savedEl.classList.remove('show'), 1400);
+    savedEl._t = setTimeout(() => savedEl.classList.remove('show'), ms);
   }
 
   function loadSlot(id, slot) {
@@ -611,6 +685,7 @@ const gallery = (() => {
     if (deckEl) ['pointerdown', 'wheel', 'pointermove'].forEach((ev) => deckEl.addEventListener(ev, (e) => { if (ev !== 'pointermove' || e.buttons) touched(); }, { passive: true }));
     document.addEventListener('keydown', touched, true);
     setTimeout(driftSlot, slotClock());
+    syncLooks();
     document.addEventListener('keydown', (e) => {
       // Up and down turn the slot dial, like left and right step artworks.
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.metaKey && !e.ctrlKey && !e.altKey
@@ -637,5 +712,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, syncLooks, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();

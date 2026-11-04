@@ -4,7 +4,7 @@
 
 <table class="visuals">
   <thead>
-    <tr><th>Name</th><th>Slug</th><th>Thumbnail</th><th>On air</th></tr>
+    <tr><th>Name</th><th>Slug</th><th>Thumbnail</th><th>Looks</th><th>On air</th></tr>
   </thead>
   <tbody>
     <% @visuals.each do |v| %>
@@ -12,6 +12,11 @@
         <td class="name-cell" contenteditable="true" role="textbox" aria-label="<%= v.name %> name" data-visual-id="<%= v.id %>" data-name="<%= v.name %>"><%= v.name %></td>
         <td class="slug"><%= v.slug %></td>
         <td><div class="thumb" style="background-image: url(/visuals/thumbs/<%= v.slug %>.jpg)"></div></td>
+        <td class="looks-cell" data-looks="<%= v.slug %>">
+          <% @looks.fetch(v.slug, {}).each_key do |slot| %>
+            <button type="button" class="look-slot" data-artwork="<%= v.slug %>" data-slot="<%= slot %>" aria-label="Reset <%= v.name %> slot <%= slot %>"><%= slot %></button>
+          <% end %>
+        </td>
         <td class="switch-cell">
           <label class="switch">
             <input type="checkbox" data-visual-id="<%= v.id %>" aria-label="<%= v.name %> on air" <%= "checked" if v.active %>>
@@ -22,5 +27,12 @@
     <% end %>
   </tbody>
 </table>
+
+<section class="looks-import">
+  <h3>Import looks</h3>
+  <textarea id="looks-json" rows="6" spellcheck="false" aria-label="Looks JSON"></textarea>
+  <button type="button" id="looks-import">Import</button>
+  <p id="looks-result" role="status"></p>
+</section>
 
 <script src="/admin_visuals.js" defer></script>

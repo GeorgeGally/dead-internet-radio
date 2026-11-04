@@ -4,6 +4,7 @@ module Admin
   class VisualsController < Admin::BaseController
     def index
       @visuals = VisualModule.sync_from_player!.order(:name)
+      @looks = VisualLook.as_map
     end
 
     def update

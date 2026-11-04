@@ -157,12 +157,16 @@ function loadAdminSwitches(states, respond, names = []) {
       querySelector(selector) {
         if (selector === 'meta[name="csrf-token"]') return { content: 'token' };
         if (selector === '.all-off') return allOff;
+        if (selector === '.visuals') return { addEventListener() {} };
         return null;
       },
       querySelectorAll(selector) {
         if (selector === '.switch input') return inputs;
         if (selector === '.name-cell') return cells;
         return [];
+      },
+      getElementById() {
+        return { addEventListener() {} };
       },
     },
     async fetch(url, options) {

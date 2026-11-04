@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_27_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -124,6 +124,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
+  end
+
+  create_table "visual_looks", force: :cascade do |t|
+    t.string "artwork", null: false
+    t.integer "slot", null: false
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artwork", "slot"], name: "index_visual_looks_on_artwork_and_slot", unique: true
   end
 
   create_table "visual_modules", force: :cascade do |t|

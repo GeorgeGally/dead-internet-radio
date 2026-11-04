@@ -515,6 +515,11 @@ a.btn-key { display: inline-flex; align-items: center; text-decoration: none; }
 .visuals th:last-child { text-align: right; white-space: nowrap; }
 .visuals tr.is-off td:not(.switch-cell) { color: rgba(0,0,0,0.3); }
 .switch-cell { width: 96px; text-align: right; }
+.looks-cell { white-space: nowrap; }
+.look-slot { font-size: 11px; padding: 2px 7px; margin-right: 4px; }
+.looks-import { margin-top: 32px; max-width: 640px; }
+.looks-import textarea { width: 100%; font-family: monospace; font-size: 12px; margin-bottom: 12px; }
+.looks-import p { margin-top: 12px; font-size: 12px; }
 .switch {
   display: inline-flex;
   align-items: center;

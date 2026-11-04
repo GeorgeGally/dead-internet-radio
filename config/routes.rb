@@ -6,6 +6,10 @@ Rails.application.routes.draw do
       resources :shows, only: [:index, :show]
       resources :tracks, only: [:show]
       resources :visuals, only: [:index]
+      get "looks", to: "looks#index"
+      post "looks/merge", to: "looks#merge"
+      put "looks/:artwork/:slot", to: "looks#update", as: :look, constraints: { artwork: /[\w-]+/, slot: /\d+/ }
+      delete "looks/:artwork/:slot", to: "looks#destroy", constraints: { artwork: /[\w-]+/, slot: /\d+/ }
       get "playlist", to: "playlist#show"
       get "now_playing", to: "now_playing#show"
       get "broadcast", to: "broadcast#show"
