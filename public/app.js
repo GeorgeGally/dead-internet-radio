@@ -10,8 +10,8 @@ function startWelcomeIdent() {
   const frame = document.getElementById('welcome-ident');
   if (!frame) return;
   // Retired idents stay in the lab but never open the site: V5 (X-Y
-  // oscilloscope), V7 (radar).
-  const RETIRED = [5, 7];
+  // oscilloscope), V7 (radar), V11 (round amber oscilloscope).
+  const RETIRED = [5, 7, 11];
   const pool = Array.from({ length: IDENT_COUNT }, (_, i) => i + 1).filter((n) => !RETIRED.includes(n));
   const n = pool[Math.floor(Math.random() * pool.length)];
   frame.src = 'labs/station-ident-lab.html?only=' + n;
