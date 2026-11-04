@@ -105,3 +105,11 @@ test('JavaScript renders the overlay and waveform', () => {
   assert.doesNotMatch(stopPlayback, /waveHistory\s*=\s*\[\]/);
   assert.doesNotMatch(stopPlayback, /currentTime\s*=\s*0/);
 });
+
+test('the player page is served uncached with hashed asset URLs', () => {
+  const page = fs.readFileSync(path.join(root, 'lib/player_page.rb'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'config/application.rb'), 'utf8');
+  assert.match(page, /"cache-control" => "no-cache"/);
+  assert.match(page, /\?v=#\{Digest::SHA256\.file/);
+  assert.match(app, /middleware\.insert_before 0, PlayerPage/);
+});
