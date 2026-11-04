@@ -22,6 +22,10 @@ test('HTML has the radio player shell', () => {
 
 test('HTML has transport controls and speaker', () => {
   assert.match(html, /id="btn-play"/);
+  for (const id of ['btn-gallery', 'btn-play', 'btn-request', 'btn-vote-up', 'btn-vote-down']) {
+    assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="`));
+    assert.match(html, new RegExp(`class="abtn-label"[^>]*for="${id}"`));
+  }
   assert.doesNotMatch(html, /id="btn-stop"/);
   assert.match(html, /class="speaker"/);
   assert.match(html, /class="marquee"/);

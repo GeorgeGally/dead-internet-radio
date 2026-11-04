@@ -1,4 +1,4 @@
-// Thumbs on the song on air: + for more like this, − for not for me. No
+// Thumbs on the song on air: up for more like this, down for not for me. No
 // sign-in; the server knows this browser by a cookie. Pressing the lit key
 // again takes the vote back. The lights remember this browser's votes.
 const votes = (() => {
