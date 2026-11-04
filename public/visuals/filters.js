@@ -209,11 +209,11 @@ const canvasFilters = (() => {
       float line = 1.0 - smoothstep(0.0, uScale * 1.2 / s, min(d, 1.0 - d));
       return vec4(mix(c.rgb, vec3(1.0), line * uP2), c.a);` },
 
-    // From Fragments: one line of pixels just off centre is pulled out to the
-    // edge of the frame, growing there when the filter comes on, then holding.
-    { key: 17, name: 'Stretch', params: [['start', 0.15], ['side', 0.4]], body: `
+    // From Fragments: one line of pixels, anywhere across the frame, is pulled to the
+    // far edge, growing there when the filter comes on, then holding.
+    { key: 17, name: 'Stretch', params: [['start', 0.56], ['side', 0.4]], body: `
       vec2 dir = sideDir(uP2);
-      float start = uP1 * 0.4;
+      float start = uP1 - 0.5;
       float reach = (0.5 - start) * smoothstep(0.0, 1.4, uAge);
       float t = dot(vUv - 0.5, dir) - start;
       if (t <= 0.0 || t > reach) return texture2D(uTex, vUv);

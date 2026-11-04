@@ -46,6 +46,12 @@ test('minus and equals, after the number row, pick Stretch and Speed Lines', () 
   assert.equal(fx.getActiveName(), 'none');
 });
 
+test('Stretch start knob spans the whole frame, far edge to near edge', () => {
+  const stretch = loadFilters().fx.FILTERS.find((f) => f.key === 17);
+  assert.match(stretch.body, /float start = uP1 - 0\.5;/);
+  assert.equal(stretch.params[0][1], 0.56);
+});
+
 test('picking a filter fills the focused slot and turns it on; 0 clears', () => {
   const { fx } = loadFilters();
   fx.setFocus(1);
