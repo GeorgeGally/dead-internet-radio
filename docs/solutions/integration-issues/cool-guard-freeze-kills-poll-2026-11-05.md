@@ -31,13 +31,14 @@ wakes.
 **Limits.** A freeze counts against `poll_ace_step`'s 900 s per track, and after 24
 missed polls (about 10 minutes) a failed health check ends the show.
 
-**Still open: a freeze can never end.** The guard's `cpu` reading is the hottest of
+**Second cause: a freeze could never end.** The guard's `cpu` reading is the hottest of
 every `/sys/class/thermal` zone, and on this laptop that is `iwlwifi_1`, the WiFi
 card, not the CPU. On a 12-track rerun it sat at 64-65 °C with ACE-Step frozen while
 `x86_pkg_temp` idled near 57 °C and the GPU reached 60 °C, so the 62 °C wake point
 was out of reach. Freezes took 8, 5 and 8 minutes, and the fourth never woke: after
-12 minutes frozen the 24-miss limit ended the show on track 7. The fix belongs in
-`dir-pc-coolguard.sh` in the servers repo.
+12 minutes frozen the 24-miss limit ended the show on track 7. `dir-pc-coolguard.sh`
+in the servers repo now reads `x86_pkg_temp` and the GPU only, and freezes last about
+2.5 minutes.
 
 **Testing it.** SIGSTOP a stub server and poll it: a mock raising `URLError` would
 have passed against the old code.
