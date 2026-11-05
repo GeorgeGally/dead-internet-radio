@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import http.client
 import json
 import os
 import random
@@ -394,7 +395,9 @@ def call_ace_step(payload: dict) -> str:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        # Long enough to outlast a cool guard freeze: the request waits in the
+        # socket until ACE-Step wakes. Retrying instead would render the song twice.
+        with urllib.request.urlopen(req, timeout=600) as resp:
             data = json.loads(resp.read().decode())
             return data["data"]["task_id"]
     except Exception as e:
@@ -413,8 +416,10 @@ def query_ace_step(task_id: str, http_timeout: int = 10) -> dict | None:
     try:
         with urllib.request.urlopen(req, timeout=http_timeout) as resp:
             return json.loads(resp.read().decode())
-    except (urllib.error.URLError, urllib.error.HTTPError,
-            json.JSONDecodeError, KeyError):
+    # A read timeout is a bare TimeoutError and a dropped connection is an
+    # http.client error; neither arrives as URLError. The cool guard freezes
+    # ACE-Step mid-render, so a silent server is a missed poll, not a dead show.
+    except (OSError, http.client.HTTPException, json.JSONDecodeError):
         return None
 
 
