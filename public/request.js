@@ -2,7 +2,7 @@
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, gsiLoading = null, wentFull = false;
+  let card, led, me = null, log = [], gsiLoading = null, wentFull = false;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -26,6 +26,8 @@ const requestLine = (() => {
   async function refreshMe() {
     const { ok, data } = await call('GET', '/me');
     me = ok ? data : null;
+    const line = me && me.signed_in ? await call('GET', '/requests') : null;
+    log = line && line.ok ? line.data : [];
     return me;
   }
 
@@ -62,7 +64,7 @@ const requestLine = (() => {
   async function signIn(tokenResp) {
     if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
     const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
-    if (ok) { me = data; render(); } else render(data.message || 'Google didn\'t vouch for that.');
+    if (ok) { me = data; await refreshMe(); render(); } else render(data.message || 'Google didn\'t vouch for that.');
   }
 
   // The site's own button opens Google's popup (Google's rendered button
@@ -130,7 +132,9 @@ const requestLine = (() => {
     foot.append(out, leds, wrap);
     if (me.requests_left <= 0) go.disabled = true;
     form.append(artist.row, title.row, style.row, foot);
-    body.append(form, el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
+    body.append(form);
+    renderLog(body);
+    body.append(el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -154,7 +158,7 @@ const requestLine = (() => {
         leds.replaceWith(next);
         leds = next;
       }
-      if (data.status === 'queued') {
+      if (data.status === 'accepted') {
         renderSent(body, { artist: artist.input.value, title: title.input.value }, data.message);
         return;
       }
@@ -162,6 +166,70 @@ const requestLine = (() => {
       go.disabled = me.requests_left <= 0;
     });
     setTimeout(() => artist.input.focus(), 0);
+  }
+
+  const WHERE = { accepted: 'In line', queued: 'In line', generating: 'Being made', ready: 'Made', failed: 'Lost in the static' };
+
+  function whereItIs(req) {
+    if (req.status !== 'scheduled') return WHERE[req.status];
+    if (!req.airs_at) return 'Aired';
+    return 'Airs ' + new Date(req.airs_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // A rendered request plays here. The radio stops for it and comes back after.
+  const preview = new Audio();
+  let previewKey = null, radioWasOn = false;
+
+  function stopPreview() {
+    if (!previewKey) return;
+    preview.pause();
+    previewKey.textContent = '\u25b6';
+    previewKey.classList.remove('on');
+    previewKey.setAttribute('aria-label', 'Play');
+    previewKey = null;
+    if (radioWasOn) togglePlay();
+    radioWasOn = false;
+  }
+
+  function startPreview(key, trackId) {
+    const same = key === previewKey;
+    stopPreview();
+    if (same) return;
+    const radio = document.getElementById('player');
+    radioWasOn = !!radio && !radio.paused;
+    if (radioWasOn) stopPlayback();
+    previewKey = key;
+    key.textContent = '\u25a0';
+    key.classList.add('on');
+    key.setAttribute('aria-label', 'Stop');
+    preview.src = `/media/tracks/${trackId}`;
+    preview.play().catch(stopPreview);
+  }
+
+  preview.addEventListener('ended', stopPreview);
+
+  // The listener's last few requests and where each one has got to.
+  function renderLog(body) {
+    const rows = log.filter(whereItIs).slice(0, 5);
+    if (!rows.length) return;
+    const list = el('div', 'rq-log');
+    rows.forEach((req) => {
+      const row = el('div', 'rq-log-row');
+      const name = el('p', 'rq-log-name', req.title);
+      name.append(el('span', 'rq-log-artist', req.artist));
+      if (req.track_id) {
+        const key = el('button', 'rq-play', '\u25b6');
+        key.type = 'button';
+        key.setAttribute('aria-label', 'Play');
+        key.addEventListener('click', () => startPreview(key, req.track_id));
+        row.append(key);
+      } else {
+        row.append(el('span', 'rq-play-gap'));
+      }
+      row.append(name, el('p', 'rq-log-where', whereItIs(req)));
+      list.append(row);
+    });
+    body.append(list);
   }
 
   // Sent: the form goes; what was asked for stays on the page.
@@ -173,7 +241,7 @@ const requestLine = (() => {
     foot.append(el('p', 'rq-msg', msg), lights(me.requests_left));
     if (me.requests_left > 0) {
       const { wrap, go } = goButton('another');
-      go.addEventListener('click', () => render());
+      go.addEventListener('click', async () => { await refreshMe(); render(); });
       foot.append(wrap);
     }
     body.append(done, foot);
@@ -181,6 +249,7 @@ const requestLine = (() => {
 
   function render(msg) {
     const body = card.querySelector('.rq-body');
+    stopPreview();
     body.replaceChildren();
     if (me && me.signed_in) renderForm(body, msg);
     else renderSignIn(body, msg);
@@ -201,6 +270,7 @@ const requestLine = (() => {
   }
 
   function close() {
+    stopPreview();
     card.classList.remove('open');
     led.classList.remove('on');
     if (wentFull && document.fullscreenElement) document.exitFullscreen().catch(() => {});

@@ -38,7 +38,7 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 0, SongRequest.count
   end
 
-  test "accepted request is queued and matched to a known artist" do
+  test "a request past the filter is accepted and matched to a known artist" do
     show = Show.create!(slot: "test", directory: "test-#{SecureRandom.hex(4)}")
     known = Track.create!(show: show, position: 1, artist: "Static Bloom", title: "Old One")
     token = sign_in
@@ -48,7 +48,7 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     end
     assert_response :created
     body = response.parsed_body
-    assert_equal "queued", body["status"]
+    assert_equal "accepted", body["status"]
     assert_equal 2, body["requests_left"]
     assert_equal known.id, SongRequest.last.matched_track_id
   ensure

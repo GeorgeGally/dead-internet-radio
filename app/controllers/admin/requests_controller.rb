@@ -15,10 +15,17 @@ module Admin
 
     def fulfill
       req = SongRequest.find(params[:id])
-      return redirect_to admin_requests_path, notice: 'Only queued requests can be rendered' unless req.queued?
+      return redirect_to admin_requests_path, notice: 'Only accepted requests can be rendered' unless req.accepted?
 
       FulfillRequestJob.perform_later(req.id)
       redirect_to admin_requests_path, notice: "Rendering \"#{req.title}\" by #{req.artist}"
+    end
+
+    # Back in line: the generation PC picks it up on its next poll.
+    def retry
+      req = SongRequest.find(params[:id])
+      req.accepted! if req.failed?
+      redirect_to admin_requests_path, notice: "\"#{req.title}\" is back in line"
     end
   end
 end

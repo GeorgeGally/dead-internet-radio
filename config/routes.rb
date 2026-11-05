@@ -53,6 +53,7 @@ Rails.application.routes.draw do
     end
     resources :requests, only: [:index] do
       post :fulfill, on: :member
+      post :retry, on: :member
     end
     resources :visuals, only: [:index, :update]
     resources :generation, only: [:index, :new, :create, :show] do

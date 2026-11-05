@@ -107,7 +107,7 @@ td {
 .status-scheduled { background: #c03f0d; color: #fff; }
 .status-running, .status-generating { background: #e0a100; color: #1a1a1a; }
 .status-failed, .status-rejected { background: #b3261e; color: #fff; }
-.status-pending, .status-draft, .status-queued { background: rgba(0,0,0,0.12); color: #1a1a1a; }
+.status-pending, .status-draft, .status-accepted, .status-queued { background: rgba(0,0,0,0.12); color: #1a1a1a; }
 a { color: #c03f0d; text-decoration: none; }
 a:hover { text-decoration: underline; }
 .flash { margin-bottom: 20px; font-size: 14px; }

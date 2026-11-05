@@ -5,7 +5,7 @@ require "test_helper"
 class FulfillRequestJobTest < ActiveJob::TestCase
   setup do
     user = User.create!(google_uid: "g-#{SecureRandom.hex(4)}", name: "Pat Doe")
-    @req = user.song_requests.create!(artist: "Static Bloom", title: "Carrier Signal", status: :queued)
+    @req = user.song_requests.create!(artist: "Static Bloom", title: "Carrier Signal", status: :accepted)
   end
 
   test "failed generate marks the request failed and releases ACE-Step" do
@@ -37,7 +37,7 @@ class FulfillRequestJobTest < ActiveJob::TestCase
     with_singleton_method(worker, :run_and_stream, ->(cmd, chdir: nil, &_) { 0 }) do
       worker.perform(@req.id, dry_run: true)
     end
-    assert_predicate @req.reload, :queued?
+    assert_predicate @req.reload, :accepted?
   end
 
   private

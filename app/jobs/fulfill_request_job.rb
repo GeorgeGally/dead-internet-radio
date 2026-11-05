@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Renders one queued listener request as a 1-track show: generate.py with
+# Renders one accepted listener request as a 1-track show: generate.py with
 # --request-json, then djmix.py, then import. The song waits in the library
 # until a set picks it up (SetPlanner); the listener is emailed once that set
 # is on the timeline. Local only: it needs ACE-Step. Shares the render lock
@@ -22,7 +22,7 @@ class FulfillRequestJob < ApplicationJob
 
   def fulfill(request_id, dry_run)
     req = SongRequest.find(request_id)
-    return unless req.queued?
+    return unless req.accepted?
 
     req.generating!
     @gen_job = GenerationJob.create!(slot: SLOT, track_count: 1, status: :running, started_at: Time.current,
@@ -44,7 +44,7 @@ class FulfillRequestJob < ApplicationJob
 
       if dry_run
         # Nothing rendered: the request goes back in line.
-        req.queued!
+        req.accepted!
       else
         raise 'generate.py did not report a show folder' unless @show_dir
 
@@ -71,21 +71,11 @@ class FulfillRequestJob < ApplicationJob
     end
   end
 
-  # What generate.py needs to write the request: who asked, what for, and the
-  # sound to lean on (the matched artist's ACE-Step caption, if any).
   def write_request_json(req)
     dir = Rails.root.join('tmp', 'requests')
     FileUtils.mkdir_p(dir)
     path = dir.join("request-#{req.id}.json")
-    # The name comes from Google, unscreened: it is read on air, so screen it.
-    name = req.user.first_name
-    path.write(JSON.pretty_generate(
-      requester: RequestFilter.blocked?(name) ? 'a listener' : name,
-      artist: req.artist,
-      title: req.title,
-      note: req.note,
-      seed_caption: req.matched_track&.sound_caption
-    ))
+    path.write(JSON.pretty_generate(req.render_spec))
     path.to_s
   end
 end

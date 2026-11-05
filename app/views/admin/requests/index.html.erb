@@ -38,7 +38,8 @@
           <button type="button" class="btn-key" data-notes="<%= notes %>" onclick="openNotes(this, 'edit')">Edit</button>
           <button type="button" class="btn-key" onclick="openNotes(this, 'remix')">Remix</button>
         <% end %>
-        <%= button_to "Render", fulfill_admin_request_path(req), class: "btn" if req.queued? %>
+        <%= button_to "Render", fulfill_admin_request_path(req), class: "btn" if req.accepted? && !Rails.env.production? %>
+        <%= button_to "Retry", retry_admin_request_path(req), class: "btn" if req.failed? %>
       </td>
     </tr>
     <% if song %>

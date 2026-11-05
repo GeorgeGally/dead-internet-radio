@@ -7,8 +7,9 @@ module Api
       before_action :require_user
 
       def index
-        requests = current_user.song_requests.recent.limit(20)
-        render json: requests.map { |r| request_json(r) }
+        requests = current_user.song_requests.recent.limit(20).to_a
+        airs = BroadcastSegment.next_for(requests.filter_map(&:track_id))
+        render json: requests.map { |r| request_json(r).merge(airs_at: airs[r.track_id]&.starts_at) }
       end
 
       def create
@@ -37,7 +38,7 @@ module Api
                                 requests_left: current_user.requests_left_today },
                         status: verdict.cover? ? :ok : :service_unavailable
         elsif verdict.accepted?
-          req.update!(status: :queued, matched_track: SongRequest.match_artist(req.artist))
+          req.update!(status: :accepted, matched_track: SongRequest.match_artist(req.artist))
         else
           req.update!(status: :rejected, rejection_reason: verdict.reason)
         end

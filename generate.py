@@ -702,6 +702,8 @@ def main():
             "slot": slot,
             "dj_name": args.dj_name or "",
         }
+        if request:
+            show_meta["kind"] = "request"
         (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
 
         # 2. DJ Opening Announcement
