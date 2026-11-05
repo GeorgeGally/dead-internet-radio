@@ -1,11 +1,11 @@
 require "digest"
 
-# Serves the player page uncached, with a content hash on every local script
-# and stylesheet. Those files are cached for a year under their own URL, so a
+# Serves the player page uncached, with a content hash on every local script,
+# stylesheet and icon. Those files are cached for a year under their own URL, so a
 # changed file gets a new URL and reaches returning browsers.
 class PlayerPage
   PATHS = %w[/ /index.html].freeze
-  ASSET = /\b(src|href)="(?![a-z]+:|\/\/)([^"?#]+\.(?:js|css))"/
+  ASSET = /\b(src|href)="(?![a-z]+:|\/\/)([^"?#]+\.(?:js|css|ico|svg|png|webmanifest))"/
 
   def initialize(app, public_path:, cache: true)
     @app = app

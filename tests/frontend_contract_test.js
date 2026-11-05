@@ -113,3 +113,21 @@ test('the player page is served uncached with hashed asset URLs', () => {
   assert.match(page, /\?v=#\{Digest::SHA256\.file/);
   assert.match(app, /middleware\.insert_before 0, PlayerPage/);
 });
+
+test('every page head links the icon set, and the player hashes it', () => {
+  const player = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const icons = fs.readFileSync(path.join(root, 'app/views/layouts/_icons.html.erb'), 'utf8');
+  for (const file of ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'site.webmanifest']) {
+    assert.ok(fs.existsSync(path.join(root, 'public', file)), file);
+    assert.match(player, new RegExp(`href="${file}"`));
+    assert.match(icons, new RegExp(`hashed_public_path "/${file}"`));
+  }
+  for (const layout of ['admin', 'login']) {
+    const html = fs.readFileSync(path.join(root, `app/views/layouts/${layout}.html.erb`), 'utf8');
+    assert.match(html, /render "layouts\/icons"/);
+  }
+  const { icons: listed } = JSON.parse(fs.readFileSync(path.join(root, 'public/site.webmanifest'), 'utf8'));
+  for (const { src } of listed) assert.ok(fs.existsSync(path.join(root, 'public', src.split('?')[0])), src);
+  const stamper = fs.readFileSync(path.join(root, 'lib/player_page.rb'), 'utf8');
+  assert.match(stamper, /ico\|svg\|png\|webmanifest/);
+});

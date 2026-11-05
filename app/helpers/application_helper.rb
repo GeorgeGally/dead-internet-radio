@@ -1,4 +1,10 @@
 module ApplicationHelper
+  # A public/ file's URL with a content hash, so the year-long cache misses when
+  # the file changes; PlayerPage does the same for the player.
+  def hashed_public_path(path)
+    "#{path}?v=#{Digest::SHA256.file(Rails.public_path.join(path.delete_prefix("/"))).hexdigest[0, 10]}"
+  end
+
   # 154 -> "2:34"; blank for nothing.
   def mmss(seconds)
     return "" if seconds.blank?
