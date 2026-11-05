@@ -27,6 +27,22 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "a listener's requests say when each one airs" do
+    sign_in
+    user = User.last
+    show = Show.create!(slot: "request line", directory: "req-#{SecureRandom.hex(4)}", kind: "request")
+    track = Track.create!(show: show, position: 1, artist: "Static Bloom", title: "Carrier Signal", duration_ms: 60_000)
+    seg = BroadcastSegment.create!(track: track, starts_at: 2.minutes.from_now, ends_at: 3.minutes.from_now)
+    user.song_requests.create!(artist: "Static Bloom", title: "Carrier Signal", status: :scheduled, track: track)
+    user.song_requests.create!(artist: "Null Choir", title: "Waiting", status: :queued)
+
+    get "/api/v1/requests"
+    waiting, booked = response.parsed_body
+    assert_nil waiting["airs_at"]
+    assert_equal seg.starts_at.iso8601(3), Time.zone.parse(booked["airs_at"]).iso8601(3)
+    assert_equal track.id, booked["track_id"]
+  end
+
   test "writes need the csrf token and the same origin" do
     token = sign_in
     post "/api/v1/requests", params: { artist: "A", title: "B" }.to_json,
