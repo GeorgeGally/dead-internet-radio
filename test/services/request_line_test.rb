@@ -6,11 +6,15 @@ class RequestLineTest < ActiveJob::TestCase
   include ActionMailer::TestHelper
 
   setup do
+    @old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
     BroadcastSegment.delete_all
     SongRequest.delete_all
     @user = User.create!(google_uid: "g-#{SecureRandom.hex(4)}", name: "Pat Doe", email: "pat@example.com")
     @req = @user.song_requests.create!(artist: "Static Bloom", title: "Carrier Signal", note: "colder", status: :accepted)
   end
+
+  teardown { ActiveJob::Base.queue_adapter = @old_adapter }
 
   test "hands over what is waiting, oldest first, one line each" do
     later = @user.song_requests.create!(artist: "Null Choir", title: "Second", status: :accepted)
