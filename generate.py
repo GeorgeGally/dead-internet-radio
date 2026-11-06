@@ -22,10 +22,10 @@ ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
 MIN_TRACK_SECONDS = int(os.getenv("MIN_TRACK_SECONDS", "105"))
 MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "360"))
-# Most songs run to here; a long song is over four minutes.
-NORMAL_TRACK_SECONDS = 180
-LONG_TRACK_SECONDS = 240
-LONG_TRACK_SHARE = 1 / 3
+# Most songs land evenly across this range. A few fall short of it, fewer run past it.
+NORMAL_TRACK_SECONDS = (150, 270)
+SHORT_TRACK_CHANCE = 1 / 20
+LONG_TRACK_CHANCE = 1 / 50
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated list of models to try in order. A pinned model keeps the
@@ -474,19 +474,22 @@ def poll_ace_step(task_id: str, poll_interval: int = 15,
         time.sleep(poll_interval)
 
 
+def pick_length() -> int:
+    roll = random.random()
+    if roll < LONG_TRACK_CHANCE:
+        return random.randint(NORMAL_TRACK_SECONDS[1] + 1, MAX_TRACK_SECONDS)
+    if roll < LONG_TRACK_CHANCE + SHORT_TRACK_CHANCE:
+        return random.randint(MIN_TRACK_SECONDS, NORMAL_TRACK_SECONDS[0] - 1)
+    return random.randint(*NORMAL_TRACK_SECONDS)
+
+
 def spread_lengths(asked: list) -> list[int]:
-    """The DJ's lengths nudged so no two match, then its longest stretched until about a third run long."""
-    lengths = [
-        min(max(int(a or random.randint(MIN_TRACK_SECONDS, NORMAL_TRACK_SECONDS)) + random.randint(-12, 12),
-                MIN_TRACK_SECONDS), MAX_TRACK_SECONDS)
-        for a in asked
-    ]
-    # A random round, so a one-song request runs long a third of the time too.
-    wanted = int(len(lengths) * LONG_TRACK_SHARE + random.random())
-    normal = sorted((i for i, s in enumerate(lengths) if s <= LONG_TRACK_SECONDS), key=lambda i: -lengths[i])
-    missing = wanted - (len(lengths) - len(normal))
-    for i in normal[:max(missing, 0)]:
-        lengths[i] = random.randint(LONG_TRACK_SECONDS + 1, MAX_TRACK_SECONDS)
+    """One length per song, spread by pick_length. The DJ's asks only say which song gets which."""
+    order = random.sample(range(len(asked)), len(asked))
+    order.sort(key=lambda i: int(asked[i] or 0))
+    lengths = [0] * len(asked)
+    for i, length in zip(order, sorted(pick_length() for _ in asked)):
+        lengths[i] = length
     return lengths
 
 

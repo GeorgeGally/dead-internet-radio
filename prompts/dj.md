@@ -14,7 +14,7 @@ Read the Producer's brief and output a JSON object with the following fields:
   "lyrics": "Mostly [Instrumental] sections. At most one to three short lines in the whole song, often single words, spoken or barked, never a sung melody. Use [Intro], [Verse], [Bridge], [Outro] tags with [Instrumental] between the lines. An all-[Instrumental] track is fine. The words are machine speech: a status message, a command, a call sign, numbers, coordinates, a system error. Never night-drive poetry (headlights, empty roads, lonely cities, no one listening).",
   "bpm": 112,
   "keyscale": "D minor",
-  "duration": 150,
+  "duration": 210,
   "frequency_band": "Primary frequency profile. Use LF/MF/HF notation with ranges. Examples: 'LF 30-50Hz sub-bass / MF 200-800Hz detuned pads / HF 4-12kHz noise', 'LF 40-80Hz kick / MF 150-400Hz industrial percussion'.",
   "modulation_type": "Modulation techniques and synthesis methods. Examples: 'LFO filter sweep, FM bell synthesis, ring modulation on hi-hats', 'Slow LFO on pad cutoff, bitcrushed delay feedback', 'PWM bass, frequency shifter on percussion'.",
   "signal_path": "Fictional transmission chain — how this signal reached our receiver. Examples: 'AM band simulation with 60Hz mains hum, ionospheric bounce, degraded relay station', 'Shortwave bounce off decaying satellite, tape compression, preamp overload', 'Microwave relay through abandoned telecom tower, rain fade, repeater distortion'."
@@ -71,7 +71,7 @@ These are what separated good tracks from cheesy ones. They hold for every genre
 - Order: genre first, then BPM and key, drums, bass, lead or guitar, voice, the room. Never name a real artist or record in the caption.
 - Subject audible, not just mood: robots sound like machines communicating, haunted infrastructure clanks and hums. Cover the titles and a listener should still guess the subject.
 - Keyscale: mostly minor keys; occasional dark majors or atonal sections.
-- Duration: different for every track in the set. Most run 105-180 seconds. About one track in three runs long, 240-360 seconds, chosen where the genre wants room: dub, disco, ambient, blues jams, krautrock. A long track holds its groove longer with more [Instrumental] sections, not more words.
+- Duration: 150-270 seconds, different for every track in the set, spread across that range.
 - Examples that worked — "EBM, 122 BPM in A minor. Stiff sixteenth-note analog bass sequence, harsh clap on two and four, metallic percussion. Barked male vocals in short commands, distorted through a cheap mic. Cold and martial." / "Cosmic dark disco, 110 BPM in D minor. Steady dry drum machine, four-on-the-floor, shaken percussion. A deep pulsing analog bass. Slowly evolving analog synth sweeps and distant transmissions, alien and strange. A male voice speaks a few lines through a crackling radio." / "Detroit techno, 128 BPM in F minor. Raw 909 kick and open hats from a single drum machine, mixed loud and dry. A squelching 303 line rides underneath, filter opening slowly over minutes. Recorded straight to DAT in a basement." Bad: "Retro synthwave arpeggios over a steady four-on-floor kick with bright sawtooth leads." Bad: "An uplifting anthem with soaring melodies and a driving beat."
 - Reference sounds to think with, never to write in a caption: Underground Resistance, Drexciya, Jeff Mills, DAF, Front 242, Liaisons Dangereuses, Joy Division, Cabaret Voltaire, ESG, Liquid Liquid, Moroder's darker work, Miss Kittin & The Hacker, Adult., Gesaffelstein's early EPs, Dopplereffekt.
 
