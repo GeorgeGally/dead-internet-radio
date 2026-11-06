@@ -165,7 +165,7 @@ function setupAudio(noSeek) {
   }
 
   const audio = document.getElementById('player');
-  audio.src = playlistBase + tracks[currentTrack].file;
+  audio.src = sourceFor(playlistBase + tracks[currentTrack].file);
 
   setupAudioAnalysis();
 
@@ -200,6 +200,72 @@ function setupAudio(noSeek) {
 
   // Joining mid-track: the DJ drop belongs to the top of the track.
   if (seekSeconds < 5) startVoiceoverIfNeeded();
+  bufferNext();
+}
+
+// The next track is held in memory from the moment this one starts, so a track
+// change needs nothing from the network: a slow connection, a new set landing
+// or a server restart can't stop the music. Not ready in time? It streams.
+const ahead = { file: '', url: '', abort: null };
+let heldUrl = '';
+
+function dropAhead() {
+  if (ahead.abort) ahead.abort.abort();
+  if (ahead.url) URL.revokeObjectURL(ahead.url);
+  Object.assign(ahead, { file: '', url: '', abort: null });
+}
+
+function bufferNext() {
+  const tracks = playlist.tracks;
+  const next = tracks[playlist.live ? currentTrack + 1 : (currentTrack + 1) % tracks.length];
+  const file = next && next.file ? playlistBase + next.file : '';
+  if (file === ahead.file) return;
+  dropAhead();
+  if (!file) return;
+  const abort = new AbortController();
+  Object.assign(ahead, { file, abort });
+  fetch(file, { signal: abort.signal })
+    .then((res) => {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.blob();
+    })
+    .then((blob) => {
+      if (ahead.abort === abort) ahead.url = URL.createObjectURL(blob);
+    })
+    .catch(() => {
+      if (ahead.abort !== abort) return;
+      dropAhead();
+      setTimeout(() => { if (playlist) bufferNext(); }, 5000);
+    });
+}
+
+function sourceFor(file) {
+  if (heldUrl) URL.revokeObjectURL(heldUrl);
+  heldUrl = file === ahead.file ? ahead.url : '';
+  if (heldUrl) ahead.url = '';
+  return heldUrl || file;
+}
+
+// A dropped stream comes back on its own, quietly, as often as it takes.
+let audioRetries = 0;
+let audioRetry = 0;
+
+function retryAudio() {
+  const audio = document.getElementById('player');
+  if (audio.paused || !audio.getAttribute('src') || !playlist) return;
+  clearTimeout(audioRetry);
+  audioRetry = setTimeout(() => {
+    if (audio.paused) return;
+    if (playlist.live) {
+      setupAudio();
+      return;
+    }
+    const at = audio.currentTime;
+    audio.src = audio.src;
+    audio.currentTime = at;
+    audio.play().catch(() => {});
+  }, Math.min(8000, 1000 * 2 ** audioRetries));
+  audioRetries += 1;
 }
 
 let trackChangeInProgress = false;
@@ -231,10 +297,11 @@ function advanceTrack(ident) {
     // (nextStation / selectShow / goLive when the show changes).
     const audio = document.getElementById('player');
     audio.volume = 1;
-    audio.src = playlistBase + playlist.tracks[currentTrack].file;
+    audio.src = sourceFor(playlistBase + playlist.tracks[currentTrack].file);
     audio.currentTime = 0;
     audio.play().catch(() => {});
     startVoiceoverIfNeeded();
+    bufferNext();
   } finally {
     trackChangeInProgress = false;
   }
@@ -728,13 +795,47 @@ async function fetchLive() {
   return { live: true, tracks: data.segments };
 }
 
-// Tune to the shared timeline (also used to resync after each segment).
+// New sets and requests reach the timeline here; what's playing is left alone.
+async function refreshTimeline() {
+  if (!playlist || !playlist.live) return;
+  const fresh = await fetchLive();
+  if (!playlist || !playlist.live) return;
+  const onAir = playlist.tracks[currentTrack];
+  const at = fresh.tracks.findIndex((t) => onAir && t.id === onAir.id);
+  if (at < 0 && onAir) fresh.tracks.unshift(onAir);
+  playlist = fresh;
+  currentTrack = Math.max(at, 0);
+  bufferNext();
+}
+
+function timelineCoversNow() {
+  return !!(playlist && playlist.live)
+    && playlist.tracks.some((t) => liveNow() + 500 < t.startsAt + t.durationMs);
+}
+
+const TIMELINE_POLL_MS = 30000;
+const TIMELINE_WAIT_MS = 1500;
+const LIVE_RETRY_MS = 2000;
+let liveRetry = 0;
+
+// Tune to the shared timeline (also used to resync after each segment). A
+// timeline already in hand plays on after a short wait for a newer one.
 async function goLive(fromTrackEnd, ident) {
-  let next;
-  try {
-    next = await fetchLive();
-  } catch (e) {
-    return;
+  clearTimeout(liveRetry);
+  let next = playlist;
+  if (timelineCoversNow()) {
+    await Promise.race([
+      refreshTimeline().catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, TIMELINE_WAIT_MS)),
+    ]);
+    next = playlist;
+  } else {
+    try {
+      next = await fetchLive();
+    } catch (e) {
+      if (fromTrackEnd) liveRetry = setTimeout(() => goLive(true, ident), LIVE_RETRY_MS);
+      return;
+    }
   }
   stopVoiceover();
   const showBefore = playlist && playlist.tracks && playlist.tracks[currentTrack] ? playlist.tracks[currentTrack].showName : null;
@@ -843,6 +944,7 @@ function nextStation(ident) {
 async function selectShow(showId, ident = true) {
   const show = showsList.find(s => s.id === showId);
   if (!show) return;
+  clearTimeout(liveRetry);
 
   let newPlaylist;
 
@@ -989,6 +1091,13 @@ let audioAnalysisReady = false;
   window.addEventListener('resize', initWave);
   visuals.init();
   idents.init();
+  const player = document.getElementById('player');
+  if (player) {
+    player.addEventListener('playing', idents.loadDone);
+    player.addEventListener('error', idents.loadDone);
+    player.addEventListener('error', retryAudio);
+    player.addEventListener('playing', () => { audioRetries = 0; });
+  }
   gallery.init();
   // An artwork that finishes its own run hands over to another, but not
   // while the listener is adjusting things.
@@ -1029,6 +1138,7 @@ let audioAnalysisReady = false;
 }
 
 async function tuneIn() {
+  setInterval(() => refreshTimeline().catch(() => {}), TIMELINE_POLL_MS);
   try {
     playlist = await loadBroadcastData();
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {

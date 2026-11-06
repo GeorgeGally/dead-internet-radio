@@ -128,10 +128,12 @@ test('the word sits centred with wall on both sides', () => {
 function loadApp() {
   const calls = [];
   const listeners = {};
+  const timers = [];
   const player = {
     src: '', currentTime: 0, volume: 1, paused: true, readyState: 4, duration: 180,
     play() { this.paused = false; return Promise.resolve(); },
     pause() { this.paused = true; },
+    getAttribute() { return this.src; },
     addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
     removeEventListener(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
   };
@@ -150,10 +152,13 @@ function loadApp() {
     fetch: async (url) => {
       const key = Object.keys(responses).find((k) => url.endsWith(k));
       if (!key) return { ok: false, status: 404, json: async () => ({}) };
-      return { ok: true, json: async () => responses[key]() };
+      return { ok: true, json: async () => responses[key](), blob: async () => url };
     },
-    setTimeout: () => 0,
+    setTimeout: (fn) => { timers.push(fn); return 0; },
     clearTimeout() {},
+    setInterval: () => 0,
+    AbortController,
+    URL: { createObjectURL: (blob) => `blob:${blob}`, revokeObjectURL() {} },
     requestAnimationFrame: () => 0,
     visuals: { init() {}, next() {}, notify() {} },
     canvasFilters: {},
@@ -180,6 +185,7 @@ function loadApp() {
     player,
     listeners,
     responses,
+    timers,
     run: (code) => vm.runInContext(code, sandbox),
     settle: async () => { for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r)); },
     tuneLive: (showName = 'This Show') => vm.runInContext(`playlist = { live: true, tracks: [{ startsAt: 0, durationMs: 1, file: '/media/x.mp3', showName: ${JSON.stringify(showName)} }] }; currentTrack = 0;`, sandbox),
@@ -223,6 +229,87 @@ for (const control of ['nextTrack', 'prevTrack']) {
     assert.equal(app.player.src, '/media/a.mp3');
   });
 }
+
+function onAirNow(app) {
+  const now = Date.now();
+  app.run(`
+    playlistBase = '';
+    playlist = { live: true, tracks: [
+      { id: 1, startsAt: ${now - 60000}, durationMs: 59000, file: '/media/a.mp3', showName: 'S' },
+      { id: 2, startsAt: ${now - 1000}, durationMs: 60000, file: '/media/b.mp3', showName: 'S' },
+      { id: 3, startsAt: ${now + 59000}, durationMs: 60000, file: '/media/c.mp3', showName: 'S' },
+    ] };
+    currentTrack = 0;
+  `);
+}
+
+test('live: a track change plays on when the broadcast call fails', async () => {
+  const app = loadApp();
+  delete app.responses['/api/v1/broadcast'];
+  onAirNow(app);
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.equal(app.player.src, '/media/b.mp3');
+});
+
+test('live: a track change with no timeline keeps trying', async () => {
+  const app = loadApp();
+  const answer = app.responses['/api/v1/broadcast'];
+  delete app.responses['/api/v1/broadcast'];
+  app.tuneLive();
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.equal(app.player.src, '');
+
+  app.responses['/api/v1/broadcast'] = answer;
+  app.timers.at(-1)();
+  await app.settle();
+  assert.equal(app.player.src, '/media/a.mp3');
+});
+
+test('the next track plays from memory once it has arrived', async () => {
+  const app = loadApp();
+  app.responses['/media/c.mp3'] = () => ({});
+  onAirNow(app);
+  app.run('setupAudio()');
+  await app.settle();
+  assert.equal(app.player.src, '/media/b.mp3');
+
+  app.run('currentTrack = 1; playlist.tracks[2].startsAt = 0; playlist.tracks[2].durationMs = 9e15; playlist.tracks.splice(1, 1); playlist.tracks[0].durationMs = 1; setupAudio()');
+  await app.settle();
+  assert.match(app.player.src, /^blob:/);
+});
+
+test('a new timeline leaves the track on air alone', async () => {
+  const app = loadApp();
+  onAirNow(app);
+  app.run('setupAudio()');
+  await app.settle();
+  app.player.src = 'on-air';
+  await app.run('refreshTimeline()');
+  assert.equal(app.player.src, 'on-air');
+});
+
+test('a dropped stream comes back on its own', async () => {
+  const app = loadApp();
+  onAirNow(app);
+  app.run('setupAudio()');
+  await app.settle();
+  app.player.src = '/media/dropped.mp3';
+  app.run('retryAudio()');
+  app.timers.at(-1)();
+  assert.equal(app.player.src, '/media/b.mp3');
+});
+
+test('a stream the listener stopped stays stopped', () => {
+  const app = loadApp();
+  onAirNow(app);
+  app.player.paused = true;
+  app.player.src = '/media/a.mp3';
+  const before = app.timers.length;
+  app.run('retryAudio()');
+  assert.equal(app.timers.length, before);
+});
 
 function tuneArchive(app, trackCount) {
   app.responses['/api/v1/shows/next'] = () => ({
