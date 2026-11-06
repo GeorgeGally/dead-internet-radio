@@ -83,3 +83,15 @@ one-year `immutable` header.
 **Measure on apps1, not the Mac.** Archive.org gives the Mac about 10 KB/s and
 apps1 about 500 KB/s, so a local run says nothing about load times. Local dev
 databases also have no tracks, which leaves the track key empty.
+
+## 6. Some listeners can't reach archive.org
+
+From the captain's Mac, direct calls to archive.org were reset or took 15-40 s,
+so the search failed with `load failed: none` while `/broll` itself worked. The
+artwork now asks `/broll-index/search` and `/broll-index/metadata/:item`. The
+server gets the answer in about a second and keeps it for a day, so only the
+first listener waits and a listener's own route to archive.org no longer matters.
+
+Background loads also wait until the music has 20 s buffered (`musicHasCushion`).
+On a link near 90 KB/s, three films and a next track otherwise starve the audio.
+Giphy still loads straight from the listener's browser.

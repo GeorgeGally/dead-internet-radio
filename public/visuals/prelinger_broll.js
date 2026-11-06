@@ -55,6 +55,8 @@ visuals.register('prelinger_broll', (() => {
     trackKey: '',
   };
 
+  const musicIsSafe = () => typeof musicHasCushion !== 'function' || musicHasCushion();
+
   function trackInfo() {
     try {
       const t = playlist?.tracks?.[currentTrack] || {};
@@ -89,7 +91,7 @@ visuals.register('prelinger_broll', (() => {
   // theme is remembered so this costs one request after the first visit.
   async function searchFilms(theme) {
     const q = `(${queryFor(theme)}) AND mediatype:movies`;
-    const base = 'https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) + '&fl%5B%5D=identifier&output=json';
+    const base = '/broll-index/search?q=' + encodeURIComponent(q);
     const key = 'broll-count2:' + theme;
     let count = 0;
     try { count = Number(localStorage.getItem(key)) || 0; } catch (e) {}
@@ -112,7 +114,7 @@ visuals.register('prelinger_broll', (() => {
   }
 
   async function filmVideo(id) {
-    const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`);
+    const res = await fetch(`/broll-index/metadata/${encodeURIComponent(id)}`);
     if (!res.ok) throw new Error('meta');
     const json = await res.json();
     // Smallest mp4 that has a picture: many Prelinger items only carry a
@@ -281,10 +283,10 @@ visuals.register('prelinger_broll', (() => {
   let remembered = false;
   async function rememberFilm(id, url, size) {
     try {
-      if (remembered || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
       if (localStorage.getItem('dir-broll-last') === id) return;
       remembered = true;
-      const res = await fetch(url);
+      const res = await fetch(url, { priority: 'low' });
       if (!res.ok) return;
       const cache = await caches.open('dir-broll');
       await cache.put(LAST_KEY, res);
@@ -609,10 +611,11 @@ visuals.register('prelinger_broll', (() => {
     }
   }
 
-  // Warm up as soon as the track is known, ahead of the artwork's first turn.
+  // Warm up ahead of the artwork's first turn, once the track is known and the
+  // music has what it needs.
   function warm() {
     if (state.trackKey) return;
-    if (!trackInfo().key) { setTimeout(warm, 1000); return; }
+    if (!trackInfo().key || !musicIsSafe()) { setTimeout(warm, 1000); return; }
     if (typeof visuals.getList !== 'function' || visuals.getList().some((v) => v.id === 'prelinger_broll')) pullTrack();
   }
   setTimeout(warm, 0);

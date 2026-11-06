@@ -246,6 +246,22 @@ function setupAudio(noSeek) {
 // or a server restart can't stop the music. Not ready in time? It streams.
 const ahead = { file: '', url: '', abort: null };
 let heldUrl = '';
+let cushionWait = 0;
+
+// Everything that loads in the background waits for this. On a slow connection
+// it would otherwise take the bandwidth the music is living on.
+const CUSHION_S = 20;
+function musicHasCushion() {
+  const audio = document.getElementById('player');
+  if (!audio || !audio.getAttribute('src') || listenerStopped || heldUrl) return true;
+  const left = (audio.duration || Infinity) - audio.currentTime - 0.5;
+  const b = audio.buffered;
+  if (!b) return true;
+  for (let i = 0; i < b.length; i += 1) {
+    if (b.start(i) <= audio.currentTime + 0.1 && b.end(i) - audio.currentTime >= Math.min(CUSHION_S, left)) return true;
+  }
+  return false;
+}
 
 function dropAhead() {
   if (ahead.abort) ahead.abort.abort();
@@ -260,9 +276,14 @@ function bufferNext() {
   if (file === ahead.file) return;
   dropAhead();
   if (!file) return;
+  clearTimeout(cushionWait);
+  if (!musicHasCushion()) {
+    cushionWait = setTimeout(() => { if (playlist) bufferNext(); }, 2000);
+    return;
+  }
   const abort = new AbortController();
   Object.assign(ahead, { file, abort });
-  fetch(file, { signal: abort.signal })
+  fetch(file, { signal: abort.signal, priority: 'low' })
     .then((res) => {
       if (!res.ok) throw new Error(String(res.status));
       return res.blob();
@@ -287,13 +308,14 @@ function sourceFor(file) {
 // A dropped stream comes back on its own, quietly, as often as it takes.
 let audioRetries = 0;
 let audioRetry = 0;
+let listenerStopped = false;
 
 function retryAudio() {
   const audio = document.getElementById('player');
-  if (audio.paused || !audio.getAttribute('src') || !playlist) return;
+  if (listenerStopped || !audio.error || !audio.getAttribute('src') || !playlist) return;
   clearTimeout(audioRetry);
   audioRetry = setTimeout(() => {
-    if (audio.paused) return;
+    if (listenerStopped) return;
     if (playlist.live) {
       setupAudio();
       return;
@@ -503,6 +525,7 @@ function stopPlayback() {
   stopVoiceover();
   const audio = document.getElementById('player');
   if (!audio) return;
+  listenerStopped = true;
   audio.pause();
   audio.volume = 1;
   updatePlayBtn();
@@ -1135,6 +1158,7 @@ let audioAnalysisReady = false;
     player.addEventListener('error', idents.loadDone);
     player.addEventListener('error', retryAudio);
     player.addEventListener('playing', () => { audioRetries = 0; });
+    player.addEventListener('play', () => { listenerStopped = false; });
   }
   gallery.init();
   // An artwork that finishes its own run hands over to another, but not

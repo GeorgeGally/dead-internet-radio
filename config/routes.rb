@@ -23,6 +23,9 @@ Rails.application.routes.draw do
     end
   end
 
+  get "broll-index/search", to: "broll_index#search"
+  get "broll-index/metadata/:item", to: "broll_index#metadata", format: false, constraints: { item: %r{[^/]+} }
+
   # archive.org films proxied same-origin so canvas filters keep working.
   get "broll/:item/*file", to: "broll#show", format: false, as: :broll
 

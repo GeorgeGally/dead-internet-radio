@@ -344,16 +344,29 @@ test('a dropped stream comes back on its own', async () => {
   app.run('setupAudio()');
   await app.settle();
   app.player.src = '/media/dropped.mp3';
+  app.player.error = { code: 2 };
   app.run('retryAudio()');
   app.timers.at(-1)();
   assert.equal(app.player.src, '/media/b.mp3');
 });
 
+test('background loading waits until the music has a cushion', () => {
+  const app = loadApp();
+  app.player.src = '/media/a.mp3';
+  app.player.currentTime = 10;
+  app.player.buffered = { length: 1, start: () => 0, end: () => 15 };
+  assert.equal(app.run('musicHasCushion()'), false);
+
+  app.player.buffered = { length: 1, start: () => 0, end: () => 40 };
+  assert.equal(app.run('musicHasCushion()'), true);
+});
+
 test('a stream the listener stopped stays stopped', () => {
   const app = loadApp();
   onAirNow(app);
-  app.player.paused = true;
+  app.player.error = { code: 2 };
   app.player.src = '/media/a.mp3';
+  app.run('listenerStopped = true');
   const before = app.timers.length;
   app.run('retryAudio()');
   assert.equal(app.timers.length, before);

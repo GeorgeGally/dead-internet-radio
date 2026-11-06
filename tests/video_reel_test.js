@@ -106,7 +106,7 @@ function createPage(file) {
       remove() {}
     },
     async fetch(url) {
-      const body = url.includes('advancedsearch')
+      const body = url.includes('broll-index/search')
         ? { response: { numFound: 40, docs: [{ identifier: 'one' }, { identifier: 'two' }, { identifier: 'three' }] } }
         : url.includes('giphy')
           ? { data: [1, 2, 3, 4].map((i) => ({ images: { original: { mp4: `https://media.test/${i}.mp4` } } })) }

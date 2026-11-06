@@ -568,9 +568,11 @@ visuals.register('giphy', (() => {
     }
   }
 
-  // Warm up ahead of the artwork's first turn, once the admin's list is in.
+  // Warm up ahead of the artwork's first turn, once the admin's list is in and
+  // the music has what it needs.
   function warm() {
-    if (typeof playlist === 'undefined' || !playlist?.tracks?.length) { setTimeout(warm, 1000); return; }
+    const calm = typeof musicHasCushion !== 'function' || musicHasCushion();
+    if (typeof playlist === 'undefined' || !playlist?.tracks?.length || !calm) { setTimeout(warm, 1000); return; }
     if (visuals.getList().some((v) => v.id === 'giphy')) fetchGiphyGifs();
   }
   setTimeout(warm, 0);
