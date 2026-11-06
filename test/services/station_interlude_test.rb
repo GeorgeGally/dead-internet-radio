@@ -33,6 +33,11 @@ class StationInterludeTest < ActiveSupport::TestCase
     refute_includes Show.programmes, @talk
   end
 
+  test "with nothing new to air the station replays what it has" do
+    Station.fill!
+    assert_operator BroadcastSegment.joins(:track).where(tracks: { show_id: @one.id }).count, :>, 1
+  end
+
   test "an ID clip turned off at /admin/idents stays off, and IDs rotate" do
     StationIdent.create!(kind: "audio", number: 3, active: false)
     assert_includes Interlude.tracks.map(&:audio_file), "03-station-id-04.mp3"

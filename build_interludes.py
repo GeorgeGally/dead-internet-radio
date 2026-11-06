@@ -49,8 +49,9 @@ def write_lines(count: int) -> list[str]:
 
 
 def master(source: Path, dest: Path):
+    """Small on purpose: a clip must load in a moment on a bad connection."""
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(source), "-af", MASTER,
-                    "-ar", "44100", "-ac", "2", "-codec:a", "libmp3lame", "-b:a", "192k", str(dest)], check=True)
+                    "-ar", "44100", "-ac", "1", "-codec:a", "libmp3lame", "-b:a", "96k", str(dest)], check=True)
 
 
 def write_log(show_dir: Path, stem: str, title: str, text: str):

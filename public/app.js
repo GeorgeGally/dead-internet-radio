@@ -246,7 +246,10 @@ function setupAudio(noSeek) {
 // The next track is held in memory from the moment this one starts, so a track
 // change needs nothing from the network: a slow connection, a new set landing
 // or a server restart can't stop the music. Not ready in time? It streams.
-const ahead = { file: '', url: '', abort: null };
+// Station talk runs seconds, too short to buffer ahead of itself, so the hold
+// runs through any short clips up to and including the next song.
+const SONG_MS = 60000;
+const ahead = new Map();
 let heldUrl = '';
 let cushionWait = 0;
 
@@ -265,18 +268,33 @@ function musicHasCushion() {
   return false;
 }
 
-function dropAhead() {
-  if (ahead.abort) ahead.abort.abort();
-  if (ahead.url) URL.revokeObjectURL(ahead.url);
-  Object.assign(ahead, { file: '', url: '', abort: null });
+function dropAhead(file) {
+  const held = ahead.get(file);
+  if (!held) return;
+  if (held.abort) held.abort.abort();
+  if (held.url) URL.revokeObjectURL(held.url);
+  ahead.delete(file);
 }
 
-function bufferNext() {
+function filesAhead() {
   const tracks = playlist.tracks;
-  const next = tracks[playlist.live ? currentTrack + 1 : (currentTrack + 1) % tracks.length];
-  const file = next && next.file ? playlistBase + next.file : '';
-  if (file === ahead.file) return;
-  dropAhead();
+  const files = [];
+  for (let step = 1; step <= tracks.length; step += 1) {
+    const at = currentTrack + step;
+    const next = tracks[playlist.live ? at : at % tracks.length];
+    if (!next) break;
+    if (next.file) files.push(playlistBase + next.file);
+    if (next.durationMs >= SONG_MS) break;
+  }
+  return files;
+}
+
+// One download at a time, nearest first.
+function bufferNext() {
+  const wanted = filesAhead();
+  [...ahead.keys()].filter((file) => !wanted.includes(file)).forEach(dropAhead);
+  if ([...ahead.values()].some((held) => !held.url)) return;
+  const file = wanted.find((candidate) => !ahead.has(candidate));
   if (!file) return;
   clearTimeout(cushionWait);
   if (!musicHasCushion()) {
@@ -284,26 +302,30 @@ function bufferNext() {
     return;
   }
   const abort = new AbortController();
-  Object.assign(ahead, { file, abort });
+  const held = { url: '', abort };
+  ahead.set(file, held);
   fetch(file, { signal: abort.signal, priority: 'low' })
     .then((res) => {
       if (!res.ok) throw new Error(String(res.status));
       return res.blob();
     })
     .then((blob) => {
-      if (ahead.abort === abort) ahead.url = URL.createObjectURL(blob);
+      if (ahead.get(file) !== held) return;
+      held.url = URL.createObjectURL(blob);
+      bufferNext();
     })
     .catch(() => {
-      if (ahead.abort !== abort) return;
-      dropAhead();
+      if (ahead.get(file) !== held) return;
+      dropAhead(file);
       setTimeout(() => { if (playlist) bufferNext(); }, 5000);
     });
 }
 
 function sourceFor(file) {
   if (heldUrl) URL.revokeObjectURL(heldUrl);
-  heldUrl = file === ahead.file ? ahead.url : '';
-  if (heldUrl) ahead.url = '';
+  const held = ahead.get(file);
+  heldUrl = held ? held.url : '';
+  if (heldUrl) ahead.delete(file);
   return heldUrl || file;
 }
 
@@ -879,6 +901,14 @@ function timelineCoversNow() {
     && playlist.tracks.some((t) => liveNow() + 500 < t.startsAt + t.durationMs);
 }
 
+// A segment that never finished loading has no 'ended' to move on with.
+function rejoinIfStranded() {
+  const audio = document.getElementById('player');
+  if (!playlist || !playlist.live || listenerStopped || audio.paused || audio.readyState >= 3) return;
+  const onAir = playlist.tracks[currentTrack];
+  if (onAir && liveNow() > onAir.startsAt + onAir.durationMs + 1000) goLive(true, false);
+}
+
 const TIMELINE_POLL_MS = 30000;
 const TIMELINE_WAIT_MS = 1500;
 const LIVE_RETRY_MS = 2000;
@@ -1212,6 +1242,7 @@ let audioAnalysisReady = false;
 
 async function tuneIn() {
   setInterval(() => refreshTimeline().catch(() => {}), TIMELINE_POLL_MS);
+  setInterval(rejoinIfStranded, 2000);
   try {
     playlist = await loadBroadcastData();
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {

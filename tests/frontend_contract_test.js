@@ -148,3 +148,8 @@ test('Eyes never inherits the filters of the artwork before it', () => {
   const gallery = fs.readFileSync(path.join(root, 'public/visuals/gallery.js'), 'utf8');
   assert.match(gallery, /eyes: \{ filters: \[\], cutoff: 130, resonance: 50 \}/);
 });
+
+test('short station clips hold the song after them in memory, and a dead segment cannot strand the player', () => {
+  assert.match(js, /if \(next\.durationMs >= SONG_MS\) break;/);
+  assert.match(js, /setInterval\(rejoinIfStranded, 2000\)/);
+});
