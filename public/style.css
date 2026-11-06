@@ -401,20 +401,15 @@ body.prewarming #block-canvas {
 #btn-play    { --c: #ec6a1f; --txt: #fff; }
 #btn-play.stop { --c: #3b3f44; }
 #btn-gallery { --c: #8d9aa6; --txt: #fff; }
-#btn-request { font-size: 17px; }
 .abtn.vote:disabled { cursor: default; color: rgba(42, 42, 42, .3); }
-.abtn .thumb {
+.abtn .glyph {
   display: block;
   width: 20px;
   height: 20px;
   margin: auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
 }
-#btn-vote-down .thumb { transform: scaleY(-1); }
+#btn-vote-down .glyph { transform: rotate(180deg); }
 
 .abtn-label {
   width: 46px;
