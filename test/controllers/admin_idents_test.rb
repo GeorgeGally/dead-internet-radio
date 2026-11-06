@@ -7,7 +7,7 @@ class AdminIdentsTest < ActionDispatch::IntegrationTest
     sign_in
     get admin_idents_path
     assert_response :success
-    assert_select ".idents [data-ident-src]", 24
+    assert_select ".idents [data-ident-src]", 25
     assert_select ".idents [data-src]", Dir.glob(StationIdent::CLIPS.join("id-*.wav")).size
     assert_select ".ident-name", /ASCII · block wall/
   end
@@ -19,7 +19,7 @@ class AdminIdentsTest < ActionDispatch::IntegrationTest
   end
 
   test "the retired ones start off and everything else on" do
-    assert_equal (1..24).to_a - [5, 7, 11], on_air["visual"]
+    assert_equal (1..25).to_a - [5, 7, 11], on_air["visual"]
     assert_equal (1..14).to_a, on_air["audio"]
   end
 

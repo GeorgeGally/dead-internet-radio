@@ -1207,6 +1207,89 @@ V.push({
   },
 });
 
+// V25 — PM5544-style test card: drawn once per size, only the text is live
+const CARD = { white: '#e8e8e8', bars: ['#bfbf00', '#00bfbf', '#00bf00', '#bf00bf', '#bf0000', '#0000bf'], side: ['#7f8f5a', '#a8876a', '#6b7f99', '#9c6f7c'] };
+
+function cardBackdrop(w, h) {
+  const card = document.createElement('canvas'); card.width = w; card.height = h;
+  const c = card.getContext('2d');
+  const g = Math.max(4, Math.round(Math.min(w, h) / 14)), R = 6 * g;
+  const cx = Math.round(w / 2), cy = Math.round(h / 2), line = Math.max(1, Math.round(g / 26));
+  const at = n => cy + Math.round(n * g);
+  c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+
+  // Side bars run behind the circle, so some shows at any aspect.
+  for (let i = 0; i < 4; i++) {
+    const y = cy + (i - 2) * 2 * g;
+    c.fillStyle = CARD.side[i]; c.fillRect(cx - 8 * g, y, 3 * g, 2 * g);
+    c.fillStyle = CARD.side[3 - i]; c.fillRect(cx + 5 * g, y, 3 * g, 2 * g);
+  }
+
+  // The grid hangs off the centre and runs out through every edge.
+  c.fillStyle = CARD.white;
+  for (let x = cx % g; x < w; x += g) c.fillRect(x - (line >> 1), 0, line, h);
+  for (let y = cy % g; y < h; y += g) c.fillRect(0, y - (line >> 1), w, line);
+
+  c.save();
+  c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.clip();
+  c.fillStyle = '#000'; c.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+  const left = cx - R, span = 2 * R;
+  const row = (from, to, fill) => { c.fillStyle = fill; c.fillRect(left, at(from), span, at(to) - at(from)); };
+  const blocks = (from, to, n, paint) => {
+    for (let i = 0; i < n; i++) {
+      const x = left + Math.round(i * span / n), xw = left + Math.round((i + 1) * span / n) - x;
+      paint(i, x, at(from), xw, at(to) - at(from));
+    }
+  };
+  const castellate = (from, to, size) => {
+    row(from, to, '#000'); c.fillStyle = CARD.white;
+    // A white block sits on the centre line, so the row mirrors left to right.
+    for (let k = -Math.ceil(R / size) & ~1; k * size < R; k += 2) c.fillRect(cx + k * size - (size >> 1), at(from), size, at(to) - at(from));
+  };
+
+  castellate(-6, -5, g);
+  blocks(-3.5, -2, 6, (i, x, y, xw, yh) => { c.fillStyle = CARD.bars[i]; c.fillRect(x, y, xw, yh); });
+  // Resolution gratings: stripes in whole pixels, finer to the right.
+  const pitch = Math.max(1, Math.round(g / 40));
+  blocks(-2, -.5, 6, (i, x, y, xw, yh) => {
+    const stripe = [8, 6, 4, 3, 2, 1][i] * pitch;
+    c.fillStyle = '#000'; c.fillRect(x, y, xw, yh);
+    c.fillStyle = CARD.white;
+    for (let s = 0; s < xw; s += stripe * 2) c.fillRect(x + s, y, Math.min(stripe, xw - s), yh);
+  });
+  // Centre band and cross.
+  c.fillStyle = CARD.white;
+  c.fillRect(left, cy - (line >> 1), span, line);
+  c.fillRect(cx - (line >> 1), at(-.5), line, at(.5) - at(-.5));
+  // Grey step wedge.
+  blocks(.5, 2, 6, (i, x, y, xw, yh) => { const v = 40 + Math.round(i * 192 / 5); c.fillStyle = `rgb(${v},${v},${v})`; c.fillRect(x, y, xw, yh); });
+  castellate(2, 3.5, Math.round(g / 2));
+  c.restore();
+
+  c.strokeStyle = CARD.white; c.lineWidth = line;
+  c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
+  return { card, g, cx, cy };
+}
+
+V.push({
+  name: 'Test card · PM5544', seed: '7e21c4a9f03b6d58e1a2c970', L: 10,
+  idea: 'The old broadcast test card: white grid to every edge, muted side bars, and a round centre of castellations, colour bars, gratings and a grey wedge. The black bars carry the station, the show on air and the time.',
+  draw(c, w, h, t, S) {
+    if (S.key !== w + 'x' + h) { S.key = w + 'x' + h; S.layout = cardBackdrop(w, h); }
+    const { card, g, cx, cy } = S.layout;
+    const line = (s, y, size, maxW) => {
+      const px = fitFont(c, s, 500, size, maxW, (wt, p) => MONO(p, wt));
+      txt(c, s, cx, cy + y * g, MONO(px, 500), CREAM, 1, 'center', 'middle');
+    };
+    c.drawImage(card, 0, 0);
+    line('DEAD INTERNET RADIO', -4.25, .72 * g, 7.4 * g);
+    line(DATA.show.toUpperCase(), 4.25, .72 * g, 7.4 * g);
+    line(clock(), 5.25, .6 * g, 4.4 * g);
+    noise(c, w, h, .03 + .6 * (1 - ramp(t, 0, .8)));
+    scan(c, w, h, .08);
+  },
+});
+
 
 // ---------- engine ----------
 const params = new URLSearchParams(location.search);

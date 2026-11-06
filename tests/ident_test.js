@@ -12,7 +12,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-const ALL = Array.from({ length: 24 }, (_, i) => i + 1);
+const ALL = Array.from({ length: 25 }, (_, i) => i + 1);
 
 function loadIdents({ stored = {}, random = 0, onAir = { visual: ALL, audio: [1] } } = {}) {
   const server = { onAir, asks: 0 };
@@ -81,8 +81,8 @@ test('an ident shows once loaded and leaves when its run ends', async () => {
 test('every ident on air can be picked, never twice running', () => {
   const on = ALL.filter((n) => ![5, 7, 11].includes(n));
   const seen = new Set();
-  for (let i = 0; i < 24; i += 1) {
-    const { idents } = loadIdents({ random: i / 24 });
+  for (let i = 0; i < 25; i += 1) {
+    const { idents } = loadIdents({ random: i / 25 });
     seen.add(Number(idents.pick(on).split('only=')[1]));
   }
   assert.deepEqual([...seen].sort((a, b) => a - b), on);
