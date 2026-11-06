@@ -3,18 +3,12 @@
 const EPOCH = 2051222400000;
 let _welcomeActive = true;
 
-const IDENT_COUNT = 24;          // animated versions in labs/station-ident-lab.html
 const STATION_ID_COUNT = 14;     // public/station-ids/id-NN.wav
 
 function startWelcomeIdent() {
   const frame = document.getElementById('welcome-ident');
   if (!frame) return;
-  // Retired idents stay in the lab but never open the site: V5 (X-Y
-  // oscilloscope), V7 (radar), V11 (round amber oscilloscope).
-  const RETIRED = [5, 7, 11];
-  const pool = Array.from({ length: IDENT_COUNT }, (_, i) => i + 1).filter((n) => !RETIRED.includes(n));
-  const n = pool[Math.floor(Math.random() * pool.length)];
-  frame.src = 'labs/station-ident-lab.html?only=' + n;
+  frame.src = idents.pick();
 }
 
 function stopWelcomeIdent() {
@@ -142,10 +136,7 @@ function setupAudioAnalysis() {
 function setupAudio(noSeek) {
   const tracks = playlist.tracks;
   const totalMs = tracks.reduce((sum, track) => sum + track.durationMs, 0);
-  if (totalMs === 0 || tracks.every((track) => !track.file)) {
-    idents.loadDone();
-    return;
-  }
+  if (totalMs === 0 || tracks.every((track) => !track.file)) return;
 
   let seekSeconds = 0;
 
@@ -175,8 +166,6 @@ function setupAudio(noSeek) {
 
   const audio = document.getElementById('player');
   audio.src = playlistBase + tracks[currentTrack].file;
-  const src = audio.src;
-  idents.load();
 
   setupAudioAnalysis();
 
@@ -205,7 +194,6 @@ function setupAudio(noSeek) {
   };
 
   audio.play().catch(() => {
-    if (audio.src === src) idents.loadDone();
     document.addEventListener('keydown', tryPlay);
     document.addEventListener('click', tryPlay, true);
   });
@@ -742,12 +730,10 @@ async function fetchLive() {
 
 // Tune to the shared timeline (also used to resync after each segment).
 async function goLive(fromTrackEnd, ident) {
-  idents.load();
   let next;
   try {
     next = await fetchLive();
   } catch (e) {
-    idents.loadDone();
     return;
   }
   stopVoiceover();
@@ -1003,12 +989,6 @@ let audioAnalysisReady = false;
   window.addEventListener('resize', initWave);
   visuals.init();
   idents.init();
-  const player = document.getElementById('player');
-  if (player) {
-    player.addEventListener('playing', idents.loadDone);
-    player.addEventListener('error', idents.loadDone);
-  }
-  idents.load();
   gallery.init();
   // An artwork that finishes its own run hands over to another, but not
   // while the listener is adjusting things.
@@ -1062,7 +1042,6 @@ async function tuneIn() {
   }
 
   await loadShows().catch(() => {});
-  if (!(playlist && Array.isArray(playlist.tracks) && playlist.tracks.length)) idents.loadDone();
 }
 
 document.addEventListener('DOMContentLoaded', init);

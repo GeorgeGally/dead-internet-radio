@@ -12,110 +12,117 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-function stubContext(log) {
-  const ctx = {
-    font: '', fillStyle: '', globalAlpha: 1, textAlign: 'left', textBaseline: 'alphabetic',
-    imageSmoothingEnabled: true,
-    save() {}, restore() {},
-    measureText(s) { return { width: 10 * String(s).length }; },
-    fillText(s, x, y) { log.push({ text: String(s), x, y, style: ctx.fillStyle, alpha: ctx.globalAlpha }); },
-    fillRect() {},
-    clearRect() { log.push({ clear: true }); },
-    createImageData(w, h) { return { data: new Uint8ClampedArray(w * h * 4) }; },
-    putImageData() {}, drawImage() {},
-  };
-  return ctx;
-}
-
-function loadIdents() {
-  const log = [];
+function loadIdents({ stored = {}, random = 0 } = {}) {
   const classes = new Set();
-  const timers = [];
-  const canvas = {
-    width: 0, height: 0,
-    getContext: () => stubContext(log),
-    classList: {
-      add: (name) => classes.add(name),
-      remove: (name) => classes.delete(name),
-      contains: (name) => classes.has(name),
-    },
+  const store = new Map(Object.entries(stored).map(([k, v]) => [k, String(v)]));
+  const listeners = {};
+  const frame = {
+    src: '',
+    contentWindow: {},
+    addEventListener: (type, fn) => { listeners[type] = fn; },
+    classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name) },
   };
-  let rafCallback = null;
-  let nowMs = 0;
+  let messages = null;
   const sandbox = {
-    document: {
-      createElement: () => ({ width: 0, height: 0, getContext: () => stubContext(log) }),
-      getElementById: (id) => (id === 'ident-canvas' ? canvas : null),
+    document: { getElementById: (id) => (id === 'ident-frame' ? frame : null) },
+    window: { addEventListener: (type, fn) => { if (type === 'message') messages = fn; } },
+    localStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, value),
     },
-    window: { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 2, addEventListener() {} },
-    performance: { now: () => nowMs },
-    requestAnimationFrame: (cb) => { rafCallback = cb; return 1; },
-    cancelAnimationFrame: () => { rafCallback = null; },
-    setTimeout: (fn) => { timers.push(fn); return timers.length; },
-    clearTimeout: (id) => { if (id) timers[id - 1] = null; },
+    setTimeout: () => 1,
+    clearTimeout() {},
+    Math: Object.create(Math, { random: { value: () => random } }),
     console,
   };
   vm.createContext(sandbox);
   vm.runInContext(read('public/ident.js'), sandbox);
-  return {
-    idents: sandbox.window.idents,
-    canvas,
-    classes,
-    log,
-    frame: (ms) => rafCallback(ms),
-    setNow: (ms) => { nowMs = ms; },
-    flush: () => { const due = timers.splice(0); due.forEach((fn) => fn && fn()); },
-  };
+  const idents = sandbox.window.idents;
+  idents.init();
+  return { idents, frame, classes, store, loaded: () => listeners.load(), message: (e) => messages(e) };
 }
 
-test('ident.js keeps the lab ident contract', () => {
-  const { idents } = loadIdents();
-  assert.ok(idents, 'window.idents is exposed');
-  assert.equal(typeof idents.init, 'function');
-  assert.equal(typeof idents.play, 'function');
-  assert.equal(typeof idents.stop, 'function');
-  assert.ok(Array.isArray(idents.list));
+const MINUTE = 60 * 1000;
 
-  for (const ident of idents.list) {
-    assert.equal(typeof ident.id, 'string');
-    assert.equal(typeof ident.name, 'string');
-    assert.equal(typeof ident.L, 'number');
-    assert.ok(ident.L > 0);
-    assert.equal(typeof ident.draw, 'function');
-    assert.equal(ident.draw.length, 5, 'draw(ctx, w, h, t, state)');
+test('an ident waits thirty minutes after the last one', () => {
+  const recent = loadIdents({ stored: { 'ident-shown-at': Date.now() - 29 * MINUTE } });
+  recent.idents.play();
+  assert.equal(recent.frame.src, '');
+
+  const old = loadIdents({ stored: { 'ident-shown-at': Date.now() - 31 * MINUTE } });
+  old.idents.play();
+  assert.match(old.frame.src, /^labs\/station-ident-lab\.html\?only=\d+&once$/);
+  assert.ok(Number(old.store.get('ident-shown-at')) > Date.now() - MINUTE, 'the clock restarts');
+  old.idents.stop();
+  old.idents.play();
+  assert.equal(old.frame.src, 'about:blank');
+});
+
+test('an ident shows once loaded and leaves when its run ends', () => {
+  const { idents, frame, classes, loaded, message } = loadIdents();
+  idents.play();
+  assert.ok(!classes.has('on'));
+  loaded();
+  assert.ok(classes.has('on'));
+  message({ source: frame.contentWindow, data: 'ident-done' });
+  assert.ok(!classes.has('on'));
+  assert.equal(frame.src, 'about:blank');
+});
+
+test('every ident but the retired ones airs, never twice running', () => {
+  const seen = new Set();
+  for (let i = 0; i < 24; i += 1) {
+    const { idents } = loadIdents({ random: i / 24 });
+    seen.add(Number(idents.pick().split('only=')[1]));
+  }
+  assert.deepEqual([...seen].sort((a, b) => a - b), Array.from({ length: 24 }, (_, i) => i + 1).filter((n) => ![5, 7, 11].includes(n)));
+
+  const { idents } = loadIdents({ stored: { 'ident-last': 1 } });
+  assert.equal(idents.pick(), 'labs/station-ident-lab.html?only=2');
+  assert.equal(idents.pick(), 'labs/station-ident-lab.html?only=1');
+});
+
+function grids() {
+  const lab = read('public/labs/station-ident-lab.html');
+  const code = lab.slice(lab.indexOf("const BLK_RAMP"), lab.indexOf("V.push({\n  name: 'ASCII · block wall'"));
+  const sandbox = {
+    ORANGE: '#ff5a1f',
+    MONO: () => '',
+    ramp: (t, s, d) => Math.min(1, Math.max(0, (t - s) / d)),
+    h32: (n) => n >>> 0,
+    document: {
+      createElement: () => ({ getContext: () => ({ measureText: () => ({ width: 60 }), fillText() {} }) }),
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(`${code}\nthis.blkWall = blkWall;`, sandbox);
+  return [[2592, 1676], [2880, 1620], [5160, 2160], [780, 1688]].map(([w, h]) => {
+    const rects = [];
+    const stamps = [];
+    const c = { fillRect() {}, drawImage(img, sx, sy, sw, sh, x, y) { stamps.push({ x, y, size: sw }); } };
+    sandbox.blkWall(c, w, h, 5, { r: () => 0.5 }, (px, cell) => rects.push({ x: px.x, y: px.y, rw: cell }));
+    return { w, h, rects, stamps };
+  });
+}
+
+test('the wall reaches every edge at every size', () => {
+  for (const { w, h, stamps } of grids()) {
+    const cell = stamps[0].size;
+    assert.equal(cell, Math.round(cell), 'whole device pixels');
+    assert.ok(Math.min(...stamps.map((s) => s.x)) <= 0, `left ${w}x${h}`);
+    assert.ok(Math.max(...stamps.map((s) => s.x)) + cell >= w, `right ${w}x${h}`);
+    assert.ok(Math.min(...stamps.map((s) => s.y)) <= 0, `top ${w}x${h}`);
+    assert.ok(Math.max(...stamps.map((s) => s.y)) + cell >= h, `bottom ${w}x${h}`);
   }
 });
 
-test('the block wall is the ident in rotation and draws its word', () => {
-  const { idents, log, classes, frame, setNow } = loadIdents();
-  assert.deepEqual([...idents.list].map((ident) => ident.id), ['ascii-block-wall']);
-  setNow(0);
-  idents.init();
-  idents.play();
-  frame(0);
-  assert.ok(classes.has('on'));
-  const glyphs = log.filter((entry) => typeof entry.text === 'string').map((entry) => entry.text);
-  assert.ok(glyphs.some((glyph) => '█▓▒░'.includes(glyph)), 'draws block glyphs');
-});
-
-test('the ident steps back to the player when its run ends', () => {
-  const { idents, classes, frame, setNow } = loadIdents();
-  setNow(0);
-  idents.init();
-  idents.play();
-  frame(0);
-  frame(11500);
-  assert.ok(!classes.has('on'));
-});
-
-test('a load ident keeps the screen until the audio starts', () => {
-  const { idents, classes, flush } = loadIdents();
-  idents.init();
-  idents.load();
-  flush();
-  assert.ok(classes.has('on'));
-  idents.loadDone();
-  assert.ok(!classes.has('on'));
+test('the word sits centred with wall on both sides', () => {
+  for (const { w, rects } of grids()) {
+    const left = Math.min(...rects.map((r) => r.x));
+    const right = w - Math.max(...rects.map((r) => r.x + r.rw));
+    assert.ok(left > w * 0.12, `left margin at ${w}`);
+    assert.ok(Math.abs(left - right) <= rects[0].rw, `centred at ${w}`);
+  }
 });
 
 function loadApp() {
@@ -150,10 +157,9 @@ function loadApp() {
     requestAnimationFrame: () => 0,
     visuals: { init() {}, next() {}, notify() {} },
     canvasFilters: {},
-    gallery: { init() { throw new Error('boot stops after the ident wiring'); }, whenQuiet: (fn) => fn() },
+    gallery: { init() {}, whenQuiet: (fn) => fn() },
     idents: {
-      init() {}, load: () => calls.push('load'), loadDone: () => calls.push('loadDone'),
-      play: () => calls.push('play'), stop: () => calls.push('stop'),
+      init() {}, play: () => calls.push('play'), stop: () => calls.push('stop'),
     },
   };
   vm.createContext(sandbox);
@@ -180,51 +186,13 @@ function loadApp() {
   };
 }
 
-test('boot fills the wait with a load ident that the first audio frame clears', async () => {
-  const app = loadApp();
-  await assert.rejects(app.run('init()'), /boot stops after the ident wiring/);
-  assert.deepEqual(app.calls, ['load']);
-  app.listeners.playing.forEach((fn) => fn());
-  assert.deepEqual(app.calls, ['load', 'loadDone']);
-});
-
-test('tuning in leaves a load ident on screen until the audio plays', () => {
+test('a wait for audio never puts up an ident', async () => {
   const app = loadApp();
   app.run(`playlist = { tracks: [{ file: '/media/a.mp3', durationMs: 60000 }] }; setupAudio();`);
-  assert.deepEqual(app.calls, ['load']);
-});
-
-test('blocked autoplay ends the load ident instead of looping it over the player', async () => {
-  const app = loadApp();
-  app.player.play = () => Promise.reject(new Error('NotAllowedError'));
-  app.run(`playlist = { tracks: [{ file: '/media/a.mp3', durationMs: 60000 }] }; setupAudio();`);
+  app.tuneLive('Next Show');
+  app.run('onTrackEnd()');
   await app.settle();
-  assert.deepEqual(app.calls, ['load', 'loadDone']);
-});
-
-test('a playlist with nothing to play ends the load ident', () => {
-  const app = loadApp();
-  app.run(`playlist = { tracks: [{ durationMs: 60000 }] }; setupAudio();`);
-  assert.deepEqual(app.calls, ['loadDone']);
-});
-
-test('boot with no broadcast and no shows ends the load ident', async () => {
-  const app = loadApp();
-  delete app.responses['/api/v1/broadcast'];
-  await app.run('tuneIn()');
-  assert.deepEqual(app.calls, ['loadDone']);
-});
-
-test('the first archive tune-in leaves the wait to the load ident', async () => {
-  const app = loadApp();
-  delete app.responses['/api/v1/broadcast'];
-  app.responses['/api/v1/shows'] = () => [{ id: 'first', trackCount: 2 }];
-  app.responses['/api/v1/shows/first'] = () => ({
-    id: 'first', name: 'First', tracks: [{ file: '/media/f.mp3', durationMs: 60000, title: 'F' }],
-  });
-  await app.run('tuneIn()');
-  assert.deepEqual(app.calls, ['load']);
-  assert.equal(app.player.src, '/media/f.mp3');
+  assert.deepEqual(app.calls, []);
 });
 
 test('live: a set that ends on its own gets the between-set ident', async () => {
@@ -252,7 +220,6 @@ for (const control of ['nextTrack', 'prevTrack']) {
     app.run(`${control}()`);
     await app.settle();
     assert.ok(!app.calls.includes('play'), app.calls.join(','));
-    assert.ok(app.calls.includes('load'), 'the fetch wait can still fill with a load ident');
     assert.equal(app.player.src, '/media/a.mp3');
   });
 }

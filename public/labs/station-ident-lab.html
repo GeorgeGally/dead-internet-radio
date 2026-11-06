@@ -1105,51 +1105,88 @@ const BLK_FONT = {
   O: ['01110', '10001', '10001', '10001', '01110'],
 };
 const BLK_WORD = 'DEAD INTERNET RADIO';
-const BLK_COLS = BLK_WORD.length * 6 - 1;
-const BLK_MASK = [...BLK_WORD].reduce((g, ch, i) => {
-  if (BLK_FONT[ch]) BLK_FONT[ch].forEach((row, y) => { for (let x = 0; x < 5; x++) if (row[x] === '1') g[y][i * 6 + x] = 1; });
-  return g;
-}, Array.from({ length: 5 }, () => new Uint8Array(BLK_COLS)));
+const BLK_LINE = 7;  // a stacked line and the gap under it, in cells
+// The share of the screen's width the word takes; the wall fills the rest.
+const BLK_SHARE = 0.6, BLK_SHARE_STACKED = 0.72;
+// Square cells on whole device pixels, so the letters stay crisp at any size.
+function blkLayout(w, h) {
+  const stacked = w < h;
+  const lines = stacked ? BLK_WORD.split(' ') : [BLK_WORD];
+  const wide = (line) => line.length * 6 - 1;
+  const wordCols = Math.max(...lines.map(wide));
+  const cell = Math.max(3, Math.round(w * (stacked ? BLK_SHARE_STACKED : BLK_SHARE) / wordCols));
+  let cols = Math.ceil(w / cell);
+  if ((cols - wordCols) % 2) cols += 1;
+  const x0 = Math.floor((w - cols * cell) / 2);
+  const top = Math.round((h - (lines.length * BLK_LINE - 2) * cell) / 2);
+  const pixels = [];
+  lines.forEach((line, l) => {
+    const left = Math.floor((cols - wide(line)) / 2), first = Math.floor((wordCols - wide(line)) / 2);
+    [...line].forEach((ch, i) => (BLK_FONT[ch] || []).forEach((row, y) => [...row].forEach((on, x) => {
+      if (on !== '1') return;
+      const col = i * 6 + x, cy = l * BLK_LINE + y;
+      pixels.push({
+        x: x0 + (left + col) * cell, y: top + cy * cell,
+        rise: 2.2 + (first + col) / wordCols * .62 + cy * .03,
+        fall: 7.4 + (h32(cy * 977 + col * 131) % 1000) / 1000 * .8,
+      });
+    })));
+  });
+  return { cell, cols, rows: Math.ceil(h / cell) + 1, x0, pixels };
+}
+// The wall's glyphs, drawn once and stamped: a cell-wide strip of five tones.
+const BLK_TILES = [[0, 1], [1, 1], [1, .62], [2, .62], [3, .62]];
+function blkTiles(cell) {
+  const strip = document.createElement('canvas');
+  strip.width = cell * BLK_TILES.length; strip.height = cell;
+  const a = strip.getContext('2d');
+  a.textBaseline = 'top'; a.font = MONO(100);
+  const fs = 100 * cell / a.measureText(BLK_RAMP[0]).width;
+  a.font = MONO(fs); a.fillStyle = '#e8e4da';
+  BLK_TILES.forEach(([glyph, alpha], i) => {
+    a.globalAlpha = alpha;
+    a.fillText(BLK_RAMP[glyph], i * cell, (cell - fs) / 2);
+  });
+  return strip;
+}
+
+function blkWall(c, w, h, t, S, pixel) {
+  if (S.key !== w + 'x' + h) {
+    S.key = w + 'x' + h;
+    S.grid = blkLayout(w, h);
+    S.tiles = blkTiles(S.grid.cell);
+    const r = S.r;
+    S.v = Array.from({ length: S.grid.cols }, () => 2.6 + r() * 7);
+    S.o = Array.from({ length: S.grid.cols }, () => r() * 977);
+    S.a = Array.from({ length: S.grid.cols }, () => .55 + r() * .7);
+  }
+  const { cell, cols, rows, x0, pixels } = S.grid;
+  c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
+  const fade = ramp(t, 0, 1.1), hold = ramp(t, 2.6, .7) * (1 - ramp(t, 7.6, .6));
+  for (let col = 0; col < cols; col++) {
+    const p = (S.v[col] * t + S.o[col]) % 977, fr = Math.floor(p), shift = Math.round((p - fr) * cell), x = x0 + col * cell;
+    c.globalAlpha = fade * .32 * S.a[col] * (.92 - .3 * hold);
+    for (let r = 0; r < rows; r++) {
+      const g = h32((r + fr) * 131 + col * 977) % 100;
+      const tile = g < 24 ? 0 : g < 40 ? 1 : g < 56 ? 2 : g < 82 ? 3 : 4;
+      c.drawImage(S.tiles, tile * cell, 0, cell, cell, x, r * cell - shift, cell, cell);
+    }
+  }
+  c.fillStyle = ORANGE;
+  for (const px of pixels) {
+    const a = ramp(t, px.rise, .22) * (1 - ramp(t, px.fall, .18));
+    if (a <= 0) continue;
+    c.globalAlpha = a;
+    pixel(px, cell);
+  }
+  c.globalAlpha = 1;
+}
 
 V.push({
   name: 'ASCII · block wall', seed: '3a7f1c9d0b5e4826fd91a74c', L: 11,
   idea: 'The whole screen is a wall of block glyphs scrolling in independent columns on one character grid, and the five rows through the middle stop and lock into DEAD INTERNET RADIO before the wall takes them back.',
-  init(S) {
-    S.v = Array.from({ length: BLK_COLS }, () => 2.6 + S.r() * 7);
-    S.o = Array.from({ length: BLK_COLS }, () => S.r() * 977);
-    S.a = Array.from({ length: BLK_COLS }, () => .55 + S.r() * .7);
-  },
   draw(c, w, h, t, S) {
-    const u = h / 100;
-    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
-    c.textBaseline = 'top';
-    // one cell width for the whole grid, taken from the window so the wall is always flush edge to edge
-    if (!S.aw) { c.font = MONO(100); S.aw = c.measureText(BLK_RAMP[0]).width; }
-    // row pitch equals the font size so the cells tile and the block letters stay solid
-    const cw = (w - 8 * u) / BLK_COLS, fs = 100 * cw / S.aw, rh = fs;
-    const rows = Math.max(9, Math.floor(h / rh) - 2), y0 = (h - rows * rh) / 2, x0 = (w - BLK_COLS * cw) / 2;
-    c.font = MONO(fs);
-    const band = Math.floor((rows - 5) / 2), fade = ramp(t, 0, 1.1), hold = ramp(t, 2.6, .7) * (1 - ramp(t, 7.6, .6));
-    for (let col = 0; col < BLK_COLS; col++) {
-      const p = (S.v[col] * t + S.o[col]) % 977, fr = Math.floor(p), ph = p - fr, x = x0 + col * cw, ca = S.a[col];
-      for (let r = 0; r < rows; r++) {
-        const y = y0 + (r - ph) * rh, wr = r - band;
-        const edge = Math.min(ramp(r, -.5, 3), 1 - ramp(r, rows - 2.5, 3));
-        const g = h32((r + fr) * 131 + col * 977) % 100, wa = fade * (.04 + .28 * edge) * ca * (.92 - .3 * hold);
-        // the band locks: each letter cell stops scrolling and goes solid orange
-        if (wr >= 0 && wr < 5 && BLK_MASK[wr][col]) {
-          const rv = ramp(t, 2.2 + col * .0055 + wr * .03, .22), dv = ramp(t, 7.4 + (h32(wr * 977 + col * 131) % 1000) / 1000 * .8, .18);
-          if (rv > 0 && dv < 1) {
-            c.globalAlpha = rv * (1 - dv); c.fillStyle = ORANGE; c.fillText(BLK_RAMP[0], x, y);
-            continue;
-          }
-        }
-        c.globalAlpha = wa * (g < 40 ? 1 : .62);
-        c.fillStyle = '#e8e4da';
-        c.fillText(g < 24 ? BLK_RAMP[0] : g < 56 ? BLK_RAMP[1] : g < 82 ? BLK_RAMP[2] : BLK_RAMP[3], x, y);
-      }
-    }
-    c.globalAlpha = 1; c.textBaseline = 'alphabetic';
+    blkWall(c, w, h, t, S, (px, cell) => c.fillRect(px.x, px.y, cell, cell));
   },
 });
 
@@ -1157,46 +1194,16 @@ V.push({
 V.push({
   name: 'ASCII · dotted wall', seed: 'b41d7c2e6a903f58d2e7b140', L: 11,
   idea: 'The same wall of block glyphs scrolling in independent columns, except the five rows that lock into DEAD INTERNET RADIO are drawn as a field of dots instead of solid blocks, so the name resolves out of punctuation rather than ink.',
-  init(S) {
-    S.v = Array.from({ length: BLK_COLS }, () => 2.6 + S.r() * 7);
-    S.o = Array.from({ length: BLK_COLS }, () => S.r() * 977);
-    S.a = Array.from({ length: BLK_COLS }, () => .55 + S.r() * .7);
-  },
   draw(c, w, h, t, S) {
-    const u = h / 100;
-    c.fillStyle = '#0b0b0a'; c.fillRect(0, 0, w, h);
-    c.textBaseline = 'top';
-    if (!S.aw) { c.font = MONO(100); S.aw = c.measureText(BLK_RAMP[0]).width; }
-    const cw = (w - 8 * u) / BLK_COLS, fs = 100 * cw / S.aw, rh = fs;
-    const rows = Math.max(9, Math.floor(h / rh) - 2), y0 = (h - rows * rh) / 2, x0 = (w - BLK_COLS * cw) / 2;
-    c.font = MONO(fs);
-    const band = Math.floor((rows - 5) / 2), fade = ramp(t, 0, 1.1), hold = ramp(t, 2.6, .7) * (1 - ramp(t, 7.6, .6));
     // the dot cluster that stands in for one solid block
-    const ds = cw * 0.2, gx = (cw - ds * 3) / 4, gy = (rh - ds * 3) / 4;
-    for (let col = 0; col < BLK_COLS; col++) {
-      const p = (S.v[col] * t + S.o[col]) % 977, fr = Math.floor(p), ph = p - fr, x = x0 + col * cw, ca = S.a[col];
-      for (let r = 0; r < rows; r++) {
-        const y = y0 + (r - ph) * rh, wr = r - band;
-        const edge = Math.min(ramp(r, -.5, 3), 1 - ramp(r, rows - 2.5, 3));
-        const g = h32((r + fr) * 131 + col * 977) % 100, wa = fade * (.04 + .28 * edge) * ca * (.92 - .3 * hold);
-        if (wr >= 0 && wr < 5 && BLK_MASK[wr][col]) {
-          const rv = ramp(t, 2.2 + col * .0055 + wr * .03, .22), dv = ramp(t, 7.4 + (h32(wr * 977 + col * 131) % 1000) / 1000 * .8, .18);
-          if (rv > 0 && dv < 1) {
-            c.globalAlpha = rv * (1 - dv); c.fillStyle = ORANGE;
-            for (let j = 0; j < 3; j++) {
-              for (let i = 0; i < 3; i++) {
-                c.fillRect(x + gx + i * (ds + gx), y + gy + j * (ds + gy), ds, ds);
-              }
-            }
-            continue;
-          }
+    blkWall(c, w, h, t, S, (px, cell) => {
+      const ds = Math.max(1, Math.round(cell * .2)), gap = (cell - ds * 3) / 4;
+      for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 3; i++) {
+          c.fillRect(px.x + Math.round(gap + i * (ds + gap)), px.y + Math.round(gap + j * (ds + gap)), ds, ds);
         }
-        c.globalAlpha = wa * (g < 40 ? 1 : .62);
-        c.fillStyle = '#e8e4da';
-        c.fillText(g < 24 ? BLK_RAMP[0] : g < 56 ? BLK_RAMP[1] : g < 82 ? BLK_RAMP[2] : BLK_RAMP[3], x, y);
       }
-    }
-    c.globalAlpha = 1; c.textBaseline = 'alphabetic';
+    });
   },
 });
 
@@ -1205,6 +1212,7 @@ V.push({
 const params = new URLSearchParams(location.search);
 const ONLY = params.has('only') ? Number(params.get('only')) - 1 : null;
 const FREEZE = params.has('t') ? Number(params.get('t')) : null;
+const ONCE = params.has('once');
 if (ONLY !== null) document.body.classList.add('solo');
 let voice = null;
 
@@ -1219,7 +1227,7 @@ V.forEach((v, i) => {
   if (v.init) v.init(S);
   const st = { v, S, cv, ctx: cv.getContext('2d') };
   new ResizeObserver(() => {
-    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(devicePixelRatio || 1, 2);
     cv.width = Math.round(stage.clientWidth * dpr); cv.height = Math.round(stage.clientHeight * dpr);
   }).observe(stage);
   new IntersectionObserver(([e]) => { S.visible = e.isIntersecting || ONLY !== null; }, { rootMargin: '100px' }).observe(stage);
@@ -1236,7 +1244,10 @@ function frame(now) {
   for (const { v, S, cv, ctx } of stages) {
     if (!S.visible || !cv.width) continue;
     let t = FREEZE !== null ? FREEZE : (now - S.start) / 1000;
-    if (FREEZE === null && t > v.L) { S.start = now; t = 0; }
+    if (FREEZE === null && t > v.L) {
+      if (ONCE) { parent.postMessage('ident-done', location.origin); return; }
+      S.start = now; t = 0;
+    }
     const w = cv.width, h = cv.height;
     ctx.save(); v.draw(ctx, w, h, t, S); ctx.restore();
     if (FREEZE === null && t > v.L - .6) { ctx.fillStyle = `rgba(0,0,0,${ramp(t, v.L - .6, .6)})`; ctx.fillRect(0, 0, w, h); }
