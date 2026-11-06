@@ -5,8 +5,8 @@ class StationIdent < ApplicationRecord
   LAB = Rails.root.join("public/labs/station-ident-lab.html")
   CLIPS = Rails.root.join("public/station-ids")
   # Off until someone turns them on: V5 (X-Y oscilloscope), V7 (radar), V11
-  # (round amber oscilloscope).
-  RETIRED = [5, 7, 11].freeze
+  # (round amber oscilloscope), V12 (spectrogram), V21 (cassette).
+  RETIRED = [5, 7, 11, 12, 21].freeze
 
   CLIP_NAMES = {
     1 => "0321.9 kilohertz",

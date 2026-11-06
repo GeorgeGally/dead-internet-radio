@@ -19,7 +19,7 @@ class AdminIdentsTest < ActionDispatch::IntegrationTest
   end
 
   test "the retired ones start off and everything else on" do
-    assert_equal (1..25).to_a - [5, 7, 11], on_air["visual"]
+    assert_equal (1..25).to_a - StationIdent::RETIRED, on_air["visual"]
     assert_equal (1..14).to_a, on_air["audio"]
   end
 
