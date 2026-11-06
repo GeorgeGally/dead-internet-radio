@@ -21,7 +21,11 @@ ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # the 4B LM to plan the audio codes: it drops the cheesy high EDM synths
 # (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
 MIN_TRACK_SECONDS = int(os.getenv("MIN_TRACK_SECONDS", "105"))
-MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "180"))
+MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "360"))
+# Most songs run to here; a long song is over four minutes.
+NORMAL_TRACK_SECONDS = 180
+LONG_TRACK_SECONDS = 240
+LONG_TRACK_SHARE = 1 / 3
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated list of models to try in order. A pinned model keeps the
@@ -423,8 +427,10 @@ def query_ace_step(task_id: str, http_timeout: int = 10) -> dict | None:
         return None
 
 
-def poll_ace_step(task_id: str, poll_interval: int = 15, timeout: int = 900,
+def poll_ace_step(task_id: str, poll_interval: int = 15,
                   track_number: int = 0, total_tracks: int = 0, estimated_duration: int = 240) -> dict:
+    # Render time grows with the song, and the cool guard has stretched it to 4x.
+    timeout = max(900, estimated_duration * 6)
     start = time.time()
     consecutive_errors = 0
     while True:
@@ -466,6 +472,22 @@ def poll_ace_step(task_id: str, poll_interval: int = 15, timeout: int = 900,
                 "estimated_s": estimated_duration,
             })
         time.sleep(poll_interval)
+
+
+def spread_lengths(asked: list) -> list[int]:
+    """The DJ's lengths nudged so no two match, then its longest stretched until about a third run long."""
+    lengths = [
+        min(max(int(a or random.randint(MIN_TRACK_SECONDS, NORMAL_TRACK_SECONDS)) + random.randint(-12, 12),
+                MIN_TRACK_SECONDS), MAX_TRACK_SECONDS)
+        for a in asked
+    ]
+    # A random round, so a one-song request runs long a third of the time too.
+    wanted = int(len(lengths) * LONG_TRACK_SHARE + random.random())
+    normal = sorted((i for i, s in enumerate(lengths) if s <= LONG_TRACK_SECONDS), key=lambda i: -lengths[i])
+    missing = wanted - (len(lengths) - len(normal))
+    for i in normal[:max(missing, 0)]:
+        lengths[i] = random.randint(LONG_TRACK_SECONDS + 1, MAX_TRACK_SECONDS)
+    return lengths
 
 
 def wav_to_mp3(wav_path: Path, mp3_path: Path) -> bool:
@@ -864,10 +886,9 @@ def main():
                 songs.append(song)
 
         # --- Process tracks (shared between batch and per-track) ---
+        lengths = spread_lengths([song.get("duration") for song in songs])
         for i, song in enumerate(songs, 1):
-            # Lengths vary across a set: the DJ's choice, nudged so no two match.
-            asked = song.get("duration") or random.randint(MIN_TRACK_SECONDS, MAX_TRACK_SECONDS)
-            song["duration"] = min(max(int(asked) + random.randint(-12, 12), MIN_TRACK_SECONDS), MAX_TRACK_SECONDS)
+            song["duration"] = lengths[i - 1]
             track_prompt = song.pop("_prompt", dj_input)
 
             title = song.get("title", "").strip() or "Untitled"
