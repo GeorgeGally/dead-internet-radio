@@ -35,23 +35,36 @@ visuals.register('bouncy', (() => {
       }
 
       function moveBall() {
-        if (x > p.width - sz / 2 || x < sz / 2) speedx *= -1;
-        if (y > p.height - sz / 2 || y < sz / 2) speedy *= -1;
+        // Aim away from the wall. Flipping the sign instead pins the ball to any
+        // wall it starts inside: it reverses every frame and never leaves.
+        if (x > p.width - sz / 2) speedx = -Math.abs(speedx);
+        else if (x < sz / 2) speedx = Math.abs(speedx);
+        if (y > p.height - sz / 2) speedy = -Math.abs(speedy);
+        else if (y < sz / 2) speedy = Math.abs(speedy);
         x += speedx;
         y += speedy;
         rotation += 1;
       }
 
+      p.windowResized = () => {
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
+        const trail = p.createGraphics(p.width, p.height);
+        trail.image(ctx, 0, 0);
+        ctx.remove();
+        ctx = trail;
+        p.background(216, 212, 203);
+      };
+
       p.setup = () => {
         visuals.setupP5Canvas(p, { pixelDensity: 1 });
         p.angleMode(p.DEGREES);
 
-        ctx = p.createGraphics(p.windowWidth, p.windowHeight);
-        x = Math.random() * p.width / 2;
-        y = Math.random() * p.height / 2;
+        ctx = p.createGraphics(p.width, p.height);
+        sz = 80;
+        x = sz / 2 + Math.random() * (p.width - sz);
+        y = sz / 2 + Math.random() * (p.height - sz);
         speedx = Math.random() * 2 + 1;
         speedy = Math.random() * 2 + 1;
-        sz = 80;
         rotation = 0;
         p.background(216, 212, 203);
       };
@@ -59,7 +72,7 @@ visuals.register('bouncy', (() => {
       p.draw = () => {
         moveBall();
         drawPoly();
-        p.image(ctx, 0, 0, p.width, p.height);
+        p.image(ctx, 0, 0);
         canvasFilters.applyToP5(p);
       };
     });
