@@ -44,6 +44,44 @@ function openingArtwork() {
   try { localStorage.setItem('opening-artwork', id); } catch (e) {}
 }
 
+// An empty WAV: asks the browser for sound without making any.
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
+function refusedIn(ms, promise) {
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(reject, ms))]);
+}
+
+// True when the browser lets this page play sound without a click. Both have
+// to be open: the player runs through the AudioContext, so a suspended one
+// plays silence even after audio.play() succeeds.
+async function autoplayAllowed() {
+  const Context = window.AudioContext || window.webkitAudioContext;
+  let probe = null;
+  let ctx = null;
+  try {
+    probe = new Audio(SILENCE);
+    await refusedIn(1000, probe.play());
+    if (!Context) return true;
+    ctx = new Context();
+    if (ctx.state === 'suspended') await refusedIn(300, ctx.resume());
+    return ctx.state === 'running';
+  } catch (e) {
+    return false;
+  } finally {
+    if (probe) probe.pause();
+    if (ctx) ctx.close().catch(() => {});
+  }
+}
+
+// No splash, no station ID: straight onto the air.
+function skipWelcome() {
+  const splash = document.getElementById('welcome-splash');
+  _welcomeActive = false;
+  visuals.cancelPrewarm();
+  openingArtwork();
+  if (splash) splash.style.display = 'none';
+}
+
 function showWelcome() {
   const splash = document.getElementById('welcome-splash');
   const audio = document.getElementById('welcome-audio');
@@ -1132,8 +1170,13 @@ let audioAnalysisReady = false;
   setupDeckRetraction();
   setupLogoHover();
 
+  const autoplay = autoplayAllowed();
+  autoplay.then((allowed) => {
+    if (!allowed) document.getElementById('welcome-splash').classList.add('click-to-start');
+  });
   await loadActiveVisuals();
-  showWelcome();
+  if (await autoplay) skipWelcome();
+  else showWelcome();
   tuneIn();
 }
 

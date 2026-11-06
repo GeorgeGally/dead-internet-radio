@@ -1475,6 +1475,10 @@ body.prewarming #block-canvas {
   pointer-events: none;
 }
 
+#welcome-splash:not(.click-to-start) .welcome-letterbox {
+  visibility: hidden;
+}
+
 #welcome-dir {
   display: none;
 }
