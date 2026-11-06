@@ -19,6 +19,7 @@
     <% outstanding_requests = SongRequest.outstanding.count %>
     <a href="/admin/requests">Requests<% if outstanding_requests.positive? %><span class="nav-count"><%= outstanding_requests %></span><% end %></a>
     <a href="/admin/visuals">Visuals</a>
+    <a href="/admin/idents">Station IDs</a>
     <a href="/admin/generation">Generate</a>
     <div style="flex:1"></div>
     <%= link_to "Sign out", admin_logout_path, method: :delete, style: "font-size:12px;color:rgba(216,212,203,0.25);margin-top:auto" %>

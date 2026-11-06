@@ -1,13 +1,11 @@
 'use strict';
 
 // Station idents are the versions in labs/station-ident-lab.html, played full
-// frame in an iframe. The welcome splash draws from the same pool. Retired
-// ones stay in the lab but never air: V5 (X-Y oscilloscope), V7 (radar), V11
-// (round amber oscilloscope).
+// frame in an iframe. The welcome splash draws from the same pool. What's on
+// air is switched at /admin/idents and asked for fresh before every ident, so
+// one turned off never airs, even on a page that's been open for hours.
 
 (function () {
-  const COUNT = 24;
-  const RETIRED = [5, 7, 11];
   // However often the sets change, the screen sees an ident at most this
   // often. The clock outlives a reload.
   const MIN_GAP_MS = 30 * 60 * 1000;
@@ -20,6 +18,7 @@
   let last = 0;
   let starting = false;
   let timer = 0;
+  let runs = 0;
 
   function stored(key) {
     try { return Number(localStorage.getItem(key)) || 0; } catch (e) { return 0; }
@@ -34,10 +33,21 @@
     store(SHOWN_KEY, shownAt);
   }
 
-  // A random ident, never the one before it.
-  function pick() {
+  // No answer airs nothing: an ident that's off must never slip through.
+  async function onAir() {
+    try {
+      const response = await fetch('/api/v1/idents', { cache: 'no-store' });
+      if (response.ok) return await response.json();
+    } catch (e) {}
+    return { visual: [], audio: [] };
+  }
+
+  // A random ident, never the one before it unless it's the only one on.
+  function pick(visual) {
+    if (!visual.length) return null;
     const skip = last || stored(LAST_KEY);
-    const pool = Array.from({ length: COUNT }, (_, i) => i + 1).filter((n) => !RETIRED.includes(n) && n !== skip);
+    const fresh = visual.filter((n) => n !== skip);
+    const pool = fresh.length ? fresh : visual;
     last = pool[Math.floor(Math.random() * pool.length)];
     store(LAST_KEY, last);
     return 'labs/station-ident-lab.html?only=' + last;
@@ -65,16 +75,22 @@
     if (splashUp()) markShown();
   }
 
-  function play() {
+  async function play() {
     if (!frame || splashUp() || Date.now() - Math.max(shownAt, stored(SHOWN_KEY)) < MIN_GAP_MS) return;
     stop();
     markShown();
+    const run = runs;
+    const { visual } = await onAir();
+    if (run !== runs) return;
+    const src = pick(visual);
+    if (!src) return;
     starting = true;
-    frame.src = pick() + '&once';
+    frame.src = src + '&once';
   }
 
   function stop() {
     if (!frame) return;
+    runs += 1;
     clearTimeout(timer);
     timer = 0;
     starting = false;
@@ -82,5 +98,5 @@
     frame.src = 'about:blank';
   }
 
-  window.idents = { init, play, stop, pick };
+  window.idents = { init, play, stop, pick, onAir };
 })();

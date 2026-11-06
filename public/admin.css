@@ -568,3 +568,18 @@ a.btn-key { display: inline-flex; align-items: center; text-decoration: none; }
 .switch input:checked + .switch-track::after { transform: translateX(20px); }
 .switch input:focus-visible + .switch-track { outline: 2px solid #1a1a1a; outline-offset: 3px; }
 table.requests tr:target td { background: rgba(255, 90, 31, 0.1); }
+
+/* Station IDs: the same run of idents the player picks from. */
+.idents { margin-bottom: 48px; }
+.idents th { letter-spacing: 0.04em; }
+.idents th:last-child { text-align: right; white-space: nowrap; }
+.idents td { padding: 8px 14px; vertical-align: middle; }
+.idents .play-cell { width: 44px; padding-right: 0; }
+.idents .stage-cell { width: 188px; }
+.ident-stage {
+  position: relative; width: 160px; height: 90px; overflow: hidden; border-radius: 3px;
+  background-color: #000; background-size: cover; background-position: center;
+}
+.ident-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+.idents tr.is-off .ident-stage { opacity: 0.4; }
+.idents tr.is-off td:not(.switch-cell):not(.play-cell) { color: rgba(0,0,0,0.3); }

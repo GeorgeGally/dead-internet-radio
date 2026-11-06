@@ -1,0 +1,38 @@
+<h2>Station IDs</h2>
+
+<table class="idents">
+  <thead>
+    <tr><th></th><th>Visual</th><th></th><th>On air</th></tr>
+  </thead>
+  <tbody>
+    <% @idents.fetch("visual", []).each do |ident| %>
+      <tr class="<%= 'is-off' unless ident.active %>">
+        <td class="play-cell">
+          <button type="button" class="btn-play" data-ident-src="<%= ident.src %>" aria-label="Play <%= ident.name %>">▶</button>
+        </td>
+        <td class="stage-cell"><div class="ident-stage" style="background-image: url(/labs/ident-posters/<%= ident.number %>.jpg)"></div></td>
+        <td class="ident-name"><%= ident.name %></td>
+        <%= render "switch", ident: ident %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<table class="idents">
+  <thead>
+    <tr><th></th><th>Audio</th><th>On air</th></tr>
+  </thead>
+  <tbody>
+    <% @idents.fetch("audio", []).each do |ident| %>
+      <tr class="<%= 'is-off' unless ident.active %>">
+        <td class="play-cell">
+          <button type="button" class="btn-play" data-src="<%= ident.src %>" onclick="playTrack(this)" aria-label="Play <%= ident.name %>">▶</button>
+        </td>
+        <td class="ident-name"><%= ident.name %></td>
+        <%= render "switch", ident: ident %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<script src="/admin_idents.js" defer></script>

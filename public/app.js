@@ -3,12 +3,10 @@
 const EPOCH = 2051222400000;
 let _welcomeActive = true;
 
-const STATION_ID_COUNT = 14;     // public/station-ids/id-NN.wav
-
-function startWelcomeIdent() {
+function startWelcomeIdent(visual) {
   const frame = document.getElementById('welcome-ident');
-  if (!frame) return;
-  frame.src = idents.pick();
+  const src = idents.pick(visual);
+  if (frame && src) frame.src = src;
 }
 
 function stopWelcomeIdent() {
@@ -87,13 +85,6 @@ function showWelcome() {
   const audio = document.getElementById('welcome-audio');
   if (!splash || !audio) return;
 
-  startWelcomeIdent();
-
-  const n = Math.floor(Math.random() * STATION_ID_COUNT) + 1;
-
-  audio.src = 'station-ids/id-' + String(n).padStart(2, '0') + '.wav';
-  audio.play().catch(() => {});
-
   let dismissed = false;
   function dismiss() {
     if (dismissed) return;
@@ -118,6 +109,15 @@ function showWelcome() {
   audio.addEventListener('ended', dismiss, { once: true });
   audio.addEventListener('error', dismiss, { once: true });
   setTimeout(dismiss, 10000);
+
+  idents.onAir().then(({ visual, audio: clips }) => {
+    if (dismissed) return;
+    startWelcomeIdent(visual);
+    if (!clips.length) return;
+    const n = clips[Math.floor(Math.random() * clips.length)];
+    audio.src = 'station-ids/id-' + String(n).padStart(2, '0') + '.wav';
+    audio.play().catch(() => {});
+  });
 }
 
 const LOCAL_PREVIEW_PLAYLIST = {

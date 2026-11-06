@@ -12,7 +12,10 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-function loadIdents({ stored = {}, random = 0 } = {}) {
+const ALL = Array.from({ length: 24 }, (_, i) => i + 1);
+
+function loadIdents({ stored = {}, random = 0, onAir = { visual: ALL, audio: [1] } } = {}) {
+  const server = { onAir, asks: 0 };
   const classes = new Set();
   const store = new Map(Object.entries(stored).map(([k, v]) => [k, String(v)]));
   const listeners = {};
@@ -30,6 +33,11 @@ function loadIdents({ stored = {}, random = 0 } = {}) {
       getItem: (key) => (store.has(key) ? store.get(key) : null),
       setItem: (key, value) => store.set(key, value),
     },
+    fetch: async () => {
+      server.asks += 1;
+      if (!server.onAir) throw new Error('offline');
+      return { ok: true, json: async () => server.onAir };
+    },
     setTimeout: () => 1,
     clearTimeout() {},
     Math: Object.create(Math, { random: { value: () => random } }),
@@ -39,28 +47,29 @@ function loadIdents({ stored = {}, random = 0 } = {}) {
   vm.runInContext(read('public/ident.js'), sandbox);
   const idents = sandbox.window.idents;
   idents.init();
-  return { idents, frame, classes, store, loaded: () => listeners.load(), message: (e) => messages(e) };
+  return { idents, frame, classes, store, server, loaded: () => listeners.load(), message: (e) => messages(e) };
 }
 
 const MINUTE = 60 * 1000;
 
-test('an ident waits thirty minutes after the last one', () => {
+test('an ident waits thirty minutes after the last one', async () => {
   const recent = loadIdents({ stored: { 'ident-shown-at': Date.now() - 29 * MINUTE } });
-  recent.idents.play();
+  await recent.idents.play();
   assert.equal(recent.frame.src, '');
+  assert.equal(recent.server.asks, 0, 'no call while the gate is shut');
 
   const old = loadIdents({ stored: { 'ident-shown-at': Date.now() - 31 * MINUTE } });
-  old.idents.play();
+  await old.idents.play();
   assert.match(old.frame.src, /^labs\/station-ident-lab\.html\?only=\d+&once$/);
   assert.ok(Number(old.store.get('ident-shown-at')) > Date.now() - MINUTE, 'the clock restarts');
   old.idents.stop();
-  old.idents.play();
+  await old.idents.play();
   assert.equal(old.frame.src, 'about:blank');
 });
 
-test('an ident shows once loaded and leaves when its run ends', () => {
+test('an ident shows once loaded and leaves when its run ends', async () => {
   const { idents, frame, classes, loaded, message } = loadIdents();
-  idents.play();
+  await idents.play();
   assert.ok(!classes.has('on'));
   loaded();
   assert.ok(classes.has('on'));
@@ -69,17 +78,56 @@ test('an ident shows once loaded and leaves when its run ends', () => {
   assert.equal(frame.src, 'about:blank');
 });
 
-test('every ident but the retired ones airs, never twice running', () => {
+test('every ident on air can be picked, never twice running', () => {
+  const on = ALL.filter((n) => ![5, 7, 11].includes(n));
   const seen = new Set();
   for (let i = 0; i < 24; i += 1) {
     const { idents } = loadIdents({ random: i / 24 });
-    seen.add(Number(idents.pick().split('only=')[1]));
+    seen.add(Number(idents.pick(on).split('only=')[1]));
   }
-  assert.deepEqual([...seen].sort((a, b) => a - b), Array.from({ length: 24 }, (_, i) => i + 1).filter((n) => ![5, 7, 11].includes(n)));
+  assert.deepEqual([...seen].sort((a, b) => a - b), on);
 
   const { idents } = loadIdents({ stored: { 'ident-last': 1 } });
-  assert.equal(idents.pick(), 'labs/station-ident-lab.html?only=2');
-  assert.equal(idents.pick(), 'labs/station-ident-lab.html?only=1');
+  assert.equal(idents.pick(on), 'labs/station-ident-lab.html?only=2');
+  assert.equal(idents.pick(on), 'labs/station-ident-lab.html?only=1');
+});
+
+test('an ident switched off never airs, even on a page already open', async () => {
+  const page = loadIdents({ stored: { 'ident-shown-at': 1 }, onAir: { visual: [3, 9], audio: [] } });
+  page.server.onAir = { visual: [9], audio: [] };
+  await page.idents.play();
+  assert.match(page.frame.src, /only=9&once$/);
+});
+
+test('the only ident on air still airs after itself', async () => {
+  const { idents, frame } = loadIdents({ stored: { 'ident-shown-at': 1, 'ident-last': 3 }, onAir: { visual: [3], audio: [] } });
+  await idents.play();
+  assert.match(frame.src, /only=3&once$/);
+});
+
+test('with every ident off, or no answer, nothing airs', async () => {
+  for (const onAir of [{ visual: [], audio: [] }, null]) {
+    const { idents, frame, classes } = loadIdents({ stored: { 'ident-shown-at': 1 }, onAir });
+    await idents.play();
+    assert.ok(!/only=/.test(frame.src));
+    assert.ok(!classes.has('on'));
+  }
+  assert.equal(loadIdents().idents.pick([]), null);
+});
+
+test('a stop while the list is on its way cancels the ident', async () => {
+  const { idents, frame } = loadIdents({ stored: { 'ident-shown-at': 1 } });
+  const playing = idents.play();
+  idents.stop();
+  await playing;
+  assert.equal(frame.src, 'about:blank');
+});
+
+test('the welcome splash plays only what is on air', () => {
+  const app = read('public/app.js');
+  assert.doesNotMatch(app, /STATION_ID_COUNT/);
+  assert.match(app, /idents\.onAir\(\)\.then\(\(\{ visual, audio: clips \}\)/);
+  assert.match(app, /if \(!clips\.length\) return;/);
 });
 
 function grids() {

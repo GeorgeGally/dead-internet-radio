@@ -6,6 +6,7 @@ Rails.application.routes.draw do
       resources :shows, only: [:index, :show]
       resources :tracks, only: [:show]
       resources :visuals, only: [:index]
+      get "idents", to: "idents#index"
       get "looks", to: "looks#index"
       post "looks/merge", to: "looks#merge"
       put "looks/:artwork/:slot", to: "looks#update", as: :look, constraints: { artwork: /[\w-]+/, slot: /\d+/ }
@@ -56,6 +57,7 @@ Rails.application.routes.draw do
       post :retry, on: :member
     end
     resources :visuals, only: [:index, :update]
+    resources :idents, only: [:index, :update]
     resources :generation, only: [:index, :new, :create, :show] do
       member do
         post :retry
