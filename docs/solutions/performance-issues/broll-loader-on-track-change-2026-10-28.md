@@ -52,3 +52,34 @@ cookie. Archive items never change under a URL, so a replay is a cache hit.
 Still worth doing someday: pre-encode 15-second 480p excerpts per item so the
 player never pulls a whole film, and a service-worker cache for clips that
 repeat. Neither was needed once the reel stopped being thrown away.
+
+## 4. The rotation threw the reel away too (2026-11-06)
+
+The artwork clock cuts in bursts of 1-4 s, so the rotation lands on B-roll for
+a second or two at a time. `stop()` emptied the reel but left `trackKey` set,
+so every return during the same track loaded nothing and the leader counted
+down until the next track. On the live site that read as no video at all for
+minutes, with `/broll` never requested.
+
+- The reel now outlives the artwork. `stop()` only pauses it, a load in flight
+  carries on, and an empty reel reloads every 20 s while on screen.
+- Both video artworks start loading as soon as the track is known, before their
+  first turn. Giphy holds two buffered clips across rotations.
+- Cut timing uses `performance.now()`: `p.millis()` restarts with each sketch,
+  and `shotAt` outlives the sketch.
+
+## 5. A paused film pins a server thread
+
+A paused `<video>` stops reading and keeps its range request open, so a reel
+that stays around holds three Puma threads (of 16) and three archive.org
+connections for the whole visit. `/broll` answers an open-ended range with
+1 MB; the browser asks for the next piece when it wants one. Closed ranges,
+which is what Safari sends, go through as asked. From apps1 a piece takes about
+2 s with the redirect hop and less once the storage host is remembered.
+
+Upstream errors are sent `no-store`: an archive.org 503 used to carry the
+one-year `immutable` header.
+
+**Measure on apps1, not the Mac.** Archive.org gives the Mac about 10 KB/s and
+apps1 about 500 KB/s, so a local run says nothing about load times. Local dev
+databases also have no tracks, which leaves the track key empty.

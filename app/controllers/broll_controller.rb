@@ -12,6 +12,13 @@ class BrollController < ApplicationController
   # Ad files are named like "1968 Easter Seals with Carol Burnett.mp4".
   FILE = %r{\A[^\0\\]+\.mp4\z}
 
+  # The player keeps films paused and ready between turns. A paused <video>
+  # stops reading, so an open-ended range would hold a Puma thread and an
+  # archive.org connection for the whole visit. Answering a piece at a time
+  # lets each request finish; the browser asks for the next when it wants it.
+  OPEN_RANGE = /\Abytes=(\d+)-\z/
+  PIECE_BYTES = 1.megabyte
+
   # A clip is public and never changes; the session cookie only stops proxies
   # and the browser cache keeping it, and every range request pays for it.
   before_action :skip_session_cookie, only: :show
@@ -36,10 +43,15 @@ class BrollController < ApplicationController
     request.session_options[:skip] = true
   end
 
+  def piece_of(range)
+    first = range[OPEN_RANGE, 1]&.to_i
+    first ? "bytes=#{first}-#{first + PIECE_BYTES - 1}" : range
+  end
+
   def fetch(uri, redirects, path)
     Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) do |http|
       req = Net::HTTP::Get.new(uri)
-      req["Range"] = request.headers["Range"] if request.headers["Range"].present?
+      req["Range"] = piece_of(request.headers["Range"]) if request.headers["Range"].present?
       http.request(req) do |res|
         if res.is_a?(Net::HTTPRedirection) && redirects.positive?
           Rails.cache.write("broll:#{path}", res["location"], expires_in: 30.minutes)
