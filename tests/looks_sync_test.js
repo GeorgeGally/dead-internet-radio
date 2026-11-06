@@ -130,3 +130,15 @@ test('a save reaches the server before it counts', async () => {
   assert.equal(p.gallery.slotHasPreset('bouncy', 4), true);
   assert.equal(JSON.parse(p.store.get('visual-looks-cache')).bouncy[4].cutoff, 130);
 });
+
+test('pressing the slot dial goes round from 9 to off; turning it stops at 9', async () => {
+  const p = player({ server: () => ({ looks: { bouncy: { 9: look(90) } }, admin: false }) });
+  await p.gallery.syncLooks();
+  p.gallery.selectSlot(9);
+  p.gallery.nextSlot(1);
+  assert.equal(p.gallery.getActiveSlot(), 9);
+  p.gallery.nextSlot(1, true);
+  assert.equal(p.gallery.getActiveSlot(), 0);
+  p.gallery.nextSlot(1, true);
+  assert.equal(p.gallery.getActiveSlot(), 1);
+});

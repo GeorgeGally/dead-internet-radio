@@ -784,7 +784,7 @@ function setupControls() {
         slotKnob.removeEventListener('pointercancel', onUp);
         slotKnob.classList.remove('dragging');
         if (moved < CLICK_THRESHOLD) {
-          gallery.nextSlot(1);
+          gallery.nextSlot(1, true);
         }
       }
       slotKnob.addEventListener('pointerdown', onDown);

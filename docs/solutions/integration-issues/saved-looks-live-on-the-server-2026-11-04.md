@@ -15,6 +15,12 @@ admin saved reached other listeners. They now live in `visual_looks`, served by
 - Uploading from localhost goes to the local database, not the station's. To
   carry looks across, copy the box on `localhost:3000/admin/visuals` and paste it
   into Import looks on the live admin.
+- Chrome keeps each address's copy on disk in
+  `~/Library/Application Support/Google/Chrome/<profile>/Local Storage/leveldb`,
+  so old looks can still be read after the fact. On 2026-11-07, 87 of them came
+  back from `localhost:3000`, `127.0.0.1:3000`, `localhost:3100` and Profile 12
+  through `VisualLook.merge!`. Four stayed out because Prelinger and Giphy have
+  all nine slots taken.
 - `visual-looks-cache` is the offline copy. `visual-slot-presets` is never
   overwritten: it moves to `visual-slot-presets-sent` once uploaded.
 - Read look bodies from `request.raw_post`. Rails strips nulls from JSON arrays

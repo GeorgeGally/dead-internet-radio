@@ -552,12 +552,18 @@ const gallery = (() => {
     return !!(artPresets[id] && artPresets[id][slot]);
   }
 
-  function nextSlot(step) {
+  // Pressing the dial cycles (wrap), so 9 goes round to off and a look changed
+  // on slot 9 can be pressed back. Turning it stops at either end.
+  function nextSlot(step, wrap) {
     step = step || 1;
-    const target = activeSlot + step;
+    const target = wrap ? (activeSlot + step + 10) % 10 : activeSlot + step;
     if (target < 0 || target > 9) return;
     activeSlot = target;
     slotPinned = false;
+    if (activeSlot === 0) {
+      slotDirty = false;
+      saveLit = false;
+    }
     updateSlotUI();
     const id = visuals.getCurrentId();
     if (activeSlot > 0) {
