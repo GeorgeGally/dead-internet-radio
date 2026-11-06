@@ -24,6 +24,7 @@ visuals.register('prelinger_broll', (() => {
   // A b-roll clip only needs a few seconds of picture; anything past this takes
   // longer to seek into than a shot lasts.
   const MAX_CLIP_BYTES = 45e6;
+  const RETRY_EMPTY_MS = 20000;
   // Single subjects in the spirit of the Giphy artwork's search list, looked up
   // across the old-film collections: a surprise picture for every track.
   const SUBJECTS = [
@@ -39,8 +40,11 @@ visuals.register('prelinger_broll', (() => {
     : THEMES[theme].q;
 
   const state = {
+    running: false,
     films: [],
     pending: [],
+    loading: false,
+    loadEnded: -Infinity,
     shot: 0,
     prevShot: 0,
     shotAt: 0,
@@ -170,6 +174,9 @@ visuals.register('prelinger_broll', (() => {
     list.forEach((f) => {
       if (f.video) {
         try { f.video.pause(); } catch (e) {}
+        // Clearing src ends the download now rather than at garbage collection.
+        f.video.removeAttribute('src');
+        f.video.load();
         f.video.remove();
       }
     });
@@ -187,7 +194,7 @@ visuals.register('prelinger_broll', (() => {
     state.shot = 0;
     state.prevShot = 0;
     state.shotAt = performance.now();
-    films[0].video.play().catch(() => {});
+    if (state.running) films[0].video.play().catch(() => {});
     disposeVideos(outgoing);
   }
 
@@ -214,18 +221,49 @@ visuals.register('prelinger_broll', (() => {
       const video = await makeVideo(url, 'canplay').catch(() => null);
       if (!video) continue;
       if (token !== state.loadToken || films.length >= 3) {
-        video.remove();
+        disposeVideos([{ video }]);
         break;
       }
       films.push({ id, url, size, video });
-      if (films.length === 1) {
-        promoteReel(films);
-        // Only the film on screen is worth keeping for the next visit; caching
-        // the others would spend the bandwidth the reel needs.
-        rememberFilm(id, url, size);
-      }
+      if (films.length === 1) promoteReel(films);
     }
     if (!films.length) state.failed = token === state.loadToken && !state.films.length;
+    // Kept for the next visit once the reel has its bandwidth: the smallest
+    // film, the same whole-file download on a phone as on a desktop.
+    const keep = [...films].sort((a, b) => a.size - b.size)[0];
+    if (keep && token === state.loadToken) rememberFilm(keep.id, keep.url, keep.size);
+  }
+
+  // Loads the reel for the current track. Runs ahead of the artwork too: the
+  // reel has to be there before the rotation arrives, and it stays when the
+  // rotation leaves, so nothing here depends on the artwork being on screen.
+  function pullTrack() {
+    const info = trackInfo();
+    state.bpm = info.bpm;
+    const empty = !state.films.length && !state.loading
+      && performance.now() - state.loadEnded > RETRY_EMPTY_MS;
+    if (info.key === state.trackKey && !empty) return;
+    state.trackKey = info.key;
+    state.loadToken += 1;
+    const token = state.loadToken;
+    state.failed = false;
+    // The reel on screen keeps playing while the next one loads; it is
+    // handed over only when the new first film can play.
+    disposeVideos(state.pending);
+    state.pending = [];
+    if (!state.films.length) {
+      state.ready = false;
+      if (!standIn) loadStandIn();
+    }
+    state.loading = true;
+    loadForTrack(info, token).catch((err) => {
+      console.error('prelinger b-roll load failed:', err && err.message);
+      if (token === state.loadToken && !state.films.length) state.failed = true;
+    }).finally(() => {
+      if (token !== state.loadToken) return;
+      state.loading = false;
+      state.loadEnded = performance.now();
+    });
   }
 
   // Something to watch while the first film buffers: the film that was on
@@ -234,15 +272,18 @@ visuals.register('prelinger_broll', (() => {
   const GIPHY_API_KEY = '23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5';
   const STANDIN_TERMS = ['vintage film', 'old footage', '1950s', 'home movie', 'film grain', 'retro tv'];
   let standIn = null;
+  let standInLoading = false;
 
-  // The last film that played is kept in Cache Storage (one film, up to
-  // 80 MB), so the next visit starts on it at once instead of on Giphy.
+  // One small film from the last reel is kept in Cache Storage, so the next
+  // visit starts on it at once instead of on Giphy.
   const LAST_KEY = '/__broll-last-film';
-  const LAST_MAX_BYTES = 80 * 1024 * 1024;
+  const LAST_MAX_BYTES = 20 * 1024 * 1024;
+  let remembered = false;
   async function rememberFilm(id, url, size) {
     try {
-      if (!('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (remembered || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
       if (localStorage.getItem('dir-broll-last') === id) return;
+      remembered = true;
       const res = await fetch(url);
       if (!res.ok) return;
       const cache = await caches.open('dir-broll');
@@ -266,10 +307,17 @@ visuals.register('prelinger_broll', (() => {
   }
 
   async function loadStandIn() {
+    if (standInLoading) return;
+    standInLoading = true;
+    await findStandIn();
+    standInLoading = false;
+    if (standIn && state.running) standIn.play().catch(() => {});
+  }
+
+  async function findStandIn() {
     const cached = await cachedFilm();
     if (cached) {
       if (state.ready || standIn) { cached.remove(); URL.revokeObjectURL(cached._blobUrl); return; }
-      cached.play().catch(() => {});
       standIn = cached;
       return;
     }
@@ -283,11 +331,11 @@ visuals.register('prelinger_broll', (() => {
       v.crossOrigin = 'anonymous';
       v.muted = true;
       v.playsInline = true;
+      v.preload = 'auto';
       v.loop = true;
       v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
       document.body.appendChild(v);
       v.src = mp4s[Math.floor(Math.random() * mp4s.length)];
-      v.play().catch(() => {});
       standIn = v;
     } catch (e) {}
   }
@@ -318,21 +366,21 @@ visuals.register('prelinger_broll', (() => {
     return -1;
   }
 
-  function stopVideos() {
-    dropStandIn();
-    disposeVideos(state.pending);
-    state.pending = [];
-    disposeVideos();
-  }
-
   function start() {
     stop();
+    state.running = true;
     if (typeof window !== 'undefined') window.__pb = state;
 
     ['block-canvas', 'gif-bg', 'overlay-canvas'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
+
+    // Back to the reel where it was; the first frame cuts to the next film
+    // that's buffered, so a return is a new picture.
+    state.shotAt = 0;
+    const onScreen = state.films[state.shot]?.video || standIn;
+    if (onScreen) onScreen.play().catch(() => {});
 
     myP5 = new p5((p) => {
       let scrollY = 0;
@@ -348,29 +396,6 @@ visuals.register('prelinger_broll', (() => {
       };
 
       p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
-
-      function pullTrack() {
-        const info = trackInfo();
-        state.bpm = info.bpm;
-        if (info.key !== state.trackKey) {
-          state.trackKey = info.key;
-          state.loadToken += 1;
-          const token = state.loadToken;
-          state.failed = false;
-          // The reel on screen keeps playing while the next one loads; it is
-          // handed over only when the new first film can play.
-          disposeVideos(state.pending);
-          state.pending = [];
-          if (!state.films.length) {
-            state.ready = false;
-            if (!standIn) loadStandIn();
-          }
-          loadForTrack(info, token).catch((err) => {
-            console.error('prelinger b-roll load failed:', err && err.message);
-            if (token === state.loadToken && !state.films.length) state.failed = true;
-          });
-        }
-      }
 
       function bass() {
         if (typeof audioAnalysisReady === 'undefined' || !audioAnalysisReady) return 0;
@@ -481,7 +506,7 @@ visuals.register('prelinger_broll', (() => {
 
       p.draw = () => {
         pullTrack();
-        const t = p.millis();
+        const t = performance.now();
 
         if (!state.ready || !state.films.length) {
           if (standIn && drawVideoShot(standIn, 1)) {
@@ -572,16 +597,25 @@ visuals.register('prelinger_broll', (() => {
     });
   }
 
+  // The rotation comes back here every few seconds in a burst, far faster than
+  // a film loads, so leaving only pauses the reel; a load in flight carries on.
   function stop() {
-    state.ready = false;
-    state.loadToken += 1;
-    stopVideos();
-    state.films = [];
+    state.running = false;
+    state.films.forEach((f) => { try { f.video.pause(); } catch (e) {} });
+    if (standIn) standIn.pause();
     if (myP5) {
       myP5.remove();
       myP5 = null;
     }
   }
+
+  // Warm up as soon as the track is known, ahead of the artwork's first turn.
+  function warm() {
+    if (state.trackKey) return;
+    if (!trackInfo().key) { setTimeout(warm, 1000); return; }
+    if (typeof visuals.getList !== 'function' || visuals.getList().some((v) => v.id === 'prelinger_broll')) pullTrack();
+  }
+  setTimeout(warm, 0);
 
   return { name: 'B-roll', start, stop };
 })());

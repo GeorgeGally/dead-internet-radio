@@ -53,7 +53,8 @@ class BrollController < ApplicationController
         # The bytes behind a URL never change, so the browser may keep them and
         # skip both this proxy and archive.org on a replay.
         response.headers["Accept-Ranges"] ||= "bytes" if res["Content-Range"]
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        # An archive.org hiccup must not stick in the browser for a year.
+        response.headers["Cache-Control"] = res.is_a?(Net::HTTPSuccess) ? "public, max-age=31536000, immutable" : "no-store"
         res.read_body { |chunk| response.stream.write(chunk) }
       end
     end
