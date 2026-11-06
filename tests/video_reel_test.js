@@ -183,3 +183,17 @@ test('a new track hands over only when the new reel can play', async () => {
   await until(() => context.__pb.films !== before);
   assert.ok(before.every((f) => f.video.removed));
 });
+
+test('giphy holds two buffered clips and keeps them when the artwork leaves', async () => {
+  const { artworks, videos } = createPage('giphy.js');
+  const art = artworks.giphy;
+  await until(() => videos.length === 2);
+  await tick();
+
+  art.start();
+  art.stop();
+  await tick();
+
+  assert.ok(videos.length >= 2);
+  assert.ok(videos.every((v) => v.url));
+});

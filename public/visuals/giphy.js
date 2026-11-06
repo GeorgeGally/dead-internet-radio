@@ -38,13 +38,14 @@ visuals.register('giphy', (() => {
   let gifLoading = false;
 
   // Swap only when BOTH the dwell has elapsed and the next item is fully
-  // buffered; until then the current one keeps looping. One preload at a time.
+  // buffered; until then the current one keeps looping. One preload at a time,
+  // two held ready, and they survive the rotation leaving: it comes back in
+  // seconds, sooner than a clip buffers.
+  const GIPHY_READY_MAX = 2;
   let running = false;
-  let loadToken = 0;
   let currentKey = '';
   let loadingEl = null;
-  let nextEl = null;
-  let nextKey = '';
+  let ready = [];
   let dwellDone = false;
 
   let overlayCanvas = null;
@@ -123,6 +124,7 @@ visuals.register('giphy', (() => {
   }
 
   function scheduleGifRefresh() {
+    if (!running) return;
     if (gifRefreshTimer) clearTimeout(gifRefreshTimer);
     gifRefreshTimer = setTimeout(() => fetchGiphyGifs(true), GIPHY_REFRESH_MS);
   }
@@ -195,7 +197,7 @@ visuals.register('giphy', (() => {
   }
 
   function pickNextItem() {
-    const avoid = new Set([currentKey]);
+    const avoid = new Set([currentKey, ...ready.map((r) => r.key)]);
     if (freshItems.length) {
       const it = freshItems.splice(Math.floor(Math.random() * freshItems.length), 1)[0];
       if (!avoid.has(itemKey(it))) return it;
@@ -208,31 +210,26 @@ visuals.register('giphy', (() => {
     return null;
   }
 
-  // Start buffering exactly one next item in the background.
+  // Keep buffering in the background until two items are ready.
   async function queueNext() {
-    if (!running || loadingEl || nextEl) return;
+    if (loadingEl || ready.length >= GIPHY_READY_MAX) return;
     const item = pickNextItem();
     if (!item) return;
-    const token = loadToken;
     const key = itemKey(item);
     log('preload start', key);
     let el = item.mp4 ? await preloadMedia(item.mp4, true) : null;
-    if (!el && item.gif && token === loadToken) el = await preloadMedia(item.gif, false);
-    if (token !== loadToken || !running) {
-      discard(el);
-      return;
-    }
+    if (!el && item.gif) el = await preloadMedia(item.gif, false);
     if (!el) {
       // Failed or too slow: the current one keeps looping; try another.
       log('preload failed', key);
       if (gifRetryTimer) clearTimeout(gifRetryTimer);
-      gifRetryTimer = setTimeout(queueNext, GIPHY_RETRY_MS);
+      if (running) gifRetryTimer = setTimeout(queueNext, GIPHY_RETRY_MS);
       return;
     }
     log('preload ready', key, el.tagName, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
-    nextEl = el;
-    nextKey = key;
+    ready.push({ el, key });
     maybeSwap();
+    queueNext();
   }
 
   function hasFrame(el) {
@@ -244,11 +241,10 @@ visuals.register('giphy', (() => {
   // Hard cut: the buffered element replaces #gif-bg in one DOM operation, so
   // there is never a blank or half-loaded frame in between.
   function maybeSwap() {
-    if (!running || !nextEl) return;
+    if (!running || !ready.length) return;
     const cur = document.getElementById('gif-bg');
     if (!dwellDone && hasFrame(cur)) return;
-    const el = nextEl;
-    nextEl = null;
+    const { el, key } = ready.shift();
     el.id = 'gif-bg';
     if (cur) {
       el.style.display = cur.style.display;
@@ -258,8 +254,8 @@ visuals.register('giphy', (() => {
       document.body.prepend(el);
     }
     if (el.tagName === 'VIDEO') el.play().catch(() => {});
-    log('swap', nextKey, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
-    currentKey = nextKey;
+    log('swap', key, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
+    currentKey = key;
     scheduleNextGif();
     queueNext();
   }
@@ -518,7 +514,6 @@ visuals.register('giphy', (() => {
     if (overlay) overlay.style.display = '';
     if (blockCanvas) blockCanvas.style.display = 'none';
     running = true;
-    loadToken++;
     // Coming back to this visual: resume what was on screen and let it dwell.
     if (hasFrame(gifBg)) {
       if (gifBg.tagName === 'VIDEO') gifBg.play().catch(() => {});
@@ -534,6 +529,7 @@ visuals.register('giphy', (() => {
     window.addEventListener('resize', resizeOverlay);
     startOverlayLoop();
     fetchGiphyGifs();
+    maybeSwap();
   }
 
   function stop() {
@@ -555,13 +551,7 @@ visuals.register('giphy', (() => {
     }
     window.removeEventListener('resize', resizeOverlay);
 
-    // Abandon the in-flight/buffered next item; stale preloads check loadToken.
     running = false;
-    loadToken++;
-    discard(loadingEl);
-    loadingEl = null;
-    discard(nextEl);
-    nextEl = null;
 
     const gifBg = document.getElementById('gif-bg');
     const overlay = document.getElementById('overlay-canvas');
@@ -577,6 +567,13 @@ visuals.register('giphy', (() => {
       textScrollY = (overlayCanvas ? overlayCanvas.height : window.innerHeight) + 30;
     }
   }
+
+  // Warm up ahead of the artwork's first turn, once the admin's list is in.
+  function warm() {
+    if (typeof playlist === 'undefined' || !playlist?.tracks?.length) { setTimeout(warm, 1000); return; }
+    if (visuals.getList().some((v) => v.id === 'giphy')) fetchGiphyGifs();
+  }
+  setTimeout(warm, 0);
 
   return { name: 'Giphy Feed', start, stop, resetTimer, onEvent };
 })());
