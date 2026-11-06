@@ -1216,30 +1216,33 @@ const CARD = {
 };
 
 // Rows are in grid cells from the centre; the circle spans -6 to 6.
-const CARD_ROW = { name: [-5.4, -4.4], teeth: [-4.4, -3.4], bars: [-3.4, -1.4], cross: [-1.4, .6], grating: [.6, 2], wedge: [2, 3.2], show: [3.2, 4.4], foot: [4.4, 6] };
+const CARD_ROW = { name: [-5.4, -4.4], teeth: [-4.4, -3.4], bars: [-3.4, -1.4], cross: [-1.4, .6], grating: [.6, 2], wedge: [2, 3.2], clock: [3.2, 4.4], foot: [4.4, 6] };
 
 function cardBackdrop(w, h) {
   const card = document.createElement('canvas'); card.width = w; card.height = h;
   const c = card.getContext('2d');
   // Fourteen rows high, as the 4:3 original; narrow screens shrink it to keep the side columns.
-  const g = Math.max(4, Math.floor(Math.min(h / 14, w / 17))), R = 6 * g;
+  // An even cell, so the half-cell grid lands on whole pixels.
+  const g = Math.max(4, Math.floor(Math.min(h / 14, w / 17) / 2) * 2), R = 6 * g;
   const cx = Math.round(w / 2), cy = Math.round(h / 2);
   const line = Math.max(2, Math.round(g / 7));
   const at = n => cy + Math.round(n * g);
   const box = (x0, y0, x1, y1, fill) => { c.fillStyle = fill; c.fillRect(x0, y0, x1 - x0, y1 - y0); };
 
   box(0, 0, w, h, CARD.ink);
-  // The grid hangs off the centre and runs out through every edge.
-  for (let x = cx % g; x <= w; x += g) box(x - (line >> 1), 0, x - (line >> 1) + line, h, CARD.white);
-  for (let y = cy % g; y <= h; y += g) box(0, y - (line >> 1), w, y - (line >> 1) + line, CARD.white);
+  const rule = (x0, y0, x1, y1) => box(x0 - (line >> 1), y0 - (line >> 1), x1 - (line >> 1) + line, y1 - (line >> 1) + line, CARD.white);
+  // The grid straddles the centre, half a cell either side, and runs out through every edge.
+  for (let x = (cx + g / 2) % g; x <= w; x += g) rule(x, 0, x, h);
+  for (let y = (cy + g / 2) % g; y <= h; y += g) rule(0, y, w, y);
 
-  // Two narrow columns of stacked pastel blocks either side of the circle.
+  // A full outer column each side; the inner one is only its top and bottom, and a white bracket frames the grid between.
   [[-1, CARD.left], [1, CARD.right]].forEach(([side, col]) => {
     const x = n => cx + side * n * g, edge = (a, b, y0, y1, fill) => box(Math.min(x(a), x(b)), at(y0), Math.max(x(a), x(b)), at(y1), fill);
     const [outer, inner] = side < 0 ? col.top : [...col.top].reverse();
-    edge(7, 8, -5, -1, outer); edge(6, 7, -5, -1, inner);
-    edge(6, 8, -1, 3, col.lower);
-    edge(6, 8, 3, 5, col.bottom);
+    edge(6.5, 7.5, -5.5, 0, outer); edge(5.5, 6.5, -5.5, -3.5, inner);
+    edge(6.5, 7.5, 0, 5.5, col.lower); edge(5.5, 6.5, 3.5, 5.5, col.bottom);
+    rule(x(6.5), at(-3.5), x(6.5), at(3.5));
+    [-3.5, 3.5].forEach(y => rule(Math.min(x(5.5), x(6.5)), at(y), Math.max(x(5.5), x(6.5)), at(y)));
   });
 
   c.save();
@@ -1271,7 +1274,7 @@ function cardBackdrop(w, h) {
   });
   // Grey step wedge, dark to light.
   blocks(CARD_ROW.wedge, 6, (i, x, y, x1, y1) => { const v = 24 + Math.round(i * 216 / 5); box(x, y, x1, y1, `rgb(${v},${v},${v})`); });
-  box(left, at(CARD_ROW.show[0]), left + span, at(CARD_ROW.show[1]), CARD.ink);
+  box(left, at(CARD_ROW.clock[0]), left + span, at(CARD_ROW.clock[1]), CARD.ink);
   box(left, at(CARD_ROW.foot[0]), left + span, at(CARD_ROW.foot[1]), CARD.bars[0]);
   box(cx - g, at(CARD_ROW.foot[0]), cx + g, at(CARD_ROW.foot[1]), CARD.bars[4]);
   c.restore();
@@ -1283,7 +1286,7 @@ function cardBackdrop(w, h) {
 
 V.push({
   name: 'Test card · PM5544', seed: '7e21c4a9f03b6d58e1a2c970', L: 10,
-  idea: 'The Philips broadcast test card: a white grid to every edge, pastel side columns and a white circle of castellations, colour bars, gratings and a grey wedge. Its black bars carry the station, the show on air and the time.',
+  idea: 'The Philips broadcast test card: a white grid to every edge, pastel side columns inside white brackets and a white circle of castellations, colour bars, gratings and a grey wedge. Its black bars carry the station and the time.',
   draw(c, w, h, t, S) {
     if (S.key !== w + 'x' + h) { S.key = w + 'x' + h; S.layout = cardBackdrop(w, h); }
     const { card, g, cx, cy } = S.layout;
@@ -1293,7 +1296,7 @@ V.push({
     };
     c.drawImage(card, 0, 0);
     line('DEAD INTERNET RADIO', CARD_ROW.name, 4.8 * g);
-    line(`${DATA.show.toUpperCase()} ${clock()}`, CARD_ROW.show, 7.4 * g);
+    line(clock(), CARD_ROW.clock, 7.4 * g);
     noise(c, w, h, .03 + .6 * (1 - ramp(t, 0, .8)));
     scan(c, w, h, .08);
   },
