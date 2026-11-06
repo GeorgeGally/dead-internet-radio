@@ -163,8 +163,10 @@ function setupAudioAnalysis() {
     frequencyData = new Uint8Array(analyser.frequencyBinCount);
     timeData = new Uint8Array(analyser.fftSize);
     const source = audioCtx.createMediaElementSource(audio);
+    musicGain = audioCtx.createGain();
     source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    analyser.connect(musicGain);
+    musicGain.connect(audioCtx.destination);
     audioAnalysisReady = true;
   } catch (e) {
     console.warn('Audio analysis not available:', e);
@@ -593,20 +595,25 @@ function nextTrack() {
   advanceTrack(false);
 }
 
-let voiceoverEndedHandler = null;
+// DJ voices are about 7 dB quieter than the songs, so the music drops well
+// under them. iOS ignores element volume: the gain node does the work there.
+const MUSIC_UNDER_VOICE = 0.25;
+let voiceoverListeners = null;
+
+function setMusicLevel(level) {
+  if (musicGain) musicGain.gain.setTargetAtTime(level, audioCtx.currentTime, 0.08);
+  else document.getElementById('player').volume = level;
+}
 
 function stopVoiceover() {
+  if (voiceoverListeners) voiceoverListeners.abort();
+  voiceoverListeners = null;
   const vo = document.getElementById('voiceover-el');
   if (vo) {
     vo.pause();
     vo.src = '';
   }
-  const player = document.getElementById('player');
-  if (player) player.volume = 1;
-  if (voiceoverEndedHandler && vo) {
-    vo.removeEventListener('ended', voiceoverEndedHandler);
-    voiceoverEndedHandler = null;
-  }
+  setMusicLevel(1);
 }
 
 function startVoiceoverIfNeeded() {
@@ -620,18 +627,16 @@ function startVoiceoverIfNeeded() {
 
   stopVoiceover();
 
-  player.volume = 0.8;
+  voiceoverListeners = new AbortController();
+  const { signal } = voiceoverListeners;
+  // Only once the voice is really there: a slow load must not sink the music.
+  vo.addEventListener('playing', () => setMusicLevel(MUSIC_UNDER_VOICE), { signal });
+  vo.addEventListener('ended', () => setMusicLevel(1), { signal });
+  vo.addEventListener('error', () => setMusicLevel(1), { signal });
 
   vo.src = playlistBase + track.voiceoverFile;
   vo.load();
   vo.play().catch(() => {});
-
-  voiceoverEndedHandler = () => {
-    player.volume = 1;
-    vo.removeEventListener('ended', voiceoverEndedHandler);
-    voiceoverEndedHandler = null;
-  };
-  vo.addEventListener('ended', voiceoverEndedHandler);
 }
 
 let _flashActive = false;
@@ -1141,6 +1146,7 @@ function startEqLoop() {
 }
 
 let audioCtx = null;
+let musicGain = null;
 let analyser = null;
 let frequencyData = null;
 let timeData = null;

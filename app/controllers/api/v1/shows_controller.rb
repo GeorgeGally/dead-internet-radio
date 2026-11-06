@@ -2,7 +2,7 @@ module Api
   module V1
     class ShowsController < ApplicationController
       def index
-        shows = Show.completed.recent
+        shows = Show.programmes.recent
         render json: shows.map { |s|
           {
             id: s.id,
@@ -19,7 +19,7 @@ module Api
       end
 
       def show
-        show = Show.completed.find(params[:id])
+        show = Show.programmes.find(params[:id])
         tracks = show.tracks.ordered.map { |t|
           {
             id: t.id,

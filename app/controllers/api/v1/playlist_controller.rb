@@ -2,7 +2,7 @@ module Api
   module V1
     class PlaylistController < ApplicationController
       def show
-        show = Show.completed.recent.first
+        show = Show.programmes.recent.first
         unless show
           return render json: { epoch: Time.now.to_i * 1000, tracks: [] }
         end

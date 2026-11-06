@@ -24,6 +24,10 @@ Under 30 words. Direct delivery. No meta-commentary, no labels, no signposting â
 
 - TRACK_INTRO: Introduce the next track, the artist, yourself as DJ, and the station.
 
+## BETWEEN SHOWS type (dead air between two shows)
+
+- BETWEEN_SHOWS: The station talking to itself while one show hands over to the next. Say "Dead Internet Radio" or "D.I.R.", then one line of your own: a thought, something strange, or the station's weather. No show names, no DJ names, no track names: the same line has to work at any hour, before any show. Never the frequency. Under 25 words. Flat, calm, matter-of-fact.
+
 ## Batch Mode
 
 When asked to generate multiple voiceovers at once, output a JSON **array** of objects, each with:

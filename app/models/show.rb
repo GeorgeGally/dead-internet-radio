@@ -8,8 +8,11 @@ class Show < ApplicationRecord
   validates :directory, uniqueness: true, allow_nil: true
 
   scope :completed, -> { where(status: :complete) }
+  # Everything a listener can browse. Interludes are the station's talk between
+  # shows, not shows.
+  scope :programmes, -> { completed.where.not(kind: "interlude") }
   # Requests render on their own but only ever air inside a set.
-  scope :airable, -> { completed.where.not(kind: "request") }
+  scope :airable, -> { programmes.where.not(kind: "request") }
   scope :recent, -> { order(Arel.sql("generated_at DESC NULLS LAST, id DESC")) }
 
   # DB stores a link to the mix (e.g. "dist/audio/foo.mp3"); the canonical

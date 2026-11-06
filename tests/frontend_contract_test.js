@@ -131,3 +131,11 @@ test('every page head links the icon set, and the player hashes it', () => {
   const stamper = fs.readFileSync(path.join(root, 'lib/player_page.rb'), 'utf8');
   assert.match(stamper, /ico\|svg\|png\|webmanifest/);
 });
+
+test('the music drops under a DJ voice only once the voice is playing, and always comes back', () => {
+  assert.match(js, /addEventListener\('playing', \(\) => setMusicLevel\(MUSIC_UNDER_VOICE\)/);
+  for (const event of ['ended', 'error']) {
+    assert.match(js, new RegExp(`addEventListener\\('${event}', \\(\\) => setMusicLevel\\(1\\)`));
+  }
+  assert.match(js, /function stopVoiceover[\s\S]*?setMusicLevel\(1\);\n}/);
+});

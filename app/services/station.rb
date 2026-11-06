@@ -1,7 +1,7 @@
 # The station clock. Keeps the broadcast timeline filled ahead of "now" by
 # rotating through completed shows and library sets (one whole show at a time,
-# so DJ drops stay in order). Planned hours ahead so a listener whose request
-# lands in a set can be told when it airs.
+# so DJ drops stay in order), with the station talking between them. Planned
+# hours ahead so a listener whose request lands in a set can be told when it airs.
 class Station
   HORIZON = ENV.fetch("STATION_HORIZON_HOURS", "6").to_f.hours
   LOCK_KEY = 0x0D1A  # pg advisory lock id for timeline writes
@@ -42,7 +42,7 @@ class Station
       while cursor < at + HORIZON
         tracks = next_show_tracks
         break if tracks.empty?
-        tracks.each do |track|
+        (Interlude.tracks + tracks).each do |track|
           ends = cursor + track.duration_ms / 1000.0
           booked << BroadcastSegment.create!(track: track, starts_at: cursor, ends_at: ends)
           cursor = ends

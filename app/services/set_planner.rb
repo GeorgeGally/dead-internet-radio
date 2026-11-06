@@ -1,9 +1,11 @@
 # Keeps a fresh set waiting: builds one when no unaired set is left, or when a
 # rendered request has nothing to play in. Called from Station.fill!, so it
-# runs wherever the timeline does, with no scheduler.
+# runs wherever the timeline does, with no scheduler. Without Kokoro a set would
+# air with no DJ, so only a waiting request is worth building one for.
 module SetPlanner
   MINUTES = 60
   COOLDOWN = 10.minutes
+  KOKORO = Rails.root.join("kokoro/.venv/bin/python3")
 
   def self.tick!(at = Time.current)
     return unless needed?
@@ -16,7 +18,11 @@ module SetPlanner
 
   def self.needed?
     SongRequest.waiting_for_set.exists? ||
-      !Show.airable.where(kind: "set").where.not(id: aired_show_ids).exists?
+      (voiced? && !Show.airable.where(kind: "set").where.not(id: aired_show_ids).exists?)
+  end
+
+  def self.voiced?
+    KOKORO.exist?
   end
 
   def self.build!(slot:, minutes: MINUTES, dry_run: false, no_voice: false)
