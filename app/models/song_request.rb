@@ -20,6 +20,8 @@ class SongRequest < ApplicationRecord
   normalizes :artist, :title, :note, with: ->(s) { s.to_s.gsub(/\s+/, " ").strip.presence }
 
   scope :recent, -> { order(created_at: :desc) }
+  # Asked for and still on its way to a set.
+  scope :outstanding, -> { where(status: %i[pending accepted queued generating ready]) }
   # Rendered and not yet in any set.
   scope :waiting_for_set, -> { ready.where.not(track_id: nil).where.not(track_id: Track.where.not(origin_track_id: nil).select(:origin_track_id)) }
   scope :today, -> { where(created_at: Time.current.beginning_of_day..) }

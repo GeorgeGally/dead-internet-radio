@@ -36,6 +36,15 @@ nav a:hover {
   color: #d8d4cb;
   background: rgba(255,255,255,0.06);
 }
+.nav-count {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #ff5a1f;
+  color: #1a1a1a;
+  font-size: 12px;
+  letter-spacing: 0;
+}
 main {
   flex: 1;
   padding: 40px 48px;
@@ -558,3 +567,4 @@ a.btn-key { display: inline-flex; align-items: center; text-decoration: none; }
 .switch input:checked + .switch-track { background: #ff5a1f; }
 .switch input:checked + .switch-track::after { transform: translateX(20px); }
 .switch input:focus-visible + .switch-track { outline: 2px solid #1a1a1a; outline-offset: 3px; }
+table.requests tr:target td { background: rgba(255, 90, 31, 0.1); }

@@ -39,6 +39,7 @@ module Api
                         status: verdict.cover? ? :ok : :service_unavailable
         elsif verdict.accepted?
           req.update!(status: :accepted, matched_track: SongRequest.match_artist(req.artist))
+          tell_station(req)
         else
           req.update!(status: :rejected, rejection_reason: verdict.reason)
         end
@@ -49,6 +50,13 @@ module Api
       end
 
       private
+
+      # The request is already saved; a queue outage mustn't fail the listener.
+      def tell_station(req)
+        RequestMailer.submitted(req).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("Request #{req.id}: station email not queued (#{e.class})")
+      end
 
       def request_json(req)
         { id: req.id, artist: req.artist, title: req.title, note: req.note, status: req.status,

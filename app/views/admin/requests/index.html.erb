@@ -6,7 +6,7 @@
     <% song = req.track %>
     <% notes = song && (song.prompt_log.dig("rerender", "notes") || req.note) %>
     <% playable = song && song.audio_path && File.exist?(song.audio_path) %>
-    <tr>
+    <tr id="request-<%= req.id %>">
       <td class="play-cell">
         <% if playable %>
           <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>

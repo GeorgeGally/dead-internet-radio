@@ -1,0 +1,7 @@
+"<%= @request.title %>" by <%= @request.artist %>
+<% if @request.note.present? %><%= @request.note %>
+<% end %>
+From <%= [@request.user.name, @request.user.email].compact_blank.join(" / ") %>
+<%= @request.created_at.utc.strftime("%A %-d %B at %H:%M UTC") %>
+
+<%= @url %>

@@ -16,7 +16,8 @@
     <a href="/admin/schedule">Schedule</a>
     <a href="/admin/shows">Shows</a>
     <a href="/admin/library">Library</a>
-    <a href="/admin/requests">Requests</a>
+    <% outstanding_requests = SongRequest.outstanding.count %>
+    <a href="/admin/requests">Requests<% if outstanding_requests.positive? %><span class="nav-count"><%= outstanding_requests %></span><% end %></a>
     <a href="/admin/visuals">Visuals</a>
     <a href="/admin/generation">Generate</a>
     <div style="flex:1"></div>

@@ -3,7 +3,11 @@
 require "test_helper"
 
 class ApiRequestsTest < ActionDispatch::IntegrationTest
+  include ActionMailer::TestHelper
+
   setup do
+    @old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
     @old_forgery = ActionController::Base.allow_forgery_protection
     ActionController::Base.allow_forgery_protection = true
     @old_client_id = ENV["GOOGLE_CLIENT_ID"]
@@ -13,6 +17,7 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
+    ActiveJob::Base.queue_adapter = @old_adapter
     ActionController::Base.allow_forgery_protection = @old_forgery
     ENV["GOOGLE_CLIENT_ID"] = @old_client_id
   end
@@ -69,6 +74,39 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_equal known.id, SongRequest.last.matched_track_id
   ensure
     show&.destroy
+  end
+
+  test "an accepted request emails the station from a background job" do
+    token = sign_in
+
+    assert_enqueued_emails 1 do
+      with_filter(RequestFilter::Result.new(true, nil)) do
+        post_json "/api/v1/requests", { artist: "Static Bloom", title: "Carrier Signal" }, token
+      end
+    end
+    assert_response :created
+    assert_enqueued_email_with RequestMailer, :submitted, args: [ SongRequest.last ]
+  end
+
+  test "a queue outage doesn't fail the listener's request" do
+    token = sign_in
+    broken = ActiveJob::Base.queue_adapter
+    def broken.enqueue(*) = raise("queue down")
+
+    with_filter(RequestFilter::Result.new(true, nil)) do
+      post_json "/api/v1/requests", { artist: "Static Bloom", title: "Carrier Signal" }, token
+    end
+    assert_response :created
+    assert_equal "accepted", SongRequest.last.status
+  end
+
+  test "a rejected request sends no email" do
+    token = sign_in
+
+    assert_no_enqueued_emails do
+      post_json "/api/v1/requests", { artist: "Nazi Disco", title: "x" }, token
+    end
+    assert_equal "rejected", response.parsed_body["status"]
   end
 
   test "rejected request carries the station's reason and still counts" do
