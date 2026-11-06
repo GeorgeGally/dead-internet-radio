@@ -21,7 +21,8 @@ ACE_STEP_URL = os.getenv("ACE_STEP_URL", "http://localhost:8001")
 # the 4B LM to plan the audio codes: it drops the cheesy high EDM synths
 # (sound lab, 2026-10-24). ACE_STEP_THINKING=0 if the LM isn't loaded.
 MIN_TRACK_SECONDS = int(os.getenv("MIN_TRACK_SECONDS", "105"))
-MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "360"))
+# The generation PC's 8 GB GPU runs out of memory at 360 s and has 200 MB left at 330 s.
+MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "300"))
 # Most songs land evenly across this range. A few fall short of it, fewer run past it.
 NORMAL_TRACK_SECONDS = (150, 270)
 SHORT_TRACK_CHANCE = 1 / 20
