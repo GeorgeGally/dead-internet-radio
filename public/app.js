@@ -351,7 +351,7 @@ function advanceTrack(ident) {
     stopVoiceover();
     currentTrack = (currentTrack + 1) % playlist.tracks.length;
     // A new track brings a new artwork, unless the listener is at the deck.
-    gallery.whenQuiet(() => visuals.next());
+    gallery.whenQuiet(randomArtwork);
     visuals.notify('trackChange');
     updateTrackInfo();
     updatePlayBtn();
@@ -908,7 +908,7 @@ async function goLive(fromTrackEnd, ident) {
   playlist = next;
   playlistBase = '';
   currentShowId = null;
-  if (fromTrackEnd) gallery.whenQuiet(() => visuals.next());
+  if (fromTrackEnd) gallery.whenQuiet(randomArtwork);
   visuals.notify('trackChange');
   setupAudio();
   // The live timeline resyncs after every segment; the ident only plays when

@@ -208,7 +208,7 @@ function loadApp() {
     AbortController,
     URL: { createObjectURL: (blob) => `blob:${blob}`, revokeObjectURL() {} },
     requestAnimationFrame: () => 0,
-    visuals: { init() {}, next() {}, notify() {} },
+    visuals: { init() {}, next() {}, notify() {}, getList: () => [], getCurrentId: () => null, activate() {} },
     canvasFilters: {},
     gallery: { init() {}, whenQuiet: (fn) => fn() },
     idents: {

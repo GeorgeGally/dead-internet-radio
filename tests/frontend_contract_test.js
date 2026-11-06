@@ -139,3 +139,12 @@ test('the music drops under a DJ voice only once the voice is playing, and alway
   }
   assert.match(js, /function stopVoiceover[\s\S]*?setMusicLevel\(1\);\n}/);
 });
+
+test('a track change picks a weighted artwork, so no artwork always follows another', () => {
+  assert.doesNotMatch(js, /whenQuiet\(\(\) => visuals\.next\(\)\)/);
+});
+
+test('Eyes never inherits the filters of the artwork before it', () => {
+  const gallery = fs.readFileSync(path.join(root, 'public/visuals/gallery.js'), 'utf8');
+  assert.match(gallery, /eyes: \{ filters: \[\], cutoff: 130, resonance: 50 \}/);
+});

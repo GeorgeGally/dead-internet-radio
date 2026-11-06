@@ -15,6 +15,7 @@ const gallery = (() => {
     cubes_token_sha: { filters: [4], cutoff: 160, resonance: 65 },
     delayed_lerp_points8: { filters: [2], cutoff: 125, resonance: 50 },
     giphy: { filters: [], cutoff: 130, resonance: 50 },
+    eyes: { filters: [], cutoff: 130, resonance: 50 },
     four_dots: { filters: [9], cutoff: 60, resonance: 30 },
     patterns2: { filters: [6], cutoff: 140, resonance: 55 },
     particle_drawings: { filters: [3], cutoff: 70, resonance: 60 },
