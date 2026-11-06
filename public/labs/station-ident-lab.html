@@ -1207,84 +1207,93 @@ V.push({
   },
 });
 
-// V25 — PM5544-style test card: drawn once per size, only the text is live
-const CARD = { white: '#e8e8e8', bars: ['#bfbf00', '#00bfbf', '#00bf00', '#bf00bf', '#bf0000', '#0000bf'], side: ['#7f8f5a', '#a8876a', '#6b7f99', '#9c6f7c'] };
+// V25 — PM5544 test card: drawn once per size, only the text is live
+const CARD = {
+  white: '#f2f2f2', ink: '#000',
+  bars: ['#d8a53a', '#93c6da', '#74ad6c', '#dd8ea8', '#c4453c', '#2b3d86'],
+  left: { top: ['#7fa5a0', '#a6cce0'], lower: '#e6a8b6', bottom: '#e0954a' },
+  right: { top: ['#a6cce0', '#a9a768'], lower: '#a2a9d8', bottom: '#e0954a' },
+};
+
+// Rows are in grid cells from the centre; the circle spans -6 to 6.
+const CARD_ROW = { name: [-5.4, -4.4], teeth: [-4.4, -3.4], bars: [-3.4, -1.4], cross: [-1.4, .6], grating: [.6, 2], wedge: [2, 3.2], show: [3.2, 4.4], foot: [4.4, 6] };
 
 function cardBackdrop(w, h) {
   const card = document.createElement('canvas'); card.width = w; card.height = h;
   const c = card.getContext('2d');
-  const g = Math.max(4, Math.round(Math.min(w, h) / 14)), R = 6 * g;
-  const cx = Math.round(w / 2), cy = Math.round(h / 2), line = Math.max(1, Math.round(g / 26));
+  // Fourteen rows high, as the 4:3 original; narrow screens shrink it to keep the side columns.
+  const g = Math.max(4, Math.floor(Math.min(h / 14, w / 17))), R = 6 * g;
+  const cx = Math.round(w / 2), cy = Math.round(h / 2);
+  const line = Math.max(2, Math.round(g / 7));
   const at = n => cy + Math.round(n * g);
-  c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+  const box = (x0, y0, x1, y1, fill) => { c.fillStyle = fill; c.fillRect(x0, y0, x1 - x0, y1 - y0); };
 
-  // Side bars run behind the circle, so some shows at any aspect.
-  for (let i = 0; i < 4; i++) {
-    const y = cy + (i - 2) * 2 * g;
-    c.fillStyle = CARD.side[i]; c.fillRect(cx - 8 * g, y, 3 * g, 2 * g);
-    c.fillStyle = CARD.side[3 - i]; c.fillRect(cx + 5 * g, y, 3 * g, 2 * g);
-  }
-
+  box(0, 0, w, h, CARD.ink);
   // The grid hangs off the centre and runs out through every edge.
-  c.fillStyle = CARD.white;
-  for (let x = cx % g; x < w; x += g) c.fillRect(x - (line >> 1), 0, line, h);
-  for (let y = cy % g; y < h; y += g) c.fillRect(0, y - (line >> 1), w, line);
+  for (let x = cx % g; x <= w; x += g) box(x - (line >> 1), 0, x - (line >> 1) + line, h, CARD.white);
+  for (let y = cy % g; y <= h; y += g) box(0, y - (line >> 1), w, y - (line >> 1) + line, CARD.white);
+
+  // Two narrow columns of stacked pastel blocks either side of the circle.
+  [[-1, CARD.left], [1, CARD.right]].forEach(([side, col]) => {
+    const x = n => cx + side * n * g, edge = (a, b, y0, y1, fill) => box(Math.min(x(a), x(b)), at(y0), Math.max(x(a), x(b)), at(y1), fill);
+    const [outer, inner] = side < 0 ? col.top : [...col.top].reverse();
+    edge(7, 8, -5, -1, outer); edge(6, 7, -5, -1, inner);
+    edge(6, 8, -1, 3, col.lower);
+    edge(6, 8, 3, 5, col.bottom);
+  });
 
   c.save();
   c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.clip();
-  c.fillStyle = '#000'; c.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+  box(cx - R, cy - R, cx + R, cy + R, CARD.white);
   const left = cx - R, span = 2 * R;
-  const row = (from, to, fill) => { c.fillStyle = fill; c.fillRect(left, at(from), span, at(to) - at(from)); };
-  const blocks = (from, to, n, paint) => {
+  const blocks = ([from, to], n, paint) => {
     for (let i = 0; i < n; i++) {
-      const x = left + Math.round(i * span / n), xw = left + Math.round((i + 1) * span / n) - x;
-      paint(i, x, at(from), xw, at(to) - at(from));
+      const x = left + Math.round(i * span / n), x1 = left + Math.round((i + 1) * span / n);
+      paint(i, x, at(from), x1, at(to));
     }
   };
-  const castellate = (from, to, size) => {
-    row(from, to, '#000'); c.fillStyle = CARD.white;
-    // A white block sits on the centre line, so the row mirrors left to right.
-    for (let k = -Math.ceil(R / size) & ~1; k * size < R; k += 2) c.fillRect(cx + k * size - (size >> 1), at(from), size, at(to) - at(from));
-  };
 
-  castellate(-6, -5, g);
-  blocks(-3.5, -2, 6, (i, x, y, xw, yh) => { c.fillStyle = CARD.bars[i]; c.fillRect(x, y, xw, yh); });
+  // Black bar for the station, cut to fit under the top of the circle.
+  box(cx - 2.55 * g, at(CARD_ROW.name[0]), cx + 2.55 * g, at(CARD_ROW.name[1]), CARD.ink);
+  // Castellations, white on the centre line so the row mirrors.
+  blocks(CARD_ROW.teeth, 25, (i, x, y, x1, y1) => box(x, y, x1, y1, i % 2 ? CARD.ink : CARD.white));
+  blocks(CARD_ROW.bars, 6, (i, x, y, x1, y1) => box(x, y, x1, y1, CARD.bars[i]));
+  // Centre cross.
+  const bar = Math.max(2, Math.round(g / 5)), hair = Math.max(1, Math.round(g / 14));
+  box(left, cy - (hair >> 1), left + span, cy - (hair >> 1) + hair, CARD.ink);
+  box(cx - (bar >> 1), at(CARD_ROW.cross[0]), cx - (bar >> 1) + bar, at(CARD_ROW.cross[1]), CARD.ink);
   // Resolution gratings: stripes in whole pixels, finer to the right.
-  const pitch = Math.max(1, Math.round(g / 40));
-  blocks(-2, -.5, 6, (i, x, y, xw, yh) => {
+  const pitch = Math.max(1, Math.round(g / 30));
+  blocks(CARD_ROW.grating, 6, (i, x, y, x1, y1) => {
     const stripe = [8, 6, 4, 3, 2, 1][i] * pitch;
-    c.fillStyle = '#000'; c.fillRect(x, y, xw, yh);
-    c.fillStyle = CARD.white;
-    for (let s = 0; s < xw; s += stripe * 2) c.fillRect(x + s, y, Math.min(stripe, xw - s), yh);
+    box(x, y, x1, y1, CARD.white);
+    for (let s = x; s < x1; s += stripe * 2) box(s, y, Math.min(s + stripe, x1), y1, CARD.ink);
   });
-  // Centre band and cross.
-  c.fillStyle = CARD.white;
-  c.fillRect(left, cy - (line >> 1), span, line);
-  c.fillRect(cx - (line >> 1), at(-.5), line, at(.5) - at(-.5));
-  // Grey step wedge.
-  blocks(.5, 2, 6, (i, x, y, xw, yh) => { const v = 40 + Math.round(i * 192 / 5); c.fillStyle = `rgb(${v},${v},${v})`; c.fillRect(x, y, xw, yh); });
-  castellate(2, 3.5, Math.round(g / 2));
+  // Grey step wedge, dark to light.
+  blocks(CARD_ROW.wedge, 6, (i, x, y, x1, y1) => { const v = 24 + Math.round(i * 216 / 5); box(x, y, x1, y1, `rgb(${v},${v},${v})`); });
+  box(left, at(CARD_ROW.show[0]), left + span, at(CARD_ROW.show[1]), CARD.ink);
+  box(left, at(CARD_ROW.foot[0]), left + span, at(CARD_ROW.foot[1]), CARD.bars[0]);
+  box(cx - g, at(CARD_ROW.foot[0]), cx + g, at(CARD_ROW.foot[1]), CARD.bars[4]);
   c.restore();
 
-  c.strokeStyle = CARD.white; c.lineWidth = line;
+  c.strokeStyle = CARD.ink; c.lineWidth = Math.max(1, Math.round(g / 14));
   c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
   return { card, g, cx, cy };
 }
 
 V.push({
   name: 'Test card · PM5544', seed: '7e21c4a9f03b6d58e1a2c970', L: 10,
-  idea: 'The old broadcast test card: white grid to every edge, muted side bars, and a round centre of castellations, colour bars, gratings and a grey wedge. The black bars carry the station, the show on air and the time.',
+  idea: 'The Philips broadcast test card: a white grid to every edge, pastel side columns and a white circle of castellations, colour bars, gratings and a grey wedge. Its black bars carry the station, the show on air and the time.',
   draw(c, w, h, t, S) {
     if (S.key !== w + 'x' + h) { S.key = w + 'x' + h; S.layout = cardBackdrop(w, h); }
     const { card, g, cx, cy } = S.layout;
-    const line = (s, y, size, maxW) => {
-      const px = fitFont(c, s, 500, size, maxW, (wt, p) => MONO(p, wt));
-      txt(c, s, cx, cy + y * g, MONO(px, 500), CREAM, 1, 'center', 'middle');
+    const line = (s, [from, to], maxW) => {
+      const px = fitFont(c, s, 500, .5 * g, maxW, (wt, p) => MONO(p, wt));
+      txt(c, s, cx, cy + (from + to) / 2 * g, MONO(px, 500), CREAM, 1, 'center', 'middle');
     };
     c.drawImage(card, 0, 0);
-    line('DEAD INTERNET RADIO', -4.25, .72 * g, 7.4 * g);
-    line(DATA.show.toUpperCase(), 4.25, .72 * g, 7.4 * g);
-    line(clock(), 5.25, .6 * g, 4.4 * g);
+    line('DEAD INTERNET RADIO', CARD_ROW.name, 4.8 * g);
+    line(`${DATA.show.toUpperCase()} ${clock()}`, CARD_ROW.show, 7.4 * g);
     noise(c, w, h, .03 + .6 * (1 - ramp(t, 0, .8)));
     scan(c, w, h, .08);
   },
