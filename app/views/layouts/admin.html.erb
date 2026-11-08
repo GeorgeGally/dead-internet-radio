@@ -6,8 +6,8 @@
   <title>DIR Control</title>
   <%= csrf_meta_tags %>
   <%= render "layouts/icons" %>
-  <link rel="stylesheet" href="/admin.css">
-  <script src="/admin-player.js" defer></script>
+  <link rel="stylesheet" href="<%= hashed_public_path "/admin.css" %>">
+  <script src="<%= hashed_public_path "/admin-player.js" %>" defer></script>
 </head>
 <body>
   <nav>

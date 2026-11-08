@@ -1,4 +1,5 @@
 <h2>Station IDs</h2>
+<% lab_version = hashed_public_path("/labs/station-ident-lab.html").split("?").last %>
 
 <table class="idents">
   <thead>
@@ -8,9 +9,9 @@
     <% @idents.fetch("visual", []).each do |ident| %>
       <tr class="<%= 'is-off' unless ident.active %>">
         <td class="play-cell">
-          <button type="button" class="btn-play" data-ident-src="<%= ident.src %>" aria-label="Play <%= ident.name %>">▶</button>
+          <button type="button" class="btn-play" data-ident-src="<%= ident.src %>&<%= lab_version %>" aria-label="Play <%= ident.name %>">▶</button>
         </td>
-        <td class="stage-cell"><div class="ident-stage" style="background-image: url(/labs/ident-posters/<%= ident.number %>.jpg)"></div></td>
+        <td class="stage-cell"><div class="ident-stage" style="background-image: url(<%= hashed_public_path "/labs/ident-posters/#{ident.number}.jpg" %>)"></div></td>
         <td class="ident-name"><%= ident.name %></td>
         <%= render "switch", ident: ident %>
       </tr>
@@ -35,4 +36,4 @@
   </tbody>
 </table>
 
-<script src="/admin_idents.js" defer></script>
+<script src="<%= hashed_public_path "/admin_idents.js" %>" defer></script>
