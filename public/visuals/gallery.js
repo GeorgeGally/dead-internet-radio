@@ -113,7 +113,7 @@ const gallery = (() => {
     useLooks(res.looks);
     const sent = res.added + res.moved;
     if (sent || res.left_out) {
-      savedBox(`${sent} ${sent === 1 ? 'look' : 'looks'} uploaded${res.left_out ? `, ${res.left_out} left out` : ''}`, 5000);
+      savedBox(`${sent} ${sent === 1 ? 'look' : 'looks'} uploaded${res.left_out ? `, ${res.left_out} left out` : ''}`, { ms: 5000 });
     }
   }
 
@@ -499,7 +499,7 @@ const gallery = (() => {
     };
     slotPinned = true;
     if (!await looksCall(`${id}/${slot}`, 'PUT', { look })) {
-      savedBox(`Slot ${slot} not saved`);
+      savedBox(`Slot ${slot}`, { name: visuals.getCurrentName(), line: 'Not saved', fail: true });
       return;
     }
     if (!artPresets[id]) artPresets[id] = {};
@@ -508,18 +508,25 @@ const gallery = (() => {
     slotDirty = false;
     saveLit = true;
     updateSlotUI();
-    savedBox(`Slot ${slot} saved`);
+    savedBox(`Slot ${slot}`, { name: visuals.getCurrentName(), line: 'Saved' });
   }
 
-  // A plain black box, dead centre, then gone: saves and slot changes.
+  // A teletext band, dead centre, then gone: saves, slot changes, uploads.
+  // A save names its artwork, since a slot belongs to one, and adds a second
+  // line under the band; a failed one darkens it. A long name gives way first.
   let savedEl = null;
-  function savedBox(text, ms = 1400) {
+  function savedBox(band, { name = '', line = '', fail = false, ms = 1400 } = {}) {
     if (!savedEl) {
       savedEl = document.createElement('div');
       savedEl.id = 'saved-box';
+      savedEl.setAttribute('role', 'status');
+      savedEl.innerHTML = '<span class="band"><span class="name"></span><span class="slot"></span></span><span class="line"></span>';
       document.body.appendChild(savedEl);
     }
-    savedEl.textContent = text;
+    savedEl.querySelector('.name').textContent = name;
+    savedEl.querySelector('.slot').textContent = name ? ` / ${band}` : band;
+    savedEl.querySelector('.line').textContent = line;
+    savedEl.classList.toggle('fail', fail);
     savedEl.classList.add('show');
     clearTimeout(savedEl._t);
     savedEl._t = setTimeout(() => savedEl.classList.remove('show'), ms);

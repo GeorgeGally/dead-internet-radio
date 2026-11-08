@@ -1571,23 +1571,46 @@ body.prewarming #block-canvas {
   .npd-wave { display: none; }
 }
 
-/* Slot saved: a black box in the middle of the screen. */
+/* Slot saved: a teletext band in the middle of the screen. */
+@font-face {
+  font-family: "VT100";
+  src: url("fonts/vt100-regular/vt100-regular.otf.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+
 #saved-box {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 100;
-  padding: 14px 22px;
-  background: #000;
-  color: #fff;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 14px;
+  min-width: 320px;
+  max-width: calc(100vw - 32px);
+  background: #0e0f12;
+  color: #f2eee6;
+  font: 400 30px/1 "VT100", monospace;
+  letter-spacing: 0;
+  white-space: nowrap;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  visibility: hidden;
 }
-#saved-box.show { opacity: 1; }
+#saved-box.show { visibility: visible; }
+#saved-box .band {
+  display: flex;
+  padding: 12px 16px;
+  background: #ff5a1f;
+  color: #0e0f12;
+  white-space: pre;
+}
+#saved-box .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#saved-box .slot { flex: none; }
+#saved-box .line { display: block; padding: 14px 16px 16px; }
+#saved-box .line:empty { display: none; }
+#saved-box.fail .band { background: #c9440f; color: #fff; }
+@media (max-width: 600px) {
+  #saved-box { min-width: 0; width: calc(100vw - 88px); font-size: 26px; }
+}
 /* ---- Small screens ---- */
 
 @media (max-width: 1439px) {
