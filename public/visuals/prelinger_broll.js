@@ -1,6 +1,6 @@
 'use strict';
 
-visuals.register('prelinger_broll', (() => {
+function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips = null } = {}) {
   let myP5 = null;
 
   // What to look for on archive.org. Each theme is a search; `words` pull it
@@ -138,13 +138,19 @@ visuals.register('prelinger_broll', (() => {
   // Resolves once the film can start from a random point past its opening
   // titles; rejects (and cleans up) if it takes too long. Cuts later check how
   // much is buffered ahead (nextBuffered), so big films don't hold up the reel.
-  function makeVideo(url, readyEvent) {
+  function makeVideo(url, readyEvent, clip = null) {
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous';
     v.muted = true;
     v.playsInline = true;
     v.preload = 'auto';
     v.loop = true;
+    if (clip) {
+      v._clip = clip;
+      v.addEventListener('timeupdate', () => {
+        if (v.currentTime < clip.start || v.currentTime >= clip.end) v.currentTime = clip.start;
+      });
+    }
     v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
     document.body.appendChild(v);
     return new Promise((resolve, reject) => {
@@ -158,7 +164,9 @@ visuals.register('prelinger_broll', (() => {
       v.addEventListener('loadedmetadata', () => {
         // Skip the opening titles, but stay in the first couple of minutes: the
         // further in, the longer archive.org takes to find that part of the file.
-        if (isFinite(v.duration) && v.duration > 30) {
+        if (clip) {
+          v.currentTime = clip.start;
+        } else if (isFinite(v.duration) && v.duration > 30) {
           v.currentTime = Math.min(v.duration * (0.1 + Math.random() * 0.6), 120);
         }
       }, { once: true });
@@ -203,24 +211,25 @@ visuals.register('prelinger_broll', (() => {
   async function loadForTrack(info, token) {
     // Search the three themes at once, then deal the results out in turn so the
     // reel holds one film from each: ad, matched theme, wildcard.
-    const lists = await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
+    const lists = clips ? [] : await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
     let ids = [];
     for (let i = 0; i < 6; i++) lists.forEach((l) => { if (l[i]) ids.push(l[i]); });
     ids = [...new Set(ids)].slice(0, 6);
-    if (!ids.length) throw new Error('none');
+    if (!clips && !ids.length) throw new Error('none');
 
     // Look every candidate up at once (the metadata is tiny), then open the
     // films one after another: the first gets the bandwidth it needs to start,
     // and the two behind it buffer while it plays.
-    const found = (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
+    const found = clips || (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
       .filter(Boolean);
     if (!found.length) throw new Error('no video');
 
     const films = [];
     state.pending = films;
-    for (const { id, url, size } of found) {
+    for (const clip of found) {
+      const { id, url, size } = clip;
       if (token !== state.loadToken || films.length >= 3) break;
-      const video = await makeVideo(url, 'canplay').catch(() => null);
+      const video = await makeVideo(url, 'canplay', clips ? clip : null).catch(() => null);
       if (!video) continue;
       if (token !== state.loadToken || films.length >= 3) {
         disposeVideos([{ video }]);
@@ -292,7 +301,7 @@ visuals.register('prelinger_broll', (() => {
   let remembered = false;
   async function rememberFilm(id, url, size) {
     try {
-      if (remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (clips || remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
       if (localStorage.getItem('dir-broll-last') === id) return;
       remembered = true;
       const res = await fetch(url, { priority: 'low' });
@@ -318,7 +327,7 @@ visuals.register('prelinger_broll', (() => {
   }
 
   async function loadStandIn() {
-    if (standInLoading) return;
+    if (clips || standInLoading) return;
     standInLoading = true;
     await findStandIn();
     standInLoading = false;
@@ -437,7 +446,7 @@ visuals.register('prelinger_broll', (() => {
         p.text(String(3 - (p.floor(t / 1000) % 3)), 0, r * 0.02);
         p.textSize(11);
         p.fill(150);
-        p.text('PRELINGER', 0, r * 1.28);
+        p.text(clips ? name.toUpperCase() : 'PRELINGER', 0, r * 1.28);
         p.pop();
       }
 
@@ -500,6 +509,11 @@ visuals.register('prelinger_broll', (() => {
       // The picture covers the screen edge to edge: at least the screen's
       // width and height, never stretched, bars inside the file cut away.
       function drawVideoShot(v, alpha) {
+        if (v._clip && v.seeking) return false;
+        if (v._clip && (v.currentTime < v._clip.start || v.currentTime >= v._clip.end)) {
+          v.currentTime = v._clip.start;
+          return false;
+        }
         const vw = v.videoWidth;
         const vh = v.videoHeight;
         if (!vw || !vh) return false;
@@ -625,9 +639,11 @@ visuals.register('prelinger_broll', (() => {
   function warm() {
     if (state.trackKey) return;
     if (!trackInfo().key || !musicIsSafe()) { setTimeout(warm, 1000); return; }
-    if (typeof visuals.getList !== 'function' || visuals.getList().some((v) => v.id === 'prelinger_broll')) pullTrack();
+    if (typeof visuals.getList !== 'function' || visuals.getList().some((v) => v.id === id)) pullTrack();
   }
-  setTimeout(warm, 0);
+  if (!clips) setTimeout(warm, 0);
 
-  return { name: 'B-roll', start, stop };
-})());
+  return { name, start, stop };
+}
+
+visuals.register('prelinger_broll', createPrelingerBroll());

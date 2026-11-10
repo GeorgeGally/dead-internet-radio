@@ -21,6 +21,7 @@ const artworks = fs.readdirSync(dir)
 
 test('every artwork hands its frame to the filters', () => {
   const missing = artworks
+    .map((a) => a.src.includes('createPrelingerBroll(') ? { ...a, src: fs.readFileSync(path.join(dir, 'prelinger_broll.js'), 'utf8') } : a)
     .filter((a) => !/canvasFilters\.(applyToP5|applyToOverlay|apply)\(/.test(a.src))
     .map((a) => a.file);
   assert.deepEqual(missing, [], 'call canvasFilters.applyToP5(p) at the end of draw()');

@@ -34,6 +34,7 @@ function fakeVideo(videos) {
     removed: false,
     buffered: { length: 1, start: () => 0, end: () => 5 },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    dispatch(type) { (listeners[type] || []).forEach((fn) => fn()); },
     setAttribute() {},
     removeAttribute(name) { if (name === 'src') delete v.url; },
     load() {},
@@ -56,7 +57,8 @@ function fakeVideo(videos) {
   return v;
 }
 
-function createPage(file) {
+function createPage(file, enabledIds = ['giphy', 'prelinger_broll']) {
+  const fetches = [];
   const videos = [];
   const artworks = {};
   const instances = [];
@@ -81,7 +83,7 @@ function createPage(file) {
     canvasFilters: { applyToP5() {}, apply() {} },
     visuals: {
       register(id, art) { artworks[id] = art; },
-      getList: () => [{ id: 'giphy' }, { id: 'prelinger_broll' }],
+      getList: () => enabledIds.map((id) => ({ id })),
     },
     document: {
       body: { appendChild() {}, prepend() {} },
@@ -106,6 +108,7 @@ function createPage(file) {
       remove() {}
     },
     async fetch(url) {
+      fetches.push(url);
       const body = url.includes('broll-index/search')
         ? { response: { numFound: 40, docs: [{ identifier: 'one' }, { identifier: 'two' }, { identifier: 'three' }] } }
         : url.includes('giphy')
@@ -116,12 +119,14 @@ function createPage(file) {
   };
   context.window = context;
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(root, 'public/visuals', file), 'utf8'), context);
-  return { context, artworks, videos, instances };
+  for (const script of [file].flat()) {
+    vm.runInContext(fs.readFileSync(path.join(root, 'public/visuals', script), 'utf8'), context);
+  }
+  return { context, artworks, videos, instances, fetches };
 }
 
 test('the b-roll reel loads before the artwork is ever on screen', async () => {
-  const { artworks, context, videos, instances } = createPage('prelinger_broll.js');
+  const { artworks, context, videos, instances, fetches } = createPage('prelinger_broll.js');
   await until(() => videos.filter((v) => v.url?.startsWith('/broll/')).length === 3);
   await tick();
 
@@ -129,6 +134,8 @@ test('the b-roll reel loads before the artwork is ever on screen', async () => {
   instances.at(-1).p.draw();
 
   assert.equal(context.__pb.ready, true);
+  assert.deepEqual(videos.filter((v) => v.url?.startsWith('/broll/')).map((v) => v.url).sort(), ['/broll/one/film.mp4', '/broll/three/film.mp4', '/broll/two/film.mp4']);
+  assert.ok(fetches.some((url) => decodeURIComponent(url).includes('collection:classic_tv_commercials')));
   assert.equal(instances.at(-1).leaderDrawn, 0);
 });
 
@@ -196,4 +203,40 @@ test('giphy holds two buffered clips and keeps them when the artwork leaves', as
 
   assert.ok(videos.length >= 2);
   assert.ok(videos.every((v) => v.url));
+});
+
+
+test('Aliens plays only its verified shots, including after a track change and rotation', async () => {
+  const { artworks, context, videos, instances, fetches } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+  assert.equal(artworks.prelinger_broll.name, 'B-roll');
+  assert.equal(artworks.aliens.name, 'Aliens');
+  artworks.aliens.start();
+  instances.at(-1).p.draw();
+  await until(() => videos.length === 2);
+  await tick();
+  const expected = [
+    '/broll/trailer-killers-from-space-1954/Trailer%20Killers%20from%20Space%20(1954).ia.mp4',
+    '/broll/invaders-from-mars/Invaders%20From%20Mars.ia.mp4',
+  ];
+  assert.deepEqual(videos.map((v) => v.url).sort(), [...expected].sort());
+  assert.deepEqual(videos.map((v) => v.currentTime), [39, 94.6]);
+  videos[0].currentTime = 47.7;
+  videos[1].currentTime = 98.2;
+  videos.forEach((v) => v.dispatch('timeupdate'));
+  assert.deepEqual(videos.map((v) => v.currentTime), [39, 94.6]);
+  assert.deepEqual(fetches, []);
+  artworks.aliens.stop();
+  artworks.aliens.start();
+  instances.at(-1).p.draw();
+  assert.equal(videos.length, 2);
+  for (const v of videos) v.currentTime = 0;
+  instances.at(-1).p.draw();
+  assert.equal(videos.some((v) => v.currentTime === 39 || v.currentTime === 94.6), true);
+  context.playlist.tracks.push({ title: 'Factory Radio Highway', artist: 'Computer Ads', bpm: 140 });
+  context.currentTrack = 1;
+  instances.at(-1).p.draw();
+  await until(() => videos.length === 4);
+  await tick();
+  assert.deepEqual([...new Set(videos.map((v) => v.url).filter(Boolean))].sort(), [...expected].sort());
+  assert.deepEqual(fetches, []);
 });
