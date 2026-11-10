@@ -398,6 +398,7 @@ function advanceTrack(ident) {
 
 function updateNowPlaying() {
   updateTrackInfo();
+  gallery.markPlaying();
 }
 
 function currentShowName() {
