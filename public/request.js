@@ -2,7 +2,9 @@
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, log = [], gsiLoading = null, wentFull = false;
+  let card, led, me = null, log = [], gsiLoading = null, wentFull = false, signingIn = false;
+  // Set while Google's sign-in is out, so the line reopens if the page reloads.
+  const RETURN_KEY = 'dir-request-return';
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -29,6 +31,16 @@ const requestLine = (() => {
     const line = me && me.signed_in ? await call('GET', '/requests') : null;
     log = line && line.ok ? line.data : [];
     return me;
+  }
+
+  // One light per field, lit once that field has something in it.
+  function fieldLights(inputs) {
+    const box = el('div', 'rq-leds');
+    const dots = inputs.map(() => box.appendChild(el('i')));
+    const update = () => inputs.forEach((input, i) => dots[i].classList.toggle('on', input.value.trim() !== ''));
+    inputs.forEach((input) => input.addEventListener('input', update));
+    update();
+    return box;
   }
 
   // Three lights for the day's three requests: lit = still yours.
@@ -61,7 +73,28 @@ const requestLine = (() => {
     return gsiLoading;
   }
 
+  function rememberReturn(on) {
+    try {
+      if (on) sessionStorage.setItem(RETURN_KEY, String(Date.now()));
+      else sessionStorage.removeItem(RETURN_KEY);
+    } catch (_) {}
+  }
+
+  function shouldReturn() {
+    try {
+      const at = Number(sessionStorage.getItem(RETURN_KEY));
+      sessionStorage.removeItem(RETURN_KEY);
+      return at > 0 && Date.now() - at < 10 * 60 * 1000;
+    } catch (_) { return false; }
+  }
+
+  // Google's popup can take the page out of full screen, which closes the
+  // line; sign-in brings the listener back to it.
   async function signIn(tokenResp) {
+    const wasSigningIn = signingIn;
+    signingIn = false;
+    rememberReturn(false);
+    if (wasSigningIn && !isOpen()) { card.classList.add('open'); led.classList.add('on'); }
     if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
     const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
     if (ok) { me = data; await refreshMe(); render(); } else render(data.message || 'Google didn\'t vouch for that.');
@@ -90,10 +123,16 @@ const requestLine = (() => {
         client_id: me.google_client_id,
         scope: 'openid email profile',
         callback: signIn,
+        error_callback: () => { signingIn = false; rememberReturn(false); },
       });
       go.disabled = false;
     }).catch(() => { out.textContent = 'Google is out of reach.'; });
-    go.addEventListener('click', () => { if (tokenClient) tokenClient.requestAccessToken(); });
+    go.addEventListener('click', () => {
+      if (!tokenClient) return;
+      signingIn = true;
+      rememberReturn(true);
+      tokenClient.requestAccessToken();
+    });
   }
 
   const STYLES = [
@@ -127,9 +166,8 @@ const requestLine = (() => {
     const done = me.requests_left <= 0 ? 'That\'s three today. The line opens again tomorrow.' : '';
     const out = el('p', 'rq-msg', msg || done);
     const { wrap, go } = goButton('send', 'submit');
-    let leds = lights(me.requests_left);
     const foot = el('div', 'rq-foot');
-    foot.append(out, leds, wrap);
+    foot.append(out, fieldLights([artist.input, title.input, style.input]), wrap);
     if (me.requests_left <= 0) go.disabled = true;
     form.append(artist.row, title.row, style.row, foot);
     body.append(form);
@@ -152,12 +190,7 @@ const requestLine = (() => {
         const [before] = out.textContent.split(COVER);
         out.replaceChildren(before, el('mark', 'rq-mark', COVER));
       }
-      if (typeof data.requests_left === 'number') {
-        me.requests_left = data.requests_left;
-        const next = lights(data.requests_left);
-        leds.replaceWith(next);
-        leds = next;
-      }
+      if (typeof data.requests_left === 'number') me.requests_left = data.requests_left;
       if (data.status === 'accepted') {
         renderSent(body, { artist: artist.input.value, title: title.input.value }, data.message);
         return;
@@ -270,6 +303,8 @@ const requestLine = (() => {
   }
 
   function close() {
+    signingIn = false;
+    rememberReturn(false);
     stopPreview();
     card.classList.remove('open');
     led.classList.remove('on');
@@ -293,11 +328,12 @@ const requestLine = (() => {
     x.type = 'button';
     x.setAttribute('aria-label', 'Close');
     x.addEventListener('click', close);
-    top.append(el('span', 'rq-head', 'Request line'), x);
+    top.append(el('span', 'rq-head', 'Dead Internet Radio Request line'), x);
     card.append(top, el('div', 'rq-body'));
     document.body.appendChild(card);
 
     btn.addEventListener('click', () => (isOpen() ? close() : open()));
+    if (shouldReturn()) open();
     // Typing in the card must not reach the artwork and filter keys.
     card.addEventListener('keydown', (e) => {
       e.stopPropagation();
@@ -308,7 +344,7 @@ const requestLine = (() => {
     });
     // Esc in full screen is the browser's: it leaves full screen, so close too.
     document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement && wentFull) { wentFull = false; close(); }
+      if (!document.fullscreenElement && wentFull) { wentFull = false; if (!signingIn) close(); }
     });
   }
 
