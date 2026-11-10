@@ -13,6 +13,11 @@ class AceStepManager
   IDLE_TIMEOUT = 60
 
   class << self
+    # Only the generation PC has it; apps1 hands renders over (GenerationLine).
+    def installed?
+      ACE_STEP_DIR.exist?
+    end
+
     def healthy?
       uri = URI(ace_step_url)
       http = Net::HTTP.new(uri.host, uri.port)

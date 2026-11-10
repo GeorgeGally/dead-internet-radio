@@ -19,6 +19,7 @@ class GenerateShowJob < ApplicationJob
   def render(job_id)
     gen_job = GenerationJob.find(job_id)
     return unless gen_job.pending?
+    return hand_to_pc(gen_job) unless gen_job.dry_run? || AceStepManager.installed?
 
     gen_job.update!(status: :running, started_at: Time.current, output_log: '')
     @gen_job = gen_job
@@ -68,6 +69,11 @@ class GenerateShowJob < ApplicationJob
     ensure
       AceStepManager.release(@ace_session) if @ace_session
     end
+  end
+
+  # No ACE-Step here (apps1): the generation PC picks the job up through GenerationLine.
+  def hand_to_pc(gen_job)
+    gen_job.update!(options: (gen_job.options || {}).merge('on_pc' => true), output_log: "Waiting for the generation PC\n")
   end
 
   def capture_show_dir(line)
