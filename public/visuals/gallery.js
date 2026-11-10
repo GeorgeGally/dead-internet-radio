@@ -353,10 +353,12 @@ const gallery = (() => {
     return { slots: [[k ?? null, k != null]], focus: 0 };
   }
 
-  // The artwork wall: panels edge to edge across the whole drawer, every
-  // artwork showing, a cross at the centre of every panel like an LED video
-  // wall. Hover names the artwork in place of the cross; the playing one's
-  // cross is orange. Only the last row can end short.
+  // The artwork wall: 16:9 panels edge to edge across the drawer, the shape
+  // the artworks play at, every artwork showing, a cross at the centre of
+  // every panel like an LED video wall. Hover names the artwork in place of
+  // the cross; the playing one's cross is orange. Only the last row can end
+  // short; rows past the drawer scroll.
+  const MIN_PANEL_W = 150;
   function buildWall() {
     const list = visuals.getList();
     const currentId = visuals.getCurrentId();
@@ -365,22 +367,23 @@ const gallery = (() => {
     const H = innerHeight - panel.offsetTop - wall.offsetTop;
     if (!W || !H) return;
     const n = list.length;
-    // Fill the drawer edge to edge; pick the column count whose panels come
-    // closest to square.
+    // Fill the width; pick the column count whose rows come closest to
+    // filling the drawer's height, never panels too small to read.
+    const maxCols = Math.max(1, Math.min(n, Math.floor(W / MIN_PANEL_W)));
     let best = null;
-    for (let c = 1; c <= n; c++) {
+    for (let c = 1; c <= maxCols; c++) {
       const r = Math.ceil(n / c);
-      const err = Math.abs(Math.log((W / c) / (H / r)));
+      const err = Math.abs(Math.log((r * (W / c) * 9 / 16) / H));
       if (!best || err < best.err) best = { cols: c, rows: r, err };
     }
     const { cols, rows } = best;
-    const ph = H / rows;
+    const ph = (W / cols) * 9 / 16;
     const total = n;
     const at = new Map(list.map((item, i) => [i, item]));
     const board = document.createElement('div');
     board.className = 'wall-board';
     board.style.width = `${W}px`;
-    board.style.height = `${H}px`;
+    board.style.height = `${rows * ph}px`;
     board.style.setProperty('--cols', cols);
     board.style.setProperty('--ph', `${ph}px`);
     for (let slot = 0; slot < total; slot++) {
