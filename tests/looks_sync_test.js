@@ -14,6 +14,9 @@ function player({ stored = {}, server }) {
   const store = new Map(Object.entries(stored));
   const calls = [];
   const saveCtrl = { hidden: true };
+  const activated = [];
+  const restored = {};
+  let currentId = 'bouncy';
   const box = { classList: { add() {}, remove() {} }, textContent: '' };
   const sandbox = {
     console,
@@ -33,8 +36,11 @@ function player({ stored = {}, server }) {
       createElement: () => box,
       body: { appendChild() {} },
     },
-    canvasFilters: { list: () => [], getState: () => ({ slots: [], focus: 0 }), setState() {} },
-    visuals: { getCurrentId: () => 'bouncy' },
+    canvasFilters: { list: () => [], getState: () => ({ slots: [], focus: 0 }), setState(state) { restored.fx = state; } },
+    visuals: { getCurrentId: () => currentId, activate(id) { activated.push(id); currentId = id; return true; } },
+    _restoreCutoff: (v) => { restored.cutoff = v; },
+    _restoreResonance: (v) => { restored.resonance = v; },
+    _restoreStrength: (v) => { restored.strength = v; },
     async fetch(url, options = {}) {
       calls.push({ url, method: options.method || 'GET', body: options.body && JSON.parse(options.body), headers: options.headers });
       const answer = server(url, options.method || 'GET', calls.at(-1).body);
@@ -43,7 +49,7 @@ function player({ stored = {}, server }) {
   };
   sandbox.window = sandbox;
   vm.runInNewContext(`${source}\nthis.gallery = gallery;`, sandbox);
-  return { gallery: sandbox.gallery, store, calls, saveCtrl, box };
+  return { gallery: sandbox.gallery, store, calls, saveCtrl, box, activated, restored };
 }
 
 test('a listener takes the server looks and cannot save', async () => {
@@ -141,4 +147,34 @@ test('pressing the slot dial goes round from 9 to off; turning it stops at 9', a
   assert.equal(p.gallery.getActiveSlot(), 0);
   p.gallery.nextSlot(1, true);
   assert.equal(p.gallery.getActiveSlot(), 1);
+});
+
+test('slot preview loads its artwork and exact saved settings without uploading old looks', async () => {
+  const old = JSON.stringify({ bouncy: { 7: look(70) } });
+  const p = player({ stored: { 'visual-slot-presets': old }, server: () => ({
+    looks: { bouncy: { 2: look(55), 7: look(200) }, grid: { 2: { ...look(180), fx: { slots: [[6, true, 0.2, 0.8]], focus: 0 } } } }, admin: true,
+  }) });
+  assert.equal(await p.gallery.previewSlot('grid', 2), true);
+  assert.deepEqual(p.activated, ['grid']);
+  assert.equal(p.gallery.getActiveSlot(), 2);
+  assert.equal(p.restored.cutoff, 180);
+  assert.equal(p.restored.resonance, 50);
+  assert.equal(p.restored.strength, 100);
+  assert.equal(JSON.stringify(p.restored.fx), JSON.stringify({ slots: [[6, true, 0.2, 0.8]], focus: 0 }));
+  assert.equal(await p.gallery.previewSlot('bouncy', 7), true);
+  assert.deepEqual(p.activated, ['grid', 'bouncy']);
+  assert.equal(p.gallery.getActiveSlot(), 7);
+  assert.equal(p.restored.cutoff, 200);
+  assert.deepEqual(p.calls.map(c => [c.url, c.method]), [['/api/v1/looks', 'GET'], ['/api/v1/looks', 'GET']]);
+  assert.equal(p.store.get('visual-slot-presets'), old);
+  assert.equal(p.store.size, 1);
+});
+
+test('slot preview fails without substituting another slot or cached look', async () => {
+  for (const response of [null, { looks: {} }]) {
+    const p = player({ stored: { 'visual-looks-cache': JSON.stringify({ bouncy: { 2: look(55) } }) }, server: () => response });
+    assert.equal(await p.gallery.previewSlot('bouncy', 2), false);
+    assert.deepEqual(p.activated, []);
+    assert.deepEqual(p.restored, {});
+  }
 });

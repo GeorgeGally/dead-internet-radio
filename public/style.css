@@ -1898,3 +1898,8 @@ body.prewarming #block-canvas {
 
   .knob-label { font-size: 7px; }
 }
+
+body.slot-preview #welcome-splash,
+body.slot-preview #deck,
+body.slot-preview #visual-notification,
+body.slot-preview #info-btn { display: none !important; }

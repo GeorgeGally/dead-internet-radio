@@ -149,6 +149,19 @@ function loadAdminSwitches(states, respond, names = []) {
     };
   });
   const requests = [];
+  const tableListeners = {};
+  const dialogListeners = {};
+  const dialog = {
+    open: false,
+    addEventListener(type, callback) { dialogListeners[type] = callback; },
+    showModal() { this.open = true; },
+    close() { this.open = false; dialogListeners.close(); },
+  };
+  const frame = { src: 'about:blank', title: '' };
+  const title = { textContent: '' };
+  const actions = {};
+  const confirmations = [];
+  let confirmReset = true;
   const sandbox = {
     JSON,
     Array,
@@ -157,7 +170,7 @@ function loadAdminSwitches(states, respond, names = []) {
       querySelector(selector) {
         if (selector === 'meta[name="csrf-token"]') return { content: 'token' };
         if (selector === '.all-off') return allOff;
-        if (selector === '.visuals') return { addEventListener() {} };
+        if (selector === '.visuals') return { addEventListener(type, callback) { tableListeners[type] = callback; } };
         return null;
       },
       querySelectorAll(selector) {
@@ -165,19 +178,74 @@ function loadAdminSwitches(states, respond, names = []) {
         if (selector === '.name-cell') return cells;
         return [];
       },
-      getElementById() {
+      getElementById(id) {
+        if (id === 'look-preview') return dialog;
+        if (id === 'look-preview-frame') return frame;
+        if (id === 'look-preview-title') return title;
+        if (id === 'look-preview-close' || id === 'look-reset') {
+          return { addEventListener(type, callback) { actions[id] = callback; } };
+        }
         return { addEventListener() {} };
       },
     },
     async fetch(url, options) {
-      requests.push({ url, method: options.method, body: JSON.parse(options.body) });
+      requests.push({ url, method: options.method, body: options.body && JSON.parse(options.body) });
       return respond();
     },
+    window: { confirm(message) { confirmations.push(message); return confirmReset; } },
   };
   const scriptPath = path.join(root, 'public/admin_visuals.js');
   vm.runInNewContext(fs.readFileSync(scriptPath, 'utf8'), sandbox, { filename: scriptPath });
-  return { inputs, allOff, cells, requests };
+  const clickSlot = async (artwork, slot) => {
+    const button = {
+      dataset: { artwork, slot: String(slot) },
+      removed: false,
+      closest() { return { querySelector() { return { dataset: { name: artwork }, focus() {} }; } }; },
+      remove() { this.removed = true; },
+      focus() {},
+    };
+    await tableListeners.click({ target: { closest: () => button } });
+    return button;
+  };
+  return { inputs, allOff, cells, requests, dialog, frame, title, confirmations, clickSlot,
+    reset: () => actions['look-reset'](), cancelReset: () => { confirmReset = false; } };
 }
+
+test('admin slot click opens its own preview without confirmation or mutation', async () => {
+  const p = loadAdminSwitches([], () => ({ ok: true }));
+  const button = await p.clickSlot('bouncy', 7);
+  assert.equal(p.dialog.open, true);
+  assert.equal(p.frame.src, '/?preview=bouncy&slot=7');
+  assert.equal(p.frame.title, 'bouncy / Slot 7');
+  assert.deepEqual(p.confirmations, []);
+  assert.deepEqual(p.requests, []);
+  assert.equal(button.removed, false);
+});
+
+test('explicit reset confirms and deletes only the previewed slot', async () => {
+  const p = loadAdminSwitches([], () => ({ ok: true }));
+  const first = await p.clickSlot('bouncy', 2);
+  const second = await p.clickSlot('grid', 7);
+  await p.reset();
+  assert.deepEqual(p.confirmations, ['Reset grid slot 7?']);
+  assert.deepEqual(p.requests, [{ url: '/api/v1/looks/grid/7', method: 'DELETE', body: undefined }]);
+  assert.equal(first.removed, false);
+  assert.equal(second.removed, true);
+  assert.equal(p.dialog.open, false);
+  assert.equal(p.frame.src, 'about:blank');
+});
+
+test('cancelling reset or a failed delete keeps the slot and preview', async () => {
+  for (const cancel of [true, false]) {
+    const p = loadAdminSwitches([], () => ({ ok: false }));
+    const button = await p.clickSlot('bouncy', 2);
+    if (cancel) p.cancelReset();
+    await p.reset();
+    assert.equal(p.requests.length, cancel ? 0 : 1);
+    assert.equal(button.removed, false);
+    assert.equal(p.dialog.open, true);
+  }
+});
 
 test('admin switch saves the new on-air state', async () => {
   const { inputs, requests } = loadAdminSwitches([true, true], () => ({ ok: true }));
@@ -276,4 +344,21 @@ test('admin names replace the registered artwork names in the player', () => {
 
   visuals.setNames({});
   assert.equal(visuals.getCurrentName(), 'BETA');
+});
+
+test('preview boot loads the selected slot and exits before broadcast startup', async () => {
+  const source = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
+  const init = source.slice(source.indexOf('  async function init() {'), source.indexOf('async function tuneIn('));
+  const calls = [];
+  const body = { classList: { add(name) { calls.push(name); } }, textContent: '' };
+  await vm.runInNewContext(`${init}\ninit();`, {
+    URLSearchParams,
+    location: { search: '?preview=grid&slot=3' },
+    document: { body },
+    setupControls() { calls.push('controls'); },
+    visuals: {},
+    gallery: { async previewSlot(id, slot) { calls.push([id, slot]); return true; } },
+  });
+  assert.deepEqual(calls, ['slot-preview', 'controls', ['grid', 3]]);
+  assert.equal(body.textContent, '');
 });

@@ -85,18 +85,44 @@
     button.className = 'look-slot';
     button.dataset.artwork = artwork;
     button.dataset.slot = slot;
-    button.setAttribute('aria-label', `Reset ${name} slot ${slot}`);
+    button.setAttribute('aria-label', `Preview ${name} slot ${slot}`);
     button.textContent = slot;
     return button;
   };
 
-  document.querySelector('.visuals').addEventListener('click', async (event) => {
+  const preview = document.getElementById('look-preview');
+  const frame = document.getElementById('look-preview-frame');
+  let previewButton = null;
+  preview.addEventListener('close', () => {
+    frame.src = 'about:blank';
+    previewButton?.focus();
+    previewButton = null;
+  });
+  document.getElementById('look-preview-close').addEventListener('click', () => preview.close());
+
+  document.querySelector('.visuals').addEventListener('click', (event) => {
     const button = event.target.closest('.look-slot');
     if (!button) return;
     const { artwork, slot } = button.dataset;
+    const name = button.closest('tr').querySelector('.name-cell').dataset.name;
+    previewButton = button;
+    frame.title = `${name} / Slot ${slot}`;
+    document.getElementById('look-preview-title').textContent = frame.title;
+    frame.src = `/?preview=${encodeURIComponent(artwork)}&slot=${encodeURIComponent(slot)}`;
+    if (!preview.open) preview.showModal();
+  });
+
+  document.getElementById('look-reset').addEventListener('click', async () => {
+    if (!previewButton) return;
+    const button = previewButton;
+    const { artwork, slot } = button.dataset;
     if (!window.confirm(`Reset ${artwork} slot ${slot}?`)) return;
     const response = await looksCall(`${artwork}/${slot}`, 'DELETE');
-    if (response.ok) button.remove();
+    if (response.ok) {
+      preview.close();
+      button.closest('tr').querySelector('.name-cell').focus();
+      button.remove();
+    }
   });
 
   // The box opens on this browser's old looks, ready to carry to another address.

@@ -132,6 +132,18 @@ const gallery = (() => {
     if (looksAdmin) await uploadOldLooks();
   }
 
+  async function previewSlot(id, slot) {
+    const res = await fetch('/api/v1/looks', { credentials: 'same-origin' });
+    if (!res.ok) return false;
+    const state = await res.json();
+    if (!state.looks?.[id]?.[slot]) return false;
+    artPresets = state.looks;
+    if (!visuals.activate(id)) return false;
+    selectSlot(slot);
+    loadSlot(id, slot);
+    return true;
+  }
+
   function build() {
     if (panel) return;
 
@@ -729,5 +741,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, syncLooks, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, syncLooks, previewSlot, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();
