@@ -14,6 +14,8 @@ const dir = path.join(root, 'public/visuals');
 const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 
 const NOT_ARTWORKS = new Set(['engine.js', 'filters.js', 'track_hud.js', 'gallery.js']);
+// Drawn by prelinger_broll.js; tests/video_reel_test.js runs their filters.
+const DRAWN_BY_PRELINGER_BROLL = new Set(['aliens.js']);
 const artworks = fs.readdirSync(dir)
   .filter((f) => f.endsWith('.js') && !NOT_ARTWORKS.has(f))
   .map((f) => ({ file: f, src: fs.readFileSync(path.join(dir, f), 'utf8') }))
@@ -21,7 +23,7 @@ const artworks = fs.readdirSync(dir)
 
 test('every artwork hands its frame to the filters', () => {
   const missing = artworks
-    .map((a) => a.src.includes('createPrelingerBroll(') ? { ...a, src: fs.readFileSync(path.join(dir, 'prelinger_broll.js'), 'utf8') } : a)
+    .filter((a) => !DRAWN_BY_PRELINGER_BROLL.has(a.file))
     .filter((a) => !/canvasFilters\.(applyToP5|applyToOverlay|apply)\(/.test(a.src))
     .map((a) => a.file);
   assert.deepEqual(missing, [], 'call canvasFilters.applyToP5(p) at the end of draw()');

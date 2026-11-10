@@ -254,6 +254,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
     const empty = !state.films.length && !state.loading
       && performance.now() - state.loadEnded > RETRY_EMPTY_MS;
     if (info.key === state.trackKey && !empty) return;
+    if (clips && (state.films.length || state.loading)) return;
     // The reel waits for the music; the stand-in (asked for once) can show.
     if (!musicIsSafe()) {
       if (!standInAsked) {
@@ -641,7 +642,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
     if (!trackInfo().key || !musicIsSafe()) { setTimeout(warm, 1000); return; }
     if (typeof visuals.getList !== 'function' || visuals.getList().some((v) => v.id === id)) pullTrack();
   }
-  if (!clips) setTimeout(warm, 0);
+  setTimeout(warm, 0);
 
   return { name, start, stop };
 }

@@ -210,10 +210,11 @@ test('Aliens plays only its verified shots, including after a track change and r
   const { artworks, context, videos, instances, fetches } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
   assert.equal(artworks.prelinger_broll.name, 'B-roll');
   assert.equal(artworks.aliens.name, 'Aliens');
-  artworks.aliens.start();
-  instances.at(-1).p.draw();
   await until(() => videos.length === 2);
   await tick();
+  artworks.aliens.start();
+  instances.at(-1).p.draw();
+  assert.equal(instances.at(-1).leaderDrawn, 0);
   const expected = [
     '/broll/trailer-killers-from-space-1954/Trailer%20Killers%20from%20Space%20(1954).ia.mp4',
     '/broll/invaders-from-mars/Invaders%20From%20Mars.ia.mp4',
@@ -234,9 +235,24 @@ test('Aliens plays only its verified shots, including after a track change and r
   assert.equal(videos.some((v) => v.currentTime === 39 || v.currentTime === 94.6), true);
   context.playlist.tracks.push({ title: 'Factory Radio Highway', artist: 'Computer Ads', bpm: 140 });
   context.currentTrack = 1;
+  const reel = context.__pb.films;
   instances.at(-1).p.draw();
-  await until(() => videos.length === 4);
   await tick();
-  assert.deepEqual([...new Set(videos.map((v) => v.url).filter(Boolean))].sort(), [...expected].sort());
+  await tick();
+  assert.equal(videos.length, 2);
+  assert.equal(context.__pb.films, reel);
+  assert.ok(videos.every((v) => !v.removed && v.url));
   assert.deepEqual(fetches, []);
+});
+
+test('Aliens hands its frame to the filters', async () => {
+  const { artworks, context, videos, instances } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+  const filtered = [];
+  context.canvasFilters.applyToP5 = (p) => filtered.push(p);
+  await until(() => videos.length === 2);
+  await tick();
+  artworks.aliens.start();
+  instances.at(-1).p.draw();
+  assert.equal(context.__pb.ready, true);
+  assert.deepEqual(filtered, [instances.at(-1).p]);
 });
