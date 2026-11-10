@@ -21,7 +21,7 @@ same listener.
 
 The main `.abtn` deck controls play `switch-1.mp3`. Other player buttons play
 `switch-4.mp3`. Untrusted programmatic clicks, disabled controls and inert content
-stay silent. The radio player's mute or zero volume also silences the samples.
+stay silent.
 Sample playback failures are caught independently of the button action; the
 samples never use or pause the radio's media element or audio graph.
 
@@ -30,6 +30,6 @@ and sounds directory into static builds. Keep both paths when changing packaging
 
 Run the focused regression check with `node --test tests/button_sounds_test.js`.
 It covers the A/D mapping, pointer versus keyboard click counts, disabled and
-programmatic activations, mute behavior and rejected or throwing playback.
+programmatic activations and rejected or throwing playback.
 Browser verification must use genuine input events: a script calling `.click()`
 intentionally stays silent.
