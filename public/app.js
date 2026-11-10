@@ -1199,6 +1199,18 @@ let timeData = null;
 let audioAnalysisReady = false;
 
   async function init() {
+  const preview = new URLSearchParams(location.search);
+  if (preview.has('preview')) {
+    document.body.classList.add('slot-preview');
+    setupControls();
+    visuals.artworkEnded = () => {};
+    try {
+      const slot = Number(preview.get('slot'));
+      if (Number.isInteger(slot) && slot >= 1 && slot <= 9 && await gallery.previewSlot(preview.get('preview'), slot)) return;
+    } catch (error) {}
+    document.body.textContent = 'Preview unavailable';
+    return;
+  }
   initWave();
   startEqLoop();
   window.addEventListener('resize', initWave);

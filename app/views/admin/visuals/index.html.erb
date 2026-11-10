@@ -14,7 +14,7 @@
         <td><div class="thumb" style="background-image: url(/visuals/thumbs/<%= v.slug %>.jpg)"></div></td>
         <td class="looks-cell" data-looks="<%= v.slug %>">
           <% @looks.fetch(v.slug, {}).each_key do |slot| %>
-            <button type="button" class="look-slot" data-artwork="<%= v.slug %>" data-slot="<%= slot %>" aria-label="Reset <%= v.name %> slot <%= slot %>"><%= slot %></button>
+            <button type="button" class="look-slot" data-artwork="<%= v.slug %>" data-slot="<%= slot %>" aria-label="Preview <%= v.name %> slot <%= slot %>"><%= slot %></button>
           <% end %>
         </td>
         <td class="switch-cell">
@@ -27,6 +27,15 @@
     <% end %>
   </tbody>
 </table>
+
+<dialog id="look-preview" aria-labelledby="look-preview-title">
+  <div class="look-preview-actions">
+    <h3 id="look-preview-title"></h3>
+    <button type="button" id="look-reset">Reset slot</button>
+    <button type="button" id="look-preview-close" autofocus>Close</button>
+  </div>
+  <iframe id="look-preview-frame" title="Slot preview" src="about:blank" allow="autoplay 'none'; microphone 'none'; camera 'none'"></iframe>
+</dialog>
 
 <section class="looks-import">
   <h3>Import looks</h3>
