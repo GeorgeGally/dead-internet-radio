@@ -202,7 +202,7 @@ const trackHud = (() => {
     ensureCanvas();
     for (const mode of Object.keys(MODES)) {
       if (!state[mode]) state[mode] = { detector: null, loading: false, failed: false, lastDetect: 0, items: [], count: 0 };
-      if (!state[mode].detector) load(mode);
+      if (!state[mode].detector && (typeof musicHasCushion !== 'function' || musicHasCushion())) load(mode);
       track(mode, src, now);
     }
     canvas.style.display = 'block';

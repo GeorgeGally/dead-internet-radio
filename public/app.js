@@ -84,6 +84,8 @@ function showWelcome() {
   const splash = document.getElementById('welcome-splash');
   const audio = document.getElementById('welcome-audio');
   if (!splash || !audio) return;
+  // Nothing plays until the click.
+  musicDue = false;
 
   let dismissed = false;
   function dismiss() {
@@ -254,11 +256,14 @@ let heldUrl = '';
 let cushionWait = 0;
 
 // Everything that loads in the background waits for this. On a slow connection
-// it would otherwise take the bandwidth the music is living on.
+// it would otherwise take the bandwidth the music is living on. That includes
+// the moments before the music has a source: on open it is on its way.
 const CUSHION_S = 20;
+let musicDue = true;
 function musicHasCushion() {
   const audio = document.getElementById('player');
-  if (!audio || !audio.getAttribute('src') || listenerStopped || heldUrl) return true;
+  if (!audio || listenerStopped || heldUrl) return true;
+  if (!audio.getAttribute('src')) return !musicDue;
   const left = (audio.duration || Infinity) - audio.currentTime - 0.5;
   const b = audio.buffered;
   if (!b) return true;
@@ -570,16 +575,21 @@ function togglePlay() {
 function updatePlayBtn() {
   const audio = document.getElementById('player');
   const playing = audio && !audio.paused;
+  // Asked to play but no sound yet: say so instead of claiming it plays.
+  const loading = playing && audio.readyState < 3;
   if (_flashActive) return;
   const led = document.getElementById('led-play');
-  if (led) led.classList.toggle('on', !!playing);
+  if (led) {
+    led.classList.toggle('on', !!playing && !loading);
+    led.classList.toggle('loading', !!loading);
+  }
   // Play while stopped, stop while playing.
   const btn = document.getElementById('btn-play');
   if (btn) {
     btn.textContent = playing ? '\u25a0' : '\u25b6';
     btn.title = playing ? 'Stop' : 'Play';
-    btn.setAttribute('aria-label', btn.title);
-    document.getElementById('play-label').textContent = btn.title;
+    btn.setAttribute('aria-label', loading ? 'Loading' : btn.title);
+    document.getElementById('play-label').textContent = loading ? 'Loading' : btn.title;
     btn.classList.toggle('stop', !!playing);
   }
 }
@@ -668,7 +678,7 @@ function flashLed(id, ms = 800) {
   if (!el) return;
   _flashActive = true;
   const playLed = document.getElementById('led-play');
-  if (playLed) playLed.classList.remove('on');
+  if (playLed) playLed.classList.remove('on', 'loading');
   el.classList.add('on');
   clearTimeout(el._flashTimer);
   el._flashTimer = setTimeout(() => {
@@ -820,8 +830,7 @@ function setupControls() {
   });
 
   const audio = document.getElementById('player');
-  audio.addEventListener('play', () => updatePlayBtn());
-  audio.addEventListener('pause', () => updatePlayBtn());
+  ['play', 'pause', 'playing', 'waiting', 'canplay', 'emptied'].forEach((e) => audio.addEventListener(e, updatePlayBtn));
   audio.addEventListener('ended', () => {
     updatePlayBtn();
     updateTrackInfo();
@@ -1234,6 +1243,10 @@ let audioAnalysisReady = false;
   setupDeckRetraction();
   setupLogoHover();
 
+  // The timeline is asked for alongside the autoplay check and the artwork
+  // list, not after them: each is a round trip to a far-off server.
+  const broadcast = loadBroadcastData();
+  broadcast.catch(() => {});
   const autoplay = autoplayAllowed();
   autoplay.then((allowed) => {
     if (!allowed) document.getElementById('welcome-splash').classList.add('click-to-start');
@@ -1241,14 +1254,14 @@ let audioAnalysisReady = false;
   await loadActiveVisuals();
   if (await autoplay) skipWelcome();
   else showWelcome();
-  tuneIn();
+  tuneIn(broadcast);
 }
 
-async function tuneIn() {
+async function tuneIn(broadcast = loadBroadcastData()) {
   setInterval(() => refreshTimeline().catch(() => {}), TIMELINE_POLL_MS);
   setInterval(rejoinIfStranded, 2000);
   try {
-    playlist = await loadBroadcastData();
+    playlist = await broadcast;
     if (Array.isArray(playlist.tracks) && playlist.tracks.length > 0) {
       updateTrackInfo();
       if (!_welcomeActive) {
@@ -1260,6 +1273,7 @@ async function tuneIn() {
   }
 
   await loadShows().catch(() => {});
+  if (!document.getElementById('player').getAttribute('src')) musicDue = false;
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -245,6 +245,14 @@ visuals.register('prelinger_broll', (() => {
     const empty = !state.films.length && !state.loading
       && performance.now() - state.loadEnded > RETRY_EMPTY_MS;
     if (info.key === state.trackKey && !empty) return;
+    // The reel waits for the music; the stand-in (asked for once) can show.
+    if (!musicIsSafe()) {
+      if (!standInAsked) {
+        standInAsked = true;
+        loadStandIn();
+      }
+      return;
+    }
     state.trackKey = info.key;
     state.loadToken += 1;
     const token = state.loadToken;
@@ -275,6 +283,7 @@ visuals.register('prelinger_broll', (() => {
   const STANDIN_TERMS = ['vintage film', 'old footage', '1950s', 'home movie', 'film grain', 'retro tv'];
   let standIn = null;
   let standInLoading = false;
+  let standInAsked = false;
 
   // One small film from the last reel is kept in Cache Storage, so the next
   // visit starts on it at once instead of on Giphy.
