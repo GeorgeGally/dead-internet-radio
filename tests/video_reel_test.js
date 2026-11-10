@@ -245,6 +245,36 @@ test('Aliens plays only its verified shots, including after a track change and r
   assert.deepEqual(fetches, []);
 });
 
+test('Aliens retries a shot that failed to load on the next track change', async () => {
+  const { artworks, context, videos, instances } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+  let failing = true;
+  const createElement = context.document.createElement;
+  context.document.createElement = (tag) => {
+    const v = createElement(tag);
+    if (tag !== 'video') return v;
+    const { set } = Object.getOwnPropertyDescriptor(v, 'src');
+    Object.defineProperty(v, 'src', {
+      set(url) {
+        set(url);
+        if (failing && url.includes('Invaders')) v.dispatch('error');
+      },
+    });
+    return v;
+  };
+  await until(() => videos.length === 2);
+  await tick();
+  artworks.aliens.start();
+  await until(() => !context.__pb.loading && context.__pb.films.length === 1);
+  assert.match(context.__pb.films[0].url, /Killers/);
+
+  failing = false;
+  context.playlist.tracks.push({ title: 'Factory Radio Highway', artist: 'Computer Ads', bpm: 140 });
+  context.currentTrack = 1;
+  instances.at(-1).p.draw();
+  await until(() => context.__pb.films.length === 2);
+  assert.deepEqual(Array.from(context.__pb.films, (f) => f.id), ['trailer-killers-from-space-1954', 'invaders-from-mars']);
+});
+
 test('Aliens hands its frame to the filters', async () => {
   const { artworks, context, videos, instances } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
   const filtered = [];

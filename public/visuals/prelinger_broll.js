@@ -254,7 +254,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
     const empty = !state.films.length && !state.loading
       && performance.now() - state.loadEnded > RETRY_EMPTY_MS;
     if (info.key === state.trackKey && !empty) return;
-    if (clips && (state.films.length || state.loading)) return;
+    if (clips && (state.loading || state.films.length >= clips.length)) return;
     // The reel waits for the music; the stand-in (asked for once) can show.
     if (!musicIsSafe()) {
       if (!standInAsked) {
