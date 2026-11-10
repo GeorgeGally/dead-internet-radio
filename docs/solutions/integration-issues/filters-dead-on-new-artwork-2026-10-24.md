@@ -51,7 +51,9 @@ Failures so far:
    `node bin/capture-thumbnails.mjs <id>` (writes `public/visuals/thumbs/<id>.jpg`).
 
 `tests/visuals_filter_contract_test.js` enforces 1–4 and 6 statically
-(`node --test tests/`).
+(`node --test tests/`). Artworks built with `createPrelingerBroll` (e.g.
+`aliens.js`) skip the static check for 2; `tests/video_reel_test.js` runs their
+filters instead.
 
 ## Adding a filter
 
