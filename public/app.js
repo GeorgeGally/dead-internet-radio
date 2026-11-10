@@ -14,23 +14,23 @@ function stopWelcomeIdent() {
   if (frame) frame.src = 'about:blank';
 }
 
-// The station's own picks lean on the first two artworks (Giphy and the
-// video archive): about half of all changes land on one of them.
-const FAVOURED_ART = 2;
-const FAVOURED_SHARE = 0.5;
+// The station's own picks lean hard on video and GIFs: the video archive
+// takes about 55% of changes, Giphy 30%, and every other artwork shares 15%.
+// Both play fresh clips on their own, so either may keep the screen.
+const FAVOURED_SHARES = { prelinger_broll: 0.55, giphy: 0.3 };
 // The other artworks in a weighted random order, the current one left out.
 function artworkOrder(skip) {
   const ids = visuals.getList().map((v) => v.id).filter((id) => !skip.includes(id));
-  const fav = new Set(visuals.getList().slice(0, FAVOURED_ART).map((v) => v.id));
-  const rest = ids.filter((id) => !fav.has(id)).length || 1;
-  const favCount = ids.filter((id) => fav.has(id)).length || 1;
-  const weight = (id) => fav.has(id) ? FAVOURED_SHARE / favCount : (1 - FAVOURED_SHARE) / rest;
+  const restShare = 1 - Object.values(FAVOURED_SHARES).reduce((a, b) => a + b, 0);
+  const rest = ids.filter((id) => !(id in FAVOURED_SHARES)).length || 1;
+  const weight = (id) => FAVOURED_SHARES[id] || restShare / rest;
   // Weighted shuffle: smaller key goes first.
   return ids.map((id) => [id, -Math.log(Math.random()) / weight(id)]).sort((a, b) => a[1] - b[1]).map((p) => p[0]);
 }
 
 function randomArtwork() {
-  return artworkOrder([visuals.getCurrentId()]).some((id) => visuals.activate(id));
+  const current = visuals.getCurrentId();
+  return artworkOrder(current in FAVOURED_SHARES ? [] : [current]).some((id) => visuals.activate(id));
 }
 
 // The site opens on a random artwork, never the one it opened on last time.
@@ -1207,14 +1207,18 @@ let audioAnalysisReady = false;
   // The artwork also moves on its own on an erratic clock (bursts of fast
   // cuts, ordinary runs, long holds), besides changing with the music; it
   // still waits out the 30 s after the listener touches anything.
+  // The delayed lerp points drawings skip the quick cuts: they draw to the
+  // end and hand over themselves, capped at two minutes.
   let quickCut = 0;
   const artClock = gallery.erratic();
+  const LINGERS = /^delayed_lerp_points/;
+  const LINGER_CAP_MS = 120000;
   visuals.activate = function(id) {
     gallery.saveCurrentPreset();
     const ok = origActivate.call(visuals, id);
     if (ok) {
       clearTimeout(quickCut);
-      quickCut = setTimeout(() => gallery.whenQuiet(randomArtwork), artClock());
+      quickCut = setTimeout(() => gallery.whenQuiet(randomArtwork), LINGERS.test(id) ? LINGER_CAP_MS : artClock());
     }
     updateTrackInfo();
     if (ok) {
