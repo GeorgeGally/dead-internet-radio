@@ -1392,6 +1392,7 @@ body.prewarming #block-canvas {
 .wall-x::before { left: 7px; top: 0; width: 1px; height: 15px; }
 .wall-x::after { top: 7px; left: 0; width: 15px; height: 1px; }
 
+.wall-panel.active { outline: 2px solid #ff5a1f; outline-offset: -2px; }
 .wall-panel.active .wall-x { mix-blend-mode: normal; }
 .wall-panel.active .wall-x::before { background: #ff5a1f; width: 2px; }
 .wall-panel.active .wall-x::after { background: #ff5a1f; height: 2px; }

@@ -404,6 +404,7 @@ const gallery = (() => {
       t.className = 'wall-panel';
       if (item) {
         t.classList.add('art');
+        t.dataset.id = item.id;
         t.classList.toggle('active', item.id === currentId);
         // Fixed screenshot per artwork: bin/capture-thumbnails.mjs <id>
         t.style.backgroundImage = `url(visuals/thumbs/${item.id}.jpg)`;
@@ -424,6 +425,13 @@ const gallery = (() => {
       board.appendChild(t);
     }
     wall.replaceChildren(board);
+  }
+
+  // The outline follows the playing artwork while the drawer is open.
+  function markPlaying(id = visuals.getCurrentId()) {
+    wall?.querySelectorAll('.wall-panel.art').forEach((t) => {
+      t.classList.toggle('active', t.dataset.id === id);
+    });
   }
 
   function open() {
@@ -741,5 +749,5 @@ const gallery = (() => {
     });
   }
 
-  return { init, syncLooks, previewSlot, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
+  return { init, markPlaying, syncLooks, previewSlot, erratic, bindFxUnit, whenQuiet, isQuiet, open, close, toggle, savePreset, loadPreset, saveCurrentPreset, saveSlot, loadSlot, nextSlot, selectSlot, resetSlot, applyRandomSlot, markAltered, getActiveSlot, slotHasPreset, updateSlotUI };
 })();
