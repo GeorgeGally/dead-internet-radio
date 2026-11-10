@@ -21,6 +21,7 @@ module Api
             key: t.key,
             showName: t.show.name,
             djName: t.show.dj_name,
+            interlude: t.show.kind == "interlude",
           }
         }
         render json: { serverTime: (Time.current.to_f * 1000).round, segments: segments }

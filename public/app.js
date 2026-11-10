@@ -923,6 +923,14 @@ const TIMELINE_WAIT_MS = 1500;
 const LIVE_RETRY_MS = 2000;
 let liveRetry = 0;
 
+// The station talk between sets opens with the ident; with no talk booked,
+// the next set does. Talk running on into the set brings no second one.
+function setChange(before, now) {
+  if (!before || !now) return false;
+  if (now.interlude) return !before.interlude;
+  return !before.interlude && before.showName !== now.showName;
+}
+
 // Tune to the shared timeline (also used to resync after each segment). A
 // timeline already in hand plays on after a short wait for a newer one.
 async function goLive(fromTrackEnd, ident) {
@@ -943,17 +951,16 @@ async function goLive(fromTrackEnd, ident) {
     }
   }
   stopVoiceover();
-  const showBefore = playlist && playlist.tracks && playlist.tracks[currentTrack] ? playlist.tracks[currentTrack].showName : null;
+  const before = playlist && playlist.tracks ? playlist.tracks[currentTrack] : null;
   playlist = next;
   playlistBase = '';
   currentShowId = null;
   if (fromTrackEnd) gallery.whenQuiet(randomArtwork);
   visuals.notify('trackChange');
   setupAudio();
-  // The live timeline resyncs after every segment; the ident only plays when
-  // the segment belongs to a different show.
-  const showNow = playlist.tracks[currentTrack] ? playlist.tracks[currentTrack].showName : null;
-  if (ident && showNow !== showBefore) idents.play();
+  // The live timeline resyncs after every segment; the ident plays only where
+  // one set hands over to the next.
+  if (ident && setChange(before, playlist.tracks[currentTrack])) idents.play();
   updateTrackInfo();
   updatePlayBtn();
 }

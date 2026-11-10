@@ -52,19 +52,14 @@ function loadIdents({ stored = {}, random = 0, onAir = { visual: ALL, audio: [1]
 
 const MINUTE = 60 * 1000;
 
-test('an ident waits thirty minutes after the last one', async () => {
-  const recent = loadIdents({ stored: { 'ident-shown-at': Date.now() - 29 * MINUTE } });
-  await recent.idents.play();
-  assert.equal(recent.frame.src, '');
-  assert.equal(recent.server.asks, 0, 'no call while the gate is shut');
-
-  const old = loadIdents({ stored: { 'ident-shown-at': Date.now() - 31 * MINUTE } });
-  await old.idents.play();
-  assert.match(old.frame.src, /^labs\/station-ident-lab\.html\?only=\d+&once$/);
-  assert.ok(Number(old.store.get('ident-shown-at')) > Date.now() - MINUTE, 'the clock restarts');
-  old.idents.stop();
-  await old.idents.play();
-  assert.equal(old.frame.src, 'about:blank');
+test('every set change gets its ident, however recent the last one', async () => {
+  const page = loadIdents({ stored: { 'ident-shown-at': Date.now() - MINUTE } });
+  await page.idents.play();
+  assert.match(page.frame.src, /^labs\/station-ident-lab\.html\?only=\d+&once$/);
+  page.idents.stop();
+  assert.equal(page.frame.src, 'about:blank');
+  await page.idents.play();
+  assert.match(page.frame.src, /only=\d+&once$/);
 });
 
 test('an ident shows once loaded and leaves when its run ends', async () => {
@@ -265,6 +260,33 @@ test('live: the next track of the same show plays without an ident', async () =>
   await app.settle();
   assert.ok(!app.calls.includes('play'), app.calls.join(','));
   assert.equal(app.player.src, '/media/a.mp3');
+});
+
+function handOver(app, before, segments) {
+  const now = Date.now();
+  app.responses['/api/v1/broadcast'] = () => ({
+    serverTime: now,
+    segments: segments.map((seg, i) => ({ id: 10 + i, startsAt: now - 1000 + i * 60000, durationMs: 60000, file: `/media/${i}.mp3`, ...seg })),
+  });
+  app.run(`playlist = { live: true, tracks: [{ id: 1, startsAt: 0, durationMs: 1, file: '/media/x.mp3', ...${JSON.stringify(before)} }] }; currentTrack = 0;`);
+}
+
+test('live: the station talk between sets opens with the ident', async () => {
+  const app = loadApp();
+  handOver(app, { showName: 'Set A' }, [{ showName: 'Between Shows', interlude: true }]);
+  app.run('onTrackEnd()');
+  await app.settle();
+  assert.equal(app.calls.at(-1), 'play');
+});
+
+test('live: talk running on, and the set after it, bring no second ident', async () => {
+  for (const next of [{ showName: 'Between Shows', interlude: true }, { showName: 'Set B' }]) {
+    const app = loadApp();
+    handOver(app, { showName: 'Between Shows', interlude: true }, [next]);
+    app.run('onTrackEnd()');
+    await app.settle();
+    assert.ok(!app.calls.includes('play'), JSON.stringify(next));
+  }
 });
 
 for (const control of ['nextTrack', 'prevTrack']) {

@@ -6,15 +6,12 @@
 // one turned off never airs, even on a page that's been open for hours.
 
 (function () {
-  // However often the sets change, the screen sees an ident at most this
-  // often. The clock outlives a reload.
-  const MIN_GAP_MS = 30 * 60 * 1000;
-  const LONGEST_MS = 14 * 1000;
-  const SHOWN_KEY = 'ident-shown-at';
+  // An ident marks a change of set, every time: the station talk booked
+  // between sets (or, with none booked, the next set itself) puts one up.
+  const LONGEST_MS = 12 * 1000;
   const LAST_KEY = 'ident-last';
 
   let frame = null;
-  let shownAt = 0;
   let last = 0;
   let starting = false;
   let timer = 0;
@@ -26,11 +23,6 @@
 
   function store(key, value) {
     try { localStorage.setItem(key, String(value)); } catch (e) {}
-  }
-
-  function markShown() {
-    shownAt = Date.now();
-    store(SHOWN_KEY, shownAt);
   }
 
   // No answer airs nothing: an ident that's off must never slip through.
@@ -71,14 +63,11 @@
     window.addEventListener('message', (e) => {
       if (e.source === frame.contentWindow && e.data === 'ident-done') stop();
     });
-    // The splash is an ident too: the gap starts there.
-    if (splashUp()) markShown();
   }
 
   async function play() {
-    if (!frame || splashUp() || Date.now() - Math.max(shownAt, stored(SHOWN_KEY)) < MIN_GAP_MS) return;
+    if (!frame || splashUp()) return;
     stop();
-    markShown();
     const run = runs;
     const { visual } = await onAir();
     if (run !== runs) return;
