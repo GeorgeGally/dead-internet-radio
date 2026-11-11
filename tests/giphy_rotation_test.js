@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.resolve(__dirname, '../public/visuals/giphy.js'), 'utf8');
 
-function loadGiphy({ fetchOk = true } = {}) {
+function loadGiphy({ fetchOk = true, cacheAge = null } = {}) {
   let now = 0;
   let nextId = 1;
   const timers = new Map();
@@ -25,7 +25,7 @@ function loadGiphy({ fetchOk = true } = {}) {
     clearTimeout(id) { timers.delete(id); },
     requestAnimationFrame() { return 0; },
     cancelAnimationFrame() {},
-    localStorage: { store: {}, getItem(k) { return this.store[k] ?? null; }, setItem(k, v) { this.store[k] = String(v); }, removeItem(k) { delete this.store[k]; } },
+    localStorage: { store: cacheAge == null ? {} : { dir_gif_cache_v2: JSON.stringify({ ts: -cacheAge, items: [{ mp4: 'https://media.test/cached.mp4' }] }) }, getItem(k) { return this.store[k] ?? null; }, setItem(k, v) { this.store[k] = String(v); }, removeItem(k) { delete this.store[k]; } },
     playlist: { tracks: [{ title: 'x' }] },
     fetch(url) {
       fetches.push(url);
@@ -74,25 +74,62 @@ test('a return finishes the dwell it left instead of starting a new one', async 
   assert.equal(second.ms, 9000);
 });
 
-test('the clip pool refreshes on the wall clock while Giphy is off screen', async () => {
+const REFRESH_MS = 3 * 60 * 1000;
+
+async function searchesDuring(g, fn) {
+  const before = g.fetches.length;
+  await fn();
+  await g.advance(10);
+  return g.fetches.length - before;
+}
+
+test('no search happens while Giphy is off screen, however long', async () => {
+  const g = loadGiphy();
+  g.artwork.start();
+  g.artwork.stop();
+  assert.equal(await searchesDuring(g, () => g.advance(6 * 60 * 60 * 1000)), 0);
+});
+
+test('a start more than three minutes after the last search searches once', async () => {
   const g = loadGiphy();
   g.artwork.start();
   await g.advance(10);
-  const searches = g.fetches.length;
   g.artwork.stop();
-  await g.advance(60000);
-  g.artwork.start();
+  await g.advance(REFRESH_MS + 1000);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 1);
   g.artwork.stop();
-  await g.advance(121000);
-  assert.equal(g.fetches.length, searches + 1);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 0);
 });
 
-test('a failed search is retried while Giphy is off screen', async () => {
+test('a start within three minutes of the last search does not search', async () => {
+  const g = loadGiphy();
+  g.artwork.start();
+  await g.advance(10);
+  g.artwork.stop();
+  await g.advance(REFRESH_MS - 1000);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 0);
+});
+
+test('a failed search is retried on the next start after three minutes', async () => {
   const g = loadGiphy({ fetchOk: false });
   g.artwork.start();
-  g.artwork.stop();
   await g.advance(10);
-  const searches = g.fetches.length;
-  await g.advance(181000);
-  assert.equal(g.fetches.length, searches + 1);
+  g.artwork.stop();
+  await g.advance(60000);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 0);
+  g.artwork.stop();
+  await g.advance(REFRESH_MS);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 1);
+});
+
+test('a recent cached pool is used on page load without a search', async () => {
+  const g = loadGiphy({ cacheAge: 60000 });
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 0);
+});
+
+test('an old cached pool is refreshed on Giphy\'s first appearance', async () => {
+  const g = loadGiphy({ cacheAge: REFRESH_MS + 60000 });
+  await g.advance(10);
+  assert.equal(g.fetches.length, 0);
+  assert.equal(await searchesDuring(g, () => g.artwork.start()), 1);
 });

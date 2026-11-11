@@ -33,9 +33,9 @@ visuals.register('giphy', (() => {
   let gifItems = [];
   let freshItems = [];
   let gifCycleTimer = null;
-  let gifRefreshTimer = null;
   let gifRetryTimer = null;
   let gifLoading = false;
+  let lastSearchAt = readCache()?.ts || 0;
 
   // Swap only when BOTH the dwell has elapsed and the next item is fully
   // buffered; until then the current one keeps looping. One preload at a time,
@@ -85,14 +85,13 @@ visuals.register('giphy', (() => {
 
   async function fetchGiphyGifs(force) {
     if (gifLoading) return;
-    const cached = getCachedGifs();
-    if (cached.length && !force) {
-      gifItems = cached;
+    if (!gifItems.length) gifItems = getCachedGifs();
+    if (gifItems.length && !force) {
       queueNext();
-      scheduleGifRefresh();
       return;
     }
     gifLoading = true;
+    lastSearchAt = Date.now();
     try {
       const term = encodeURIComponent(pickSearchTerm());
       const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${term}&limit=${GIPHY_LIMIT}&rating=pg-13&lang=en`;
@@ -112,40 +111,35 @@ visuals.register('giphy', (() => {
       if (gifItems.length > 640) gifItems = gifItems.slice(-640);
       saveGifsToCache(gifItems);
       queueNext();
-      scheduleGifRefresh();
     } catch (e) {
       console.warn('Giphy fetch failed:', e.message);
       if (!gifItems.length) {
         gifItems = GIPHY_FALLBACK_URLS.map(gif => ({ mp4: '', gif }));
         queueNext();
       }
-      scheduleGifRefresh();
     } finally {
       gifLoading = false;
     }
   }
 
-  function scheduleGifRefresh() {
-    if (gifRefreshTimer) return;
-    gifRefreshTimer = setTimeout(() => {
-      gifRefreshTimer = null;
-      fetchGiphyGifs(true);
-    }, GIPHY_REFRESH_MS);
-  }
-
-  function getCachedGifs() {
+  function readCache() {
     try {
       const raw = localStorage.getItem(GIPHY_CACHE_KEY);
-      if (!raw) return [];
+      if (!raw) return null;
       const cache = JSON.parse(raw);
       if (Date.now() - cache.ts > GIPHY_CACHE_TTL) {
         localStorage.removeItem(GIPHY_CACHE_KEY);
-        return [];
+        return null;
       }
-      return (cache.items || []).filter(it => it && (it.mp4 || it.gif));
+      return cache;
     } catch (e) {
-      return [];
+      return null;
     }
+  }
+
+  function getCachedGifs() {
+    const cache = readCache();
+    return ((cache && cache.items) || []).filter(it => it && (it.mp4 || it.gif));
   }
 
   function saveGifsToCache(items) {
@@ -534,7 +528,7 @@ visuals.register('giphy', (() => {
     }
     window.addEventListener('resize', resizeOverlay);
     startOverlayLoop();
-    fetchGiphyGifs();
+    fetchGiphyGifs(Date.now() - lastSearchAt > GIPHY_REFRESH_MS);
     maybeSwap();
   }
 

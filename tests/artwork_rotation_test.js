@@ -7,53 +7,80 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const app = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
 
 const IDS = ['aliens', 'bugs3', 'giphy', 'grid', 'prelinger_broll', 'trail', 'twirlz', 'word_sparks'];
+const FAVOURED = ['prelinger_broll', 'giphy', 'aliens'];
+const OTHERS = IDS.filter((id) => !FAVOURED.includes(id));
 
-function loadRotation(seed = 7) {
-  const snippet = app.match(/const FAVOURED_SHARES[\s\S]*?\nfunction artworkOrder[\s\S]*?\n}\n/);
-  assert.ok(snippet, 'artworkOrder is defined in public/app.js');
+function loadPlayer(seed = 7) {
   let s = seed;
   const random = () => {
     s = (s * 1664525 + 1013904223) % 4294967296;
     return (s + 0.5) / 4294967296;
   };
-  const MathSeeded = Object.create(Math);
-  MathSeeded.random = random;
-  const context = { Math: MathSeeded, visuals: { getList: () => IDS.map((id) => ({ id })) } };
-  vm.runInNewContext(`${snippet[0]}\nthis.artworkOrder = artworkOrder;`, context);
-  return context.artworkOrder;
+  const activated = [];
+  let current = null;
+  const sandbox = {
+    Math: Object.assign(Object.create(Math), { random }),
+    console: { log() {}, warn() {}, error() {} },
+    document: {
+      getElementById: () => null,
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      addEventListener() {},
+      removeEventListener() {},
+    },
+    location: { protocol: 'http:', hostname: 'radio.test', port: '', pathname: '/' },
+    window: { location: { pathname: '/' }, addEventListener() {} },
+    localStorage: { getItem: () => null, setItem() {} },
+    fetch: async () => ({ ok: false, status: 404, json: async () => ({}) }),
+    setTimeout: () => 0,
+    clearTimeout() {},
+    setInterval: () => 0,
+    AbortController,
+    requestAnimationFrame: () => 0,
+    visuals: {
+      init() {}, next() {}, notify() {},
+      getList: () => IDS.map((id) => ({ id })),
+      getCurrentId: () => current,
+      activate(id) { activated.push(id); return true; },
+    },
+    canvasFilters: {},
+    gallery: { init() {}, whenQuiet: (fn) => fn() },
+    idents: { init() {}, play() {}, stop() {} },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(root, 'public/app.js'), 'utf8'), sandbox);
+  return {
+    pick(from) {
+      current = from;
+      activated.length = 0;
+      vm.runInContext('randomArtwork()', sandbox);
+      return activated[0];
+    },
+  };
 }
 
-function firstPickShares(skip, draws = 40000) {
-  const artworkOrder = loadRotation();
-  const counts = {};
-  for (let i = 0; i < draws; i++) {
-    const id = artworkOrder(skip)[0];
-    counts[id] = (counts[id] || 0) + 1;
-  }
-  return Object.fromEntries(Object.entries(counts).map(([id, n]) => [id, n / draws]));
+function shares(from, draws = 40000) {
+  const player = loadPlayer();
+  const counts = Object.fromEntries(IDS.map((id) => [id, 0]));
+  for (let i = 0; i < draws; i++) counts[player.pick(from)]++;
+  return Object.fromEntries(IDS.map((id) => [id, counts[id] / draws]));
 }
 
-test('random rotation favours Dead Telly, Giphy and Aliens', () => {
-  const shares = firstPickShares([]);
-  assert.ok(Math.abs(shares.prelinger_broll - 0.45) < 0.015, `prelinger_broll ${shares.prelinger_broll}`);
-  assert.ok(Math.abs(shares.giphy - 0.25) < 0.015, `giphy ${shares.giphy}`);
-  assert.ok(Math.abs(shares.aliens - 0.15) < 0.015, `aliens ${shares.aliens}`);
-  const rest = IDS.filter((id) => !['prelinger_broll', 'giphy', 'aliens'].includes(id));
-  const restShare = rest.reduce((sum, id) => sum + (shares[id] || 0), 0);
+test('random changes favour Dead Telly, Giphy and Aliens over every other artwork', () => {
+  const got = shares('prelinger_broll');
+  const busiestOther = Math.max(...OTHERS.map((id) => got[id]));
+  for (const id of FAVOURED) assert.ok(got[id] > 3 * busiestOther, `${id} ${got[id]} vs ${busiestOther}`);
+  assert.ok(Math.abs(got.prelinger_broll - 0.45) < 0.015, `prelinger_broll ${got.prelinger_broll}`);
+  assert.ok(Math.abs(got.giphy - 0.25) < 0.015, `giphy ${got.giphy}`);
+  assert.ok(Math.abs(got.aliens - 0.15) < 0.015, `aliens ${got.aliens}`);
+  const restShare = OTHERS.reduce((sum, id) => sum + got[id], 0);
   assert.ok(Math.abs(restShare - 0.15) < 0.015, `rest ${restShare}`);
 });
 
-test('every other artwork can still be picked at random', () => {
-  const shares = firstPickShares(['bugs3']);
-  for (const id of IDS.filter((x) => x !== 'bugs3')) assert.ok(shares[id] > 0, `${id} never picked`);
-  assert.equal(shares.bugs3, undefined);
-});
-
-test('the rotation order still lists every artwork it was not told to skip', () => {
-  const artworkOrder = loadRotation();
-  assert.deepEqual([...artworkOrder(['grid'])].sort(), IDS.filter((id) => id !== 'grid'));
-  assert.deepEqual([...artworkOrder([])].sort(), IDS);
+test('every artwork stays reachable, and a non-favoured one hands the screen on', () => {
+  const got = shares('bugs3');
+  assert.equal(got.bugs3, 0);
+  for (const id of IDS.filter((x) => x !== 'bugs3')) assert.ok(got[id] > 0.01, `${id} ${got[id]}`);
 });
