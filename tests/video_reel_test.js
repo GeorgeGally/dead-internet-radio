@@ -205,84 +205,89 @@ test('giphy holds two buffered clips and keeps them when the artwork leaves', as
   assert.ok(videos.every((v) => v.url));
 });
 
+function aliensPage(results) {
+  const page = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+  page.searches = [];
+  page.context.fetch = async (url) => {
+    page.fetches.push(url);
+    if (url.includes('broll-index/search')) {
+      const q = decodeURIComponent(url.split('q=')[1].split('&')[0]);
+      page.searches.push(q);
+      const docs = url.includes('rows=0') ? [] : results(q).map((identifier) => ({ identifier }));
+      return { ok: true, json: async () => ({ response: { numFound: 40, docs } }) };
+    }
+    return { ok: true, json: async () => ({ files: [{ name: 'film.mp4', size: 4e6, height: 360 }] }) };
+  };
+  return page;
+}
 
-test('Aliens plays only its verified shots, including after a track change and rotation', async () => {
-  const { artworks, context, videos, instances, fetches } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+const alienFilms = (videos) => videos.filter((v) => v.url?.startsWith('/broll/')).map((v) => v.url.split('/')[2]);
+
+test('Aliens plays what its archive.org UFO searches find, not a fixed list', async () => {
+  const { artworks, context, videos, instances, searches, fetches } = aliensPage((q) => (q.includes('title:(ufo') ? ['saucer-reel', 'ufo-newsreel'] : ['martians-trailer']));
   assert.equal(artworks.prelinger_broll.name, 'B-roll');
   assert.equal(artworks.aliens.name, 'Aliens');
-  await until(() => videos.length === 2);
+  await until(() => alienFilms(videos).length === 3);
   await tick();
   artworks.aliens.start();
   instances.at(-1).p.draw();
+
+  assert.equal(context.__pb.ready, true);
   assert.equal(instances.at(-1).leaderDrawn, 0);
-  const expected = [
-    '/broll/trailer-killers-from-space-1954/Trailer%20Killers%20from%20Space%20(1954).ia.mp4',
-    '/broll/invaders-from-mars/Invaders%20From%20Mars.ia.mp4',
-  ];
-  assert.deepEqual(videos.map((v) => v.url).sort(), [...expected].sort());
-  assert.deepEqual(videos.map((v) => v.currentTime), [39, 94.6]);
-  videos[0].currentTime = 47.7;
-  videos[1].currentTime = 98.2;
-  videos.forEach((v) => v.dispatch('timeupdate'));
-  assert.deepEqual(videos.map((v) => v.currentTime), [39, 94.6]);
-  assert.deepEqual(fetches, []);
-  artworks.aliens.stop();
-  artworks.aliens.start();
-  instances.at(-1).p.draw();
-  assert.equal(videos.length, 2);
-  for (const v of videos) v.currentTime = 0;
-  instances.at(-1).p.draw();
-  assert.equal(videos.some((v) => v.currentTime === 39 || v.currentTime === 94.6), true);
-  context.playlist.tracks.push({ title: 'Factory Radio Highway', artist: 'Computer Ads', bpm: 140 });
-  context.currentTrack = 1;
-  const reel = context.__pb.films;
-  instances.at(-1).p.draw();
-  await tick();
-  await tick();
-  assert.equal(videos.length, 2);
-  assert.equal(context.__pb.films, reel);
-  assert.ok(videos.every((v) => !v.removed && v.url));
-  assert.deepEqual(fetches, []);
+  assert.deepEqual(alienFilms(videos).sort(), ['martians-trailer', 'saucer-reel', 'ufo-newsreel']);
+  assert.ok(searches.length >= 2);
+  assert.ok(searches.every((q) => /ufo/i.test(q) && /flying saucer/i.test(q) && q.endsWith('AND mediatype:movies')));
+  assert.ok(searches.some((q) => /martian/i.test(q)));
+  assert.ok(!searches.some((q) => q.includes('classic_tv_commercials')));
+  assert.ok(!fetches.some((url) => url.includes('giphy')));
 });
 
-test('Aliens retries a shot that failed to load on the next track change', async () => {
-  const { artworks, context, videos, instances } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
-  let failing = true;
-  const createElement = context.document.createElement;
-  context.document.createElement = (tag) => {
-    const v = createElement(tag);
-    if (tag !== 'video') return v;
-    const { set } = Object.getOwnPropertyDescriptor(v, 'src');
-    Object.defineProperty(v, 'src', {
-      set(url) {
-        set(url);
-        if (failing && url.includes('Invaders')) v.dispatch('error');
-      },
-    });
-    return v;
-  };
-  await until(() => videos.length === 2);
+test('Aliens searches again on a new track and plays the new results', async () => {
+  let round = 0;
+  const { artworks, context, videos, instances } = aliensPage(() => (round === 0 ? ['saucer-1', 'saucer-2'] : ['saucer-3', 'saucer-4']));
+  await until(() => alienFilms(videos).length === 2);
   await tick();
   artworks.aliens.start();
-  await until(() => !context.__pb.loading && context.__pb.films.length === 1);
-  assert.match(context.__pb.films[0].url, /Killers/);
+  const before = context.__pb.films;
+  assert.deepEqual(Array.from(before, (f) => f.id).sort(), ['saucer-1', 'saucer-2']);
 
-  failing = false;
-  context.playlist.tracks.push({ title: 'Factory Radio Highway', artist: 'Computer Ads', bpm: 140 });
+  round = 1;
+  context.playlist.tracks.push({ artist: 'Void Riders', title: 'Cold Signal', genre: 'industrial', bpm: 74 });
   context.currentTrack = 1;
   instances.at(-1).p.draw();
-  await until(() => context.__pb.films.length === 2);
-  assert.deepEqual(Array.from(context.__pb.films, (f) => f.id), ['trailer-killers-from-space-1954', 'invaders-from-mars']);
+
+  await until(() => context.__pb.films !== before);
+  assert.deepEqual(Array.from(context.__pb.films, (f) => f.id).sort(), ['saucer-3', 'saucer-4']);
+  assert.ok(before.every((f) => f.video.removed));
+});
+
+test('Aliens with no archive.org results shows nothing else in their place', async () => {
+  const { artworks, context, videos, instances, fetches } = aliensPage(() => []);
+  artworks.aliens.start();
+  await until(() => context.__pb.failed);
+  instances.at(-1).p.draw();
+
+  assert.equal(context.__pb.failed, true);
+  assert.equal(videos.length, 0);
+  assert.ok(!fetches.some((url) => url.includes('giphy') || url.startsWith('/broll/')));
+  assert.ok(instances.at(-1).leaderDrawn > 0);
 });
 
 test('Aliens hands its frame to the filters', async () => {
-  const { artworks, context, videos, instances } = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+  const { artworks, context, videos, instances } = aliensPage(() => ['saucer-reel']);
   const filtered = [];
   context.canvasFilters.applyToP5 = (p) => filtered.push(p);
-  await until(() => videos.length === 2);
-  await tick();
   artworks.aliens.start();
+  await until(() => context.__pb.ready && !context.__pb.loading);
   instances.at(-1).p.draw();
   assert.equal(context.__pb.ready, true);
   assert.deepEqual(filtered, [instances.at(-1).p]);
+});
+
+test('the original B-roll keeps its own themed searches', async () => {
+  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js'], ['prelinger_broll']);
+  await until(() => videos.filter((v) => v.url?.startsWith('/broll/')).length === 3);
+  const searched = fetches.filter((url) => url.includes('broll-index/search')).map(decodeURIComponent);
+  assert.ok(searched.some((q) => q.includes('collection:classic_tv_commercials')));
+  assert.ok(!searched.some((q) => q.includes('collection:movie_trailers')));
 });

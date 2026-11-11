@@ -3,20 +3,8 @@
 visuals.register('aliens', createPrelingerBroll({
   id: 'aliens',
   name: 'Aliens',
-  clips: [
-    {
-      id: 'trailer-killers-from-space-1954',
-      url: '/broll/trailer-killers-from-space-1954/Trailer%20Killers%20from%20Space%20(1954).ia.mp4',
-      size: 15035968,
-      start: 39,
-      end: 47.7,
-    },
-    {
-      id: 'invaders-from-mars',
-      url: '/broll/invaders-from-mars/Invaders%20From%20Mars.ia.mp4',
-      size: 13572726,
-      start: 94.6,
-      end: 98.2,
-    },
-  ],
+  searches: {
+    'aliens-sightings': '(title:(ufo OR ufos OR "flying saucer" OR "flying saucers" OR "unidentified flying") OR subject:(ufo OR ufos OR "flying saucers" OR "unidentified flying objects")) AND date:[1900-01-01 TO 1999-12-31] AND item_size:[1000000 TO 90000000] AND NOT subject:"copyright blocked"',
+    'aliens-films': '(collection:movie_trailers OR collection:sciencefiction OR collection:feature_films OR collection:prelinger OR collection:classic_tv) AND (ufo OR "flying saucer" OR "flying saucers" OR alien OR aliens OR martian OR martians OR "outer space" OR invaders OR spaceship) AND date:[1900-01-01 TO 1989-12-31] AND item_size:[1000000 TO 90000000] AND NOT subject:"copyright blocked"',
+  },
 }));

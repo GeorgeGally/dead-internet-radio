@@ -1,6 +1,6 @@
 'use strict';
 
-function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips = null } = {}) {
+function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searches = null } = {}) {
   let myP5 = null;
 
   // What to look for on archive.org. Each theme is a search; `words` pull it
@@ -35,9 +35,9 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
     'swimming', 'skating', 'jet', 'monster', 'puppet', 'wrestling', 'cats',
   ];
   const ARCHIVES = 'collection:prelinger OR collection:classic_tv_commercials OR collection:sciencefiction OR collection:feature_films OR collection:computerchronicles';
-  const queryFor = (theme) => theme.startsWith('subject:')
-    ? `(${ARCHIVES}) AND "${theme.slice(8)}"`
-    : THEMES[theme].q;
+  const queryFor = (theme) => searches ? searches[theme]
+    : theme.startsWith('subject:') ? `(${ARCHIVES}) AND "${theme.slice(8)}"`
+      : THEMES[theme].q;
 
   const state = {
     running: false,
@@ -75,6 +75,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
   // random one), and a wildcard (a quirky theme or a single subject), so the
   // reel is never the same twice.
   function pickThemes(info) {
+    if (searches) return Object.keys(searches);
     const hay = ` ${info.key.toLowerCase()} `;
     const scored = Object.entries(THEMES)
       .map(([name, th]) => ({ name, hits: th.words.filter((w) => hay.includes(w)).length + Math.random() * 0.5 }))
@@ -138,19 +139,13 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
   // Resolves once the film can start from a random point past its opening
   // titles; rejects (and cleans up) if it takes too long. Cuts later check how
   // much is buffered ahead (nextBuffered), so big films don't hold up the reel.
-  function makeVideo(url, readyEvent, clip = null) {
+  function makeVideo(url, readyEvent) {
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous';
     v.muted = true;
     v.playsInline = true;
     v.preload = 'auto';
     v.loop = true;
-    if (clip) {
-      v._clip = clip;
-      v.addEventListener('timeupdate', () => {
-        if (v.currentTime < clip.start || v.currentTime >= clip.end) v.currentTime = clip.start;
-      });
-    }
     v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
     document.body.appendChild(v);
     return new Promise((resolve, reject) => {
@@ -164,9 +159,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
       v.addEventListener('loadedmetadata', () => {
         // Skip the opening titles, but stay in the first couple of minutes: the
         // further in, the longer archive.org takes to find that part of the file.
-        if (clip) {
-          v.currentTime = clip.start;
-        } else if (isFinite(v.duration) && v.duration > 30) {
+        if (isFinite(v.duration) && v.duration > 30) {
           v.currentTime = Math.min(v.duration * (0.1 + Math.random() * 0.6), 120);
         }
       }, { once: true });
@@ -211,25 +204,24 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
   async function loadForTrack(info, token) {
     // Search the three themes at once, then deal the results out in turn so the
     // reel holds one film from each: ad, matched theme, wildcard.
-    const lists = clips ? [] : await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
+    const lists = await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
     let ids = [];
     for (let i = 0; i < 6; i++) lists.forEach((l) => { if (l[i]) ids.push(l[i]); });
     ids = [...new Set(ids)].slice(0, 6);
-    if (!clips && !ids.length) throw new Error('none');
+    if (!ids.length) throw new Error('none');
 
     // Look every candidate up at once (the metadata is tiny), then open the
     // films one after another: the first gets the bandwidth it needs to start,
     // and the two behind it buffer while it plays.
-    const found = clips || (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
+    const found = (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
       .filter(Boolean);
     if (!found.length) throw new Error('no video');
 
     const films = [];
     state.pending = films;
-    for (const clip of found) {
-      const { id, url, size } = clip;
+    for (const { id, url, size } of found) {
       if (token !== state.loadToken || films.length >= 3) break;
-      const video = await makeVideo(url, 'canplay', clips ? clip : null).catch(() => null);
+      const video = await makeVideo(url, 'canplay').catch(() => null);
       if (!video) continue;
       if (token !== state.loadToken || films.length >= 3) {
         disposeVideos([{ video }]);
@@ -254,7 +246,6 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
     const empty = !state.films.length && !state.loading
       && performance.now() - state.loadEnded > RETRY_EMPTY_MS;
     if (info.key === state.trackKey && !empty) return;
-    if (clips && (state.loading || state.films.length >= clips.length)) return;
     // The reel waits for the music; the stand-in (asked for once) can show.
     if (!musicIsSafe()) {
       if (!standInAsked) {
@@ -302,7 +293,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
   let remembered = false;
   async function rememberFilm(id, url, size) {
     try {
-      if (clips || remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (searches || remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
       if (localStorage.getItem('dir-broll-last') === id) return;
       remembered = true;
       const res = await fetch(url, { priority: 'low' });
@@ -328,7 +319,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
   }
 
   async function loadStandIn() {
-    if (clips || standInLoading) return;
+    if (searches || standInLoading) return;
     standInLoading = true;
     await findStandIn();
     standInLoading = false;
@@ -447,7 +438,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
         p.text(String(3 - (p.floor(t / 1000) % 3)), 0, r * 0.02);
         p.textSize(11);
         p.fill(150);
-        p.text(clips ? name.toUpperCase() : 'PRELINGER', 0, r * 1.28);
+        p.text(searches ? name.toUpperCase() : 'PRELINGER', 0, r * 1.28);
         p.pop();
       }
 
@@ -510,11 +501,6 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', clips =
       // The picture covers the screen edge to edge: at least the screen's
       // width and height, never stretched, bars inside the file cut away.
       function drawVideoShot(v, alpha) {
-        if (v._clip && v.seeking) return false;
-        if (v._clip && (v.currentTime < v._clip.start || v.currentTime >= v._clip.end)) {
-          v.currentTime = v._clip.start;
-          return false;
-        }
         const vw = v.videoWidth;
         const vh = v.videoHeight;
         if (!vw || !vh) return false;
