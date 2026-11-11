@@ -47,6 +47,8 @@ visuals.register('giphy', (() => {
   let loadingEl = null;
   let ready = [];
   let dwellDone = false;
+  let dwellLeft = null;
+  let dwellAt = 0;
 
   let overlayCanvas = null;
   let overlayCtx = null;
@@ -124,9 +126,11 @@ visuals.register('giphy', (() => {
   }
 
   function scheduleGifRefresh() {
-    if (!running) return;
-    if (gifRefreshTimer) clearTimeout(gifRefreshTimer);
-    gifRefreshTimer = setTimeout(() => fetchGiphyGifs(true), GIPHY_REFRESH_MS);
+    if (gifRefreshTimer) return;
+    gifRefreshTimer = setTimeout(() => {
+      gifRefreshTimer = null;
+      fetchGiphyGifs(true);
+    }, GIPHY_REFRESH_MS);
   }
 
   function getCachedGifs() {
@@ -265,13 +269,15 @@ visuals.register('giphy', (() => {
   }
 
   // Minimum time on screen; the actual swap waits for the next item too.
-  function scheduleNextGif() {
+  function scheduleNextGif(ms) {
     if (gifCycleTimer) clearTimeout(gifCycleTimer);
     dwellDone = false;
+    dwellLeft = ms == null ? pickInterval() : ms;
+    dwellAt = performance.now();
     gifCycleTimer = setTimeout(() => {
       dwellDone = true;
       maybeSwap();
-    }, pickInterval());
+    }, dwellLeft);
   }
 
   function resetTimer() {
@@ -514,10 +520,10 @@ visuals.register('giphy', (() => {
     if (overlay) overlay.style.display = '';
     if (blockCanvas) blockCanvas.style.display = 'none';
     running = true;
-    // Coming back to this visual: resume what was on screen and let it dwell.
+    // Coming back to this visual: resume what was on screen for the rest of its dwell.
     if (hasFrame(gifBg)) {
       if (gifBg.tagName === 'VIDEO') gifBg.play().catch(() => {});
-      scheduleNextGif();
+      scheduleNextGif(dwellDone ? 0 : dwellLeft);
     }
 
     overlayCanvas = document.getElementById('overlay-canvas');
@@ -540,10 +546,7 @@ visuals.register('giphy', (() => {
     if (gifCycleTimer) {
       clearTimeout(gifCycleTimer);
       gifCycleTimer = null;
-    }
-    if (gifRefreshTimer) {
-      clearTimeout(gifRefreshTimer);
-      gifRefreshTimer = null;
+      dwellLeft = Math.max(0, dwellLeft - (performance.now() - dwellAt));
     }
     if (gifRetryTimer) {
       clearTimeout(gifRetryTimer);

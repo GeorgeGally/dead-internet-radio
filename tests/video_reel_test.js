@@ -65,7 +65,7 @@ function createPage(file, enabledIds = ['giphy', 'prelinger_broll']) {
   const context = {
     console: { warn() {}, error() {} },
     performance,
-    setTimeout,
+    setTimeout: (fn, ms) => setTimeout(fn, ms).unref(),
     clearTimeout,
     URL,
     Promise,
