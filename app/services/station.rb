@@ -1,6 +1,6 @@
 # The station clock. Keeps the broadcast timeline filled ahead of "now" by
 # rotating through completed shows and library sets (one whole show at a time,
-# so DJ drops stay in order), with one station ID between them. Planned
+# so DJ drops stay in order), with one station ID at each change of show. Planned
 # hours ahead so a listener whose request lands in a set can be told when it airs.
 class Station
   HORIZON = ENV.fetch("STATION_HORIZON_HOURS", "6").to_f.hours
@@ -52,14 +52,13 @@ class Station
     booked
   end
 
-  # One station ID per set change. With an ID clip booked, the show's own
-  # opening (which says the station's name too) stays off air; with none built
-  # yet, the opening is the station ID.
+  # One station ID per set change. A show's own opening says the station's
+  # name, the show and the DJ, so it is the station ID; only a show without
+  # one gets an ID clip booked ahead of it.
   def self.with_station_id(tracks)
+    return tracks if tracks.first.artist == Track::STATION_ARTIST
     id = Interlude.station_id
-    return tracks unless id
-    opening = tracks.size > 1 && tracks.first.artist == Track::STATION_ARTIST
-    [id] + (opening ? tracks.drop(1) : tracks)
+    id ? [id] + tracks : tracks
   end
 
   # Least-recently-aired show or set with playable tracks; never-aired first.

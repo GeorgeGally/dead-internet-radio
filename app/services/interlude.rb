@@ -1,8 +1,8 @@
-# What the station says between shows: one station ID clip, kept in a show of
-# kind "interlude" (build_interludes.py) and booked like any other segment so
-# every listener hears it together. The ID clip switches at /admin/idents hold
-# here too. The talk lines built alongside stay off air: a set change gets one
-# station ID, and the show's own opening says the station's name again.
+# The station ID clips aired before a show that has no opening of its own. They
+# are short voice tracks in a show of kind "interlude" (build_interludes.py),
+# booked like any other segment so every listener hears them together. The ID
+# clip switches at /admin/idents hold here too. The talk lines built alongside
+# stay off air: a set change gets one station ID.
 module Interlude
   STATION_ID = /station-id-(\d+)/
 

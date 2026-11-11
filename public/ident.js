@@ -6,8 +6,8 @@
 // one turned off never airs, even on a page that's been open for hours.
 
 (function () {
-  // An ident marks a change of set, every time: the station ID booked
-  // between sets (or, with none booked, the next set itself) puts one up.
+  // An ident marks a change of set, every time: a station ID clip booked
+  // between sets puts one up, or, with none booked, the next set's opening.
   const LONGEST_MS = 12 * 1000;
   const LAST_KEY = 'ident-last';
 

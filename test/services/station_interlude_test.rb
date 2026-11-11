@@ -29,16 +29,24 @@ class StationInterludeTest < ActiveSupport::TestCase
     BroadcastSegment.chronological.includes(:track).map { |seg| seg.track.audio_file }
   end
 
-  test "a set change airs one station ID: no talk, and the show's own opening stays off" do
+  test "a show with an opening airs it as the set change's one station ID" do
     @one.destroy!
     @two.destroy!
     make_show("opened", "show", "00-dead-internet-radio-opening.mp3", "01-song.mp3", "02-song.mp3")
     Station.fill!
     files = aired_files
+    assert_equal %w[00-dead-internet-radio-opening.mp3 01-song.mp3 02-song.mp3], files.first(3)
+    refute files.any? { |f| f.include?("talk") || f.match?(Interlude::STATION_ID) }, files.first(6).inspect
+  end
+
+  test "a show without an opening gets exactly one ID clip and no talk" do
+    Station.fill!
+    files = aired_files
     assert_match Interlude::STATION_ID, files[0]
-    assert_equal %w[01-song.mp3 02-song.mp3], files[1, 2]
-    refute files.any? { |f| f.include?("talk") || f.include?("opening") }, files.first(6).inspect
-    assert_equal files.count("01-song.mp3"), files.count { |f| f.match?(Interlude::STATION_ID) }
+    refute_match Interlude::STATION_ID, files[1]
+    refute files.any? { |f| f.include?("talk") }, files.first(6).inspect
+    songs = files.count { |f| %w[01-a.mp3 01-b.mp3].include?(f) }
+    assert_equal songs, files.count { |f| f.match?(Interlude::STATION_ID) }
     refute_includes Show.airable, @talk
     refute_includes Show.programmes, @talk
   end
