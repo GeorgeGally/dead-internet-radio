@@ -112,8 +112,8 @@ function playerArtworks(onAir) {
   const sandbox = { console, setTimeout() { return 0; }, clearTimeout() {}, document: {}, performance };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens)\.js"/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens']);
+  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens|robots)\.js"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens', 'robots']);
   for (const name of scripts) vm.runInContext(read(`visuals/${name}.js`), sandbox);
   const visuals = vm.runInContext('visuals', sandbox);
   visuals.setEnabled(onAir);
@@ -141,4 +141,32 @@ test('switching Aliens off in the admin takes its tile out of the drawer', () =>
   const d = drawer(visuals);
   d.gallery.open();
   assert.deepEqual(d.tiles().map((t) => t.dataset.id), ['prelinger_broll']);
+});
+
+test('Robots has its own drawer tile beside B-roll and Aliens, and choosing it plays Robots', () => {
+  const { visuals, activated } = playerArtworks(['prelinger_broll', 'aliens', 'robots', 'grid']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  const tiles = d.tiles();
+  assert.deepEqual(tiles.map((t) => t.dataset.id), ['prelinger_broll', 'aliens', 'robots']);
+  assert.deepEqual(tiles.map((t) => t.children[0].textContent), ['B-roll', 'Aliens', 'Robots']);
+  assert.match(tiles[2].style.backgroundImage, /thumbs\/robots\.jpg/);
+  assert.ok(fs.existsSync(path.resolve(__dirname, '../public/visuals/thumbs/robots.jpg')));
+  tiles[2].click();
+  assert.deepEqual(activated, ['robots']);
+});
+
+test('the drawer shows the admin\'s name for Robots', () => {
+  const { visuals } = playerArtworks(['aliens', 'robots']);
+  visuals.setNames({ robots: 'Thinking Machines' });
+  const d = drawer(visuals);
+  d.gallery.open();
+  assert.deepEqual(d.tiles().map((t) => t.children[0].textContent), ['Aliens', 'Thinking Machines']);
+});
+
+test('switching Robots off in the admin takes only its tile out of the drawer', () => {
+  const { visuals } = playerArtworks(['prelinger_broll', 'aliens']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  assert.deepEqual(d.tiles().map((t) => t.dataset.id), ['prelinger_broll', 'aliens']);
 });

@@ -205,8 +205,8 @@ test('giphy holds two buffered clips and keeps them when the artwork leaves', as
   assert.ok(videos.every((v) => v.url));
 });
 
-function aliensPage(results) {
-  const page = createPage(['prelinger_broll.js', 'aliens.js'], ['aliens']);
+function themedPage(id, results) {
+  const page = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js'], [id]);
   page.searches = [];
   page.context.fetch = async (url) => {
     page.fetches.push(url);
@@ -220,6 +220,8 @@ function aliensPage(results) {
   };
   return page;
 }
+const aliensPage = (results) => themedPage('aliens', results);
+const robotsPage = (results) => themedPage('robots', results);
 
 const alienFilms = (videos) => videos.filter((v) => v.url?.startsWith('/broll/')).map((v) => v.url.split('/')[2]);
 
@@ -284,8 +286,66 @@ test('Aliens hands its frame to the filters', async () => {
   assert.deepEqual(filtered, [instances.at(-1).p]);
 });
 
+test('Robots plays what its archive.org robot and AI searches find, not a fixed list', async () => {
+  const { artworks, context, videos, instances, searches, fetches } = robotsPage((q) => (q.includes('title:(robot') ? ['grasp-lab', 'robot-monster'] : ['short-circuit']));
+  assert.equal(artworks.robots.name, 'Robots');
+  assert.equal(artworks.aliens.name, 'Aliens');
+  await until(() => alienFilms(videos).length === 3);
+  await tick();
+  artworks.robots.start();
+  instances.at(-1).p.draw();
+
+  assert.equal(context.__pb.ready, true);
+  assert.equal(instances.at(-1).leaderDrawn, 0);
+  assert.deepEqual(alienFilms(videos).sort(), ['grasp-lab', 'robot-monster', 'short-circuit']);
+  assert.equal(new Set(searches).size, 2);
+  assert.ok(searches.every((q) => /\brobots?\b/.test(q) && q.includes('"artificial intelligence"') && q.endsWith('AND mediatype:movies')));
+  assert.ok(searches.every((q) => q.length <= 500 && q.includes('item_size:[1000000 TO 90000000]')));
+  assert.ok(!searches.some((q) => /\bai\b/i.test(q) || /ufo|saucer/i.test(q) || q.includes('classic_tv_commercials')));
+  assert.ok(!fetches.some((url) => url.includes('giphy')));
+});
+
+test('Robots searches again on a new track and plays the new results', async () => {
+  let round = 0;
+  const { artworks, context, videos, instances } = robotsPage(() => (round === 0 ? ['robot-1', 'robot-2'] : ['robot-3', 'robot-4']));
+  await until(() => alienFilms(videos).length === 2);
+  await tick();
+  artworks.robots.start();
+  const before = context.__pb.films;
+
+  round = 1;
+  context.playlist.tracks.push({ artist: 'Void Riders', title: 'Cold Signal', genre: 'industrial', bpm: 74 });
+  context.currentTrack = 1;
+  instances.at(-1).p.draw();
+
+  await until(() => context.__pb.films !== before);
+  assert.deepEqual(Array.from(context.__pb.films, (f) => f.id).sort(), ['robot-3', 'robot-4']);
+  assert.ok(before.every((f) => f.video.removed));
+});
+
+test('Robots with no archive.org results shows nothing else in their place', async () => {
+  const { artworks, context, videos, instances, fetches } = robotsPage(() => []);
+  artworks.robots.start();
+  await until(() => context.__pb.failed);
+  instances.at(-1).p.draw();
+
+  assert.equal(videos.length, 0);
+  assert.ok(!fetches.some((url) => url.includes('giphy') || url.startsWith('/broll/')));
+  assert.ok(instances.at(-1).leaderDrawn > 0);
+});
+
+test('Robots hands its frame to the filters', async () => {
+  const { artworks, context, instances } = robotsPage(() => ['grasp-lab']);
+  const filtered = [];
+  context.canvasFilters.applyToP5 = (p) => filtered.push(p);
+  artworks.robots.start();
+  await until(() => context.__pb.ready && !context.__pb.loading);
+  instances.at(-1).p.draw();
+  assert.deepEqual(filtered, [instances.at(-1).p]);
+});
+
 test('the original B-roll keeps its own themed searches', async () => {
-  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js'], ['prelinger_broll']);
+  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js'], ['prelinger_broll']);
   await until(() => videos.filter((v) => v.url?.startsWith('/broll/')).length === 3);
   const searched = fetches.filter((url) => url.includes('broll-index/search')).map(decodeURIComponent);
   assert.ok(searched.some((q) => q.includes('collection:classic_tv_commercials')));
