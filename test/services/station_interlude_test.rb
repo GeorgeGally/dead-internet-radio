@@ -19,18 +19,37 @@ class StationInterludeTest < ActiveSupport::TestCase
     show = Show.create!(slot: "night", directory: dir, status: :complete, kind: kind, name: name)
     files.each_with_index do |file, index|
       File.write(File.join(dir, file), "x")
-      show.tracks.create!(position: index + 1, title: file, artist: "Dead Internet Radio", duration_ms: 10_000, audio_file: file)
+      artist = kind == "interlude" || file.include?("opening") ? Track::STATION_ARTIST : "Someone"
+      show.tracks.create!(position: index + 1, title: file, artist: artist, duration_ms: 10_000, audio_file: file)
     end
     show
   end
 
-  test "the station talks before each show and never airs the talk as a show" do
+  def aired_files
+    BroadcastSegment.chronological.includes(:track).map { |seg| seg.track.audio_file }
+  end
+
+  test "a set change airs one station ID: no talk, and the show's own opening stays off" do
+    @one.destroy!
+    @two.destroy!
+    make_show("opened", "show", "00-dead-internet-radio-opening.mp3", "01-song.mp3", "02-song.mp3")
     Station.fill!
-    kinds = BroadcastSegment.chronological.includes(track: :show).map { |seg| seg.track.show.kind }
-    assert_equal %w[interlude interlude show], kinds.first(3)
-    assert_equal kinds.count("show"), kinds.count("interlude") / 2
+    files = aired_files
+    assert_match Interlude::STATION_ID, files[0]
+    assert_equal %w[01-song.mp3 02-song.mp3], files[1, 2]
+    refute files.any? { |f| f.include?("talk") || f.include?("opening") }, files.first(6).inspect
+    assert_equal files.count("01-song.mp3"), files.count { |f| f.match?(Interlude::STATION_ID) }
     refute_includes Show.airable, @talk
     refute_includes Show.programmes, @talk
+  end
+
+  test "with no ID clip built, the show's opening is its station ID" do
+    @talk.destroy!
+    @one.destroy!
+    @two.destroy!
+    make_show("opened", "show", "00-dead-internet-radio-opening.mp3", "01-song.mp3")
+    Station.fill!
+    assert_equal %w[00-dead-internet-radio-opening.mp3 01-song.mp3], aired_files.first(2)
   end
 
   test "with nothing new to air the station replays what it has" do
@@ -40,18 +59,17 @@ class StationInterludeTest < ActiveSupport::TestCase
 
   test "an ID clip turned off at /admin/idents stays off, and IDs rotate" do
     StationIdent.create!(kind: "audio", number: 3, active: false)
-    assert_includes Interlude.tracks.map(&:audio_file), "03-station-id-04.mp3"
-    refute_includes Interlude.tracks.map(&:audio_file), "02-station-id-03.mp3"
+    assert_equal "03-station-id-04.mp3", Interlude.station_id.audio_file
 
     StationIdent.find_by!(number: 3).update!(active: true)
     aired = @talk.tracks.find_by!(audio_file: "03-station-id-04.mp3")
     BroadcastSegment.create!(track: aired, starts_at: 1.hour.ago, ends_at: 1.hour.ago + 10)
-    assert_includes Interlude.tracks.map(&:audio_file), "02-station-id-03.mp3"
+    assert_equal "02-station-id-03.mp3", Interlude.station_id.audio_file
   end
 
   test "no talk built yet: the shows run straight on" do
     @talk.destroy!
-    assert_empty Interlude.tracks
+    assert_nil Interlude.station_id
     Station.fill!
     assert_predicate BroadcastSegment.count, :positive?
   end

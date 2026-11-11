@@ -1,17 +1,19 @@
-# What the station says between shows: a station ID, then a line from the DJ.
-# They're short voice tracks in a show of kind "interlude" (build_interludes.py),
-# booked like any other segment so every listener hears them together. The ID
-# clip switches at /admin/idents hold here too.
+# What the station says between shows: one station ID clip, kept in a show of
+# kind "interlude" (build_interludes.py) and booked like any other segment so
+# every listener hears it together. The ID clip switches at /admin/idents hold
+# here too. The talk lines built alongside stay off air: a set change gets one
+# station ID, and the show's own opening says the station's name again.
 module Interlude
   STATION_ID = /station-id-(\d+)/
 
-  # The least recently aired ID and line; empty until build_interludes.py has run.
-  def self.tracks
-    ids, talk = pool.partition { |track| track.audio_file.to_s.match?(STATION_ID) }
+  # The least recently aired ID clip that's switched on; nil until
+  # build_interludes.py has run.
+  def self.station_id
     silenced = StationIdent.where(kind: "audio", active: false).pluck(:number)
-    ids.reject! { |track| silenced.include?(track.audio_file[STATION_ID, 1].to_i) }
+    ids = pool.select { |track| track.audio_file.to_s.match?(STATION_ID) }
+              .reject { |track| silenced.include?(track.audio_file[STATION_ID, 1].to_i) }
     aired = BroadcastSegment.group(:track_id).maximum(:starts_at)
-    [ids, talk].filter_map { |group| group.min_by { |track| [aired[track.id] || Time.at(0), rand] } }
+    ids.min_by { |track| [aired[track.id] || Time.at(0), rand] }
   end
 
   def self.pool

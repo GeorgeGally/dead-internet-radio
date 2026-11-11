@@ -1,6 +1,6 @@
 # The station clock. Keeps the broadcast timeline filled ahead of "now" by
 # rotating through completed shows and library sets (one whole show at a time,
-# so DJ drops stay in order), with the station talking between them. Planned
+# so DJ drops stay in order), with one station ID between them. Planned
 # hours ahead so a listener whose request lands in a set can be told when it airs.
 class Station
   HORIZON = ENV.fetch("STATION_HORIZON_HOURS", "6").to_f.hours
@@ -42,7 +42,7 @@ class Station
       while cursor < at + HORIZON
         tracks = next_show_tracks
         break if tracks.empty?
-        (Interlude.tracks + tracks).each do |track|
+        with_station_id(tracks).each do |track|
           ends = cursor + track.duration_ms / 1000.0
           booked << BroadcastSegment.create!(track: track, starts_at: cursor, ends_at: ends)
           cursor = ends
@@ -50,6 +50,16 @@ class Station
       end
     end
     booked
+  end
+
+  # One station ID per set change. With an ID clip booked, the show's own
+  # opening (which says the station's name too) stays off air; with none built
+  # yet, the opening is the station ID.
+  def self.with_station_id(tracks)
+    id = Interlude.station_id
+    return tracks unless id
+    opening = tracks.size > 1 && tracks.first.artist == Track::STATION_ARTIST
+    [id] + (opening ? tracks.drop(1) : tracks)
   end
 
   # Least-recently-aired show or set with playable tracks; never-aired first.
@@ -69,5 +79,5 @@ class Station
       yield
     end
   end
-  private_class_method :book!, :next_show_tracks, :locked
+  private_class_method :book!, :with_station_id, :next_show_tracks, :locked
 end
