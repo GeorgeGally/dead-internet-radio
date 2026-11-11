@@ -924,8 +924,8 @@ const TIMELINE_WAIT_MS = 1500;
 const LIVE_RETRY_MS = 2000;
 let liveRetry = 0;
 
-// The station talk between sets opens with the ident; with no talk booked,
-// the next set does. Talk running on into the set brings no second one.
+// A booked station ID clip opens with the ident; with none booked, the change
+// of show does (on its opening). The set after the clip brings no second one.
 function setChange(before, now) {
   if (!before || !now) return false;
   if (now.interlude) return !before.interlude;
