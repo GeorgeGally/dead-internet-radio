@@ -15,9 +15,9 @@ function stopWelcomeIdent() {
 }
 
 // The station's own picks lean hard on video and GIFs: the video archive
-// takes about 55% of changes, Giphy 30%, and every other artwork shares 15%.
-// Both play fresh clips on their own, so either may keep the screen.
-const FAVOURED_SHARES = { prelinger_broll: 0.55, giphy: 0.3 };
+// takes about 45% of changes, Giphy 25%, Aliens 15%, and every other artwork
+// shares 15%. All three play fresh clips on their own, so any may keep the screen.
+const FAVOURED_SHARES = { prelinger_broll: 0.45, giphy: 0.25, aliens: 0.15 };
 // The other artworks in a weighted random order, the current one left out.
 function artworkOrder(skip) {
   const ids = visuals.getList().map((v) => v.id).filter((id) => !skip.includes(id));

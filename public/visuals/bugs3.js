@@ -4,7 +4,7 @@ visuals.register('bugs3', (() => {
   let myP5 = null;
   let blockCanvas = null;
 
-  const WORDS = ['kindness', 'gentleness', 'compassion', 'generosity', 'dream', 'chill', 'gratitude', 'live', 'relax', 'peace'];
+  const WORDS = ['internet', 'silence', 'compassion', 'generosity', 'dream', 'chill', 'gratitude', 'live', 'relax', 'peace'];
   const MAX_PARTICLES = 3000;
 
   function start() {
