@@ -6,12 +6,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = fs.readFileSync(path.resolve(__dirname, '../public/visuals/gallery.js'), 'utf8');
+const read = (file) => fs.readFileSync(path.resolve(__dirname, '../public', file), 'utf8');
+const source = read('visuals/gallery.js');
 
 class FakeElement {
   constructor(tag) {
     this.tagName = tag.toUpperCase();
     this.children = [];
+    this.listeners = {};
     this.dataset = {};
     this.style = { setProperty() {} };
     this.clientWidth = 1600;
@@ -30,7 +32,8 @@ class FakeElement {
   }
   appendChild(child) { this.children.push(child); return child; }
   replaceChildren(...kids) { this.children = kids; }
-  addEventListener() {}
+  addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+  click() { (this.listeners.click || []).forEach((fn) => fn()); }
   setAttribute() {}
   dispatchEvent() {}
   querySelectorAll(selector) {
@@ -46,7 +49,7 @@ class FakeElement {
 }
 
 // gallery.js in a fake browser whose playing artwork the test controls.
-function drawer() {
+function drawer(visuals = null) {
   const container = new FakeElement('div');
   const deck = new FakeElement('div');
   let currentId = 'a';
@@ -68,7 +71,8 @@ function drawer() {
       createElement: (tag) => new FakeElement(tag),
       body: { appendChild() {} },
     },
-    visuals: {
+    CustomEvent: class {},
+    visuals: visuals || {
       getList: () => [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
       getCurrentId: () => currentId,
     },
@@ -78,7 +82,8 @@ function drawer() {
   const active = () => container.querySelectorAll('.wall-panel.art')
     .filter((t) => t.classList.contains('active'))
     .map((t) => t.dataset.id);
-  return { gallery: sandbox.gallery, active, play: (id) => { currentId = id; } };
+  const tiles = () => container.querySelectorAll('.wall-panel.art');
+  return { gallery: sandbox.gallery, active, tiles, play: (id) => { currentId = id; } };
 }
 
 test('the open drawer marks the playing artwork, and only that one', () => {
@@ -99,4 +104,41 @@ test('marking before the drawer has been built does nothing', () => {
   const d = drawer();
   d.gallery.markPlaying();
   assert.deepEqual(d.active(), []);
+});
+
+// The player's own artwork scripts, in index.html order, with the admin's
+// on-air list applied as the player applies it.
+function playerArtworks(onAir) {
+  const sandbox = { console, setTimeout() { return 0; }, clearTimeout() {}, document: {}, performance };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens)\.js"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens']);
+  for (const name of scripts) vm.runInContext(read(`visuals/${name}.js`), sandbox);
+  const visuals = vm.runInContext('visuals', sandbox);
+  visuals.setEnabled(onAir);
+  const activated = [];
+  visuals.activate = (id) => { activated.push(id); return true; };
+  visuals.resetTimer = () => {};
+  return { visuals, activated };
+}
+
+test('Aliens has its own drawer tile beside B-roll, and choosing it plays Aliens', () => {
+  const { visuals, activated } = playerArtworks(['prelinger_broll', 'aliens', 'grid']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  const tiles = d.tiles();
+  assert.deepEqual(tiles.map((t) => t.dataset.id), ['prelinger_broll', 'aliens']);
+  assert.deepEqual(tiles.map((t) => t.children[0].textContent), ['B-roll', 'Aliens']);
+  assert.match(tiles[1].style.backgroundImage, /thumbs\/aliens\.jpg/);
+  assert.ok(fs.existsSync(path.resolve(__dirname, '../public/visuals/thumbs/aliens.jpg')));
+  tiles[1].click();
+  assert.deepEqual(activated, ['aliens']);
+});
+
+test('switching Aliens off in the admin takes its tile out of the drawer', () => {
+  const { visuals } = playerArtworks(['prelinger_broll']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  assert.deepEqual(d.tiles().map((t) => t.dataset.id), ['prelinger_broll']);
 });
