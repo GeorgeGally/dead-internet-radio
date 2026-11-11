@@ -15,7 +15,7 @@ const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 
 const NOT_ARTWORKS = new Set(['engine.js', 'filters.js', 'track_hud.js', 'gallery.js']);
 // Drawn by prelinger_broll.js; tests/video_reel_test.js runs their filters.
-const DRAWN_BY_PRELINGER_BROLL = new Set(['aliens.js']);
+const DRAWN_BY_PRELINGER_BROLL = new Set(['aliens.js', 'robots.js']);
 const artworks = fs.readdirSync(dir)
   .filter((f) => f.endsWith('.js') && !NOT_ARTWORKS.has(f))
   .map((f) => ({ file: f, src: fs.readFileSync(path.join(dir, f), 'utf8') }))
