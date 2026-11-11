@@ -8,17 +8,26 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.resolve(__dirname, '../public/visuals/giphy.js'), 'utf8');
 
-function loadGiphy({ fetchOk = true, cacheAge = null } = {}) {
+function loadGiphy({ fetchOk = true, cacheAge = null, random = () => 0.5 } = {}) {
   let now = 0;
   let nextId = 1;
   const timers = new Map();
-  const element = () => ({ style: {}, setAttribute() {}, removeAttribute() {}, load() {}, decode: () => new Promise(() => {}), classList: { add() {}, remove() {} }, getContext: () => null, width: 0, height: 0 });
-  const gifBg = { ...element(), tagName: 'VIDEO', readyState: 4, videoWidth: 320, play: () => Promise.resolve(), pause() {} };
+  const element = (tag) => ({
+    tagName: tag === 'video' ? 'VIDEO' : undefined,
+    play: () => Promise.resolve(),
+    pause() {},
+    load() {
+      if (!this.oncanplaythrough) return;
+      this.readyState = 4;
+      context.setTimeout(() => this.oncanplaythrough && this.oncanplaythrough(), 0);
+    },
+    style: {}, setAttribute() {}, removeAttribute() {}, decode: () => new Promise(() => {}), classList: { add() {}, remove() {} }, getContext: () => null, width: 0, height: 0 });
+  const gifBg = { ...element('video'), readyState: 4, videoWidth: 320, replaceWith() {} };
   const fetches = [];
   let artwork = null;
   const context = {
     console: { log() {}, warn() {} },
-    Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
+    Math: Object.assign(Object.create(Math), { random }),
     performance: { now: () => now },
     Date: { now: () => now },
     setTimeout(fn, ms) { const id = nextId++; timers.set(id, { fn, due: now + (ms || 0), ms }); return id; },
@@ -30,7 +39,7 @@ function loadGiphy({ fetchOk = true, cacheAge = null } = {}) {
     fetch(url) {
       fetches.push(url);
       if (!fetchOk) return Promise.reject(new Error('offline'));
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [{ images: { original: { mp4: `https://media.test/${fetches.length}.mp4` } } }] }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [1, 2, 3, 4].map((i) => ({ images: { original: { mp4: `https://media.test/${fetches.length}-${i}.mp4` } } })) }) });
     },
     document: {
       getElementById: (id) => (id === 'gif-bg' ? gifBg : null),
@@ -132,4 +141,13 @@ test('an old cached pool is refreshed on Giphy\'s first appearance', async () =>
   await g.advance(10);
   assert.equal(g.fetches.length, 0);
   assert.equal(await searchesDuring(g, () => g.artwork.start()), 1);
+});
+
+test('Giphy left on screen searches again once the pool is three minutes old', async () => {
+  let n = 0;
+  const g = loadGiphy({ random: () => ((n++ * 0.618034) % 1) });
+  g.artwork.start();
+  await g.advance(10);
+  assert.equal(await searchesDuring(g, () => g.advance(REFRESH_MS - 20000)), 0);
+  assert.equal(await searchesDuring(g, () => g.advance(40000)), 1);
 });

@@ -137,6 +137,10 @@ visuals.register('giphy', (() => {
     }
   }
 
+  function poolIsStale() {
+    return !document.hidden && Date.now() - lastSearchAt > GIPHY_REFRESH_MS;
+  }
+
   function getCachedGifs() {
     const cache = readCache();
     return ((cache && cache.items) || []).filter(it => it && (it.mp4 || it.gif));
@@ -255,6 +259,7 @@ visuals.register('giphy', (() => {
     log('swap', key, el.tagName === 'VIDEO' ? `readyState=${el.readyState}` : 'decoded');
     currentKey = key;
     scheduleNextGif();
+    if (poolIsStale()) fetchGiphyGifs(true);
     queueNext();
   }
 
@@ -528,7 +533,7 @@ visuals.register('giphy', (() => {
     }
     window.addEventListener('resize', resizeOverlay);
     startOverlayLoop();
-    fetchGiphyGifs(Date.now() - lastSearchAt > GIPHY_REFRESH_MS);
+    fetchGiphyGifs(poolIsStale());
     maybeSwap();
   }
 
