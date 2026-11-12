@@ -570,6 +570,72 @@ def request_block(request: dict) -> str:
     return block + "The station's genre rules win over anything the listener asked for."
 
 
+# A caption that describes a voice. ACE-Step only voices lyric lines, so a
+# voice in the caption with an all-[Instrumental] lyric never makes a sound.
+VOICE_RE = re.compile(
+    r"\b(voices?|vocals?|vocoded|vocoder|spoken|speaks?|speaking|sings?|singing|sung|whisper\w*|"
+    r"barked|barks?|chant\w*|narrat\w*|announcer|talk(s|ing)? over)\b",
+    re.IGNORECASE,
+)
+NO_VOICE_RE = re.compile(r"\b(no|without|zero)\s+(\w+\s+)?(voices?|vocals?)\b", re.IGNORECASE)
+MIN_VOICE_LINES = 3
+
+
+def describes_voice(caption: str) -> bool:
+    text = NO_VOICE_RE.sub("", caption or "")
+    return bool(VOICE_RE.search(text))
+
+
+def sung_lines(lyrics: str) -> list[str]:
+    """The lines ACE-Step voices: everything that isn't a [Tag]."""
+    lines = (line.strip() for line in str(lyrics or "").splitlines())
+    return [line for line in lines if line and not re.fullmatch(r"\[[^\]]*\]", line)]
+
+
+def voice_stabs(lyrics: str, title: str, artist: str) -> str:
+    """Sparse stabs from the lines the song already has, then its title and
+    artist, spread over the sections with [Instrumental] between."""
+    lines = sung_lines(lyrics)
+    for extra in (title, artist, title):
+        if len(lines) >= MIN_VOICE_LINES:
+            break
+        if extra:
+            lines.append(extra)
+    while len(lines) < MIN_VOICE_LINES:
+        lines.append("Signal received")
+    sections = ["[Intro]", "[Verse]", "[Bridge]", "[Outro]"]
+    out = ["[Intro]", "[Instrumental]"]
+    for i, line in enumerate(lines):
+        out += [sections[min(i + 1, len(sections) - 1)], line, "[Instrumental]"]
+    return "\n".join(out)
+
+
+def ensure_voice(song: dict, dj_prompt: str) -> dict:
+    """A caption with a voice gets lyrics the voice can say: the DJ is asked
+    once more, and short stabs fill in if it still writes too few lines."""
+    caption = str(song.get("caption") or "")
+    if not describes_voice(caption) or len(sung_lines(song.get("lyrics"))) >= MIN_VOICE_LINES:
+        return song
+    print("  Caption has a voice but the lyrics barely use it; asking for vocal lines...", flush=True)
+    lyrics = ""
+    try:
+        reply = call_llm(
+            dj_prompt,
+            f"This track's sound description has a voice in it:\n{caption}\n\n"
+            f"Its lyrics:\n{song.get('lyrics') or '[Instrumental]'}\n\n"
+            "ACE-Step only voices lyric lines, so as written the voice never speaks. Rewrite the lyrics: "
+            f"{MIN_VOICE_LINES} to 6 short lines spread over a few sections, said the way the caption describes "
+            "the voice, with [Instrumental] between them. Keep any lines already there. "
+            "Output only the lyrics, no JSON, no commentary.",
+        )
+        lyrics = re.sub(r"^```\w*\n?|\n?```$", "", reply.strip()).strip()
+    except SystemExit:
+        pass
+    if len(sung_lines(lyrics)) < MIN_VOICE_LINES:
+        lyrics = voice_stabs(song.get("lyrics"), str(song.get("title") or ""), str(song.get("artist") or ""))
+    return {**song, "lyrics": lyrics}
+
+
 def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
     """The DJ reads a listener request on air. Falls back to a plain read."""
     who, title, artist = request["requester"], request["title"], request["artist"]
@@ -823,6 +889,7 @@ def main():
                 f"Guidance:\n"
                 f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
                 f"- When vocals are present, sparse and atmospheric.\n"
+                f"- When a caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                 f"- Vary the sonic palette across the set.\n\n"
                 f"Output a JSON array of {args.tracks} objects, each with: "
                 f"title, artist, caption, lyrics, bpm, keyscale, duration."
@@ -873,6 +940,7 @@ def main():
                     "\n\nGuidance:\n"
                     "- Keep vocals to a minimum. Not all tracks need vocals.\n"
                     "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
+                    "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                     "- The genre the slot or brief asks for wins; follow the DJ lessons so it never turns cheesy. Every track has drums, 90 BPM or more.\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
                     f"{avoid}"
@@ -893,6 +961,7 @@ def main():
         # --- Process tracks (shared between batch and per-track) ---
         lengths = spread_lengths([song.get("duration") for song in songs])
         for i, song in enumerate(songs, 1):
+            song.update(ensure_voice(song, dj_prompt))
             song["duration"] = lengths[i - 1]
             track_prompt = song.pop("_prompt", dj_input)
 
