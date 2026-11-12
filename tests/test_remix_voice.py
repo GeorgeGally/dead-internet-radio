@@ -18,6 +18,23 @@ class RemixVoiceTest(unittest.TestCase):
         self.assertEqual(generate.sung_lines(result["lyrics"]), ["REQUEST RECEIVED", "Sliced", "Gold"])
         self.assertEqual(original["lyrics"], "[Verse]\nREQUEST RECEIVED")
 
+    def test_retry_preserves_existing_lines(self):
+        song = {"caption": "A voice speaks", "lyrics": "[Verse]\nREQUEST RECEIVED", "title": "Sliced", "artist": "Gold"}
+        with patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
+            result = generate.ensure_voice(song)
+        self.assertEqual(generate.sung_lines(result["lyrics"]), ["REQUEST RECEIVED", "Sliced", "Gold"])
+        with patch.object(generate, "call_llm", return_value="REQUEST RECEIVED\none\ntwo"):
+            result = generate.ensure_voice(song)
+        self.assertEqual(result["lyrics"], "REQUEST RECEIVED\none\ntwo")
+
+    def test_negated_voice_list_and_separate_positive_voice(self):
+        for caption in ("No singing or vocals, just synthesizers", "Without voices, singing and vocals", "No female vocals"):
+            with self.subTest(caption=caption), patch.object(generate, "call_llm") as llm:
+                song = {"caption": caption, "lyrics": "[Instrumental]"}
+                self.assertEqual(generate.ensure_voice(song), song)
+                llm.assert_not_called()
+        self.assertTrue(generate.describes_voice("No singing or vocals, but a voice speaks through a telephone"))
+
     def test_take_records_lyrics_sent_to_renderer_and_remix_kind(self):
         song = {"caption": "A voice speaks", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "bpm": 120, "keyscale": "C", "duration": 150}
         with tempfile.TemporaryDirectory(dir=".") as directory, \

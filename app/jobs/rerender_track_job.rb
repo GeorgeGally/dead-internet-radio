@@ -19,29 +19,25 @@ class RerenderTrackJob < ApplicationJob
     @gen_job = GenerationJob.find(gen_job_id)
     return unless @gen_job.pending?
 
-    track = Track.find(@gen_job.options['track_id'])
-    if @gen_job.options['kind'] == 'remix' && !AceStepManager.installed?
-      begin
+    @buffer = +''
+    begin
+      track = Track.find(@gen_job.options['track_id'])
+      if @gen_job.options['kind'] == 'remix' && !AceStepManager.installed?
         payload = track.prompt_log['payload']
         raise 'No prompt log to remix from' if payload.blank? || payload['caption'].blank?
         take = { 'payload' => payload.merge('title' => track.title, 'artist' => track.artist),
                  'file' => track.audio_path.relative_path_from(Rails.root).to_s }
         @gen_job.update!(options: @gen_job.options.merge('on_pc' => true, 'take' => take, 'dj_name' => track.show&.dj_name),
                          output_log: "Waiting for the generation PC\n")
-      rescue StandardError => e
-        @gen_job.update!(status: :failed, completed_at: Time.current, output_log: "ERROR: #{e.message}\n")
+        return
       end
-      return
-    end
 
-    @gen_job.update!(status: :running, started_at: Time.current, output_log: '')
-    @buffer = +''
-    root = Rails.root.to_s
-    spec = nil
-    show_dir = nil
-    remix = @gen_job.options['kind'] == 'remix'
+      @gen_job.update!(status: :running, started_at: Time.current, output_log: '')
+      root = Rails.root.to_s
+      spec = nil
+      show_dir = nil
+      remix = @gen_job.options['kind'] == 'remix'
 
-    begin
       @ace_session = AceStepManager.acquire
       cmd = [Rails.configuration.x.python, 'rerender.py', '--track-json', write_spec(track), '--stop-ace-step']
       cmd << '--take' if remix

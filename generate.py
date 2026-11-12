@@ -578,7 +578,11 @@ VOICE_RE = re.compile(
     r"barked|barks?|chant\w*|narrat\w*|announcer|talk(s|ing)? over)\b",
     re.IGNORECASE,
 )
-NO_VOICE_RE = re.compile(r"\b(no|without|zero)\s+(\w+\s+)?(voices?|vocals?)\b", re.IGNORECASE)
+NO_VOICE_RE = re.compile(
+    r"\b(?:no|without|zero)\s+(?:(?:\w+\s+)?(?:voices?|vocals?|singing|sung|speaking|spoken|whispering|chanting))"
+    r"(?:\s*(?:,\s*(?:(?:or|and)\s+)?|(?:or|and)\s+)(?:(?:\w+\s+)?(?:voices?|vocals?|singing|sung|speaking|spoken|whispering|chanting)))*\b",
+    re.IGNORECASE,
+)
 MIN_VOICE_LINES = 3
 
 
@@ -650,6 +654,13 @@ def ensure_voice(song: dict) -> dict:
         lyrics = lyric_text(reply)
     except SystemExit:
         pass
+    remaining = sung_lines(lyrics)
+    for line in sung_lines(original):
+        if line in remaining:
+            remaining.remove(line)
+        else:
+            lyrics = ""
+            break
     if len(sung_lines(lyrics)) < MIN_VOICE_LINES:
         lyrics = voice_stabs(original, str(song.get("title") or ""), str(song.get("artist") or ""))
     return {**song, "lyrics": lyrics}
