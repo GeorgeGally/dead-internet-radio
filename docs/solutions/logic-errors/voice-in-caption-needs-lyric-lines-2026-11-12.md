@@ -29,7 +29,9 @@ What holds now:
 
 The track page's Remix button queues `RerenderTrackJob` with kind `remix`.
 `generate.py` renders the same song in a new folder, adding vocal lines only
-when its caption requires them. The original stays untouched. Remix shows are
+when its caption requires them. A direction typed beside the button travels as
+the take's `notes`; the producer revises the song from it first (`revise_song`,
+shared with re-render), before the voice guard runs. The original stays untouched. Remix shows are
 excluded from public programmes and from the static site's show manifests, and
 air only through a set. Re-render with
 notes still replaces the song's audio in place.
