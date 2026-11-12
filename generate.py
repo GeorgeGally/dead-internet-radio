@@ -5,6 +5,7 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -610,17 +611,35 @@ def voice_stabs(lyrics: str, title: str, artist: str) -> str:
     return "\n".join(out)
 
 
-def ensure_voice(song: dict, dj_prompt: str) -> dict:
+def lyric_text(value) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = re.sub(r"^```\w*\n?|\n?```$", "", value.strip()).strip()
+    if text.startswith(("{", "[{")):
+        try:
+            data = json.loads(text)
+        except ValueError:
+            return ""
+        return lyric_text(data.get("lyrics")) if isinstance(data, dict) else ""
+    if any(re.match(r'^\s*(?:[{}]|["\']?[\w]+["\']?\s*:)', line) for line in text.splitlines()):
+        return ""
+    return text
+
+
+def ensure_voice(song: dict) -> dict:
     """A caption with a voice gets lyrics the voice can say: the DJ is asked
     once more, and short stabs fill in if it still writes too few lines."""
     caption = str(song.get("caption") or "")
-    if not describes_voice(caption) or len(sung_lines(song.get("lyrics"))) >= MIN_VOICE_LINES:
+    original = lyric_text(song.get("lyrics"))
+    if not describes_voice(caption):
         return song
+    if len(sung_lines(original)) >= MIN_VOICE_LINES:
+        return {**song, "lyrics": original}
     print("  Caption has a voice but the lyrics barely use it; asking for vocal lines...", flush=True)
     lyrics = ""
     try:
         reply = call_llm(
-            dj_prompt,
+            "Write only song lyrics, without JSON or commentary.",
             f"This track's sound description has a voice in it:\n{caption}\n\n"
             f"Its lyrics:\n{song.get('lyrics') or '[Instrumental]'}\n\n"
             "ACE-Step only voices lyric lines, so as written the voice never speaks. Rewrite the lyrics: "
@@ -628,12 +647,49 @@ def ensure_voice(song: dict, dj_prompt: str) -> dict:
             "the voice, with [Instrumental] between them. Keep any lines already there. "
             "Output only the lyrics, no JSON, no commentary.",
         )
-        lyrics = re.sub(r"^```\w*\n?|\n?```$", "", reply.strip()).strip()
+        lyrics = lyric_text(reply)
     except SystemExit:
         pass
     if len(sung_lines(lyrics)) < MIN_VOICE_LINES:
-        lyrics = voice_stabs(song.get("lyrics"), str(song.get("title") or ""), str(song.get("artist") or ""))
+        lyrics = voice_stabs(original, str(song.get("title") or ""), str(song.get("artist") or ""))
     return {**song, "lyrics": lyrics}
+
+
+def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
+    song = ensure_voice(take["payload"])
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    show_dir = OUTPUT_DIR / f"remix-{stamp}"
+    (show_dir / "prompts").mkdir(parents=True)
+    stem = f"01-{slugify(song['artist'] + ' - ' + song['title'])}-dead-internet-radio"
+    dest = show_dir / f"{stem}.mp3"
+    try:
+        ok, err = check_ace_step_health()
+        if not ok:
+            raise RuntimeError(f"ACE-Step not reachable ({err})")
+        emit_progress({"type": "track_start", "number": 1, "total": 1,
+                       "title": song["title"], "artist": song["artist"]})
+        task = call_ace_step(song)
+        result = poll_ace_step(task, track_number=1, total_tracks=1, estimated_duration=song["duration"])
+        download_audio(json.loads(result["result"])[0]["file"], dest)
+        if not dest.exists() or dest.stat().st_size < 1000:
+            raise RuntimeError("Render produced no audio")
+    except (Exception, SystemExit):
+        if not any(show_dir.glob("*.wav")):
+            shutil.rmtree(show_dir, ignore_errors=True)
+        raise
+    finally:
+        if stop_after:
+            stop_ace_step()
+    (show_dir / "show.json").write_text(json.dumps({
+        "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
+    }, indent=2))
+    (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
+        "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp}
+    }, indent=2))
+    emit_progress({"type": "track_done", "number": 1, "total": 1,
+                   "title": song["title"], "artist": song["artist"], "file": str(dest)})
+    print(f"Show folder: {show_dir}")
+    print(f"Spec: {json.dumps({k: song.get(k) for k in ('caption', 'lyrics', 'bpm', 'keyscale', 'duration')})}")
 
 
 def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
@@ -682,6 +738,9 @@ def main():
         sys.exit(1)
 
     slot = " ".join(args.slot)
+    if slot.startswith("remix {"):
+        render_take(json.loads(slot[len("remix "):]), args.dj_name, args.stop_ace_step)
+        return
 
     # A listener request is a one-track show: the DJ reads the request, then it plays.
     request = json.loads(Path(args.request_json).read_text()) if args.request_json else None
@@ -961,7 +1020,7 @@ def main():
         # --- Process tracks (shared between batch and per-track) ---
         lengths = spread_lengths([song.get("duration") for song in songs])
         for i, song in enumerate(songs, 1):
-            song.update(ensure_voice(song, dj_prompt))
+            song.update(ensure_voice(song))
             song["duration"] = lengths[i - 1]
             track_prompt = song.pop("_prompt", dj_input)
 
@@ -1065,6 +1124,14 @@ def main():
                 if expected.exists():
                     print(f"  Track {i} already exists, skipping ACE-Step", flush=True)
                     continue
+
+            if args.resume_dir:
+                song = ensure_voice(song)
+                prompt_path = show_prompts_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.prompt.json"
+                if prompt_path.exists():
+                    prompt_data = json.loads(prompt_path.read_text())
+                    prompt_data["payload"] = song
+                    prompt_path.write_text(json.dumps(prompt_data, indent=2))
 
             emit_progress({"type": "track_start", "number": i, "total": total,
                            "title": t["title"], "artist": t["artist"]})

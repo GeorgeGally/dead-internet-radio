@@ -23,7 +23,10 @@ module ShowImporter
     show = Show.find_or_create_by!(directory: File.basename(show_dir)) do |s|
       s.slot = gen_job.slot
     end
+    metadata_path = File.join(show_dir, 'show.json')
+    metadata = File.exist?(metadata_path) ? JSON.parse(File.read(metadata_path)) : {}
     show.update!(
+      kind: metadata['kind'].presence || show.kind || 'show',
       slot: gen_job.slot,
       name: data['showName'],
       dj_name: data['djName'],

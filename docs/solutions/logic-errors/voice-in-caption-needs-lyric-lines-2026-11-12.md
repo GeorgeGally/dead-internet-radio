@@ -28,11 +28,10 @@ What holds now:
 ## Remix: a new take that leaves the original alone
 
 The track page's Remix button queues `RerenderTrackJob` with kind `remix`.
-`rerender.py --take` renders the same caption, lyrics, tempo, key and length
-with no LLM step, writes it to `output/remix-<stamp>/`, and the job imports
-that folder as a one-song show of kind `remix`. Like requests, remix shows are
-left out of `Show.airable` and reach the air only through a set. Re-render
-(with notes) still replaces the song's audio in place.
+`generate.py` renders the same song in a new folder, adding vocal lines only
+when its caption requires them. The original stays untouched. Remix shows are
+excluded from public programmes and air only through a set. Re-render with
+notes still replaces the song's audio in place.
 
-Both run where ACE-Step is installed. On apps1 they fail like re-render does:
-`GenerationLine` hands only show generations to the generation PC.
+On apps1, `GenerationLine` hands the take payload to the generation PC. The
+servers repository's `dir-pc-setup.sh` deploys `generate.py` to that PC.

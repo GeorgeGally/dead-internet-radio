@@ -13,7 +13,7 @@ The track JSON: {"file": "output/<show>/<NN-name>.mp3", "artist", "title",
 
 --take is a remix: the same caption, lyrics, tempo, key and length rendered
 again as a new song in its own folder, output/remix-<stamp>/ (printed as
-"Show folder: <dir>"). The original is not touched and no LLM is asked.
+"Show folder: <dir>"). The original is not touched; missing vocal lines may be added to the take.
 """
 import argparse
 import json
@@ -44,7 +44,7 @@ def main():
     old = log.get("payload") or {}
     notes = str(spec.get("instructions") or "").strip()
     if args.take:
-        take(spec, src, log, old, args.stop_ace_step)
+        take(spec, src, old, args.stop_ace_step)
         return
 
     print(f"1. Producer rewriting {spec['artist']} — {spec['title']}...", flush=True)
@@ -116,43 +116,14 @@ def render(song: dict, dest: Path, stop_ace_step: bool):
         sys.exit(1)
 
 
-def take(spec: dict, src: Path, log: dict, old: dict, stop_ace_step: bool):
+def take(spec: dict, src: Path, old: dict, stop_ace_step: bool):
     """A new take of the song in a folder of its own; the original stays."""
     if not old.get("caption"):
         print(f"No prompt log beside {src}: nothing to remix from", file=sys.stderr)
         sys.exit(1)
     song = {**old, "title": spec["title"], "artist": spec["artist"],
             "lyrics": old.get("lyrics") or "[Instrumental]"}
-    print(f"1. New take of {spec['artist']} — {spec['title']}", flush=True)
-    print(f"   {song.get('bpm')} BPM, {song.get('keyscale')}, {song.get('duration')}s")
-    print(f"   {song['caption']}")
-
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    show_dir = g.OUTPUT_DIR / f"remix-{stamp}"
-    (show_dir / "prompts").mkdir(parents=True)
-    display_name = f"{song['artist']} - {song['title']}"
-    stem = f"01-{g.slugify(display_name)}-dead-internet-radio"
-    dest = show_dir / f"{stem}.mp3"
-    try:
-        render(song, dest, stop_ace_step)
-    except SystemExit:
-        # A WAV left behind is a render whose MP3 encode failed: keep it.
-        if not any(show_dir.glob("*.wav")):
-            shutil.rmtree(show_dir, ignore_errors=True)
-        raise
-
-    (show_dir / "show.json").write_text(json.dumps({
-        "show_name": f"{song['artist']} — {song['title']}",
-        "dj_name": str(spec.get("dj_name") or ""),
-    }, indent=2))
-    (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps(
-        {**{k: v for k, v in log.items() if k != "rerender"}, "track": 1, "payload": song,
-         "take_of": {"file": str(src), "at": stamp}}, indent=2))
-
-    g.emit_progress({"type": "track_done", "number": 1, "total": 1,
-                     "title": song["title"], "artist": song["artist"], "file": str(dest)})
-    print(f"Show folder: {show_dir}")
-    print(f"Spec: {json.dumps({k: song.get(k) for k in ('caption', 'lyrics', 'bpm', 'keyscale', 'duration')})}")
+    g.render_take({"payload": song, "file": str(src)}, spec.get("dj_name"), stop_ace_step)
 
 
 if __name__ == "__main__":
