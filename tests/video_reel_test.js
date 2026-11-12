@@ -263,6 +263,19 @@ test('Aliens searches again on a new track and plays the new results', async () 
   assert.ok(before.every((f) => f.video.removed));
 });
 
+test('Aliens picks films it has not shown lately, then the ones shown longest ago', async () => {
+  const page = aliensPage((q) => (q.includes('title:(ufo') ? ['saucer-1', 'saucer-2', 'saucer-3'] : ['saucer-1', 'martian-1']));
+  const store = { 'broll-recent:aliens': JSON.stringify(['saucer-1', 'saucer-2']) };
+  page.context.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  page.artworks.aliens.start();
+  await until(() => page.context.__pb.ready && !page.context.__pb.loading);
+
+  assert.deepEqual(Array.from(page.context.__pb.films, (f) => f.id).sort(), ['martian-1', 'saucer-1', 'saucer-3']);
+  const recent = JSON.parse(store['broll-recent:aliens']);
+  assert.equal(recent[0], 'saucer-2');
+  assert.deepEqual(recent.slice(1).sort(), ['martian-1', 'saucer-1', 'saucer-3']);
+});
+
 test('Aliens with no archive.org results shows nothing else in their place', async () => {
   const { artworks, context, videos, instances, fetches } = aliensPage(() => []);
   artworks.aliens.start();

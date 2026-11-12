@@ -38,6 +38,26 @@ line show. Search results are not checked shot by shot, so a reel can include
 talking heads or titles from an alien film; the trade is fresh footage on
 every track instead of two repeating shots.
 
+## Same films every visit (2026-11-12)
+
+Listeners reported Aliens "always seems to be playing same videos". Measured
+on 2026-11-12, only about 130 of the two searches' results have an mp4 the
+player opens (38 sightings, 90 films). Widening the queries mostly added
+noise: after 1999 they find conspiracy talks and comedy uploads, and wider
+terms pull in Alien franchise trailers and music videos. Raising the size
+limit to 400 MB added 24 items, of which 2 in 10 had a usable mp4.
+
+So the fix spreads picks over the pool the searches already have:
+
+- `aliens.js` passes `recent: 100`. The engine keeps the last 100 films
+  shown in `localStorage` (`broll-recent:aliens`) and orders each page's
+  results with films not shown lately first, then those shown longest ago.
+- The search that leads the deal changes each track. Before, the smaller
+  sightings search always dealt first and took two of the three films.
+- The hit count behind the random page is stored with its query and kept a
+  day (`broll-count3:<search>`). The old count was kept forever by search
+  name, so a changed or growing search stayed on its old first pages.
+
 ## The drawer tile
 
 A report said Aliens showed in the admin list but not the player's artwork
