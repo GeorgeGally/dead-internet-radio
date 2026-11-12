@@ -20,16 +20,24 @@ test('HTML has the radio player shell', () => {
   assert.match(html, /id="track-title"/);
 });
 
-test('HTML has transport controls and speaker', () => {
-  assert.match(html, /id="btn-play"/);
-  for (const id of ['btn-gallery', 'btn-play', 'btn-request', 'btn-vote-up', 'btn-vote-down']) {
-    assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="`));
-    assert.match(html, new RegExp(`class="abtn-label"[^>]*for="${id}"`));
+test('HTML has the five deck keys, Play first, each with its word on it', () => {
+  const keys = [
+    ['btn-play', 'Play'],
+    ['btn-gallery', 'Visuals'],
+    ['btn-request', 'Request'],
+    ['btn-vote-up', 'Like'],
+    ['btn-vote-down', 'Dislike'],
+  ];
+  const order = keys.map(([id]) => html.indexOf(`id="${id}"`));
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'keys run Play, Visuals, Request, Like, Dislike');
+  for (const [id, word] of keys) {
+    assert.match(html, new RegExp(`id="${id}" class="abtn key[^"]*"[^>]*aria-label="[^"]+"[^>]*><span class="cap"><span class="word"[^>]*>${word}</span>`));
   }
+  assert.doesNotMatch(html, /class="abtn-label"/);
+  assert.doesNotMatch(html, /class="speaker"/);
+  assert.doesNotMatch(html, /id="npd-art-(prev|next)"/);
   assert.doesNotMatch(html, /id="btn-stop"/);
-  assert.match(html, /class="speaker"/);
-  assert.match(html, /class="marquee"/);
-  assert.match(html, /class="transport"/);
+  assert.match(js, /getElementById\('play-word'\)\.textContent = loading \? 'Loading' : 'Play'/);
 });
 
 test('CSS defines the deck, gif background, and overlay canvas', () => {
