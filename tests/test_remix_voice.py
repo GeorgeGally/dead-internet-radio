@@ -18,6 +18,15 @@ class RemixVoiceTest(unittest.TestCase):
         self.assertEqual(generate.sung_lines(result["lyrics"]), ["REQUEST RECEIVED", "Sliced", "Gold"])
         self.assertEqual(original["lyrics"], "[Verse]\nREQUEST RECEIVED")
 
+    def test_json_retry_accepts_only_object_with_string_lyrics(self):
+        song = {"caption": "A voice speaks", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold"}
+        for reply in ('[\n"one",\n"two",\n"three"\n]', '"one\\ntwo\\nthree"', '123', 'null', 'true', '{"lyrics": ["one", "two", "three"]}'):
+            with self.subTest(reply=reply), patch.object(generate, "call_llm", return_value=reply):
+                result = generate.ensure_voice(song)
+                self.assertEqual(generate.sung_lines(result["lyrics"]), ["Sliced", "Gold", "Sliced"])
+        with patch.object(generate, "call_llm", return_value='{"lyrics": "one\\ntwo\\nthree"}'):
+            self.assertEqual(generate.ensure_voice(song)["lyrics"], "one\ntwo\nthree")
+
     def test_retry_preserves_existing_lines(self):
         song = {"caption": "A voice speaks", "lyrics": "[Verse]\nREQUEST RECEIVED", "title": "Sliced", "artist": "Gold"}
         with patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):

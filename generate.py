@@ -621,12 +621,15 @@ def lyric_text(value) -> str:
     if not isinstance(value, str):
         return ""
     text = re.sub(r"^```\w*\n?|\n?```$", "", value.strip()).strip()
-    if text.startswith(("{", "[{")):
-        try:
-            data = json.loads(text)
-        except ValueError:
+    try:
+        data = json.loads(text)
+    except ValueError:
+        if text.startswith(("{", "[{")):
             return ""
-        return lyric_text(data.get("lyrics")) if isinstance(data, dict) else ""
+    else:
+        if not isinstance(data, dict) or not isinstance(data.get("lyrics"), str):
+            return ""
+        text = data["lyrics"].strip()
     if any(re.match(r'^\s*(?:[{}]|["\']?[\w]+["\']?\s*:)', line) for line in text.splitlines()):
         return ""
     return text
