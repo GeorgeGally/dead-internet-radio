@@ -1,6 +1,6 @@
 'use strict';
 
-function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searches = null } = {}) {
+function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searches = null, recent = 0 } = {}) {
   let myP5 = null;
 
   // What to look for on archive.org. Each theme is a search; `words` pull it
@@ -88,19 +88,24 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     return ['ads', matched, wild];
   }
 
-  // A random page of results instead of always the top ten. The hit count per
-  // theme is remembered so this costs one request after the first visit.
+  // A random page of results instead of always the top ten. The hit count is
+  // remembered for a day per query, so a changed or growing search reaches
+  // its new pages instead of the old count's first few.
+  const COUNT_MS = 24 * 60 * 60 * 1000;
   async function searchFilms(theme) {
     const q = `(${queryFor(theme)}) AND mediatype:movies`;
     const base = '/broll-index/search?q=' + encodeURIComponent(q);
-    const key = 'broll-count2:' + theme;
+    const key = 'broll-count3:' + theme;
     let count = 0;
-    try { count = Number(localStorage.getItem(key)) || 0; } catch (e) {}
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (saved && saved.q === q && Date.now() - saved.at < COUNT_MS) count = Number(saved.n) || 0;
+    } catch (e) {}
     if (!count) {
       const res = await fetch(base + '&rows=0');
       if (!res.ok) throw new Error('search');
       count = (await res.json())?.response?.numFound || 0;
-      try { localStorage.setItem(key, String(count)); } catch (e) {}
+      try { localStorage.setItem(key, JSON.stringify({ q, n: count, at: Date.now() })); } catch (e) {}
     }
     const rows = 20;
     const pages = Math.max(1, Math.min(Math.ceil(count / rows), 500));
@@ -201,10 +206,35 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     disposeVideos(outgoing);
   }
 
+  // Films this artwork showed lately, newest last, kept across visits so the
+  // next reels pick films not seen yet while the search still has some.
+  const RECENT_KEY = 'broll-recent:' + id;
+  function recentFilms() {
+    if (!recent) return [];
+    try {
+      const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function markShown(filmId) {
+    if (!recent) return;
+    const list = recentFilms().filter((x) => x !== filmId);
+    list.push(filmId);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(-recent))); } catch (e) {}
+  }
+
   async function loadForTrack(info, token) {
     // Search the three themes at once, then deal the results out in turn so the
     // reel holds one film from each: ad, matched theme, wildcard.
-    const lists = await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => [])));
+    // Films not shown lately come first, then the ones shown longest ago.
+    // The search that leads the deal changes each track, so a small search
+    // doesn't take two of the three films every time.
+    const shown = recentFilms();
+    const lists = (await Promise.all(pickThemes(info).map((th) => searchFilms(th).catch(() => []))))
+      .map((l) => [...l].sort((a, b) => shown.indexOf(a) - shown.indexOf(b)));
+    if (recent) lists.push(...lists.splice(0, Math.floor(Math.random() * lists.length)));
     let ids = [];
     for (let i = 0; i < 6; i++) lists.forEach((l) => { if (l[i]) ids.push(l[i]); });
     ids = [...new Set(ids)].slice(0, 6);
@@ -215,6 +245,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     // and the two behind it buffer while it plays.
     const found = (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
       .filter(Boolean);
+    ids.filter((id) => !found.some((f) => f.id === id)).forEach(markShown);
     if (!found.length) throw new Error('no video');
 
     const films = [];
@@ -222,12 +253,16 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     for (const { id, url, size } of found) {
       if (token !== state.loadToken || films.length >= 3) break;
       const video = await makeVideo(url, 'canplay').catch(() => null);
-      if (!video) continue;
+      if (!video) {
+        markShown(id);
+        continue;
+      }
       if (token !== state.loadToken || films.length >= 3) {
         disposeVideos([{ video }]);
         break;
       }
       films.push({ id, url, size, video });
+      markShown(id);
       if (films.length === 1) promoteReel(films);
     }
     if (!films.length) state.failed = token === state.loadToken && !state.films.length;
