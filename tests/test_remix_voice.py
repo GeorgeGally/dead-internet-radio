@@ -106,6 +106,37 @@ class RemixVoiceTest(unittest.TestCase):
         self.assertEqual(render.call_args.args[0], log["payload"])
         self.assertEqual(song["lyrics"], "[Instrumental]")
 
+    def test_take_with_notes_is_revised_by_the_producer_and_records_them(self):
+        song = {"caption": "cold synths", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "bpm": 120, "keyscale": "C", "duration": 150, "frequency_band": "low"}
+        revised = '{"diagnosis": "too slow", "changes": ["faster"], "caption": "acid 303 line, 909 kick", "lyrics": "[Instrumental]", "bpm": 132, "keyscale": "A minor", "duration": 160}'
+        with tempfile.TemporaryDirectory(dir=".") as directory, \
+             patch.object(generate, "OUTPUT_DIR", Path(directory)), \
+             patch.object(generate, "call_llm", return_value=revised) as llm, \
+             patch.object(generate, "check_ace_step_health", return_value=(True, None)), \
+             patch.object(generate, "call_ace_step", return_value="task") as render, \
+             patch.object(generate, "poll_ace_step", return_value={"result": '[{"file":"audio"}]'}), \
+             patch.object(generate, "download_audio", side_effect=lambda _, dest: dest.write_bytes(b'x' * 1001)), \
+             contextlib.redirect_stdout(io.StringIO()):
+            generate.render_take({"payload": song, "file": "output/original.mp3", "notes": "faster, add a 303 line"})
+            folder = next(Path(directory).iterdir())
+            log = json.loads(next((folder / "prompts").iterdir()).read_text())
+        self.assertIn("Notes: faster, add a 303 line", llm.call_args.args[1])
+        sent = render.call_args.args[0]
+        self.assertEqual((sent["caption"], sent["bpm"], sent["keyscale"]), ("acid 303 line, 909 kick", 132, "A minor"))
+        self.assertEqual(sent["frequency_band"], "low")
+        self.assertEqual(log["rerender"]["notes"], "faster, add a 303 line")
+        self.assertEqual(song["caption"], "cold synths")
+
+    def test_take_without_notes_skips_the_producer(self):
+        song = {"caption": "cold synths", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "duration": 150}
+        with tempfile.TemporaryDirectory(dir=".") as directory, \
+             patch.object(generate, "OUTPUT_DIR", Path(directory)), \
+             patch.object(generate, "call_llm") as llm, \
+             patch.object(generate, "check_ace_step_health", return_value=(False, "offline")):
+            with self.assertRaises(RuntimeError):
+                generate.render_take({"payload": song, "notes": "  "})
+        llm.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

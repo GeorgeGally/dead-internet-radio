@@ -43,6 +43,7 @@ PROMPTS_DIR = Path("prompts")
 PRODUCER_PROMPT_PATH = PROMPTS_DIR / "producer.md"
 DJ_PROMPT_PATH = PROMPTS_DIR / "dj.md"
 ANNOUNCER_PROMPT_PATH = PROMPTS_DIR / "announcer.md"
+RERENDER_PROMPT_PATH = PROMPTS_DIR / "rerender.md"
 
 ANNOUNCE_SCRIPT = Path(__file__).parent / "announce.py"
 KOKORO_PYTHON = Path(__file__).parent / "kokoro" / ".venv" / "bin" / "python3"
@@ -671,8 +672,42 @@ def ensure_voice(song: dict) -> dict:
     return {**song, "lyrics": lyrics}
 
 
+def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, dict]:
+    """The producer rewrites the song's caption, lyrics, tempo, key and length
+    from the station's notes. Returns the new song and the producer's review."""
+    message = (
+        f"Artist: {artist}\nTitle: {title}\n"
+        f"Caption: {old.get('caption', '')}\nLyrics:\n{old.get('lyrics', '[Instrumental]')}\n"
+        f"BPM: {old.get('bpm')}\nKey: {old.get('keyscale', '')}\nDuration: {old.get('duration')}\n\n"
+        f"Notes: {notes}"
+    )
+    new = extract_json(call_llm(load_prompt(RERENDER_PROMPT_PATH), message))
+    new = new if isinstance(new, dict) else {}
+    duration = int(new.get("duration") or old.get("duration") or 150)
+    song = {
+        "title": title,
+        "artist": artist,
+        "caption": str(new.get("caption") or old.get("caption") or ""),
+        "lyrics": str(new.get("lyrics") or old.get("lyrics") or "[Instrumental]"),
+        "bpm": new.get("bpm") or old.get("bpm"),
+        "keyscale": str(new.get("keyscale") or old.get("keyscale") or ""),
+        "duration": min(max(duration, MIN_TRACK_SECONDS), MAX_TRACK_SECONDS),
+    }
+    changes = new.get("changes") if isinstance(new.get("changes"), list) else []
+    return song, {"diagnosis": str(new.get("diagnosis") or ""), "changes": [str(c) for c in changes]}
+
+
 def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
-    song = ensure_voice(take["payload"])
+    """A new take of a song in a remix folder of its own. With notes, the
+    producer first revises the song the way a re-render does."""
+    song = take["payload"]
+    notes = str(take.get("notes") or "").strip()
+    if notes:
+        print(f"  Producer revising the take: {notes}", flush=True)
+        revised, review = revise_song(song, song["artist"], song["title"], notes)
+        song = {**song, **revised}
+        print(f"Review: {json.dumps(review)}", flush=True)
+    song = ensure_voice(song)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     for attempt in range(3):
         stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -692,7 +727,8 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
             "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
         }, indent=2))
         (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
-            "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp}
+            "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp},
+            **({"rerender": {"at": stamp, "notes": notes}} if notes else {}),
         }, indent=2))
         ok, err = check_ace_step_health()
         if not ok:
