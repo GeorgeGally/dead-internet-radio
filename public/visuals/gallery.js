@@ -523,7 +523,7 @@ const gallery = (() => {
     };
     slotPinned = true;
     if (!await looksCall(`${id}/${slot}`, 'PUT', { look })) {
-      savedBox(`Slot ${slot}`, { name: visuals.getCurrentName(), line: 'Not saved', fail: true });
+      savedBox(`Slot ${slot} not saved`, { name: visuals.getCurrentName(), slot, fail: true });
       return;
     }
     if (!artPresets[id]) artPresets[id] = {};
@@ -532,28 +532,52 @@ const gallery = (() => {
     slotDirty = false;
     saveLit = true;
     updateSlotUI();
-    savedBox(`Slot ${slot}`, { name: visuals.getCurrentName(), line: 'Saved' });
+    savedBox(`Slot ${slot} saved`, { name: visuals.getCurrentName(), slot });
   }
 
-  // A teletext band, dead centre, then gone: saves, slot changes, uploads.
-  // A save names its artwork, since a slot belongs to one, and adds a second
-  // line under the band; a failed one darkens it. A long name gives way first.
-  let savedEl = null;
-  function savedBox(band, { name = '', line = '', fail = false, ms = 1400 } = {}) {
-    if (!savedEl) {
-      savedEl = document.createElement('div');
-      savedEl.id = 'saved-box';
-      savedEl.setAttribute('role', 'status');
-      savedEl.innerHTML = '<span class="band"><span class="name"></span><span class="slot"></span></span><span class="line"></span>';
-      document.body.appendChild(savedEl);
+  // A message box, dead centre, then gone: saves, slot changes, uploads.
+  // A save shows the artwork's nine slot keys, filled ones cream and the one
+  // just saved orange (outlined if it failed), with the artwork named under
+  // them, since a slot belongs to one. Other messages show the line alone.
+  let saved = null;
+  function savedBox(words, { name = '', slot = 0, fail = false, ms = 1400 } = {}) {
+    if (!saved) {
+      const el = (tag, cls, parent) => {
+        const e = document.createElement(tag);
+        e.className = cls;
+        if (parent) parent.appendChild(e);
+        return e;
+      };
+      const box = el('div', '');
+      box.id = 'saved-box';
+      box.setAttribute('role', 'status');
+      const pads = el('div', 'pads', box);
+      const line = el('div', 'line', box);
+      saved = {
+        box,
+        pads,
+        pad: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+          const k = el('span', 'pad', pads);
+          k.textContent = String(n);
+          return k;
+        }),
+        name: el('span', 'name', line),
+        words: el('span', 'words', line),
+      };
+      document.body.appendChild(box);
     }
-    savedEl.querySelector('.name').textContent = name;
-    savedEl.querySelector('.slot').textContent = name ? ` / ${band}` : band;
-    savedEl.querySelector('.line').textContent = line;
-    savedEl.classList.toggle('fail', fail);
-    savedEl.classList.add('show');
-    clearTimeout(savedEl._t);
-    savedEl._t = setTimeout(() => savedEl.classList.remove('show'), ms);
+    const id = visuals.getCurrentId();
+    saved.pads.hidden = !slot;
+    saved.pad.forEach((k, i) => {
+      const n = i + 1;
+      k.className = n === slot ? 'pad now' : slotHasPreset(id, n) ? 'pad full' : 'pad';
+    });
+    saved.name.textContent = name;
+    saved.words.textContent = words;
+    saved.box.classList.toggle('fail', fail);
+    saved.box.classList.add('show');
+    clearTimeout(saved.box._t);
+    saved.box._t = setTimeout(() => saved.box.classList.remove('show'), ms);
   }
 
   function loadSlot(id, slot) {
