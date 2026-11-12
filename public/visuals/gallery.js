@@ -537,9 +537,6 @@ const gallery = (() => {
   }
 
   // A message box, dead centre, then gone: saves, slot changes, uploads.
-  // A save shows the artwork's nine slot keys, filled ones cream and the one
-  // just saved orange (outlined if it failed), with the artwork named under
-  // them, since a slot belongs to one. Other messages show the line alone.
   let saved = null;
   function savedBox(words, { id = '', name = '', slot = 0, fail = false, ms = 1400 } = {}) {
     if (!saved) {
@@ -554,9 +551,12 @@ const gallery = (() => {
       box.setAttribute('role', 'status');
       const pads = el('div', 'pads', box);
       const line = el('div', 'line', box);
+      const band = el('div', 'band', box);
       saved = {
         box,
         pads,
+        line,
+        band,
         pad: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
           const k = el('span', 'pad', pads);
           k.textContent = String(n);
@@ -568,6 +568,9 @@ const gallery = (() => {
       document.body.appendChild(box);
     }
     saved.pads.hidden = !slot;
+    saved.line.hidden = !slot;
+    saved.band.hidden = !!slot;
+    saved.band.textContent = words;
     saved.pad.forEach((k, i) => {
       const n = i + 1;
       k.className = n === slot ? 'pad now' : slotHasPreset(id, n) ? 'pad full' : 'pad';
@@ -575,6 +578,7 @@ const gallery = (() => {
     saved.name.textContent = name;
     saved.words.textContent = words;
     saved.box.classList.toggle('fail', fail);
+    saved.box.classList.toggle('teletext', !slot);
     saved.box.classList.add('show');
     clearTimeout(saved.box._t);
     saved.box._t = setTimeout(() => saved.box.classList.remove('show'), ms);

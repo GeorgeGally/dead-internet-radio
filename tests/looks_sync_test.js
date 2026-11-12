@@ -40,7 +40,7 @@ function message(box) {
     fail: box.classList.contains('fail'),
     keys: keys.hidden ? null : keys.children.map((k) => k.className.replace('pad', '').trim() || '-').join(' '),
     name: line.children[0].textContent,
-    words: line.children[1].textContent,
+    words: keys.hidden ? part('band').textContent : line.children[1].textContent,
   };
 }
 
@@ -84,7 +84,7 @@ function player({ stored = {}, server }) {
   };
   sandbox.window = sandbox;
   vm.runInNewContext(`${source}\nthis.gallery = gallery;`, sandbox);
-  return { gallery: sandbox.gallery, store, calls, saveCtrl, message: () => message(box), activated, restored, activate: sandbox.visuals.activate };
+  return { gallery: sandbox.gallery, store, calls, saveCtrl, message: () => message(box), teletext: () => box.classList.contains('teletext'), activated, restored, activate: sandbox.visuals.activate };
 }
 
 test('a listener takes the server looks and cannot save', async () => {
@@ -131,6 +131,7 @@ test('an admin browser uploads old looks once and confirms in one line', async (
   assert.equal(p.saveCtrl.hidden, false);
   assert.equal(p.gallery.slotHasPreset('bouncy', 7), true);
   assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: '1 look uploaded' });
+  assert.equal(p.teletext(), true);
   assert.equal(p.store.has('visual-slot-presets'), false);
   assert.equal(p.store.get('visual-slot-presets-sent'), old);
 
@@ -171,6 +172,7 @@ test('a save reaches the server before it counts', async () => {
   assert.equal(p.gallery.slotHasPreset('bouncy', 4), true);
   assert.equal(JSON.parse(p.store.get('visual-looks-cache')).bouncy[4].cutoff, 130);
   assert.deepEqual(p.message(), { shown: true, fail: false, keys: '- - - now - - - - -', name: 'Bouncy', words: 'Slot 4 saved' });
+  assert.equal(p.teletext(), false);
 });
 
 test('a saved slot shows the keypad: filled slots cream, the new one orange, the artwork named', async () => {
@@ -207,6 +209,7 @@ test('turning the slot dial names the slot without the keypad', async () => {
   await p.gallery.syncLooks();
   p.gallery.nextSlot(1);
   assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 1' });
+  assert.equal(p.teletext(), true);
   p.gallery.nextSlot(-1);
   assert.equal(p.message().words, 'Slot off');
 });
