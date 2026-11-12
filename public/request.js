@@ -1,8 +1,8 @@
-// The request line: a full-screen page over the artwork. Google sign-in is asked
+// The request line: a page over the artwork. Google sign-in is asked
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, log = [], gsiLoading = null, wentFull = false, signingIn = false;
+  let card, led, me = null, log = [], gsiLoading = null;
   // Set while Google's sign-in is out, so the line reopens if the page reloads.
   const RETURN_KEY = 'dir-request-return';
 
@@ -100,13 +100,8 @@ const requestLine = (() => {
     } catch (_) { return false; }
   }
 
-  // Google's popup can take the page out of full screen, which closes the
-  // line; sign-in brings the listener back to it.
   async function signIn(tokenResp) {
-    const wasSigningIn = signingIn;
-    signingIn = false;
     rememberReturn(false);
-    if (wasSigningIn && !isOpen()) { card.classList.add('open'); led.classList.add('on'); }
     if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
     const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
     if (ok) { me = data; await refreshMe(); render(); } else render(data.message || 'Google didn\'t vouch for that.');
@@ -135,13 +130,12 @@ const requestLine = (() => {
         client_id: me.google_client_id,
         scope: 'openid email profile',
         callback: signIn,
-        error_callback: () => { signingIn = false; rememberReturn(false); },
+        error_callback: () => { rememberReturn(false); },
       });
       go.disabled = false;
     }).catch(() => { out.textContent = 'Google is out of reach.'; });
     go.addEventListener('click', () => {
       if (!tokenClient) return;
-      signingIn = true;
       rememberReturn(true);
       tokenClient.requestAccessToken();
     });
@@ -283,12 +277,10 @@ const requestLine = (() => {
     const done = el('div', 'rq-sent');
     done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
     const foot = el('div', 'rq-foot');
-    foot.append(el('p', 'rq-msg', msg), lights(me.requests_left));
-    if (me.requests_left > 0) {
-      const { wrap, go } = goButton('another');
-      go.addEventListener('click', async () => { await refreshMe(); render(); });
-      foot.append(wrap);
-    }
+    // The line closes once a request is in, so it isn't sent again at once.
+    const { wrap, go } = goButton('close');
+    go.addEventListener('click', close);
+    foot.append(el('p', 'rq-msg', msg), lights(me.requests_left), wrap);
     body.append(done, foot);
   }
 
@@ -302,11 +294,6 @@ const requestLine = (() => {
 
   async function open() {
     if (isOpen()) return;
-    // The request line takes the whole screen; leave it the way it was found.
-    const root = document.documentElement;
-    if (!document.fullscreenElement && root.requestFullscreen) {
-      root.requestFullscreen().then(() => { wentFull = true; }, () => {});
-    }
     card.classList.add('open');
     led.classList.add('on');
     card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
@@ -315,13 +302,10 @@ const requestLine = (() => {
   }
 
   function close() {
-    signingIn = false;
     rememberReturn(false);
     stopPreview();
     card.classList.remove('open');
     led.classList.remove('on');
-    if (wentFull && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    wentFull = false;
     if (document.activeElement && card.contains(document.activeElement)) document.activeElement.blur();
   }
 
@@ -353,10 +337,6 @@ const requestLine = (() => {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && isOpen()) close();
-    });
-    // Esc in full screen is the browser's: it leaves full screen, so close too.
-    document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement && wentFull) { wentFull = false; if (!signingIn) close(); }
     });
   }
 
