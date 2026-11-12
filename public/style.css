@@ -101,20 +101,35 @@ body.prewarming #block-canvas {
   left: 0;
   right: 0;
   height: 36px;
-  background: linear-gradient(#e9e6df, #d8d4cb);
+  background: #000;
+  isolation: isolate;
   font-family: "IBM Plex Mono", "Courier New", monospace;
   letter-spacing: 0.04em;
-  color: #1a1a1a;
+  color: #e9e6df;
   z-index: 10;
-  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
   overflow: hidden;
   display: flex;
   align-items: center;
 }
 
+#deck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(#e9e6df, #d8d4cb);
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+#deck.expanded::before,
+#deck.ejected::before {
+  opacity: 1;
+}
+
 #deck.expanded {
   height: var(--deck-h);
-  background: linear-gradient(#e9e6df, #d8d4cb);
   border-bottom: 1px solid #b9b4a8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
   color: #1a1a1a;
@@ -122,17 +137,16 @@ body.prewarming #block-canvas {
 
 #deck.ejected {
   height: 100vh;
-  background: linear-gradient(#e9e6df, #d8d4cb);
   border-bottom: 1px solid #b9b4a8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
   color: #1a1a1a;
   transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-              background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+              color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
 #deck.ejected.closing {
   transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+              color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
 .deck-hit-zone {
@@ -219,7 +233,7 @@ body.prewarming #block-canvas {
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #817a69;
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -229,9 +243,9 @@ body.prewarming #block-canvas {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
+  background: currentColor;
+  opacity: 0.85;
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
 }
 
 /* ---- Expanded content (fades in on expand) ----
@@ -1833,7 +1847,7 @@ body.prewarming #block-canvas {
     box-shadow: none;
     font-size: 11px;
     line-height: 1;
-    color: #817a69;
+    color: inherit;
   }
 
   .mini-dot::after { content: "▾"; }
