@@ -27,6 +27,16 @@ class RemixVoiceTest(unittest.TestCase):
             result = generate.ensure_voice(song)
         self.assertEqual(result["lyrics"], "REQUEST RECEIVED\none\ntwo")
 
+    def test_colon_lyrics_are_preserved(self):
+        song = {"caption": "A voice speaks", "lyrics": "[Verse]\nSYSTEM: ONLINE", "title": "Sliced", "artist": "Gold"}
+        with patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
+            result = generate.ensure_voice(song)
+        self.assertEqual(generate.sung_lines(result["lyrics"]), ["SYSTEM: ONLINE", "Sliced", "Gold"])
+        full = {**song, "lyrics": "SYSTEM: ONLINE\nready\nlistening"}
+        with patch.object(generate, "call_llm") as llm:
+            self.assertEqual(generate.ensure_voice(full), full)
+            llm.assert_not_called()
+
     def test_negated_voice_list_and_separate_positive_voice(self):
         for caption in ("No singing or vocals, just synthesizers", "Without voices, singing and vocals", "No female vocals"):
             with self.subTest(caption=caption), patch.object(generate, "call_llm") as llm:

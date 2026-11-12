@@ -310,6 +310,7 @@ def find_shows(only=None):
 
         show = {
             "id": entry.name,
+            "kind": show_meta.get("kind", "show"),
             "name": show_name,
             "showName": show_name,
             "timestamp": timestamp,
@@ -444,10 +445,13 @@ def main():
 
     # Always scan shows first
     print("Scanning shows...", flush=True)
-    shows = find_shows()
-    if shows:
-        build_shows_manifest(shows)
-    else:
+    scanned_shows = find_shows()
+    shows = [show for show in scanned_shows if show["kind"] != "remix"]
+    for show in scanned_shows:
+        if show["kind"] == "remix":
+            shutil.rmtree(DIST_DIR / "shows" / show["id"], ignore_errors=True)
+    build_shows_manifest(shows)
+    if not shows:
         print("  No shows found in output/ subdirectories")
     print()
 

@@ -634,7 +634,7 @@ def ensure_voice(song: dict) -> dict:
     """A caption with a voice gets lyrics the voice can say: the DJ is asked
     once more, and short stabs fill in if it still writes too few lines."""
     caption = str(song.get("caption") or "")
-    original = lyric_text(song.get("lyrics"))
+    original = song.get("lyrics") if isinstance(song.get("lyrics"), str) else ""
     if not describes_voice(caption):
         return song
     if len(sung_lines(original)) >= MIN_VOICE_LINES:
