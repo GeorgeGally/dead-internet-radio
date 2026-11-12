@@ -30,8 +30,9 @@ Two failures on the generation PC on the same day.
 
 ## What holds now
 
-- `generate.py` always tries `openrouter/free` after the pinned models, so a stale
-  list costs the station's pinned voice for a call, not the show.
+- The station uses `OPENROUTER_MODEL=openrouter/free` (the `generate.py` default and
+  `.env.example`), not a hand-picked list of free models. Set the same line in the
+  untracked `.env`; `dir-pc-setup.sh` carries it to the PC.
 - Cue sheets and prompt logs are read with `errors="replace"`.
 - The cool guard (servers repo, `apps/dir-pc-coolguard.sh`) needs a cap on how long a
   freeze lasts. ACE-Step's own 600s generation timeout counts wall-clock time, frozen

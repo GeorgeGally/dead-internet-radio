@@ -29,14 +29,10 @@ SHORT_TRACK_CHANCE = 1 / 20
 LONG_TRACK_CHANCE = 1 / 50
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
-# Comma-separated list of models to try in order. A pinned model keeps the
-# station's voice consistent across tracks — `openrouter/free` picks a different
-# (usually tiny) model on every call, which is what turned sets generic.
+# Comma-separated list of models to try in order. Hand-picked free models get
+# removed from OpenRouter (HTTP 404) and sank whole shows, so the station runs
+# on `openrouter/free`, which routes to whichever free model is up.
 OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
-# Free models come and go: a pinned list goes stale (404) and sinks the show.
-# The router always answers with whatever free model is up, so it goes last.
-if "openrouter/free" not in OPENROUTER_MODELS:
-    OPENROUTER_MODELS.append("openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
