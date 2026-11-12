@@ -3,10 +3,38 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+
+import generate
 from pathlib import Path
 
 
 class RemixPublicationTest(unittest.TestCase):
+    def test_in_progress_take_is_not_published(self):
+        script = Path(__file__).absolute().parent.parent / "build_site.py"
+        song = {"caption": "synthesizers", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "duration": 150}
+        with tempfile.TemporaryDirectory(dir=".") as tmp:
+            root = Path(tmp).absolute()
+            output = root / "output"
+            output.mkdir()
+
+            def download(_, dest):
+                metadata = json.loads((dest.parent / "show.json").read_text())
+                prompt = json.loads(next((dest.parent / "prompts").iterdir()).read_text())
+                self.assertEqual(metadata["kind"], "remix")
+                self.assertEqual(prompt["payload"], song)
+                dest.write_bytes(b"x" * 1001)
+                subprocess.run([sys.executable, str(script), "--shows-only"], cwd=root, check=True, capture_output=True)
+                self.assertEqual(json.loads((root / "dist" / "shows.json").read_text())["shows"], [])
+                self.assertFalse((root / "dist" / "shows" / dest.parent.name).exists())
+
+            with patch.object(generate, "OUTPUT_DIR", output), \
+                 patch.object(generate, "check_ace_step_health", return_value=(True, None)), \
+                 patch.object(generate, "call_ace_step", return_value="task"), \
+                 patch.object(generate, "poll_ace_step", return_value={"result": '[{"file":"audio"}]'}), \
+                 patch.object(generate, "download_audio", side_effect=download):
+                generate.render_take({"payload": song, "file": "output/original.mp3"}, "DJ")
+
     def test_public_build_excludes_remix_but_importer_reads_it(self):
         script = Path(__file__).absolute().parent.parent / "build_site.py"
         with tempfile.TemporaryDirectory(dir=".") as tmp:

@@ -582,7 +582,7 @@ VOICE_RE = re.compile(
 )
 NO_VOICE_RE = re.compile(
     r"\b(?:no|without|zero|free of|instrumental only)\b"
-    r"(?:(?![,.;\-–—]|\b(?:just|only)\b).|,(?=\s*(?:(?:and|or)\s+)?(?:singing|vocals?|voices?)\b))*",
+    r"(?:(?![,.;\-–—]|\b(?:just|only)\b).)*",
     re.IGNORECASE,
 )
 MIN_VOICE_LINES = 3
@@ -676,6 +676,12 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
     stem = f"01-{slugify(song['artist'] + ' - ' + song['title'])}-dead-internet-radio"
     dest = show_dir / f"{stem}.mp3"
     try:
+        (show_dir / "show.json").write_text(json.dumps({
+            "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
+        }, indent=2))
+        (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
+            "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp}
+        }, indent=2))
         ok, err = check_ace_step_health()
         if not ok:
             raise RuntimeError(f"ACE-Step not reachable ({err})")
@@ -693,12 +699,6 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
     finally:
         if stop_after:
             stop_ace_step()
-    (show_dir / "show.json").write_text(json.dumps({
-        "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
-    }, indent=2))
-    (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
-        "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp}
-    }, indent=2))
     emit_progress({"type": "track_done", "number": 1, "total": 1,
                    "title": song["title"], "artist": song["artist"], "file": str(dest)})
     print(f"Show folder: {show_dir}")

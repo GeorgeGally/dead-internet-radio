@@ -38,7 +38,7 @@ class RemixVoiceTest(unittest.TestCase):
             llm.assert_not_called()
 
     def test_negated_voice_list_and_separate_positive_voice(self):
-        for caption in ("No singing or vocals, just synthesizers", "Without voices, singing and vocals", "No female vocals"):
+        for caption in ("No singing or vocals, just synthesizers", "Without voices and singing and vocals", "No female vocals"):
             with self.subTest(caption=caption), patch.object(generate, "call_llm") as llm:
                 song = {"caption": caption, "lyrics": "[Instrumental]"}
                 self.assertEqual(generate.ensure_voice(song), song)
@@ -55,7 +55,7 @@ class RemixVoiceTest(unittest.TestCase):
                 llm.assert_not_called()
         for caption in ("A man murmurs through a telephone", "She mutters", "He mumbles", "She shouts",
                         "Someone yells", "A person screams", "He recited a line", "She reads aloud",
-                        "No vocals - a voice speaks"):
+                        "No vocals - a voice speaks", "No vocals, voice through a telephone"):
             with self.subTest(caption=caption), patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
                 result = generate.ensure_voice({"caption": caption, "lyrics": "[Instrumental]"})
                 self.assertEqual(result["lyrics"], "one\ntwo\nthree")
