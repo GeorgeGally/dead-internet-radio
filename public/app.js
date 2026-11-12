@@ -473,6 +473,8 @@ function setupDeckRetraction() {
     // the filter drawer hangs off the bar, so keep the bar up while it is open
     const panel = document.querySelector('.gallery-panel');
     if (panel && panel.classList.contains('open')) return;
+    // the set list sits under the open bar, so the bar stays while it shows
+    if (document.body.classList.contains('set-open')) return;
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       deck.classList.remove('expanded');
@@ -499,6 +501,7 @@ function setupDeckRetraction() {
   if (!matchMedia('(hover: hover)').matches) {
     const toggle = () => {
       if (deck.classList.contains('ejected')) return;
+      if (document.body.classList.contains('set-open')) return;
       if (deck.classList.contains('expanded')) deck.classList.remove('expanded');
       else expand();
     };
@@ -509,6 +512,7 @@ function setupDeckRetraction() {
     hitZone.addEventListener('click', toggle);
     document.addEventListener('click', (e) => {
       if (e.target.closest('#deck') || deck.classList.contains('ejected')) return;
+      if (document.body.classList.contains('set-open')) return;
       deck.classList.remove('expanded');
     });
   }

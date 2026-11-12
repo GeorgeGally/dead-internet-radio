@@ -12,6 +12,27 @@ class Station
     BroadcastSegment.upcoming(at).includes(track: :show).limit(limit)
   end
 
+  # The set on air, first segment to last: the unbroken run around now that
+  # belongs to one show, with any requests slotted into it. A station ID on air
+  # leads into the set after it; older airings of the same show are not part
+  # of this run.
+  def self.airing(at: Time.current)
+    fill!(at)
+    window = BroadcastSegment.where(starts_at: (at - AIRING_REACH)..(at + AIRING_REACH))
+      .chronological.includes(track: :show).to_a
+    now = window.index { |s| s.ends_at > at }
+    return [] unless now
+
+    anchor = airing_anchor(window, now)
+    return [] unless anchor
+
+    show_id = window[anchor].track.show_id
+    first = last = anchor
+    first -= 1 while first > 0 && in_airing?(window[first - 1], window[first], show_id)
+    last += 1 while last < window.size - 1 && in_airing?(window[last + 1], window[last], show_id)
+    window[first..last]
+  end
+
   # Slot a track in right after whatever is on air, pushing the rest back.
   def self.insert_next(track, source: "request", at: Time.current)
     duration = track.duration_ms.to_i / 1000.0
@@ -72,11 +93,37 @@ class Station
     []
   end
 
+  AIRING_REACH = 12.hours
+
+  # The set's own segment nearest now: the one on air, or for a request on
+  # air the set it interrupted, or for a station ID the set it introduces.
+  def self.airing_anchor(window, now)
+    set_track = ->(i) { (seg = window[i]) && seg.source != "request" && seg.track.show.kind != "interlude" }
+    return now if set_track.(now)
+
+    if window[now].source == "request"
+      back = now - 1
+      back -= 1 while back >= 0 && window[back].source == "request" && contiguous?(window[back], window[back + 1])
+      return back if back >= 0 && contiguous?(window[back], window[back + 1]) && set_track.(back)
+    end
+    (now + 1...window.size).find { |i| set_track.(i) }
+  end
+
+  def self.in_airing?(seg, neighbour, show_id)
+    return false unless contiguous?(*[seg, neighbour].sort_by(&:starts_at))
+    seg.source == "request" || seg.track.show_id == show_id
+  end
+
+  # Back to back on the timeline (a request insert shifts both ends together).
+  def self.contiguous?(before, after)
+    (after.starts_at - before.ends_at).abs < 1
+  end
+
   def self.locked
     BroadcastSegment.transaction do
       BroadcastSegment.connection.execute("SELECT pg_advisory_xact_lock(#{LOCK_KEY})")
       yield
     end
   end
-  private_class_method :book!, :with_station_id, :next_show_tracks, :locked
+  private_class_method :book!, :with_station_id, :next_show_tracks, :airing_anchor, :in_airing?, :contiguous?, :locked
 end

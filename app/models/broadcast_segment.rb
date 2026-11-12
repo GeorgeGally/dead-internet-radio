@@ -14,6 +14,29 @@ class BroadcastSegment < ApplicationRecord
                 .includes(:track).group_by { |s| s.track.song_id }.transform_values(&:first)
   end
 
+  # The shape the player reads, from /broadcast and /airing alike.
+  def to_api
+    t = track
+    {
+      id: id,
+      trackId: t.id,
+      songId: t.votable? ? t.song_id : nil,
+      startsAt: (starts_at.to_f * 1000).round,
+      durationMs: duration_ms,
+      source: source,
+      file: "/media/tracks/#{t.id}",
+      voiceoverFile: t.voiceover_file.present? ? "/media/tracks/#{t.id}/voiceover" : nil,
+      title: t.title,
+      artist: t.artist,
+      caption: t.caption,
+      bpm: t.bpm,
+      key: t.key,
+      showName: t.show.name,
+      djName: t.show.dj_name,
+      interlude: t.show.kind == "interlude",
+    }
+  end
+
   def duration_ms
     ((ends_at - starts_at) * 1000).round
   end

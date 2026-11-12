@@ -1894,3 +1894,90 @@ body.slot-preview #welcome-splash,
 body.slot-preview #deck,
 body.slot-preview #visual-notification,
 body.slot-preview #info-btn { display: none !important; }
+
+/* ---- Set list: the set on air, one column under the open deck ---- */
+#set-page {
+  position: fixed;
+  top: var(--deck-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+  padding: 18px 28px 16px;
+  font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
+  letter-spacing: 0.02em;
+  color: #fff;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+#set-page.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease;
+}
+
+.set-column {
+  width: min(760px, 100%);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0c0c0c;
+  padding: 12px 18px 14px;
+}
+
+.set-rows {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 44px;
+  column-gap: 14px;
+  align-items: baseline;
+  min-height: 28px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9);
+}
+.set-row.played { color: rgba(255, 255, 255, 0.38); }
+.set-row.now .set-title,
+.set-row.now .set-len { color: #c94814; }
+
+.set-what { min-width: 0; display: flex; gap: 12px; }
+.set-title,
+.set-who {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.set-title { flex: 0 0 auto; max-width: 68%; }
+.set-who { flex: 1 1 0; color: rgba(255, 255, 255, 0.55); font-size: 13px; }
+.set-row.played .set-who { color: rgba(255, 255, 255, 0.28); }
+.set-when,
+.set-len { font-variant-numeric: tabular-nums; font-size: 13px; }
+.set-len { text-align: right; }
+
+.set-empty { font-size: 15px; color: rgba(255, 255, 255, 0.55); }
+
+/* The list runs to the bottom corner the info key sits in. */
+body.set-open #info-btn,
+body.set-open #info-card { display: none; }
+
+@media (min-width: 768px) and (max-width: 1439px) {
+  .set-column {
+    width: 881px;
+    flex: 0 0 auto;
+    padding: 67px 65px;
+  }
+}
+
+@media (max-width: 767px) {
+  #set-page { padding: 12px; }
+  .deck-transport { gap: 6px; }
+}
