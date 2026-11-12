@@ -64,7 +64,7 @@ function all(n, cls, found = []) {
   return found;
 }
 
-function loadRequestLine(fetch) {
+function loadRequestLine(fetch, playback = {}) {
   const body = node('body');
   let fullscreenAsks = 0;
   const els = { 'request-led': node('span'), 'btn-request': node('button') };
@@ -78,7 +78,9 @@ function loadRequestLine(fetch) {
     JSON,
     Date,
     Intl,
-    Audio: function Audio() { return { addEventListener() {}, pause() {}, play: () => Promise.resolve() }; },
+    Audio: function Audio() { return playback.preview || { addEventListener() {}, pause() {}, play: () => Promise.resolve() }; },
+    stopPlayback: playback.stopPlayback,
+    togglePlay: playback.togglePlay,
     sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     document: {
       body,
@@ -87,7 +89,7 @@ function loadRequestLine(fetch) {
       activeElement: null,
       head: node('head'),
       createElement: node,
-      getElementById: (id) => els[id] || null,
+      getElementById: (id) => els[id] || (id === 'player' ? playback.radio : null) || null,
       addEventListener() {},
     },
     window: {},
@@ -128,6 +130,7 @@ test('the request line opens as a page without taking the browser full screen', 
 test('once a request is sent, its key closes the line instead of offering another', async () => {
   const { line, card } = signedInLine();
   await line.open();
+  assert.equal(all(card, 'rq-log')[0].hidden, true);
   const form = all(card, 'rq-form')[0];
   all(form, 'rq-input').forEach((input, i) => { input.value = ['Glass Saints', 'Static Hymn', 'cold electro'][i]; });
   await form.fire('submit');
@@ -163,8 +166,33 @@ test('an uncertain send stays disabled and refreshes the request log', async () 
   await form.fire('submit');
   assert.match(text(card), /request may already be in/);
   assert.match(text(card), /Static Hymn/);
+  assert.equal(all(card, 'rq-log')[0].hidden, false);
   assert.equal(all(form, 'rq-go')[0].disabled, true);
   await form.fire('submit');
   assert.equal(sends, 1);
   assert.equal(reads, 2);
 });
+
+for (const outcome of ['lost', 'accepted']) {
+  test(`a ${outcome} send stops preview before removing its control`, async () => {
+    const radio = { paused: false };
+    const preview = { paused: true, addEventListener() {}, pause() { this.paused = true; }, play() { this.paused = false; return Promise.resolve(); } };
+    const playback = { radio, preview, stopPlayback() { radio.paused = true; }, togglePlay() { radio.paused = false; } };
+    const reply = (data) => ({ ok: true, json: async () => data });
+    const { line, card } = loadRequestLine(async (url, opts) => {
+      if (url.endsWith('/me')) return reply({ signed_in: true, requests_left: 3, csrf_token: 't' });
+      if (opts.method === 'POST') {
+        if (outcome === 'lost') throw new TypeError('connection lost');
+        return reply({ status: 'accepted', requests_left: 2 });
+      }
+      return reply([{ title: 'Old song', artist: 'Old band', status: 'ready', track_id: 7 }]);
+    }, playback);
+    await line.open();
+    await all(card, 'rq-play')[0].fire('click');
+    assert.equal(preview.paused, false);
+    assert.equal(radio.paused, true);
+    await all(card, 'rq-form')[0].fire('submit');
+    assert.equal(preview.paused, true);
+    assert.equal(radio.paused, false);
+  });
+}

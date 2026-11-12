@@ -257,7 +257,9 @@ const requestLine = (() => {
   // The listener's last few requests and where each one has got to.
   function renderLog(list) {
     const rows = log.filter(whereItIs).slice(0, 5);
+    stopPreview();
     list.replaceChildren();
+    list.hidden = rows.length === 0;
     if (!rows.length) return;
     rows.forEach((req) => {
       const row = el('div', 'rq-log-row');
@@ -279,6 +281,7 @@ const requestLine = (() => {
 
   // Sent: the form goes; what was asked for stays on the page.
   function renderSent(body, req, msg) {
+    stopPreview();
     body.replaceChildren();
     const done = el('div', 'rq-sent');
     done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
