@@ -4,7 +4,12 @@
 # rewrites its sound, ACE-Step renders it, and the new audio takes the old
 # file's place (the old one is kept in <show>/.replaced/). The song keeps its
 # id, votes and plays. Sets already built keep the audio they linked.
+#
+# A remix (options kind "remix") renders the same song again unchanged as a
+# new take: rerender.py --take writes it to its own folder, imported as a
+# one-song "remix" show, so the original song and its audio stay as they are.
 class RerenderTrackJob < ApplicationJob
+  include ShowImporter
   include SubprocessRunner
 
   queue_as :default
@@ -19,26 +24,24 @@ class RerenderTrackJob < ApplicationJob
     track = Track.find(@gen_job.options['track_id'])
     root = Rails.root.to_s
     spec = nil
+    show_dir = nil
+    remix = @gen_job.options['kind'] == 'remix'
 
     begin
       @ace_session = AceStepManager.acquire
       cmd = [Rails.configuration.x.python, 'rerender.py', '--track-json', write_spec(track), '--stop-ace-step']
-      say("Re-render: #{track.artist} — #{track.title}")
+      cmd << '--take' if remix
+      say("#{remix ? 'Remix' : 'Re-render'}: #{track.artist} — #{track.title}")
       exit_status = run_and_stream(cmd, chdir: root) do |line|
         spec = JSON.parse(Regexp.last_match(1)) if line =~ /^Spec: (\{.*\})$/
+        show_dir = Regexp.last_match(1).strip if line =~ /^Show folder: (.+)$/
         # The producer's read on what went wrong and what it changed, for the job page.
         @gen_job.reload.update!(options: @gen_job.options.merge('review' => JSON.parse(Regexp.last_match(1)))) if line =~ /^Review: (\{.*\})$/
       end
       say("Exit: #{exit_status}")
       raise "rerender.py failed with exit #{exit_status}" if exit_status != 0 || spec.nil?
 
-      track.update!(
-        bpm: spec['bpm'],
-        key: spec['keyscale'].presence || track.key,
-        lyrics: spec['lyrics'],
-        duration_ms: measured_ms(track.audio_path) || spec['duration'].to_i * 1000,
-      )
-      say('Done. Remix the show to hear it in its mix.') if track.show&.mix_file.present?
+      remix ? import_take(show_dir) : replace_audio(track, spec)
       @gen_job.update!(status: :done, completed_at: Time.current)
     rescue StandardError => e
       say("ERROR: #{e.message}")
@@ -50,6 +53,24 @@ class RerenderTrackJob < ApplicationJob
 
   private
 
+  def import_take(show_dir)
+    raise 'rerender.py did not report a show folder' unless show_dir
+
+    show = import_show(show_dir, @gen_job)
+    show.update!(kind: 'remix')
+    say("New take: track ##{show.tracks.ordered.first.id}")
+  end
+
+  def replace_audio(track, spec)
+    track.update!(
+      bpm: spec['bpm'],
+      key: spec['keyscale'].presence || track.key,
+      lyrics: spec['lyrics'],
+      duration_ms: measured_ms(track.audio_path) || spec['duration'].to_i * 1000,
+    )
+    say('Done. Remix the show to hear it in its mix.') if track.show&.mix_file.present?
+  end
+
   def write_spec(track)
     dir = Rails.root.join('tmp', 'rerenders')
     FileUtils.mkdir_p(dir)
@@ -58,6 +79,7 @@ class RerenderTrackJob < ApplicationJob
       file: track.audio_path.relative_path_from(Rails.root).to_s,
       artist: track.artist,
       title: track.title,
+      dj_name: track.show&.dj_name,
       instructions: @gen_job.options['instructions'],
     ))
     path.to_s
