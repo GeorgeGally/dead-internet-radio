@@ -307,6 +307,7 @@ Indexes: `(show_id, position)` unique
 | GET | `/api/v1/tracks/:id` | Single track detail |
 | GET | `/api/v1/visuals` | Visual modules switched on in the admin, with thumbnail URLs |
 | GET | `/api/v1/playlist` | Full playlist JSON (replaces static file) |
+| GET | `/api/v1/airing` | The set on air, first segment to last |
 
 #### Admin-facing (basic HTTP auth or session-based)
 

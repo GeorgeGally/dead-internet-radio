@@ -6,7 +6,7 @@ module Api
         segments = Station.airing
         render json: {
           serverTime: (Time.current.to_f * 1000).round,
-          segments: segments.map(&:to_api),
+          segments: segments.map(&:to_api)
         }
       end
     end

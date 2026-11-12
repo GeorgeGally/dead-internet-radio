@@ -114,7 +114,7 @@ class Station
     edge = anchor
     loop do
       seg = window[edge + step] if (edge + step).between?(0, window.size - 1)
-      break unless seg && contiguous?(*[seg, window[edge]].sort_by(&:starts_at))
+      break unless seg && contiguous?(*[ seg, window[edge] ].sort_by(&:starts_at))
       if seg.source != "request"
         break unless seg.track.show_id == show_id && (seg.track.position <=> position) == step
         position = seg.track.position

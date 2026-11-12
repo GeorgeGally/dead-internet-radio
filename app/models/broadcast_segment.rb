@@ -33,7 +33,7 @@ class BroadcastSegment < ApplicationRecord
       key: t.key,
       showName: t.show.name,
       djName: t.show.dj_name,
-      interlude: t.show.kind == "interlude",
+      interlude: t.show.kind == "interlude"
     }
   end
 
