@@ -41,7 +41,7 @@ const requestLine = (() => {
     const { ok, data } = await call('GET', '/me');
     me = ok ? data : null;
     const line = me && me.signed_in ? await call('GET', '/requests') : null;
-    log = line && line.ok && Array.isArray(line.data) ? line.data : [];
+    log = line && line.ok ? line.data : [];
     return me;
   }
 
@@ -311,7 +311,7 @@ const requestLine = (() => {
     led.classList.add('on');
     card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
     await refreshMe();
-    if (isOpen()) render(me ? '' : 'The line went dead. Try again later.');
+    if (isOpen()) render();
   }
 
   function close() {
