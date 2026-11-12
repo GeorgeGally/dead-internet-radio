@@ -37,8 +37,9 @@ card, not the CPU. On a 12-track rerun it sat at 64-65 °C with ACE-Step frozen 
 `x86_pkg_temp` idled near 57 °C and the GPU reached 60 °C, so the 62 °C wake point
 was out of reach. Freezes took 8, 5 and 8 minutes, and the fourth never woke: after
 12 minutes frozen the 24-miss limit ended the show on track 7. `dir-pc-coolguard.sh`
-in the servers repo now reads `x86_pkg_temp` and the GPU only, and freezes last about
-2.5 minutes.
+in the servers repo was changed to read `x86_pkg_temp` and the GPU only; freezes
+then lasted about 2.5 minutes. A later freeze that did not thaw is documented in
+[the subsequent incident](stale-free-models-and-endless-cool-freeze-2026-11-12.md).
 
 **Testing it.** SIGSTOP a stub server and poll it: a mock raising `URLError` would
 have passed against the old code.
