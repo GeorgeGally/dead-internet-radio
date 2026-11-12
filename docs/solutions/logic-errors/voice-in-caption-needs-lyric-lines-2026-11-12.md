@@ -19,9 +19,9 @@ What holds now:
   a voice. Captions without one may still be all `[Instrumental]`.
 - `generate.ensure_voice` checks every composed song. If the caption describes
   a voice (`describes_voice`, which ignores "no vocals") and the lyrics have
-  fewer than three non-tag lines, it asks the DJ once for lyrics. If that fails
-  or is still too short, it builds stabs from the existing lines, the title and
-  the artist.
+  fewer than three non-tag lines, it asks the DJ once for lyrics. If that fails,
+  is still too short, comes back as JSON, or drops a line the song already had,
+  it builds stabs from the existing lines, the title and the artist.
 - The set brief is not checked: it is written "in the station's voice", which
   would match every song.
 
@@ -30,7 +30,8 @@ What holds now:
 The track page's Remix button queues `RerenderTrackJob` with kind `remix`.
 `generate.py` renders the same song in a new folder, adding vocal lines only
 when its caption requires them. The original stays untouched. Remix shows are
-excluded from public programmes and air only through a set. Re-render with
+excluded from public programmes and from the static site's show manifests, and
+air only through a set. Re-render with
 notes still replaces the song's audio in place.
 
 On apps1, `GenerationLine` hands the take payload to the generation PC. The
