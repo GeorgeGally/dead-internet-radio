@@ -107,7 +107,7 @@ body.prewarming #block-canvas {
   letter-spacing: 0.04em;
   color: #e9e6df;
   z-index: 10;
-  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+  transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -140,7 +140,7 @@ body.prewarming #block-canvas {
   border-bottom: 1px solid #b9b4a8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
   color: #1a1a1a;
-  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+  transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
               color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
@@ -229,9 +229,9 @@ body.prewarming #block-canvas {
 }
 
 .mini-track {
-  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Anka Coder", sans-serif;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0;
   color: inherit;
   white-space: nowrap;
@@ -280,7 +280,7 @@ body.prewarming #block-canvas {
 #deck.ejected .deck-content > * {
   opacity: 0;
   transform: translateY(6px);
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
 }
 
@@ -319,7 +319,6 @@ body.prewarming #block-canvas {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-right: 8px;
 }
 
 .ctrl {
@@ -378,7 +377,7 @@ body.prewarming #block-canvas {
 /* Light-grey buttons with a single orange accent (Rams) */
 /* ---- Deck keys: square toggles, each with its word on it ----
    The key is a square dark well; inside it, a cap with softly rounded corners and
-   its word in white across the top. Every key springs back up; its light shows
+   its word in white along the bottom. Every key springs back up; its light shows
    whether it is on. Pressed, the cap shrinks evenly, so the rim stays even. */
 .key {
   --c: #8d9aa6;
@@ -413,7 +412,7 @@ body.prewarming #block-canvas {
 }
 .key .word {
   display: block;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Anka Coder", sans-serif;
   font-size: 9.5px;
   font-weight: 500;
   line-height: 1;
@@ -436,7 +435,7 @@ body.prewarming #block-canvas {
     inset 0 0 0 1px rgba(255, 255, 255, .14),
     inset 0 2px 3px rgba(0, 0, 0, .25);
 }
-.key.vote:disabled { cursor: default; color: rgba(255, 255, 255, .38); }
+.key.vote:disabled { cursor: default; color: #fff; }
 
 /* ---- Request card: a dark card over the artwork, fades like a TV ---- */
 /* ---- Request line: a full-screen page in the deck's colours (Rams, TE) ---- */
@@ -1569,8 +1568,9 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on .fx-on {
-  color: #ff5a1f;
+  color: #0b0b0a;
   border-color: #ff5a1f;
+  background: #ff5a1f;
 }
 
 .fx-on:disabled {
