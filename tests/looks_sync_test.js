@@ -72,19 +72,19 @@ function player({ stored = {}, server }) {
       body: { appendChild(el) { if (el.id === 'saved-box') box = el; } },
     },
     canvasFilters: { list: () => [], getState: () => ({ slots: [], focus: 0 }), setState(state) { restored.fx = state; } },
-    visuals: { getCurrentId: () => currentId, getCurrentName: () => 'Bouncy', activate(id) { activated.push(id); currentId = id; return true; } },
+    visuals: { getCurrentId: () => currentId, getCurrentName: () => currentId === 'bouncy' ? 'Bouncy' : 'Other', activate(id) { activated.push(id); currentId = id; return true; } },
     _restoreCutoff: (v) => { restored.cutoff = v; },
     _restoreResonance: (v) => { restored.resonance = v; },
     _restoreStrength: (v) => { restored.strength = v; },
     async fetch(url, options = {}) {
       calls.push({ url, method: options.method || 'GET', body: options.body && JSON.parse(options.body), headers: options.headers });
-      const answer = server(url, options.method || 'GET', calls.at(-1).body);
+      const answer = await server(url, options.method || 'GET', calls.at(-1).body);
       return { ok: answer !== null, json: async () => answer };
     },
   };
   sandbox.window = sandbox;
   vm.runInNewContext(`${source}\nthis.gallery = gallery;`, sandbox);
-  return { gallery: sandbox.gallery, store, calls, saveCtrl, message: () => message(box), activated, restored };
+  return { gallery: sandbox.gallery, store, calls, saveCtrl, message: () => message(box), activated, restored, activate: sandbox.visuals.activate };
 }
 
 test('a listener takes the server looks and cannot save', async () => {
@@ -180,6 +180,26 @@ test('a saved slot shows the keypad: filled slots cream, the new one orange, the
   await p.gallery.syncLooks();
   await p.gallery.saveSlot(3);
   assert.deepEqual(p.message(), { shown: true, fail: false, keys: 'full - now - full - - - -', name: 'Bouncy', words: 'Slot 3 saved' });
+});
+
+test('a pending save reports the artwork it started with on success and failure', async () => {
+  for (const succeeds of [true, false]) {
+    let finish;
+    const p = player({
+      server: (url, method) => method === 'GET'
+        ? { looks: { bouncy: { 1: look(10) }, other: { 2: look(20) } }, admin: true }
+        : new Promise((resolve) => { finish = resolve; }),
+    });
+    await p.gallery.syncLooks();
+    const saving = p.gallery.saveSlot(3);
+    p.activate('other');
+    finish(succeeds ? {} : null);
+    await saving;
+    assert.deepEqual(p.message(), {
+      shown: true, fail: !succeeds, keys: 'full - now - - - - - -',
+      name: 'Bouncy', words: succeeds ? 'Slot 3 saved' : 'Slot 3 not saved',
+    });
+  }
 });
 
 test('turning the slot dial names the slot without the keypad', async () => {

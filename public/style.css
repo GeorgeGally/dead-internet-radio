@@ -1619,13 +1619,12 @@ body.prewarming #block-canvas {
   text-transform: uppercase;
   white-space: nowrap;
 }
-/* Under the keys the line takes their width, so a long name gives way. */
 #saved-box .pads:not([hidden]) + .line {
   width: 0;
   min-width: 100%;
   padding-top: 16px;
 }
-#saved-box .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#saved-box .name { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 #saved-box .name:empty { display: none; }
 #saved-box .words { flex: none; margin-left: auto; }
 /* Below the open deck on iPad and phone, centred in what is left. */
@@ -1633,6 +1632,15 @@ body.prewarming #block-canvas {
   body:has(#deck.expanded) #saved-box {
     top: calc(var(--deck-h) + (100vh - var(--deck-h)) / 2);
   }
+}
+@media (max-height: 750px) and (max-width: 1439px) {
+  body:has(#deck.expanded) #saved-box { top: 50%; }
+  #saved-box .pads {
+    grid-auto-rows: min(84px, max(24px, (100vh - 200px) / 3));
+    line-height: normal;
+    align-items: stretch;
+  }
+  #saved-box .pad { display: grid; place-items: center; }
 }
 /* ---- Small screens ---- */
 

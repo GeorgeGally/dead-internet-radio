@@ -515,6 +515,7 @@ const gallery = (() => {
   async function saveSlot(slot) {
     const id = visuals.getCurrentId();
     if (!looksAdmin || !id || slot < 1 || slot > 9) return;
+    const name = visuals.getCurrentName();
     const look = {
       fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
@@ -523,7 +524,7 @@ const gallery = (() => {
     };
     slotPinned = true;
     if (!await looksCall(`${id}/${slot}`, 'PUT', { look })) {
-      savedBox(`Slot ${slot} not saved`, { name: visuals.getCurrentName(), slot, fail: true });
+      savedBox(`Slot ${slot} not saved`, { id, name, slot, fail: true });
       return;
     }
     if (!artPresets[id]) artPresets[id] = {};
@@ -532,7 +533,7 @@ const gallery = (() => {
     slotDirty = false;
     saveLit = true;
     updateSlotUI();
-    savedBox(`Slot ${slot} saved`, { name: visuals.getCurrentName(), slot });
+    savedBox(`Slot ${slot} saved`, { id, name, slot });
   }
 
   // A message box, dead centre, then gone: saves, slot changes, uploads.
@@ -540,7 +541,7 @@ const gallery = (() => {
   // just saved orange (outlined if it failed), with the artwork named under
   // them, since a slot belongs to one. Other messages show the line alone.
   let saved = null;
-  function savedBox(words, { name = '', slot = 0, fail = false, ms = 1400 } = {}) {
+  function savedBox(words, { id = '', name = '', slot = 0, fail = false, ms = 1400 } = {}) {
     if (!saved) {
       const el = (tag, cls, parent) => {
         const e = document.createElement(tag);
@@ -566,7 +567,6 @@ const gallery = (() => {
       };
       document.body.appendChild(box);
     }
-    const id = visuals.getCurrentId();
     saved.pads.hidden = !slot;
     saved.pad.forEach((k, i) => {
       const n = i + 1;
