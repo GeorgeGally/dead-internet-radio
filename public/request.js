@@ -27,11 +27,10 @@ const requestLine = (() => {
         body: body ? JSON.stringify(body) : undefined,
         signal: stop ? stop.signal : undefined,
       });
-      let data = {};
-      try { data = await res.json(); } catch (_) {}
+      const data = await res.json();
       return { ok: res.ok, data };
     } catch (_) {
-      return { ok: false, data: {} };
+      return { ok: false, data: {}, unavailable: true };
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -177,7 +176,9 @@ const requestLine = (() => {
     if (me.requests_left <= 0) go.disabled = true;
     form.append(artist.row, title.row, style.row, foot);
     body.append(form);
-    renderLog(body);
+    const requestLog = el('div', 'rq-log');
+    body.append(requestLog);
+    renderLog(requestLog);
     body.append(el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
 
     form.addEventListener('submit', async (e) => {
@@ -185,10 +186,16 @@ const requestLine = (() => {
       if (go.disabled) return;
       go.disabled = true;
       out.textContent = '\u2026';
-      const { data } = await call('POST', '/requests', {
+      const { data, unavailable } = await call('POST', '/requests', {
         artist: artist.input.value, title: title.input.value, note: style.input.value,
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+      if (unavailable) {
+        out.textContent = 'The line dropped. Your request may already be in.';
+        const line = await call('GET', '/requests');
+        if (line.ok) { log = line.data; renderLog(requestLog); }
+        return;
+      }
       out.textContent = data.message || 'The line went dead. Try again later.';
       // A cover: the station's line is marked in orange.
       const COVER = "We don't do covers. Describe a band that should exist.";
@@ -248,10 +255,10 @@ const requestLine = (() => {
   preview.addEventListener('ended', stopPreview);
 
   // The listener's last few requests and where each one has got to.
-  function renderLog(body) {
+  function renderLog(list) {
     const rows = log.filter(whereItIs).slice(0, 5);
+    list.replaceChildren();
     if (!rows.length) return;
-    const list = el('div', 'rq-log');
     rows.forEach((req) => {
       const row = el('div', 'rq-log-row');
       const name = el('p', 'rq-log-name', req.title);
@@ -268,7 +275,6 @@ const requestLine = (() => {
       row.append(name, el('p', 'rq-log-where', whereItIs(req)));
       list.append(row);
     });
-    body.append(list);
   }
 
   // Sent: the form goes; what was asked for stays on the page.

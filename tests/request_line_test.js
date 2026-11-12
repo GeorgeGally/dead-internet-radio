@@ -139,3 +139,32 @@ test('once a request is sent, its key closes the line instead of offering anothe
   await keys[0].fire('click');
   assert.equal(line.isOpen(), false);
 });
+
+test('a failed response body does not masquerade as a successful read', async () => {
+  const { line, card } = loadRequestLine(async () => ({ ok: true, json: async () => { throw new Error('body interrupted'); } }));
+  await line.open();
+  assert.match(text(card), /The line went dead/);
+  assert.doesNotMatch(text(card), /Sign-in isn't set up/);
+});
+
+test('an uncertain send stays disabled and refreshes the request log', async () => {
+  let sends = 0;
+  let reads = 0;
+  const reply = (data) => ({ ok: true, json: async () => data });
+  const { line, card } = loadRequestLine(async (url, opts) => {
+    if (url.endsWith('/me')) return reply({ signed_in: true, requests_left: 3, csrf_token: 't' });
+    if (opts.method === 'POST') { sends++; throw new TypeError('connection lost'); }
+    reads++;
+    return reply(reads === 1 ? [] : [{ title: 'Static Hymn', artist: 'Glass Saints', status: 'accepted' }]);
+  });
+  await line.open();
+  const form = all(card, 'rq-form')[0];
+  all(form, 'rq-input').forEach((input, i) => { input.value = ['Glass Saints', 'Static Hymn', 'cold electro'][i]; });
+  await form.fire('submit');
+  assert.match(text(card), /request may already be in/);
+  assert.match(text(card), /Static Hymn/);
+  assert.equal(all(form, 'rq-go')[0].disabled, true);
+  await form.fire('submit');
+  assert.equal(sends, 1);
+  assert.equal(reads, 2);
+});
