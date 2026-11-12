@@ -1499,7 +1499,7 @@ body.prewarming #block-canvas {
   align-self: stretch;
   padding-left: 14px;
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto 1fr;
   grid-auto-rows: minmax(0, max-content);
   align-content: center;
   gap: 1px 7px;
@@ -1533,7 +1533,8 @@ body.prewarming #block-canvas {
 .fx-row.focus .fx-name { color: #ff5a1f; }
 
 .fx-num {
-  grid-area: 1 / 2;
+  grid-area: 1 / 1;
+  justify-self: center;
   width: 8px;
   font-size: 8px;
   font-weight: 600;
@@ -1541,7 +1542,7 @@ body.prewarming #block-canvas {
 }
 
 .fx-name {
-  grid-area: 1 / 3;
+  grid-area: 1 / 2;
   font-family: "Anka Coder", sans-serif;
   min-width: 0;
   white-space: nowrap;
