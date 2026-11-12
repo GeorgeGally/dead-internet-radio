@@ -1572,7 +1572,9 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on .fx-on {
-  color: #0b0b0a;
+  color: #fff;
+  font-weight: 600;
+  line-height: 11px;
   border-color: #ff5a1f;
   background: #ff5a1f;
 }
