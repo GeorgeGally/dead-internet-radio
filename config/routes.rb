@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       get "playlist", to: "playlist#show"
       get "now_playing", to: "now_playing#show"
       get "broadcast", to: "broadcast#show"
+      get "airing", to: "airing#show"
 
       get "me", to: "sessions#me"
       post "session/google", to: "sessions#google"

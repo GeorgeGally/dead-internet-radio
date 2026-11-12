@@ -49,6 +49,10 @@ player; reopening Request shows recent requests and their progress. If the line
 drops while sending, the request may already have arrived. Check the request
 list before trying again.
 
+On the player's deck, select **Tracks** to see the set on air: each track's
+time, title, artist and duration, with played tracks dimmed and the current
+track highlighted.
+
 When an admin saves an artwork look to a slot, the player shows the artwork
 name and whether the save succeeded. The keypad highlights a successful save
 in orange, shows other saved slots in cream, and outlines a failed save in
