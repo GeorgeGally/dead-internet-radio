@@ -23,6 +23,7 @@
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-modal', 'true');
   card.setAttribute('aria-labelledby', 'info-title');
+  card.tabIndex = -1;
   card.innerHTML = '<div class="info-top"><button class="info-close" type="button">Close</button></div>'
     + '<div class="info-body">'
     + '<section class="info-lore">'
@@ -51,7 +52,11 @@
   };
   btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(!card.classList.contains('open')); });
   close.addEventListener('click', () => toggle(false));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggle(false); });
+  card.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') toggle(false);
+    if (e.key === 'Tab') { e.preventDefault(); close.focus(); }
+  });
 
   document.body.append(card, btn);
 })();

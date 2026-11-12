@@ -706,6 +706,8 @@ body.prewarming #block-canvas {
   transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
+#info-card:focus { outline: none; }
+
 #info-card.open {
   opacity: 1;
   visibility: visible;
