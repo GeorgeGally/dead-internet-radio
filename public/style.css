@@ -385,8 +385,10 @@ body.prewarming #block-canvas {
 .key .cap {
   position: absolute;
   inset: 2px;
-  display: block;
-  padding: 5px 5px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 5px 6px;
   border-radius: 6px;
   background-color: inherit;
   background-image: linear-gradient(160deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, 0) 60%);
