@@ -23,13 +23,13 @@ test('HTML has the radio player shell', () => {
 test('HTML has the five deck keys, Play first, each with its word on it', () => {
   const keys = [
     ['btn-play', 'Play'],
-    ['btn-gallery', 'Visuals'],
+    ['btn-gallery', 'Art'],
     ['btn-request', 'Request'],
     ['btn-vote-up', 'Like'],
     ['btn-vote-down', 'Dislike'],
   ];
   const order = keys.map(([id]) => html.indexOf(`id="${id}"`));
-  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'keys run Play, Visuals, Request, Like, Dislike');
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'keys run Play, Art, Request, Like, Dislike');
   for (const [id, word] of keys) {
     assert.match(html, new RegExp(`id="${id}" class="abtn key[^"]*"[^>]*aria-label="[^"]+"[^>]*><span class="cap"><span class="word"[^>]*>${word}</span>`));
   }
