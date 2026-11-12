@@ -49,6 +49,11 @@ player; reopening Request shows recent requests and their progress. If the line
 drops while sending, the request may already have arrived. Check the request
 list before trying again.
 
+When an admin saves an artwork look to a slot, the player shows the artwork
+name and whether the save succeeded. The keypad highlights a successful save
+in orange, shows other saved slots in cream, and outlines a failed save in
+orange.
+
 ```bash
 # Generate a multi-track set
 python generate.py "midnight slot"
