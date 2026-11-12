@@ -575,12 +575,14 @@ def request_block(request: dict) -> str:
 # voice in the caption with an all-[Instrumental] lyric never makes a sound.
 VOICE_RE = re.compile(
     r"\b(voices?|vocals?|vocoded|vocoder|spoken|speaks?|speaking|sings?|singing|sung|whisper\w*|"
-    r"barked|barks?|chant\w*|narrat\w*|announcer|talk(s|ing)? over)\b",
+    r"barked|barks?|chant\w*|narrat\w*|announcer|talk(s|ing)? over|"
+    r"murmur(?:s|ing)?|mutter(?:s|ing)?|mumbl(?:e|es|ing)|shout(?:s|ing)?|"
+    r"yell(?:s|ing)?|scream(?:s|ing)?|recit(?:e|es|ed)|reads? aloud)\b",
     re.IGNORECASE,
 )
 NO_VOICE_RE = re.compile(
-    r"\b(?:no|without|zero)\s+(?:(?:\w+\s+)?(?:voices?|vocals?|singing|sung|speaking|spoken|whispering|chanting))"
-    r"(?:\s*(?:,\s*(?:(?:or|and)\s+)?|(?:or|and)\s+)(?:(?:\w+\s+)?(?:voices?|vocals?|singing|sung|speaking|spoken|whispering|chanting)))*\b",
+    r"\b(?:no|without|zero|free of|instrumental only)\b"
+    r"(?:(?![,.;\-–—]|\b(?:just|only)\b).|,(?=\s*(?:(?:and|or)\s+)?(?:singing|vocals?|voices?)\b))*",
     re.IGNORECASE,
 )
 MIN_VOICE_LINES = 3

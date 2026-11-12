@@ -45,6 +45,21 @@ class RemixVoiceTest(unittest.TestCase):
                 llm.assert_not_called()
         self.assertTrue(generate.describes_voice("No singing or vocals, but a voice speaks through a telephone"))
 
+    def test_caption_speech_and_negated_clauses(self):
+        silent = ("No spoken voice, only synthesizers", "No singing or vocals, just synthesizers",
+                  "60Hz mains hum", "Free of speech and vocals; synthesizers", "Instrumental only, no voice")
+        for caption in silent:
+            with self.subTest(caption=caption), patch.object(generate, "call_llm") as llm:
+                song = {"caption": caption, "lyrics": "[Instrumental]"}
+                self.assertEqual(generate.ensure_voice(song), song)
+                llm.assert_not_called()
+        for caption in ("A man murmurs through a telephone", "She mutters", "He mumbles", "She shouts",
+                        "Someone yells", "A person screams", "He recited a line", "She reads aloud",
+                        "No vocals - a voice speaks"):
+            with self.subTest(caption=caption), patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
+                result = generate.ensure_voice({"caption": caption, "lyrics": "[Instrumental]"})
+                self.assertEqual(result["lyrics"], "one\ntwo\nthree")
+
     def test_take_records_lyrics_sent_to_renderer_and_remix_kind(self):
         song = {"caption": "A voice speaks", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "bpm": 120, "keyscale": "C", "duration": 150}
         with tempfile.TemporaryDirectory(dir=".") as directory, \
