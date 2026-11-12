@@ -392,7 +392,9 @@ body.prewarming #block-canvas {
     inset 0 0 0 31px #17120f,
     3px 5px 10px rgba(0, 0, 0, .28);
 }
-.key.k-play { --c: #718d94; }
+.key.k-play { --c: #ff5a1f; }
+.key.k-vis { --c: #2a2a2a; }
+.key.k-req { --c: #5c8299; }
 .key.k-up { --c: #649066; }
 .key.k-down { --c: #c94814; }
 .key .cap {
