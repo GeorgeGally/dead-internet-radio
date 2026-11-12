@@ -33,6 +33,10 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # station's voice consistent across tracks — `openrouter/free` picks a different
 # (usually tiny) model on every call, which is what turned sets generic.
 OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
+# Free models come and go: a pinned list goes stale (404) and sinks the show.
+# The router always answers with whatever free model is up, so it goes last.
+if "openrouter/free" not in OPENROUTER_MODELS:
+    OPENROUTER_MODELS.append("openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
@@ -248,7 +252,7 @@ def already_broadcast_names() -> tuple[list[str], list[str]]:
 
     for cues in Path("mixes").glob("*.cues.json"):
         try:
-            entries = json.loads(cues.read_text())
+            entries = json.loads(cues.read_text(errors="replace"))
         except (json.JSONDecodeError, OSError):
             continue
         if not isinstance(entries, list):
@@ -262,7 +266,7 @@ def already_broadcast_names() -> tuple[list[str], list[str]]:
 
     for log in Path("output").glob("*/prompts/*.prompt.json"):
         try:
-            data = json.loads(log.read_text())
+            data = json.loads(log.read_text(errors="replace"))
         except (json.JSONDecodeError, OSError):
             continue
         payload = data.get("payload") or {}
