@@ -589,7 +589,7 @@ function updatePlayBtn() {
   const btn = document.getElementById('btn-play');
   if (btn) {
     btn.title = playing ? 'Stop' : 'Play';
-    btn.setAttribute('aria-label', loading ? 'Loading' : btn.title);
+    btn.setAttribute('aria-label', loading ? 'Loading' : 'Play');
     btn.setAttribute('aria-pressed', String(!!playing));
     document.getElementById('play-word').textContent = loading ? 'Loading' : 'Play';
   }
@@ -695,10 +695,6 @@ function setupControls() {
   document.getElementById('btn-play').addEventListener('click', () => {
     togglePlay();
   });
-  const artPrev = document.getElementById('npd-art-prev');
-  const artNext = document.getElementById('npd-art-next');
-  if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
-  if (artNext) artNext.addEventListener('click', () => { visuals.next(); });
   const galleryBtn = document.getElementById('btn-gallery');
   galleryBtn.addEventListener('click', () => {
     gallery.toggle();

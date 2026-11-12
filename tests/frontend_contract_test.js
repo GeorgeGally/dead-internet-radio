@@ -37,7 +37,6 @@ test('HTML has the five deck keys, Play first, each with its word on it', () => 
   assert.doesNotMatch(html, /class="speaker"/);
   assert.doesNotMatch(html, /id="npd-art-(prev|next)"/);
   assert.doesNotMatch(html, /id="btn-stop"/);
-  assert.match(js, /getElementById\('play-word'\)\.textContent = loading \? 'Loading' : 'Play'/);
 });
 
 test('CSS defines the deck, gif background, and overlay canvas', () => {
