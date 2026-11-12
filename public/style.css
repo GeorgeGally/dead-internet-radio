@@ -1969,9 +1969,10 @@ body.slot-preview #info-btn { display: none !important; }
 body.set-open #info-btn,
 body.set-open #info-card { display: none; }
 
-@media (min-width: 768px) and (max-width: 1439px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .set-column {
     width: 881px;
+    max-width: 100%;
     flex: 0 0 auto;
     padding: 67px 65px;
   }

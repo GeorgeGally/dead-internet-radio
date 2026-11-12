@@ -26,11 +26,7 @@ class Station
     anchor = airing_anchor(window, now)
     return [] unless anchor
 
-    show_id = window[anchor].track.show_id
-    first = last = anchor
-    first -= 1 while first > 0 && in_airing?(window[first - 1], window[first], show_id)
-    last += 1 while last < window.size - 1 && in_airing?(window[last + 1], window[last], show_id)
-    window[first..last]
+    window[airing_edge(window, anchor, -1)..airing_edge(window, anchor, 1)]
   end
 
   # Slot a track in right after whatever is on air, pushing the rest back.
@@ -109,9 +105,23 @@ class Station
     (now + 1...window.size).find { |i| set_track.(i) }
   end
 
-  def self.in_airing?(seg, neighbour, show_id)
-    return false unless contiguous?(*[seg, neighbour].sort_by(&:starts_at))
-    seg.source == "request" || seg.track.show_id == show_id
+  # Walk from the anchor in one direction (step -1 or 1) while segments stay
+  # back to back and the show's tracks keep running in order; a track order
+  # that wraps is the next or previous airing of the same show.
+  def self.airing_edge(window, anchor, step)
+    show_id = window[anchor].track.show_id
+    position = window[anchor].track.position
+    edge = anchor
+    loop do
+      seg = window[edge + step] if (edge + step).between?(0, window.size - 1)
+      break unless seg && contiguous?(*[seg, window[edge]].sort_by(&:starts_at))
+      if seg.source != "request"
+        break unless seg.track.show_id == show_id && (seg.track.position <=> position) == step
+        position = seg.track.position
+      end
+      edge += step
+    end
+    edge
   end
 
   # Back to back on the timeline (a request insert shifts both ends together).
@@ -125,5 +135,5 @@ class Station
       yield
     end
   end
-  private_class_method :book!, :with_station_id, :next_show_tracks, :airing_anchor, :in_airing?, :contiguous?, :locked
+  private_class_method :book!, :with_station_id, :next_show_tracks, :airing_anchor, :airing_edge, :contiguous?, :locked
 end
