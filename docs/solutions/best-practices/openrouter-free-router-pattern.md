@@ -23,7 +23,7 @@ tags:
 
 ## Context
 
-OpenRouter provides a smart router model ID `openrouter/free` (released Feb 2026) that automatically selects the best available free model for each request. Instead of hardcoding a list of specific free models and cycling through them, send all requests to `openrouter/free` and let OpenRouter handle fallback, capacity, and routing.
+OpenRouter provides a router model ID `openrouter/free` (released Feb 2026) that selects an available free model for each request. Prefer it to hardcoding a list of specific free models. For the set generator’s configuration and fallback behavior, see the [setup guide](../../../README.md#setup).
 
 The old approach caused:
 - Rate limited (429) on popular free models (Gemma 4 series)
@@ -55,25 +55,6 @@ raw = call_llm(system_prompt, user_message)
 data = extract_json(raw)  # or extract_json_array(raw)
 ```
 
-**Keep the LLM call simple** — one model, no cycling, just retry on transient errors:
-
-```python
-def call_llm(system_prompt, user_message):
-    for attempt in range(3):
-        body = {"model": OPENROUTER_MODEL, ...}
-        try:
-            req = urllib.request.Request(OPENROUTER_URL, ...)
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                ...
-                return content
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                time.sleep(3 * (attempt + 1))
-                continue
-            ...
-    sys.exit(1)
-```
-
 ## Why This Matters
 
 OpenRouter's free model catalog changes frequently — models appear, disappear, get rate limited, and change providers. The `openrouter/free` router abstracts all this volatility. Hardcoding specific model names means:
@@ -88,50 +69,6 @@ OpenRouter's free model catalog changes frequently — models appear, disappear,
 - When adding new generation scripts or tools
 - When debugging rate limit or model rejection errors
 - During code review of any OpenRouter integration
-
-## Examples
-
-**Before (build_site.py, generate.py):**
-```python
-OPENROUTER_FREE_MODELS = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "google/gemma-4-9b-it:free",
-    "google/gemma-4-flash:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-]
-
-def call_llm(system_prompt, user_message, json_mode=False):
-    while len(tried) < len(OPENROUTER_FREE_MODELS):
-        model = _next_model()
-        ...
-        if json_mode:
-            body["response_format"] = {"type": "json_object"}
-        try:
-            ...
-        except HTTPError as e:
-            if e.code == 400 and use_json_mode:
-                # retry without json_mode — wasted round trip
-            if e.code == 429:
-                time.sleep(...)
-                continue
-```
-
-**After:**
-```python
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
-
-def call_llm(system_prompt, user_message):
-    for attempt in range(3):
-        body = {"model": OPENROUTER_MODEL, ...}
-        try:
-            ...
-            return content
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                time.sleep(...)
-                continue
-```
 
 ## Related
 

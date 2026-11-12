@@ -26,6 +26,10 @@ cd ACE-Step-1.5 && uv run acestep-api
 python generate.py "late night slot"
 ```
 
+For set generation, `OPENROUTER_MODEL` defaults to `openrouter/free`. It may
+contain a comma-separated list of models to try in order; if the list omits
+`openrouter/free`, generation appends it as a fallback.
+
 ## TTS (DJ Voiceovers)
 
 The pipeline automatically generates lo-fi DJ announcements alongside each track using [Kokoro](https://github.com/hexgrad/kokoro). The kokoro environment is pre-configured in `kokoro/.venv/`.
