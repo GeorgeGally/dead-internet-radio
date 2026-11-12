@@ -584,14 +584,14 @@ function updatePlayBtn() {
     led.classList.toggle('on', !!playing && !loading);
     led.classList.toggle('loading', !!loading);
   }
-  // Play while stopped, stop while playing.
+  // The key always reads Play, and its light says whether it plays; a press
+  // stops it. While the sound is still coming, the key reads Loading.
   const btn = document.getElementById('btn-play');
   if (btn) {
-    btn.textContent = playing ? '\u25a0' : '\u25b6';
     btn.title = playing ? 'Stop' : 'Play';
-    btn.setAttribute('aria-label', loading ? 'Loading' : btn.title);
-    document.getElementById('play-label').textContent = loading ? 'Loading' : btn.title;
-    btn.classList.toggle('stop', !!playing);
+    btn.setAttribute('aria-label', loading ? 'Loading' : 'Play');
+    btn.setAttribute('aria-pressed', String(!!playing));
+    document.getElementById('play-word').textContent = loading ? 'Loading' : 'Play';
   }
 }
 
@@ -695,10 +695,6 @@ function setupControls() {
   document.getElementById('btn-play').addEventListener('click', () => {
     togglePlay();
   });
-  const artPrev = document.getElementById('npd-art-prev');
-  const artNext = document.getElementById('npd-art-next');
-  if (artPrev) artPrev.addEventListener('click', () => { visuals.prev(); });
-  if (artNext) artNext.addEventListener('click', () => { visuals.next(); });
   const galleryBtn = document.getElementById('btn-gallery');
   galleryBtn.addEventListener('click', () => {
     gallery.toggle();

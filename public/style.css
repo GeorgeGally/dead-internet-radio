@@ -156,51 +156,9 @@ body.prewarming #block-canvas {
   cursor: default;
 }
 
-.speaker {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background-color: transparent;
-  background-image: radial-gradient(circle at center, rgba(255,255,255,0.6) 0 1.2px, transparent 1.5px);
-  background-size: 7px 7px;
-  background-position: center;
-  opacity: 0.55;
-  transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease, height 0.3s ease, margin-top 0.3s ease;
-}
-
-.deck-logo:hover .speaker {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
+/* Open, the deck is all controls: the logo steps aside. */
 #deck.expanded .deck-logo,
-#deck.ejected .deck-logo {
-  flex: 0 0 116px;
-  width: 116px;
-  padding: 0;
-  align-items: center;
-  justify-content: center;
-}
-
-#deck.expanded .deck-logo { height: 100%; }
-#deck.ejected .deck-logo { height: var(--deck-h); }
-
-#deck.expanded .speaker,
-#deck.ejected .speaker {
-  width: 80px;
-  height: 80px;
-  align-self: center;
-  margin-top: 0;
-  background-image: radial-gradient(circle at center, #2a2a2a 0 1.3px, transparent 1.7px);
-  background-size: 7px 7px;
-  opacity: 1;
-}
-
-#deck.expanded .logo-text,
-#deck.expanded .logo-cursor,
-#deck.ejected .logo-text,
-#deck.ejected .logo-cursor { display: none; }
+#deck.ejected .deck-logo { display: none; }
 
 .logo-text {
   font-size: 15px;
@@ -277,8 +235,7 @@ body.prewarming #block-canvas {
 }
 
 /* ---- Expanded content (fades in on expand) ----
-   A flow item in the deck's own row, so it starts after the speaker column and
-   cannot overlap it. The mini bar is out of the flow, so opening the deck never
+   A flow item in the deck's own row, so it cannot overlap the logo. The mini bar is out of the flow, so opening the deck never
    shoves the controls sideways. */
 .deck-content {
   flex: 1 1 auto;
@@ -288,7 +245,7 @@ body.prewarming #block-canvas {
   align-items: center;
   justify-content: safe center;
   gap: 28px;
-  padding: 0 16px;
+  padding: 0 28px;
   opacity: 0;
   transition: opacity 0.25s ease;
   pointer-events: none;
@@ -330,12 +287,14 @@ body.prewarming #block-canvas {
   transition-delay: 0s !important;
 }
 
+/* The keys hang from the top; the 11px under them keeps the deck's lights on one line. */
 .deck-transport {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   align-self: center;
+  padding-bottom: 11px;
 }
 
 /* Waveform now lives inside the LED screen (see .npd-wave). */
@@ -403,32 +362,65 @@ body.prewarming #block-canvas {
 }
 
 /* Light-grey buttons with a single orange accent (Rams) */
-#btn-play    { --c: #ec6a1f; --txt: #fff; }
-#btn-play.stop { --c: #3b3f44; }
-#btn-gallery { --c: #8d9aa6; --txt: #fff; }
-.abtn.vote:disabled { cursor: default; color: rgba(42, 42, 42, .3); }
-.abtn .glyph {
+/* ---- Deck keys: square toggles, each with its word on it ----
+   The key is a square dark well; inside it, a cap with softly rounded corners and
+   its word in white across the top. Every key springs back up; its light shows
+   whether it is on. Pressed, the cap shrinks evenly, so the rim stays even. */
+.key {
+  --c: #8d9aa6;
+  --txt: #fff;
+  position: relative;
+  width: 54px;
+  height: 54px;
+  padding: 27px;
+  border-radius: 0;
+  background: var(--c) content-box;
+  box-shadow:
+    inset 0 0 0 27px #17120f,
+    3px 5px 10px rgba(0, 0, 0, .28);
+}
+.key.k-play { --c: #718d94; }
+.key.k-up { --c: #649066; }
+.key.k-down { --c: #c94814; }
+.key .cap {
+  position: absolute;
+  inset: 2px;
   display: block;
-  width: 20px;
-  height: 20px;
-  margin: auto;
-  fill: currentColor;
+  padding: 5px 5px 0;
+  border-radius: 6px;
+  background-color: inherit;
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, 0) 60%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .35);
+  transition: inset .05s ease, box-shadow .05s ease, filter .15s ease;
 }
-#btn-vote-down .glyph { transform: rotate(180deg); }
-
-.abtn-label {
-  width: 46px;
+.key .word {
+  display: block;
   font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 9px;
+  font-size: 7.5px;
+  font-weight: 500;
+  line-height: 1;
   letter-spacing: .04em;
-  text-transform: uppercase;
   text-align: center;
-  white-space: nowrap;
-  color: #000;
-  cursor: pointer;
+  text-transform: uppercase;
 }
+@media (hover: hover) {
+  .key:hover:not(:disabled) .cap { filter: brightness(1.07); }
+}
+.key:active:not(:disabled) {
+  transform: none;
+  box-shadow:
+    inset 0 0 0 27px #17120f,
+    1px 2px 4px rgba(0, 0, 0, .22);
+}
+.key:active:not(:disabled) .cap {
+  inset: 3px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .14),
+    inset 0 2px 3px rgba(0, 0, 0, .25);
+}
+.key.vote:disabled { cursor: default; color: rgba(255, 255, 255, .38); }
 
 /* ---- Request card: a dark card over the artwork, fades like a TV ---- */
 /* ---- Request line: a full-screen page in the deck's colours (Rams, TE) ---- */
@@ -875,7 +867,7 @@ body.prewarming #block-canvas {
 }
 
 .knob-label {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Anka Coder", sans-serif;
   font-size: 7px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -920,7 +912,7 @@ body.prewarming #block-canvas {
 /* ---- Synth LED now-playing display ---- */
 .npd-stack {
   position: relative;
-  /* Grows into spare width so the knob bank sits as close to the right edge as the speaker does to the left. */
+  /* Grows into spare width, so the keys and the knob bank sit at the deck's edges. */
   flex: 1 1 900px;
   max-width: 900px;
   min-width: 0;
@@ -982,13 +974,6 @@ body.prewarming #block-canvas {
   gap: 10px;
 }
 
-.npd-navpair {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .npd-lines {
   width: 210px;
   flex: 0 1 auto;
@@ -1008,35 +993,16 @@ body.prewarming #block-canvas {
   background: transparent;
 }
 
+/* Song and artist lead, moved 16px into the room the artwork arrows left. */
+@media (min-width: 768px) {
+  .npd-song-group .npd-lines { translate: -16px 0; }
+}
+
 /* Prev/next song controls inside the LED */
 .npd-songnav {
   flex: 0 0 auto;
   display: flex;
   gap: 5px;
-}
-
-.npd-nav {
-  width: 26px;
-  height: 19px;
-  border: none;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.npd-nav:hover {
-  background: rgba(255, 90, 31, 0.25);
-  color: #ff5a1f;
-}
-
-.npd-nav:active {
-  background: rgba(255, 90, 31, 0.45);
-  color: #fff;
 }
 
 .npd-line {
@@ -1072,7 +1038,8 @@ body.prewarming #block-canvas {
 .npd-artwork::before { content: "Art"; }
 
 .npd-show {
-  font-size: 11px;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1080,24 +1047,29 @@ body.prewarming #block-canvas {
 }
 
 .npd-track {
-  font-size: 16px;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 15px;
+  line-height: 16px;
   font-weight: 500;
   letter-spacing: 0.06em;
   color: #c94814;
 }
 
 .npd-artist {
-  font-size: 11px;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 15px;
   font-weight: 400;
   letter-spacing: 0.05em;
   color: #fff;
 }
 
 .npd-artwork {
-  font-size: 11px;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 15px;
+  line-height: 16px;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.5);
+  color: #5c8299;
 }
 
 #visual-notification {
@@ -1226,22 +1198,27 @@ body.prewarming #block-canvas {
   opacity: 0.45;
 }
 
+/* Each row: slot number, its on/off button, then the filter name. The rows share
+   the panel's columns, so every name, Artwork's too, starts at the same place. */
 .fx-lcd {
   flex: 0 0 auto;
   width: 168px;
   align-self: stretch;
   padding-left: 14px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-auto-rows: minmax(0, max-content);
+  align-content: center;
+  gap: 1px 7px;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .fx-row {
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: 7px;
+  max-height: 100%;
   height: 15px;
   padding: 0 4px;
   border-radius: 2px;
@@ -1263,6 +1240,7 @@ body.prewarming #block-canvas {
 .fx-row.focus .fx-name { color: #ff5a1f; }
 
 .fx-num {
+  grid-area: 1 / 1;
   width: 8px;
   font-size: 8px;
   font-weight: 600;
@@ -1270,7 +1248,8 @@ body.prewarming #block-canvas {
 }
 
 .fx-name {
-  flex: 1 1 auto;
+  grid-area: 1 / 3;
+  font-family: "Anka Coder", sans-serif;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -1278,6 +1257,7 @@ body.prewarming #block-canvas {
 }
 
 .fx-on {
+  grid-area: 1 / 2;
   width: 26px;
   height: 12px;
   padding: 0;
@@ -1285,7 +1265,7 @@ body.prewarming #block-canvas {
   border-radius: 2px;
   background: none;
   cursor: pointer;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Anka Coder", sans-serif;
   font-size: 7px;
   line-height: 10px;
   letter-spacing: 0.04em;
@@ -1627,25 +1607,13 @@ body.prewarming #block-canvas {
 /* ---- Small screens ---- */
 
 @media (max-width: 1439px) {
-  :root { --deck-h: 180px; }
+  :root { --deck-h: 194px; }
 
   .deck-content {
     flex-wrap: wrap;
     align-content: center;
     gap: 12px 20px;
     padding: 0 12px;
-  }
-
-  #deck.expanded .deck-logo,
-  #deck.ejected .deck-logo {
-    flex-basis: 92px;
-    width: 92px;
-  }
-
-  #deck.expanded .speaker,
-  #deck.ejected .speaker {
-    width: 64px;
-    height: 64px;
   }
 
   .npd-stack {
@@ -1702,16 +1670,6 @@ body.prewarming #block-canvas {
   .deck-display { order: 2; width: 100%; gap: 8px; }
   .ctrl { gap: 6px; }
 
-  #deck.expanded .deck-logo,
-  #deck.ejected .deck-logo {
-    flex-basis: 0;
-    width: 0;
-    overflow: hidden;
-  }
-
-  #deck.expanded .speaker,
-  #deck.ejected .speaker { display: none; }
-
   #np-display {
     flex-direction: column;
     align-items: stretch;
@@ -1721,11 +1679,6 @@ body.prewarming #block-canvas {
   }
 
   .npd-group { width: 100%; }
-
-  .npd-navpair {
-    flex-direction: row;
-    gap: 6px;
-  }
 
   .fx-lcd {
     width: 100%;
@@ -1781,21 +1734,6 @@ body.prewarming #block-canvas {
 /* ---- Touch ---- */
 
 @media (hover: none) {
-  .npd-nav {
-    position: relative;
-    width: 34px;
-    height: 30px;
-    font-size: 12px;
-  }
-
-  .npd-nav::after {
-    content: "";
-    position: absolute;
-    inset: -7px -5px;
-  }
-
-  .npd-navpair { gap: 8px; }
-
   .fx-row { height: 18px; }
 
   .fx-on {
@@ -1833,13 +1771,6 @@ body.prewarming #block-canvas {
 }
 
 @media (hover: none) and (max-width: 767px) {
-  .npd-nav {
-    width: 44px;
-    height: 44px;
-  }
-
-  .npd-nav::after { inset: 0; }
-
   .fx-row { height: 24px; }
 
   .fx-on { height: 22px; }
@@ -1876,16 +1807,6 @@ body.prewarming #block-canvas {
   }
 
   .npd-group { width: auto; }
-
-  .npd-navpair {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .npd-nav {
-    width: 34px;
-    height: 30px;
-  }
 
   .fx-lcd {
     width: 150px;
