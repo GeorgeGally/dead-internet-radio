@@ -2,15 +2,6 @@
 
 module Admin
   class TracksController < Admin::BaseController
-    def download
-      track = Track.find(params[:id])
-      path = track.audio_path
-      return head :not_found unless path && File.exist?(path)
-
-      filename = "#{track.artist} - #{track.title}".gsub(%r{[/\\]}, "-") + path.extname
-      send_file path, disposition: "attachment", filename: filename
-    end
-
     # One song: hear it, read what it was made from, say what's wrong and
     # render it again. A set's copy shows its library song.
     def show
