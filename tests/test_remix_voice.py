@@ -60,6 +60,23 @@ class RemixVoiceTest(unittest.TestCase):
                 result = generate.ensure_voice({"caption": caption, "lyrics": "[Instrumental]"})
                 self.assertEqual(result["lyrics"], "one\ntwo\nthree")
 
+    def test_take_collision_preserves_existing_folder_on_failure(self):
+        song = {"caption": "synthesizers", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "duration": 150}
+        with tempfile.TemporaryDirectory(dir=".") as directory:
+            output = Path(directory)
+            existing = output / "remix-20261112-120000"
+            existing.mkdir()
+            (existing / "show.json").write_text("original metadata")
+            with patch.object(generate, "OUTPUT_DIR", output), \
+                 patch.object(generate.time, "strftime", side_effect=["20261112-120000", "20261112-120001"]), \
+                 patch.object(generate.time, "sleep") as sleep, \
+                 patch.object(generate, "check_ace_step_health", return_value=(False, "offline")):
+                with self.assertRaisesRegex(RuntimeError, "offline"):
+                    generate.render_take({"payload": song})
+            sleep.assert_called_once_with(1)
+            self.assertEqual((existing / "show.json").read_text(), "original metadata")
+            self.assertFalse((output / "remix-20261112-120001").exists())
+
     def test_take_records_lyrics_sent_to_renderer_and_remix_kind(self):
         song = {"caption": "A voice speaks", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "bpm": 120, "keyscale": "C", "duration": 150}
         with tempfile.TemporaryDirectory(dir=".") as directory, \

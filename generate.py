@@ -670,12 +670,21 @@ def ensure_voice(song: dict) -> dict:
 
 def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
     song = ensure_voice(take["payload"])
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    show_dir = OUTPUT_DIR / f"remix-{stamp}"
-    (show_dir / "prompts").mkdir(parents=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    for attempt in range(3):
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        show_dir = OUTPUT_DIR / f"remix-{stamp}"
+        try:
+            show_dir.mkdir()
+            break
+        except FileExistsError:
+            if attempt == 2:
+                raise
+            time.sleep(1)
     stem = f"01-{slugify(song['artist'] + ' - ' + song['title'])}-dead-internet-radio"
     dest = show_dir / f"{stem}.mp3"
     try:
+        (show_dir / "prompts").mkdir()
         (show_dir / "show.json").write_text(json.dumps({
             "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
         }, indent=2))
