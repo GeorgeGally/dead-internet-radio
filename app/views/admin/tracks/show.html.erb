@@ -19,6 +19,12 @@
   </tr>
 </table>
 
+<% if @song.audio_path && File.exist?(@song.audio_path) %>
+  <div class="track-section">
+    <%= link_to "Download", download_media_track_path(@song), class: "btn-key" %>
+  </div>
+<% end %>
+
 <% if @song.votable? %>
   <section class="track-section">
     <h3>What's wrong with it?</h3>

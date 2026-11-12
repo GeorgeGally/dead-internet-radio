@@ -24,7 +24,7 @@ Dead Internet Radio is a **Python audio pipeline** with a **Rails 8 web app**, b
 
 **Frontend** — static teletext/dead-broadcast player in `public/` (vanilla JS, p5 visuals).
 - Tests: `node --test tests/` (Node.js contract tests in `tests/`).
-- No Rails test suite exists (no `test/` or `spec/`).
+- Rails tests: `bin/rails test` (PostgreSQL test database required).
 
 **Generated artifacts never go back into seed inputs.** The pipeline writes to `output/<slug>-<timestamp>/`; `prompts/*.md` are read-only seed files.
 

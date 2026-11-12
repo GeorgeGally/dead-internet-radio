@@ -54,6 +54,9 @@ name and whether the save succeeded. The keypad highlights a successful save
 in orange, shows other saved slots in cream, and outlines a failed save in
 orange.
 
+In the admin, open a track and select **Download** to save its MP3. The button
+appears when the audio file is available.
+
 ```bash
 # Generate a multi-track set
 python generate.py "midnight slot"
