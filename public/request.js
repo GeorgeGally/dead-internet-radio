@@ -13,23 +13,35 @@ const requestLine = (() => {
     return n;
   }
 
+  // A dropped or stalled line answers like a refusal, so the page always
+  // renders. Only reads give up on time: a send may already be in.
+  const READ_WAIT = 10000;
   async function call(method, path, body) {
-    const res = await fetch(API + path, {
-      method,
-      credentials: 'same-origin',
-      headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': me ? me.csrf_token : '' } : {},
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    let data = {};
-    try { data = await res.json(); } catch (_) {}
-    return { ok: res.ok, data };
+    const stop = method === 'GET' ? new AbortController() : null;
+    const timer = stop ? setTimeout(() => stop.abort(), READ_WAIT) : null;
+    try {
+      const res = await fetch(API + path, {
+        method,
+        credentials: 'same-origin',
+        headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': me ? me.csrf_token : '' } : {},
+        body: body ? JSON.stringify(body) : undefined,
+        signal: stop ? stop.signal : undefined,
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      return { ok: res.ok, data };
+    } catch (_) {
+      return { ok: false, data: {} };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   async function refreshMe() {
     const { ok, data } = await call('GET', '/me');
     me = ok ? data : null;
     const line = me && me.signed_in ? await call('GET', '/requests') : null;
-    log = line && line.ok ? line.data : [];
+    log = line && line.ok && Array.isArray(line.data) ? line.data : [];
     return me;
   }
 
@@ -108,7 +120,7 @@ const requestLine = (() => {
     const lede = el('p', 'rq-lede');
     body.appendChild(lede);
     if (!me || !me.google_client_id) {
-      lede.textContent = 'Sign-in isn\'t set up yet.';
+      lede.textContent = me ? 'Sign-in isn\'t set up yet.' : (msg || 'The line went dead. Try again later.');
       return;
     }
     lede.textContent = 'Name a band that never existed. The station makes the song.';
@@ -297,7 +309,7 @@ const requestLine = (() => {
     }
     card.classList.add('open');
     led.classList.add('on');
-    card.querySelector('.rq-body').replaceChildren();
+    card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
     await refreshMe();
     if (isOpen()) render(me ? '' : 'The line went dead. Try again later.');
   }
