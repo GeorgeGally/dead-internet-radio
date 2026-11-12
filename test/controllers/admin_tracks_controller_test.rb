@@ -65,6 +65,32 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     assert_equal "darker bass, no hi-hats", job.options["instructions"]
   end
 
+  test "remix carries the admin's direction to the generation PC" do
+    ActiveJob::Base.queue_adapter = :test
+    FileUtils.mkdir_p(File.join(@show_dir, "prompts"))
+    File.write(File.join(@show_dir, "prompts", "02-bad-track.prompt.json"),
+               JSON.generate(payload: { caption: "cold synths", lyrics: "[Instrumental]", bpm: 120 }))
+
+    post remix_admin_track_path(@track), params: { instructions: "  faster, add a 303 line  " }
+    job = GenerationJob.last
+    assert_redirected_to admin_track_path(@track)
+    assert_equal "faster, add a 303 line", job.options["instructions"]
+
+    installed = AceStepManager.method(:installed?)
+    AceStepManager.define_singleton_method(:installed?) { false }
+    begin
+      RerenderTrackJob.perform_now(job.id)
+    ensure
+      AceStepManager.define_singleton_method(:installed?, installed)
+    end
+    take = job.reload.options["take"]
+    assert_equal "faster, add a 303 line", take["notes"]
+    assert_equal "cold synths", take["payload"]["caption"], "the PC's producer revises it, not the server"
+
+    post remix_admin_track_path(@track), params: { instructions: " " }
+    refute GenerationJob.last.options.key?("instructions"), "an empty field is a plain remix"
+  end
+
   test "re-render needs notes" do
     assert_no_difference -> { GenerationJob.count } do
       post rerender_admin_track_path(@track), params: { instructions: " " }

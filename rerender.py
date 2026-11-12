@@ -13,7 +13,8 @@ The track JSON: {"file": "output/<show>/<NN-name>.mp3", "artist", "title",
 
 --take is a remix: the same caption, lyrics, tempo, key and length rendered
 again as a new song in its own folder, output/remix-<stamp>/ (printed as
-"Show folder: <dir>"). The original is not touched; missing vocal lines may be added to the take.
+"Show folder: <dir>"), revised first by the producer when there are
+instructions. The original is not touched; missing vocal lines may be added to the take.
 """
 import argparse
 import json
@@ -23,8 +24,6 @@ from datetime import datetime
 from pathlib import Path
 
 import generate as g
-
-RERENDER_PROMPT_PATH = g.PROMPTS_DIR / "rerender.md"
 
 
 def main():
@@ -44,31 +43,14 @@ def main():
     old = log.get("payload") or {}
     notes = str(spec.get("instructions") or "").strip()
     if args.take:
-        take(spec, src, old, args.stop_ace_step)
+        take(spec, src, old, notes, args.stop_ace_step)
         return
 
     print(f"1. Producer rewriting {spec['artist']} — {spec['title']}...", flush=True)
     print(f"   Notes: {notes}")
-    message = (
-        f"Artist: {spec['artist']}\nTitle: {spec['title']}\n"
-        f"Caption: {old.get('caption', '')}\nLyrics:\n{old.get('lyrics', '[Instrumental]')}\n"
-        f"BPM: {old.get('bpm')}\nKey: {old.get('keyscale', '')}\nDuration: {old.get('duration')}\n\n"
-        f"Notes: {notes}"
-    )
-    new = g.extract_json(g.call_llm(g.load_prompt(RERENDER_PROMPT_PATH), message))
-    duration = int(new.get("duration") or old.get("duration") or 150)
-    song = {
-        "title": spec["title"],
-        "artist": spec["artist"],
-        "caption": str(new.get("caption") or old.get("caption") or ""),
-        "lyrics": str(new.get("lyrics") or old.get("lyrics") or "[Instrumental]"),
-        "bpm": new.get("bpm") or old.get("bpm"),
-        "keyscale": str(new.get("keyscale") or old.get("keyscale") or ""),
-        "duration": min(max(duration, g.MIN_TRACK_SECONDS), g.MAX_TRACK_SECONDS),
-    }
+    song, review = g.revise_song(old, spec["artist"], spec["title"], notes)
     before = {k: old.get(k) for k in ("caption", "lyrics", "bpm", "keyscale", "duration")}
-    changes = new.get("changes") if isinstance(new.get("changes"), list) else []
-    print(f"Review: {json.dumps({'diagnosis': str(new.get('diagnosis') or ''), 'changes': [str(c) for c in changes], 'before': before, 'after': song})}", flush=True)
+    print(f"Review: {json.dumps({**review, 'before': before, 'after': song})}", flush=True)
     print(f"   {song['bpm']} BPM, {song['keyscale']}, {song['duration']}s")
     print(f"   {song['caption']}")
 
@@ -116,14 +98,14 @@ def render(song: dict, dest: Path, stop_ace_step: bool):
         sys.exit(1)
 
 
-def take(spec: dict, src: Path, old: dict, stop_ace_step: bool):
+def take(spec: dict, src: Path, old: dict, notes: str, stop_ace_step: bool):
     """A new take of the song in a folder of its own; the original stays."""
     if not old.get("caption"):
         print(f"No prompt log beside {src}: nothing to remix from", file=sys.stderr)
         sys.exit(1)
     song = {**old, "title": spec["title"], "artist": spec["artist"],
             "lyrics": old.get("lyrics") or "[Instrumental]"}
-    g.render_take({"payload": song, "file": str(src)}, spec.get("dj_name"), stop_ace_step)
+    g.render_take({"payload": song, "file": str(src), "notes": notes}, spec.get("dj_name"), stop_ace_step)
 
 
 if __name__ == "__main__":

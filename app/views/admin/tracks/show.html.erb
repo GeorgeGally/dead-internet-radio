@@ -35,7 +35,11 @@
     <% end %>
   </section>
   <% if @payload.present? %>
-    <%= button_to "Remix", remix_admin_track_path(@song), class: "btn-key", form: { class: "remix-form" } %>
+    <%= form_tag remix_admin_track_path(@song), class: "rerender-form remix-form" do %>
+      <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+             placeholder="More vocal stabs, faster, add a 303 line…">
+      <button type="submit" class="btn-key">Remix</button>
+    <% end %>
   <% end %>
 <% end %>
 
@@ -83,7 +87,7 @@
         <% take = job.done? && job.show&.tracks&.min_by(&:position) %>
         <tr>
           <td><%= local_time(job.started_at || job.created_at) %></td>
-          <td><a href="<%= take ? admin_track_path(take) : admin_generation_path(job) %>"><%= job.options['instructions'] || "Remix" %></a></td>
+          <td><a href="<%= take ? admin_track_path(take) : admin_generation_path(job) %>"><%= [job.options['kind'] == 'remix' && "Remix", job.options['instructions']].compact_blank.join(": ") %></a></td>
           <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
         </tr>
       <% end %>

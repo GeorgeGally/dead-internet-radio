@@ -61,14 +61,16 @@ module Admin
     end
 
     # A new take of the song: same sound, lyrics, tempo, key and length, a new
-    # render as a song of its own. The original stays as it is.
+    # render as a song of its own, revised first when the admin gives it a
+    # direction. The original stays as it is.
     def remix
       song = Track.find(params[:id]).song
       return redirect_to admin_track_path(song), alert: 'No prompt log to remix from.' if song.prompt_log['payload'].blank?
 
       job = GenerationJob.create!(slot: 'remix', track_count: 1, status: :pending,
                                   options: { 'kind' => 'remix', 'track_id' => song.id,
-                                             'show_name' => "#{song.artist} — #{song.title}" })
+                                             'instructions' => params[:instructions].to_s.strip.first(400).presence,
+                                             'show_name' => "#{song.artist} — #{song.title}" }.compact)
       RerenderTrackJob.perform_later(job.id)
       redirect_to admin_track_path(song), notice: "Remix queued: a new take of #{song.artist} — #{song.title}."
     end

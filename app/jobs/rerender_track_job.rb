@@ -5,9 +5,10 @@
 # file's place (the old one is kept in <show>/.replaced/). The song keeps its
 # id, votes and plays. Sets already built keep the audio they linked.
 #
-# A remix (options kind "remix") renders the same song again unchanged as a
-# new take: rerender.py --take writes it to its own folder, imported as a
-# one-song "remix" show, so the original song and its audio stay as they are.
+# A remix (options kind "remix") renders the same song again as a new take,
+# revised first by the producer when it carries instructions: rerender.py
+# --take writes it to its own folder, imported as a one-song "remix" show, so
+# the original song and its audio stay as they are.
 class RerenderTrackJob < ApplicationJob
   include ShowImporter
   include SubprocessRunner
@@ -26,7 +27,8 @@ class RerenderTrackJob < ApplicationJob
         payload = track.prompt_log['payload']
         raise 'No prompt log to remix from' if payload.blank? || payload['caption'].blank?
         take = { 'payload' => payload.merge('title' => track.title, 'artist' => track.artist),
-                 'file' => track.audio_path.relative_path_from(Rails.root).to_s }
+                 'file' => track.audio_path.relative_path_from(Rails.root).to_s,
+                 'notes' => @gen_job.options['instructions'] }.compact
         @gen_job.update!(options: @gen_job.options.merge('on_pc' => true, 'take' => take, 'dj_name' => track.show&.dj_name),
                          output_log: "Waiting for the generation PC\n")
         return
