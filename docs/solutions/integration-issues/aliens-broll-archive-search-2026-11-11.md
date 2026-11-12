@@ -52,6 +52,8 @@ So the fix spreads picks over the pool the searches already have:
 - `aliens.js` passes `recent: 100`. The engine keeps the last 100 films
   shown in `localStorage` (`broll-recent:aliens`) and orders each page's
   results with films not shown lately first, then those shown longest ago.
+  Candidates that turn out unplayable (no usable mp4, or the video fails to
+  open) go on the same list, or they would stay at the front of every page.
 - The search that leads the deal changes each track. Before, the smaller
   sightings search always dealt first and took two of the three films.
 - The hit count behind the random page is stored with its query and kept a

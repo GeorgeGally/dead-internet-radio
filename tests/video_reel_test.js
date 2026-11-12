@@ -276,6 +276,21 @@ test('Aliens picks films it has not shown lately, then the ones shown longest ag
   assert.deepEqual(recent.slice(1).sort(), ['martian-1', 'saucer-1', 'saucer-3']);
 });
 
+test('Aliens records films that turn out unplayable so they stop taking the front of the search', async () => {
+  const page = aliensPage(() => ['dud-1', 'saucer-1']);
+  const serve = page.context.fetch;
+  page.context.fetch = async (url) => (url.includes('dud-1') && !url.includes('broll-index/search')
+    ? { ok: true, json: async () => ({ files: [{ name: 'film.ogv', size: 4e6, height: 360 }] }) }
+    : serve(url));
+  const store = {};
+  page.context.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  page.artworks.aliens.start();
+  await until(() => page.context.__pb.ready && !page.context.__pb.loading);
+
+  assert.deepEqual(Array.from(page.context.__pb.films, (f) => f.id), ['saucer-1']);
+  assert.deepEqual(JSON.parse(store['broll-recent:aliens']).sort(), ['dud-1', 'saucer-1']);
+});
+
 test('Aliens with no archive.org results shows nothing else in their place', async () => {
   const { artworks, context, videos, instances, fetches } = aliensPage(() => []);
   artworks.aliens.start();

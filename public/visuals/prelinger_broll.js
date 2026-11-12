@@ -245,6 +245,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     // and the two behind it buffer while it plays.
     const found = (await Promise.all(ids.map((id) => filmVideo(id).then((f) => f && { id, ...f }).catch(() => null))))
       .filter(Boolean);
+    ids.filter((id) => !found.some((f) => f.id === id)).forEach(markShown);
     if (!found.length) throw new Error('no video');
 
     const films = [];
@@ -252,7 +253,10 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
     for (const { id, url, size } of found) {
       if (token !== state.loadToken || films.length >= 3) break;
       const video = await makeVideo(url, 'canplay').catch(() => null);
-      if (!video) continue;
+      if (!video) {
+        markShown(id);
+        continue;
+      }
       if (token !== state.loadToken || films.length >= 3) {
         disposeVideos([{ video }]);
         break;
