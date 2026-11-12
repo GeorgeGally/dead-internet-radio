@@ -39,6 +39,12 @@ The TTS script picks a random voice per call and applies bitcrushing, noise inje
 
 ## Usage
 
+On the public player, open Request and sign in with Google to submit a fictional
+artist, song title, and style. After an accepted request, Close returns to the
+player; reopening Request shows recent requests and their progress. If the line
+drops while sending, the request may already have arrived. Check the request
+list before trying again.
+
 ```bash
 # Generate a multi-track set
 python generate.py "midnight slot"

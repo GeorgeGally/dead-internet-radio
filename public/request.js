@@ -1,8 +1,8 @@
-// The request line: a full-screen page over the artwork. Google sign-in is asked
+// The request line: a page over the artwork. Google sign-in is asked
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, log = [], gsiLoading = null, wentFull = false, signingIn = false;
+  let card, led, me = null, log = [], gsiLoading = null;
   // Set while Google's sign-in is out, so the line reopens if the page reloads.
   const RETURN_KEY = 'dir-request-return';
 
@@ -13,16 +13,27 @@ const requestLine = (() => {
     return n;
   }
 
+  // A dropped or stalled line answers like a refusal, so the page always
+  // renders. Only reads give up on time: a send may already be in.
+  const READ_WAIT = 10000;
   async function call(method, path, body) {
-    const res = await fetch(API + path, {
-      method,
-      credentials: 'same-origin',
-      headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': me ? me.csrf_token : '' } : {},
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    let data = {};
-    try { data = await res.json(); } catch (_) {}
-    return { ok: res.ok, data };
+    const stop = method === 'GET' ? new AbortController() : null;
+    const timer = stop ? setTimeout(() => stop.abort(), READ_WAIT) : null;
+    try {
+      const res = await fetch(API + path, {
+        method,
+        credentials: 'same-origin',
+        headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': me ? me.csrf_token : '' } : {},
+        body: body ? JSON.stringify(body) : undefined,
+        signal: stop ? stop.signal : undefined,
+      });
+      const data = await res.json();
+      return { ok: res.ok, data };
+    } catch (_) {
+      return { ok: false, data: {}, unavailable: true };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   async function refreshMe() {
@@ -88,13 +99,8 @@ const requestLine = (() => {
     } catch (_) { return false; }
   }
 
-  // Google's popup can take the page out of full screen, which closes the
-  // line; sign-in brings the listener back to it.
   async function signIn(tokenResp) {
-    const wasSigningIn = signingIn;
-    signingIn = false;
     rememberReturn(false);
-    if (wasSigningIn && !isOpen()) { card.classList.add('open'); led.classList.add('on'); }
     if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
     const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
     if (ok) { me = data; await refreshMe(); render(); } else render(data.message || 'Google didn\'t vouch for that.');
@@ -108,7 +114,7 @@ const requestLine = (() => {
     const lede = el('p', 'rq-lede');
     body.appendChild(lede);
     if (!me || !me.google_client_id) {
-      lede.textContent = 'Sign-in isn\'t set up yet.';
+      lede.textContent = me ? 'Sign-in isn\'t set up yet.' : (msg || 'The line went dead. Try again later.');
       return;
     }
     lede.textContent = 'Name a band that never existed. The station makes the song.';
@@ -123,13 +129,12 @@ const requestLine = (() => {
         client_id: me.google_client_id,
         scope: 'openid email profile',
         callback: signIn,
-        error_callback: () => { signingIn = false; rememberReturn(false); },
+        error_callback: () => { rememberReturn(false); },
       });
       go.disabled = false;
     }).catch(() => { out.textContent = 'Google is out of reach.'; });
     go.addEventListener('click', () => {
       if (!tokenClient) return;
-      signingIn = true;
       rememberReturn(true);
       tokenClient.requestAccessToken();
     });
@@ -171,7 +176,9 @@ const requestLine = (() => {
     if (me.requests_left <= 0) go.disabled = true;
     form.append(artist.row, title.row, style.row, foot);
     body.append(form);
-    renderLog(body);
+    const requestLog = el('div', 'rq-log');
+    body.append(requestLog);
+    renderLog(requestLog);
     body.append(el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
 
     form.addEventListener('submit', async (e) => {
@@ -179,10 +186,17 @@ const requestLine = (() => {
       if (go.disabled) return;
       go.disabled = true;
       out.textContent = '\u2026';
-      const { data } = await call('POST', '/requests', {
+      const { data, unavailable } = await call('POST', '/requests', {
         artist: artist.input.value, title: title.input.value, note: style.input.value,
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+      if (!body.contains(form)) return;
+      if (unavailable) {
+        out.textContent = 'The line dropped. Your request may already be in.';
+        const line = await call('GET', '/requests');
+        if (line.ok && body.contains(form)) { log = line.data; renderLog(requestLog); }
+        return;
+      }
       out.textContent = data.message || 'The line went dead. Try again later.';
       // A cover: the station's line is marked in orange.
       const COVER = "We don't do covers. Describe a band that should exist.";
@@ -201,7 +215,7 @@ const requestLine = (() => {
     setTimeout(() => artist.input.focus(), 0);
   }
 
-  const WHERE = { accepted: 'In line', queued: 'In line', generating: 'Being made', ready: 'Made', failed: 'Lost in the static' };
+  const WHERE = { pending: 'Being checked', accepted: 'In line', queued: 'In line', generating: 'Being made', ready: 'Made', failed: 'Lost in the static' };
 
   function whereItIs(req) {
     if (req.status !== 'scheduled') return WHERE[req.status];
@@ -242,10 +256,12 @@ const requestLine = (() => {
   preview.addEventListener('ended', stopPreview);
 
   // The listener's last few requests and where each one has got to.
-  function renderLog(body) {
+  function renderLog(list) {
     const rows = log.filter(whereItIs).slice(0, 5);
+    if (previewKey && list.contains(previewKey)) stopPreview();
+    list.replaceChildren();
+    list.hidden = rows.length === 0;
     if (!rows.length) return;
-    const list = el('div', 'rq-log');
     rows.forEach((req) => {
       const row = el('div', 'rq-log-row');
       const name = el('p', 'rq-log-name', req.title);
@@ -262,21 +278,19 @@ const requestLine = (() => {
       row.append(name, el('p', 'rq-log-where', whereItIs(req)));
       list.append(row);
     });
-    body.append(list);
   }
 
   // Sent: the form goes; what was asked for stays on the page.
   function renderSent(body, req, msg) {
+    if (previewKey && body.contains(previewKey)) stopPreview();
     body.replaceChildren();
     const done = el('div', 'rq-sent');
     done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
     const foot = el('div', 'rq-foot');
-    foot.append(el('p', 'rq-msg', msg), lights(me.requests_left));
-    if (me.requests_left > 0) {
-      const { wrap, go } = goButton('another');
-      go.addEventListener('click', async () => { await refreshMe(); render(); });
-      foot.append(wrap);
-    }
+    // The line closes once a request is in, so it isn't sent again at once.
+    const { wrap, go } = goButton('close');
+    go.addEventListener('click', close);
+    foot.append(el('p', 'rq-msg', msg), lights(me.requests_left), wrap);
     body.append(done, foot);
   }
 
@@ -290,26 +304,18 @@ const requestLine = (() => {
 
   async function open() {
     if (isOpen()) return;
-    // The request line takes the whole screen; leave it the way it was found.
-    const root = document.documentElement;
-    if (!document.fullscreenElement && root.requestFullscreen) {
-      root.requestFullscreen().then(() => { wentFull = true; }, () => {});
-    }
     card.classList.add('open');
     led.classList.add('on');
-    card.querySelector('.rq-body').replaceChildren();
+    card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
     await refreshMe();
-    if (isOpen()) render(me ? '' : 'The line went dead. Try again later.');
+    if (isOpen()) render();
   }
 
   function close() {
-    signingIn = false;
     rememberReturn(false);
     stopPreview();
     card.classList.remove('open');
     led.classList.remove('on');
-    if (wentFull && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    wentFull = false;
     if (document.activeElement && card.contains(document.activeElement)) document.activeElement.blur();
   }
 
@@ -341,10 +347,6 @@ const requestLine = (() => {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && isOpen()) close();
-    });
-    // Esc in full screen is the browser's: it leaves full screen, so close too.
-    document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement && wentFull) { wentFull = false; if (!signingIn) close(); }
     });
   }
 
