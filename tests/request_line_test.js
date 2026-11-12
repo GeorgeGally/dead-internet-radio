@@ -34,7 +34,7 @@ function node(tag) {
     append(...kids) { kids.forEach((k) => n.children.push(k)); },
     appendChild(k) { n.children.push(k); return k; },
     replaceChildren(...kids) { n.children = kids; },
-    contains: () => false,
+    contains(target) { return n === target || n.children.some((k) => typeof k === 'object' && k.contains(target)); },
     querySelector(sel) {
       const cls = sel.replace(/^\./, '');
       for (const k of n.children) {
@@ -150,6 +150,16 @@ test('a failed response body does not masquerade as a successful read', async ()
   assert.doesNotMatch(text(card), /Sign-in isn't set up/);
 });
 
+test('a pending request appears when the line opens', async () => {
+  const reply = (data) => ({ ok: true, json: async () => data });
+  const { line, card } = loadRequestLine(async (url) => url.endsWith('/me')
+    ? reply({ signed_in: true, requests_left: 2 })
+    : reply([{ title: 'Static Hymn', artist: 'Glass Saints', status: 'pending' }]));
+  await line.open();
+  assert.match(text(card), /Static Hymn/);
+  assert.match(text(card), /Being checked/);
+});
+
 test('an uncertain send stays disabled and refreshes the request log', async () => {
   let sends = 0;
   let reads = 0;
@@ -158,7 +168,7 @@ test('an uncertain send stays disabled and refreshes the request log', async () 
     if (url.endsWith('/me')) return reply({ signed_in: true, requests_left: 3, csrf_token: 't' });
     if (opts.method === 'POST') { sends++; throw new TypeError('connection lost'); }
     reads++;
-    return reply(reads === 1 ? [] : [{ title: 'Static Hymn', artist: 'Glass Saints', status: 'accepted' }]);
+    return reply(reads === 1 ? [] : [{ title: 'Static Hymn', artist: 'Glass Saints', status: 'pending' }]);
   });
   await line.open();
   const form = all(card, 'rq-form')[0];
@@ -166,6 +176,7 @@ test('an uncertain send stays disabled and refreshes the request log', async () 
   await form.fire('submit');
   assert.match(text(card), /request may already be in/);
   assert.match(text(card), /Static Hymn/);
+  assert.match(text(card), /Being checked/);
   assert.equal(all(card, 'rq-log')[0].hidden, false);
   assert.equal(all(form, 'rq-go')[0].disabled, true);
   await form.fire('submit');
@@ -194,5 +205,42 @@ for (const outcome of ['lost', 'accepted']) {
     await all(card, 'rq-form')[0].fire('submit');
     assert.equal(preview.paused, true);
     assert.equal(radio.paused, false);
+  });
+}
+
+for (const outcome of ['lost', 'accepted']) {
+  test(`a delayed ${outcome} response leaves a reopened preview alone`, async () => {
+    const radio = { paused: false };
+    const preview = { paused: true, addEventListener() {}, pause() { this.paused = true; }, play() { this.paused = false; return Promise.resolve(); } };
+    const playback = { radio, preview, stopPlayback() { radio.paused = true; }, togglePlay() { radio.paused = false; } };
+    const reply = (data) => ({ ok: true, json: async () => data });
+    const rows = [{ title: 'Old song', artist: 'Old band', status: 'ready', track_id: 7 }];
+    let release, started;
+    const waiting = new Promise((resolve) => { release = resolve; });
+    const began = new Promise((resolve) => { started = resolve; });
+    let reads = 0;
+    const { line, card } = loadRequestLine(async (url, opts) => {
+      if (url.endsWith('/me')) return reply({ signed_in: true, requests_left: 3, csrf_token: 't' });
+      if (opts.method === 'POST') {
+        if (outcome === 'lost') throw new TypeError('connection lost');
+        started();
+        await waiting;
+        return reply({ status: 'accepted', requests_left: 2 });
+      }
+      reads++;
+      if (outcome === 'lost' && reads === 2) { started(); await waiting; }
+      return reply(rows);
+    }, playback);
+    await line.open();
+    const sending = all(card, 'rq-form')[0].fire('submit');
+    await began;
+    line.close();
+    await line.open();
+    await all(card, 'rq-play')[0].fire('click');
+    release();
+    await sending;
+    assert.equal(preview.paused, false);
+    assert.equal(radio.paused, true);
+    assert.equal(all(card, 'rq-form').length, 1);
   });
 }

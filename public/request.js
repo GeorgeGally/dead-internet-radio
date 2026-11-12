@@ -190,10 +190,11 @@ const requestLine = (() => {
         artist: artist.input.value, title: title.input.value, note: style.input.value,
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+      if (!body.contains(form)) return;
       if (unavailable) {
         out.textContent = 'The line dropped. Your request may already be in.';
         const line = await call('GET', '/requests');
-        if (line.ok) { log = line.data; renderLog(requestLog); }
+        if (line.ok && body.contains(form)) { log = line.data; renderLog(requestLog); }
         return;
       }
       out.textContent = data.message || 'The line went dead. Try again later.';
@@ -214,7 +215,7 @@ const requestLine = (() => {
     setTimeout(() => artist.input.focus(), 0);
   }
 
-  const WHERE = { accepted: 'In line', queued: 'In line', generating: 'Being made', ready: 'Made', failed: 'Lost in the static' };
+  const WHERE = { pending: 'Being checked', accepted: 'In line', queued: 'In line', generating: 'Being made', ready: 'Made', failed: 'Lost in the static' };
 
   function whereItIs(req) {
     if (req.status !== 'scheduled') return WHERE[req.status];
@@ -257,7 +258,7 @@ const requestLine = (() => {
   // The listener's last few requests and where each one has got to.
   function renderLog(list) {
     const rows = log.filter(whereItIs).slice(0, 5);
-    stopPreview();
+    if (previewKey && list.contains(previewKey)) stopPreview();
     list.replaceChildren();
     list.hidden = rows.length === 0;
     if (!rows.length) return;
@@ -281,7 +282,7 @@ const requestLine = (() => {
 
   // Sent: the form goes; what was asked for stays on the page.
   function renderSent(body, req, msg) {
-    stopPreview();
+    if (previewKey && body.contains(previewKey)) stopPreview();
     body.replaceChildren();
     const done = el('div', 'rq-sent');
     done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
