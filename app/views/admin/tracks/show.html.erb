@@ -34,6 +34,9 @@
       <button type="submit" class="btn-key btn-key-go">Re-render</button>
     <% end %>
   </section>
+  <% if @payload.present? %>
+    <%= button_to "Remix", remix_admin_track_path(@song), class: "btn-key", form: { class: "remix-form" } %>
+  <% end %>
 <% end %>
 
 <section class="track-section">
@@ -76,9 +79,10 @@
     <h3>Re-renders</h3>
     <table>
       <% @rerenders.each do |job| %>
+        <% take = job.done? && job.show&.tracks&.min_by(&:position) %>
         <tr>
           <td><%= local_time(job.started_at || job.created_at) %></td>
-          <td><a href="<%= admin_generation_path(job) %>"><%= job.options['instructions'] %></a></td>
+          <td><a href="<%= take ? admin_track_path(take) : admin_generation_path(job) %>"><%= job.options['instructions'] || "Remix" %></a></td>
           <td><span class="status-badge status-<%= job.status %>"><%= job.status %></span></td>
         </tr>
       <% end %>

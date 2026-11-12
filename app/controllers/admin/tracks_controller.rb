@@ -13,7 +13,8 @@ module Admin
       @plays = BroadcastSegment.joins(:track).where('broadcast_segments.starts_at <= ?', Time.current)
                                .where('COALESCE(tracks.origin_track_id, tracks.id) = ?', @song.id)
       @mine = Vote.find_by(voter: Vote::ADMIN, track_id: @song.id)&.value
-      @rerenders = GenerationJob.where("options->>'kind' = 'rerender' AND options->>'track_id' = ?", @song.id.to_s).recent
+      @rerenders = GenerationJob.where("options->>'kind' IN ('rerender', 'remix') AND options->>'track_id' = ?", @song.id.to_s)
+                                .includes(show: :tracks).recent
       @request = SongRequest.includes(:user).find_by(track_id: @song.id)
     end
 
@@ -57,6 +58,19 @@ module Admin
       return redirect_to admin_requests_path, notice: "Re-rendering #{song.artist} — #{song.title}" if params[:inline].present?
 
       redirect_to admin_generation_path(job)
+    end
+
+    # A new take of the song: same sound, lyrics, tempo, key and length, a new
+    # render as a song of its own. The original stays as it is.
+    def remix
+      song = Track.find(params[:id]).song
+      return redirect_to admin_track_path(song), alert: 'No prompt log to remix from.' if song.prompt_log['payload'].blank?
+
+      job = GenerationJob.create!(slot: 'remix', track_count: 1, status: :pending,
+                                  options: { 'kind' => 'remix', 'track_id' => song.id,
+                                             'show_name' => "#{song.artist} — #{song.title}" })
+      RerenderTrackJob.perform_later(job.id)
+      redirect_to admin_track_path(song), notice: "Remix queued: a new take of #{song.artist} — #{song.title}."
     end
 
     # The station's own like: a vote from "admin" on the song, counted with

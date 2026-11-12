@@ -5,6 +5,7 @@ import json
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -570,6 +571,152 @@ def request_block(request: dict) -> str:
     return block + "The station's genre rules win over anything the listener asked for."
 
 
+# A caption that describes a voice. ACE-Step only voices lyric lines, so a
+# voice in the caption with an all-[Instrumental] lyric never makes a sound.
+VOICE_RE = re.compile(
+    r"\b(voices?|vocals?|vocoded|vocoder|spoken|speaks?|speaking|sings?|singing|sung|whisper\w*|"
+    r"barked|barks?|chant\w*|narrat\w*|announcer|talk(s|ing)? over|"
+    r"murmur(?:s|ing)?|mutter(?:s|ing)?|mumbl(?:e|es|ing)|shout(?:s|ing)?|"
+    r"yell(?:s|ing)?|scream(?:s|ing)?|recit(?:e|es|ed)|reads? aloud)\b",
+    re.IGNORECASE,
+)
+NO_VOICE_RE = re.compile(
+    r"\b(?:no|without|zero|free of|instrumental only)\b"
+    r"(?:(?![,.;\-–—]|\b(?:just|only)\b).)*",
+    re.IGNORECASE,
+)
+MIN_VOICE_LINES = 3
+
+
+def describes_voice(caption: str) -> bool:
+    text = NO_VOICE_RE.sub("", caption or "")
+    return bool(VOICE_RE.search(text))
+
+
+def sung_lines(lyrics: str) -> list[str]:
+    """The lines ACE-Step voices: everything that isn't a [Tag]."""
+    lines = (line.strip() for line in str(lyrics or "").splitlines())
+    return [line for line in lines if line and not re.fullmatch(r"\[[^\]]*\]", line)]
+
+
+def voice_stabs(lyrics: str, title: str, artist: str) -> str:
+    """Sparse stabs from the lines the song already has, then its title and
+    artist, spread over the sections with [Instrumental] between."""
+    lines = sung_lines(lyrics)
+    for extra in (title, artist, title):
+        if len(lines) >= MIN_VOICE_LINES:
+            break
+        if extra:
+            lines.append(extra)
+    while len(lines) < MIN_VOICE_LINES:
+        lines.append("Signal received")
+    sections = ["[Intro]", "[Verse]", "[Bridge]", "[Outro]"]
+    out = ["[Intro]", "[Instrumental]"]
+    for i, line in enumerate(lines):
+        out += [sections[min(i + 1, len(sections) - 1)], line, "[Instrumental]"]
+    return "\n".join(out)
+
+
+def lyric_text(value) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = re.sub(r"^```\w*\n?|\n?```$", "", value.strip()).strip()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        if text.startswith(("{", "[{")):
+            return ""
+    else:
+        if not isinstance(data, dict) or not isinstance(data.get("lyrics"), str):
+            return ""
+        text = data["lyrics"].strip()
+    if any(re.match(r'^\s*(?:[{}]|["\']?[\w]+["\']?\s*:)', line) for line in text.splitlines()):
+        return ""
+    return text
+
+
+def ensure_voice(song: dict) -> dict:
+    """A caption with a voice gets lyrics the voice can say: the DJ is asked
+    once more, and short stabs fill in if it still writes too few lines."""
+    caption = str(song.get("caption") or "")
+    original = song.get("lyrics") if isinstance(song.get("lyrics"), str) else ""
+    if not describes_voice(caption):
+        return song
+    if len(sung_lines(original)) >= MIN_VOICE_LINES:
+        return {**song, "lyrics": original}
+    print("  Caption has a voice but the lyrics barely use it; asking for vocal lines...", flush=True)
+    lyrics = ""
+    try:
+        reply = call_llm(
+            "Write only song lyrics, without JSON or commentary.",
+            f"This track's sound description has a voice in it:\n{caption}\n\n"
+            f"Its lyrics:\n{song.get('lyrics') or '[Instrumental]'}\n\n"
+            "ACE-Step only voices lyric lines, so as written the voice never speaks. Rewrite the lyrics: "
+            f"{MIN_VOICE_LINES} to 6 short lines spread over a few sections, said the way the caption describes "
+            "the voice, with [Instrumental] between them. Keep any lines already there. "
+            "Output only the lyrics, no JSON, no commentary.",
+        )
+        lyrics = lyric_text(reply)
+    except SystemExit:
+        pass
+    remaining = sung_lines(lyrics)
+    for line in sung_lines(original):
+        if line in remaining:
+            remaining.remove(line)
+        else:
+            lyrics = ""
+            break
+    if len(sung_lines(lyrics)) < MIN_VOICE_LINES:
+        lyrics = voice_stabs(original, str(song.get("title") or ""), str(song.get("artist") or ""))
+    return {**song, "lyrics": lyrics}
+
+
+def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
+    song = ensure_voice(take["payload"])
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    for attempt in range(3):
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        show_dir = OUTPUT_DIR / f"remix-{stamp}"
+        try:
+            show_dir.mkdir()
+            break
+        except FileExistsError:
+            if attempt == 2:
+                raise
+            time.sleep(1)
+    stem = f"01-{slugify(song['artist'] + ' - ' + song['title'])}-dead-internet-radio"
+    dest = show_dir / f"{stem}.mp3"
+    try:
+        (show_dir / "prompts").mkdir()
+        (show_dir / "show.json").write_text(json.dumps({
+            "show_name": f"{song['artist']} — {song['title']}", "dj_name": dj_name or "", "kind": "remix"
+        }, indent=2))
+        (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
+            "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp}
+        }, indent=2))
+        ok, err = check_ace_step_health()
+        if not ok:
+            raise RuntimeError(f"ACE-Step not reachable ({err})")
+        emit_progress({"type": "track_start", "number": 1, "total": 1,
+                       "title": song["title"], "artist": song["artist"]})
+        task = call_ace_step(song)
+        result = poll_ace_step(task, track_number=1, total_tracks=1, estimated_duration=song["duration"])
+        download_audio(json.loads(result["result"])[0]["file"], dest)
+        if not dest.exists() or dest.stat().st_size < 1000:
+            raise RuntimeError("Render produced no audio")
+    except (Exception, SystemExit):
+        if not any(show_dir.glob("*.wav")):
+            shutil.rmtree(show_dir, ignore_errors=True)
+        raise
+    finally:
+        if stop_after:
+            stop_ace_step()
+    emit_progress({"type": "track_done", "number": 1, "total": 1,
+                   "title": song["title"], "artist": song["artist"], "file": str(dest)})
+    print(f"Show folder: {show_dir}")
+    print(f"Spec: {json.dumps({k: song.get(k) for k in ('caption', 'lyrics', 'bpm', 'keyscale', 'duration')})}")
+
+
 def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
     """The DJ reads a listener request on air. Falls back to a plain read."""
     who, title, artist = request["requester"], request["title"], request["artist"]
@@ -616,6 +763,9 @@ def main():
         sys.exit(1)
 
     slot = " ".join(args.slot)
+    if slot.startswith("remix {"):
+        render_take(json.loads(slot[len("remix "):]), args.dj_name, args.stop_ace_step)
+        return
 
     # A listener request is a one-track show: the DJ reads the request, then it plays.
     request = json.loads(Path(args.request_json).read_text()) if args.request_json else None
@@ -823,6 +973,7 @@ def main():
                 f"Guidance:\n"
                 f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
                 f"- When vocals are present, sparse and atmospheric.\n"
+                f"- When a caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                 f"- Vary the sonic palette across the set.\n\n"
                 f"Output a JSON array of {args.tracks} objects, each with: "
                 f"title, artist, caption, lyrics, bpm, keyscale, duration."
@@ -873,6 +1024,7 @@ def main():
                     "\n\nGuidance:\n"
                     "- Keep vocals to a minimum. Not all tracks need vocals.\n"
                     "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
+                    "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                     "- The genre the slot or brief asks for wins; follow the DJ lessons so it never turns cheesy. Every track has drums, 90 BPM or more.\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
                     f"{avoid}"
@@ -893,6 +1045,7 @@ def main():
         # --- Process tracks (shared between batch and per-track) ---
         lengths = spread_lengths([song.get("duration") for song in songs])
         for i, song in enumerate(songs, 1):
+            song.update(ensure_voice(song))
             song["duration"] = lengths[i - 1]
             track_prompt = song.pop("_prompt", dj_input)
 
@@ -996,6 +1149,14 @@ def main():
                 if expected.exists():
                     print(f"  Track {i} already exists, skipping ACE-Step", flush=True)
                     continue
+
+            if args.resume_dir:
+                song = ensure_voice(song)
+                prompt_path = show_prompts_dir / f"{i:02d}-{slugify(display_name)}-dead-internet-radio.prompt.json"
+                if prompt_path.exists():
+                    prompt_data = json.loads(prompt_path.read_text())
+                    prompt_data["payload"] = song
+                    prompt_path.write_text(json.dumps(prompt_data, indent=2))
 
             emit_progress({"type": "track_start", "number": i, "total": total,
                            "title": t["title"], "artist": t["artist"]})

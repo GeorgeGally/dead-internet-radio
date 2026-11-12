@@ -47,6 +47,7 @@ Rails.application.routes.draw do
     get "artists/:name", to: "artists#show", as: :artist, constraints: { name: %r{[^/]+} }
     resources :tracks, only: [:show, :destroy] do
       post :rerender, on: :member
+      post :remix, on: :member
       post :like, on: :member
       get :swap_options, on: :member
       post :swap, on: :member

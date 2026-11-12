@@ -10,8 +10,8 @@ class Show < ApplicationRecord
   scope :completed, -> { where(status: :complete) }
   # Everything a listener can browse. Interludes are the station ID clips
   # between shows, not shows.
-  scope :programmes, -> { completed.where.not(kind: "interlude") }
-  # Requests render on their own but only ever air inside a set.
+  scope :programmes, -> { completed.where.not(kind: %w[interlude remix]) }
+  # Requests and remixes render on their own but only ever air inside a set.
   scope :airable, -> { programmes.where.not(kind: "request") }
   scope :recent, -> { order(Arel.sql("generated_at DESC NULLS LAST, id DESC")) }
 

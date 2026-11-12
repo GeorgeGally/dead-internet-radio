@@ -6,10 +6,14 @@ length from the notes; ACE-Step renders it again. The new audio takes the old
 file's name, and the old audio and prompt log move to <show>/.replaced/, so
 nothing is lost and the show keeps its track order.
 
-    python rerender.py --track-json tmp/rerenders/rerender-1.json [--stop-ace-step]
+    python rerender.py --track-json tmp/rerenders/rerender-1.json [--stop-ace-step] [--take]
 
 The track JSON: {"file": "output/<show>/<NN-name>.mp3", "artist", "title",
-"instructions"}. Prints "Rerendered: <file>" and "Spec: <json>" at the end.
+"instructions", "dj_name"}. Prints "Rerendered: <file>" and "Spec: <json>" at the end.
+
+--take is a remix: the same caption, lyrics, tempo, key and length rendered
+again as a new song in its own folder, output/remix-<stamp>/ (printed as
+"Show folder: <dir>"). The original is not touched; missing vocal lines may be added to the take.
 """
 import argparse
 import json
@@ -27,6 +31,7 @@ def main():
     parser = argparse.ArgumentParser(description="Re-render one Dead Internet Radio song with notes")
     parser.add_argument("--track-json", required=True)
     parser.add_argument("--stop-ace-step", action="store_true", help="Stop ACE-Step after rendering")
+    parser.add_argument("--take", action="store_true", help="Render the same song again as a new track")
     args = parser.parse_args()
 
     spec = json.loads(Path(args.track_json).read_text())
@@ -38,6 +43,9 @@ def main():
     log = json.loads(log_path.read_text()) if log_path.exists() else {}
     old = log.get("payload") or {}
     notes = str(spec.get("instructions") or "").strip()
+    if args.take:
+        take(spec, src, old, args.stop_ace_step)
+        return
 
     print(f"1. Producer rewriting {spec['artist']} — {spec['title']}...", flush=True)
     print(f"   Notes: {notes}")
@@ -64,27 +72,10 @@ def main():
     print(f"   {song['bpm']} BPM, {song['keyscale']}, {song['duration']}s")
     print(f"   {song['caption']}")
 
-    ok, err = g.check_ace_step_health()
-    if not ok:
-        print(f"ACE-Step not reachable ({err})", file=sys.stderr)
-        sys.exit(1)
-
-    g.emit_progress({"type": "track_start", "number": 1, "total": 1,
-                     "title": song["title"], "artist": song["artist"]})
-    print("2. Sending to ACE-Step...", flush=True)
-    task_id = g.call_ace_step(song)
-    result = g.poll_ace_step(task_id, track_number=1, total_tracks=1, estimated_duration=song["duration"])
-    audio_path = json.loads(result["result"])[0]["file"]
-
     # Render to a temporary name first: the old file only moves once the new
     # one is safely on disk.
     fresh = src.with_name(f".rerender-{src.name}")
-    g.download_audio(audio_path, fresh)
-    if args.stop_ace_step:
-        g.stop_ace_step()
-    if not fresh.exists() or fresh.stat().st_size < 1000:
-        print("Render produced no audio", file=sys.stderr)
-        sys.exit(1)
+    render(song, fresh, args.stop_ace_step)
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     replaced = src.parent / ".replaced"
@@ -102,6 +93,37 @@ def main():
                      "title": song["title"], "artist": song["artist"], "file": str(src)})
     print(f"Rerendered: {src}")
     print(f"Spec: {json.dumps(song)}")
+
+
+def render(song: dict, dest: Path, stop_ace_step: bool):
+    """ACE-Step renders the song to dest; exits if it can't."""
+    ok, err = g.check_ace_step_health()
+    if not ok:
+        print(f"ACE-Step not reachable ({err})", file=sys.stderr)
+        sys.exit(1)
+
+    g.emit_progress({"type": "track_start", "number": 1, "total": 1,
+                     "title": song["title"], "artist": song["artist"]})
+    print("2. Sending to ACE-Step...", flush=True)
+    task_id = g.call_ace_step(song)
+    result = g.poll_ace_step(task_id, track_number=1, total_tracks=1, estimated_duration=song["duration"])
+    audio_path = json.loads(result["result"])[0]["file"]
+    g.download_audio(audio_path, dest)
+    if stop_ace_step:
+        g.stop_ace_step()
+    if not dest.exists() or dest.stat().st_size < 1000:
+        print("Render produced no audio", file=sys.stderr)
+        sys.exit(1)
+
+
+def take(spec: dict, src: Path, old: dict, stop_ace_step: bool):
+    """A new take of the song in a folder of its own; the original stays."""
+    if not old.get("caption"):
+        print(f"No prompt log beside {src}: nothing to remix from", file=sys.stderr)
+        sys.exit(1)
+    song = {**old, "title": spec["title"], "artist": spec["artist"],
+            "lyrics": old.get("lyrics") or "[Instrumental]"}
+    g.render_take({"payload": song, "file": str(src)}, spec.get("dj_name"), stop_ace_step)
 
 
 if __name__ == "__main__":

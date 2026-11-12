@@ -33,8 +33,10 @@ module Admin
     def retry
       @job = GenerationJob.find(params[:id])
       if @job.failed? || (@job.running? && @job.started_at < 1.hour.ago)
-        @job.update!(status: :pending, started_at: nil, completed_at: nil, output_log: nil)
-        { 'set' => BuildSetJob, 'rerender' => RerenderTrackJob }.fetch(@job.options&.dig('kind'), GenerateShowJob).perform_later(@job.id)
+        options = @job.options || {}
+        options = options.except('on_pc', 'take') if options['kind'] == 'remix'
+        @job.update!(status: :pending, started_at: nil, completed_at: nil, output_log: nil, options: options)
+        { 'set' => BuildSetJob, 'rerender' => RerenderTrackJob, 'remix' => RerenderTrackJob }.fetch(@job.options&.dig('kind'), GenerateShowJob).perform_later(@job.id)
         redirect_to admin_generation_path(@job), notice: 'Generation restarted (resuming from existing state)'
       elsif @job.running?
         redirect_to admin_generation_path(@job), alert: 'Job is still running'
