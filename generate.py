@@ -29,10 +29,11 @@ SHORT_TRACK_CHANCE = 1 / 20
 LONG_TRACK_CHANCE = 1 / 50
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
-# Comma-separated list of models to try in order. Hand-picked free models get
-# removed from OpenRouter (HTTP 404) and sank whole shows, so the station runs
-# on `openrouter/free`, which routes to whichever free model is up.
+# Comma-separated models are tried in order, with the free router as a fallback
+# when it is not already configured; pinned free models can disappear.
 OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
+if "openrouter/free" not in OPENROUTER_MODELS:
+    OPENROUTER_MODELS.append("openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
