@@ -64,7 +64,8 @@
 <% if @log['brief'].present? || @log['user_prompt'].present? %>
   <details class="track-section">
     <summary>What the DJ was asked</summary>
-    <% if @log['brief'].present? %><h4>Brief</h4><pre class="lyrics"><%= @log['brief'] %></pre><% end %>
+    <%# The brief is already inside the prompt the DJ received; show it on its own only when it is not. %>
+    <% if @log['brief'].present? && !@log['user_prompt'].to_s.include?(@log['brief'].to_s.strip.first(120)) %><h4>Brief</h4><pre class="lyrics"><%= @log['brief'] %></pre><% end %>
     <% if @log['user_prompt'].present? %><h4>Prompt</h4><pre class="lyrics"><%= @log['user_prompt'] %></pre><% end %>
   </details>
 <% end %>
