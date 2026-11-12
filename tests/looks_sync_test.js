@@ -9,6 +9,41 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.resolve(__dirname, '../public/visuals/gallery.js'), 'utf8');
 const look = (cutoff) => ({ fx: { slots: [], focus: 0 }, cutoff, resonance: 50, strength: 100 });
 
+// Just enough of an element for the slot message.
+function fakeElement() {
+  const classes = new Set();
+  return {
+    id: '',
+    hidden: false,
+    textContent: '',
+    children: [],
+    get className() { return [...classes].join(' '); },
+    set className(v) { classes.clear(); String(v).split(' ').filter(Boolean).forEach((c) => classes.add(c)); },
+    classList: {
+      add: (c) => classes.add(c),
+      remove: (c) => classes.delete(c),
+      toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
+      contains: (c) => classes.has(c),
+    },
+    setAttribute() {},
+    appendChild(child) { this.children.push(child); return child; },
+  };
+}
+
+// The slot message as a listener sees it: which keys show, and their state.
+function message(box) {
+  const part = (cls) => box.children.find((c) => c.classList.contains(cls));
+  const keys = part('pads');
+  const line = part('line');
+  return {
+    shown: box.classList.contains('show'),
+    fail: box.classList.contains('fail'),
+    keys: keys.hidden ? null : keys.children.map((k) => k.className.replace('pad', '').trim() || '-').join(' '),
+    name: line.children[0].textContent,
+    words: keys.hidden ? part('band').textContent : line.children[1].textContent,
+  };
+}
+
 // Runs gallery.js against a fake browser. `server` answers each fetch.
 function player({ stored = {}, server }) {
   const store = new Map(Object.entries(stored));
@@ -17,7 +52,7 @@ function player({ stored = {}, server }) {
   const activated = [];
   const restored = {};
   let currentId = 'bouncy';
-  const box = { classList: { add() {}, remove() {} }, textContent: '' };
+  let box = null;
   const sandbox = {
     console,
     setTimeout() { return 0; },
@@ -33,23 +68,23 @@ function player({ stored = {}, server }) {
       querySelector: () => null,
       querySelectorAll: () => [],
       getElementById: (id) => (id === 'save-slot-ctrl' ? saveCtrl : null),
-      createElement: () => box,
-      body: { appendChild() {} },
+      createElement: () => fakeElement(),
+      body: { appendChild(el) { if (el.id === 'saved-box') box = el; } },
     },
     canvasFilters: { list: () => [], getState: () => ({ slots: [], focus: 0 }), setState(state) { restored.fx = state; } },
-    visuals: { getCurrentId: () => currentId, activate(id) { activated.push(id); currentId = id; return true; } },
+    visuals: { getCurrentId: () => currentId, getCurrentName: () => currentId === 'bouncy' ? 'Bouncy' : 'Other', activate(id) { activated.push(id); currentId = id; return true; } },
     _restoreCutoff: (v) => { restored.cutoff = v; },
     _restoreResonance: (v) => { restored.resonance = v; },
     _restoreStrength: (v) => { restored.strength = v; },
     async fetch(url, options = {}) {
       calls.push({ url, method: options.method || 'GET', body: options.body && JSON.parse(options.body), headers: options.headers });
-      const answer = server(url, options.method || 'GET', calls.at(-1).body);
+      const answer = await server(url, options.method || 'GET', calls.at(-1).body);
       return { ok: answer !== null, json: async () => answer };
     },
   };
   sandbox.window = sandbox;
   vm.runInNewContext(`${source}\nthis.gallery = gallery;`, sandbox);
-  return { gallery: sandbox.gallery, store, calls, saveCtrl, box, activated, restored };
+  return { gallery: sandbox.gallery, store, calls, saveCtrl, message: () => message(box), teletext: () => box.classList.contains('teletext'), activated, restored, activate: sandbox.visuals.activate };
 }
 
 test('a listener takes the server looks and cannot save', async () => {
@@ -95,7 +130,8 @@ test('an admin browser uploads old looks once and confirms in one line', async (
   assert.equal(merge.headers['X-CSRF-Token'], 't');
   assert.equal(p.saveCtrl.hidden, false);
   assert.equal(p.gallery.slotHasPreset('bouncy', 7), true);
-  assert.equal(p.box.textContent, '1 look uploaded');
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: '1 look uploaded' });
+  assert.equal(p.teletext(), true);
   assert.equal(p.store.has('visual-slot-presets'), false);
   assert.equal(p.store.get('visual-slot-presets-sent'), old);
 
@@ -126,7 +162,7 @@ test('a save reaches the server before it counts', async () => {
 
   await p.gallery.saveSlot(4);
   assert.equal(p.gallery.slotHasPreset('bouncy', 4), false);
-  assert.equal(p.box.textContent, 'Slot 4 not saved');
+  assert.deepEqual(p.message(), { shown: true, fail: true, keys: '- - - now - - - - -', name: 'Bouncy', words: 'Slot 4 not saved' });
 
   accept = true;
   await p.gallery.saveSlot(4);
@@ -135,6 +171,47 @@ test('a save reaches the server before it counts', async () => {
   assert.equal(put.url, '/api/v1/looks/bouncy/4');
   assert.equal(p.gallery.slotHasPreset('bouncy', 4), true);
   assert.equal(JSON.parse(p.store.get('visual-looks-cache')).bouncy[4].cutoff, 130);
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: '- - - now - - - - -', name: 'Bouncy', words: 'Slot 4 saved' });
+  assert.equal(p.teletext(), false);
+});
+
+test('a saved slot shows the keypad: filled slots cream, the new one orange, the artwork named', async () => {
+  const p = player({
+    server: (url, method) => (method === 'GET' ? { looks: { bouncy: { 1: look(10), 5: look(50) }, other: { 2: look(20) } }, admin: true, csrf_token: 't' } : {}),
+  });
+  await p.gallery.syncLooks();
+  await p.gallery.saveSlot(3);
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: 'full - now - full - - - -', name: 'Bouncy', words: 'Slot 3 saved' });
+});
+
+test('a pending save reports the artwork it started with on success and failure', async () => {
+  for (const succeeds of [true, false]) {
+    let finish;
+    const p = player({
+      server: (url, method) => method === 'GET'
+        ? { looks: { bouncy: { 1: look(10) }, other: { 2: look(20) } }, admin: true }
+        : new Promise((resolve) => { finish = resolve; }),
+    });
+    await p.gallery.syncLooks();
+    const saving = p.gallery.saveSlot(3);
+    p.activate('other');
+    finish(succeeds ? {} : null);
+    await saving;
+    assert.deepEqual(p.message(), {
+      shown: true, fail: !succeeds, keys: 'full - now - - - - - -',
+      name: 'Bouncy', words: succeeds ? 'Slot 3 saved' : 'Slot 3 not saved',
+    });
+  }
+});
+
+test('turning the slot dial names the slot without the keypad', async () => {
+  const p = player({ server: () => ({ looks: {}, admin: false }) });
+  await p.gallery.syncLooks();
+  p.gallery.nextSlot(1);
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 1' });
+  assert.equal(p.teletext(), true);
+  p.gallery.nextSlot(-1);
+  assert.equal(p.message().words, 'Slot off');
 });
 
 test('pressing the slot dial goes round from 9 to off; turning it stops at 9', async () => {
