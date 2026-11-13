@@ -440,6 +440,10 @@ function updateTrackInfo() {
     if (trackEl) trackEl.textContent = track.title || track.caption || track.file || '—';
     if (typeof votes !== 'undefined') votes.show(track);
     if (artistEl) artistEl.textContent = track.artist || 'Dead Internet Radio';
+    window.dispatchEvent(new CustomEvent('dir:track', { detail: {
+      title: track.title || track.caption || track.file || '—',
+      artist: track.artist || 'Dead Internet Radio'
+    } }));
 
     const visName = visuals.getCurrentName ? visuals.getCurrentName() : '';
     // Filters show in the FX display, not here.

@@ -26,6 +26,8 @@ function node(tag) {
     fire(type, e = {}) { (handlers[type] || []).forEach((fn) => fn({ preventDefault() {}, target: n, ...e })); },
     append(...kids) { kids.forEach((k) => { if (typeof k === 'object') { k.parent = n; n.children.push(k); } }); },
     get childElementCount() { return n.children.length; },
+    get firstElementChild() { return n.children[0] || null; },
+    remove() { if (n.parent) n.parent.children = n.parent.children.filter((k) => k !== n); n.isConnected = false; },
     all() { return n.children.flatMap((k) => [k, ...k.all()]); },
     querySelectorAll(sel) { return n.all().filter((k) => k.classList.contains(sel.replace('.', ''))); },
     querySelector(sel) { return n.querySelectorAll(sel)[0] || null; },
@@ -35,8 +37,43 @@ function node(tag) {
   return n;
 }
 
+const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)); };
+
+// A fake clock so timed station messages can be stepped through.
+function clock(start) {
+  let now = start;
+  let seq = 0;
+  const timers = [];
+  class FakeDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  }
+  const schedule = (fn, ms = 0, every = 0) => { timers.push({ id: ++seq, fn, at: now + ms, every }); return seq; };
+  return {
+    Date: FakeDate,
+    setTimeout: (fn, ms) => schedule(fn, ms),
+    setInterval: (fn, ms) => schedule(fn, ms, ms),
+    clear(id) { const i = timers.findIndex((t) => t.id === id); if (i >= 0) timers.splice(i, 1); },
+    async advance(ms) {
+      const end = now + ms;
+      for (;;) {
+        timers.sort((a, b) => a.at - b.at);
+        const t = timers[0];
+        if (!t || t.at > end) break;
+        now = t.at;
+        if (t.every) t.at += t.every; else timers.shift();
+        t.fn();
+        await flush();
+      }
+      now = end;
+    },
+  };
+}
+
 async function signal({ signedIn = true, chatEnabled = true } = {}) {
   const body = node('body');
+  const time = clock(240000 * 1000);
+  const listeners = {};
   const posts = [];
   const opened = [];
   const sandbox = {
@@ -47,14 +84,15 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
       getElementById: () => null,
       querySelector: () => null,
     },
-    window: { addEventListener() {}, innerHeight: 800 },
+    window: { addEventListener: (type, fn) => (listeners[type] ||= []).push(fn), innerHeight: 800 },
     matchMedia: () => ({ matches: false }),
     getComputedStyle: () => ({ display: 'none' }),
     sessionStorage: { getItem: () => null },
     location: { protocol: 'https:', host: 'example.test' },
     WebSocket: function WebSocket() {},
-    setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
-    AbortController, Date, JSON, Promise,
+    setTimeout: time.setTimeout, clearTimeout: time.clear,
+    setInterval: time.setInterval, clearInterval: time.clear,
+    AbortController, Date: time.Date, JSON, Promise,
     async fetch(url, opts = {}) {
       if (opts.method === 'POST') posts.push({ url, body: opts.body });
       const data = url.endsWith('/me')
@@ -67,12 +105,16 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
-  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  await flush();
   const root = body.children[0];
   const form = root.querySelector('.signal-compose');
+  const stack = root.querySelector('.signal-stack');
   return {
-    posts, opened, form,
+    posts, opened, form, time,
     input: root.querySelector('.signal-input'),
+    lines: () => stack.children.map((line) => line.querySelector('.signal-copy').textContent),
+    safety: () => stack.children.filter((line) => line.classList.contains('signal-safety')),
+    track: (detail) => (listeners['dir:track'] || []).forEach((fn) => fn({ detail })),
   };
 }
 
@@ -122,9 +164,39 @@ test('a signed-out ordinary message asks for sign-in and posts nothing', async (
   assert.deepEqual(s.posts, []);
 });
 
-test('an ordinary message is not sent while chat is offline', async () => {
-  const s = await signal({ chatEnabled: false });
-  await submit(s, 'hello');
-  assert.deepEqual(s.posts, []);
-  assert.deepEqual(s.opened, []);
+for (const [label, state] of [['signed in', {}], ['signed out', { signedIn: false }]]) {
+  test(`an ordinary message while chat is offline says so and keeps the text (${label})`, async () => {
+    const s = await signal({ ...state, chatEnabled: false });
+    await submit(s, 'hello');
+    assert.deepEqual(s.posts, []);
+    assert.deepEqual(s.opened, []);
+    assert.equal(s.input.value, 'hello');
+    assert.deepEqual(s.lines(), ['Chat is offline']);
+    await s.time.advance(15000);
+    assert.equal(s.lines().includes('Chat is offline'), false);
+  });
+}
+
+test('each track change posts one now playing message', async () => {
+  const s = await signal();
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  assert.deepEqual(s.lines(), ['Now playing: Buffering Memories · Dead Internet Radio']);
+  s.track({ title: 'Dial Tone Lullaby', artist: 'Modem Choir' });
+  assert.deepEqual(s.lines(), [
+    'Now playing: Buffering Memories · Dead Internet Radio',
+    'Now playing: Dial Tone Lullaby · Modem Choir',
+  ]);
+});
+
+test('a bulletin arrives within seconds of the overlay showing, then every four minutes', async () => {
+  const s = await signal();
+  await s.time.advance(8000);
+  assert.equal(s.safety().length, 1);
+  const first = s.safety()[0].querySelector('.signal-copy').textContent;
+  await s.time.advance(3 * 60000);
+  assert.equal(s.safety().length, 0);
+  await s.time.advance(60000);
+  assert.equal(s.safety().length, 1);
+  assert.notEqual(s.safety()[0].querySelector('.signal-copy').textContent, first);
 });

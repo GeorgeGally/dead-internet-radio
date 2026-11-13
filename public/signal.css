@@ -141,7 +141,7 @@ body.slot-preview .signal-hearts { display: none; }
     max-height: 36vh;
     font-size: 14px;
   }
-  .signal-stack { gap: 8px; max-height: 30vh; margin-right: 33px; }
+  .signal-stack { gap: 8px; max-height: 30vh; }
   .signal-entry { padding: 6px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
