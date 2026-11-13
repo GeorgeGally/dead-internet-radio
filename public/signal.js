@@ -25,7 +25,9 @@
   const heart = make('button', 'signal-heart', '♡');
   heart.type = 'button';
   heart.setAttribute('aria-label', 'Send heart');
-  form.append(input, send, heart);
+  const plus = make('span', 'signal-plus', '+');
+  plus.setAttribute('aria-hidden', 'true');
+  form.append(plus, input, send, heart);
   // Slash commands open the station's own pages instead of posting to chat.
   const commands = {
     '/request': () => typeof requestLine !== 'undefined' && requestLine.open('request'),
@@ -57,10 +59,57 @@
       !signedIn ? 'Sign in to transmit...' : 'Transmit a message...';
     send.setAttribute('aria-label', signedIn ? 'Send transmission' : 'Sign in to transmit');
   }
-  function shortAge(created) {
-    if (!created) return '';
-    const age = Math.max(0, Math.floor((Date.now() - new Date(created).getTime()) / 60000));
-    return age < 1 ? 'now' : age < 60 ? age + 'm' : Math.floor(age / 60) + 'h';
+  // A log stamps each line with the time it was sent.
+  function clock(created) {
+    const at = created ? new Date(created) : new Date();
+    const time = isNaN(at) ? new Date() : at;
+    return String(time.getHours()).padStart(2, '0') + ':' + String(time.getMinutes()).padStart(2, '0');
+  }
+  // Each type is named by plain characters, as a terminal would.
+  const marks = { station: '((\u2022))', safety: '\u2622', request: '\u223f\u223f', chat: '@', system: '!' };
+
+  // Lines climb at a steady pace from the composer to mid-page; the stack's mask
+  // fades them from a quarter of the screen height. A new line waits, unseen,
+  // until the line above has climbed clear of it, so lines never overlap.
+  const SPEED = 30, GAP = 8, QUEUE = 6;
+  const climbing = [], waiting = [];
+  let ticking = false, lastTick = 0;
+  const moving = () => !reduced.matches && typeof requestAnimationFrame === 'function';
+  function forget(line) {
+    const at = climbing.findIndex(c => c.line === line);
+    if (at >= 0) climbing.splice(at, 1);
+    const queued = waiting.findIndex(w => w.line === line);
+    if (queued >= 0) waiting.splice(queued, 1);
+  }
+  function climb(now) {
+    const dt = Math.min(0.1, Math.max(0, (now - lastTick) / 1000));
+    lastTick = now;
+    // A burst climbs faster rather than backing up behind the composer.
+    const speed = SPEED * (1 + Math.min(2, waiting.length * 0.5));
+    const top = stack.clientHeight + 60;
+    for (let i = climbing.length - 1; i >= 0; i--) {
+      const c = climbing[i];
+      c.d += speed * dt;
+      c.line.style.transform = 'translateY(' + (-c.d).toFixed(1) + 'px)';
+      if (c.d > top) c.drop();
+    }
+    const next = waiting[0];
+    const above = climbing[climbing.length - 1];
+    if (next && (!above || above.d >= next.line.offsetHeight + GAP)) {
+      waiting.shift();
+      next.line.classList.remove('signal-waiting');
+      climbing.push(next);
+    }
+    if (climbing.length || waiting.length) requestAnimationFrame(climb);
+    else ticking = false;
+  }
+  function enqueue(line, drop) {
+    line.classList.add('signal-waiting');
+    waiting.push({ line, d: 0, drop });
+    while (waiting.length > QUEUE) waiting[0].drop();
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(now => { lastTick = now; climb(now); });
   }
   function add(event, initial = false) {
     if (!event || !event.id || hidden()) return;
@@ -70,6 +119,7 @@
     if (seen.size > 800) seen.clear();
 
     const fictional = event.kind === 'station' && event.body?.startsWith('DIR FICTION /');
+    const kind = fictional ? 'safety' : event.kind || 'station';
     const line = make('div', 'signal-entry signal-' + (event.kind || 'station') +
       (fictional ? ' signal-safety' : ''));
     line.dataset.signalId = key;
@@ -88,43 +138,56 @@
         body.append(bar);
       } else body.append(document.createTextNode(part));
     });
-    line.append(label, document.createTextNode(' '), body);
-    if (event.created_at) line.append(make('span', 'signal-age', shortAge(event.created_at)));
+    if (event.action) {
+      const act = make('a', 'signal-action', event.action.label);
+      act.href = '#';
+      act.addEventListener('click', e => { e.preventDefault(); event.action.run(); });
+      body.append(document.createTextNode(' '), act);
+    }
+    const mark = make('span', 'signal-mark', marks[kind] || marks.station);
+    mark.setAttribute('aria-hidden', 'true');
+    const words = make('span', 'signal-text');
+    words.append(label, document.createTextNode(' '), body);
+    line.append(mark, words, make('span', 'signal-time', clock(event.created_at)));
     entries.set(key, line);
     stack.append(line);
-    while (stack.childElementCount > maxVisible) {
-      const old = stack.firstElementChild;
-      entries.delete(old.dataset.signalId);
-      old.remove();
-    }
     // Old messages may provide atmosphere on entry but never remain as chat history.
-    // Each line drifts up the stack to mid-screen, fading as it climbs, then goes.
-    const lifetime = initial ? 10000 : event.kind === 'chat' ? 10000 : 12000;
-    line.style.setProperty('--signal-life', lifetime + 'ms');
     const drop = () => {
+      forget(line);
       if (!line.isConnected) return;
       entries.delete(key);
       line.remove();
     };
-    setTimeout(drop, reduced.matches ? lifetime : lifetime * 3);
-    if (!reduced.matches) line.addEventListener('animationend', e => { if (e.animationName === 'signal-rise') drop(); });
+    if (moving()) {
+      enqueue(line, drop);
+      setTimeout(drop, 90000); // a line that never gets to climb still goes
+    } else {
+      while (stack.childElementCount > maxVisible) {
+        const old = stack.firstElementChild;
+        entries.delete(old.dataset.signalId);
+        old.remove();
+      }
+      setTimeout(drop, initial || event.kind === 'chat' ? 10000 : 12000);
+    }
   }
   function remove(id) {
     const key = String(id);
-    entries.get(key)?.remove();
+    const line = entries.get(key);
+    if (line) { forget(line); line.remove(); }
     entries.delete(key);
     seen.add(key);
   }
   function floatHeart() {
     if (hidden()) return;
     const node = make('span', 'signal-floating-heart', '♥');
-    // Every heart rises from the heart key, with a little drift so a burst spreads.
+    // Every heart rises from the heart key and drifts aside so a burst spreads.
     const from = heart.getBoundingClientRect();
-    node.style.left = (from.left + from.width / 2 + (Math.random() - 0.5) * 24) + 'px';
+    node.style.left = (from.left + from.width / 2) + 'px';
     node.style.top = (from.top + from.height / 2) + 'px';
-    node.style.fontSize = (30 + Math.random() * 18) + 'px';
+    node.style.fontSize = (28 + Math.random() * 12).toFixed(0) + 'px';
+    node.style.setProperty('--signal-drift', ((Math.random() - 0.65) * 80).toFixed(0) + 'px');
     hearts.append(node);
-    setTimeout(() => node.remove(), reduced.matches ? 100 : 2400);
+    setTimeout(() => node.remove(), reduced.matches ? 100 : 3200);
   }
   async function updateCityHandle() {
     if (geoDone || !signedIn || !handle.startsWith('Somewhere_')) return;
@@ -245,10 +308,10 @@
     const slot = Math.floor(Date.now() / 240000);
     add({ id: 'bulletin:' + slot, kind: 'station', body: fiction[slot % fiction.length] });
   }
-  // Every notice is a station line in the stream, never a browser popup.
-  function notice(body) {
+  // Every notice is a system line in the stream, never a browser popup.
+  function notice(body, action) {
     input.blur();
-    add({ id: 'local:' + ++localId, kind: 'station', body });
+    add({ id: 'local:' + ++localId, kind: 'system', body, action });
   }
   function requestSignIn() {
     if (!chatEnabled || signedIn) return;
@@ -263,23 +326,25 @@
     run();
     return true;
   }
+  const COMMANDS = 'Commands: /request, /tracklist';
   input.addEventListener('focus', () => { if (signedIn) profile(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (runCommand(input.value)) return;
     if (/^\/\S*$/.test(input.value.trim())) {
       input.value = '';
-      notice('Commands: /request, /tracklist');
+      notice(COMMANDS);
       return;
     }
     if (hidden()) return;
     if (!chatEnabled) {
-      if (input.value.trim()) notice('Chat is offline');
+      if (input.value.trim()) notice('Chat is offline. Your message wasn\u2019t sent.');
       return;
     }
     if (!signedIn) {
-      if (input.value.trim()) notice('Sign in to transmit');
-      return requestSignIn();
+      // Opening the card at once would hide the stream and this line with it.
+      if (!input.value.trim()) return requestSignIn();
+      return notice('Sign in to transmit. Your message is kept.', { label: 'Sign in', run: requestSignIn });
     }
     const body = input.value.trim();
     if (!body) return;
@@ -335,7 +400,11 @@
   // A visit starts with the intro / closed deck. Resume activity after it exits.
   setInterval(() => {
     const nowHidden = hidden();
-    if (!wasHidden && nowHidden) { entries.forEach(line => line.remove()); entries.clear(); }
+    if (!wasHidden && nowHidden) {
+      entries.forEach(line => line.remove());
+      entries.clear();
+      climbing.length = waiting.length = 0;
+    }
     if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);

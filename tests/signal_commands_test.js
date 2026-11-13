@@ -14,7 +14,7 @@ function node(tag) {
   const handlers = {};
   const n = {
     tag, children: [], parent: null, attrs: {}, dataset: {}, style: { props: {}, setProperty(k, v) { n.style.props[k] = v; } },
-    textContent: '', value: '', hidden: false, isConnected: true,
+    textContent: '', value: '', hidden: false, isConnected: true, offsetHeight: 30, clientHeight: 300,
     get className() { return [...classes].join(' '); },
     set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
     classList: {
@@ -70,7 +70,7 @@ function clock(start) {
   };
 }
 
-async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true } = {}) {
+async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true, frames } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
@@ -109,6 +109,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, r
     requestLine: { open: (reason) => opened.push(['request', reason]) },
     setList: { open: () => opened.push(['tracklist']) },
   };
+  if (frames) sandbox.requestAnimationFrame = (fn) => frames.push(fn);
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   await flush();
@@ -164,11 +165,17 @@ test('ordinary messages still transmit', async () => {
   assert.deepEqual(s.opened, []);
 });
 
-test('a signed-out ordinary message asks for sign-in and posts nothing', async () => {
+test('a signed-out ordinary message posts nothing', async () => {
   const s = await signal({ signedIn: false });
   await submit(s, 'hello');
-  assert.deepEqual(s.opened, [['request', 'chat']]);
   assert.deepEqual(s.posts, []);
+});
+
+test('a signed-out empty submit opens sign-in', async () => {
+  const s = await signal({ signedIn: false });
+  await submit(s, '');
+  assert.deepEqual(s.opened, [['request', 'chat']]);
+  assert.deepEqual(s.lines(), []);
 });
 
 for (const [label, state] of [['signed in', {}], ['signed out', { signedIn: false }]]) {
@@ -179,9 +186,10 @@ for (const [label, state] of [['signed in', {}], ['signed out', { signedIn: fals
     assert.deepEqual(s.opened, []);
     assert.equal(s.input.value, 'hello');
     assert.equal(s.input.blurred, true);
-    assert.deepEqual(s.lines(), ['Chat is offline']);
+    assert.deepEqual(s.lines(), ['Chat is offline. Your message wasn\u2019t sent.']);
+    assert.equal(s.stack().children[0].classList.contains('signal-system'), true);
     await s.time.advance(15000);
-    assert.equal(s.lines().includes('Chat is offline'), false);
+    assert.equal(s.lines().includes('Chat is offline. Your message wasn\u2019t sent.'), false);
   });
 }
 
@@ -245,10 +253,26 @@ test('a refused transmission is told in the stream, not a popup', async () => {
   assert.equal(s.input.value, 'something nasty');
 });
 
-test('a signed-out message is answered in the stream as well as opening sign-in', async () => {
+test('a signed-out message is answered in the stream and its Sign in link opens sign-in', async () => {
   const s = await signal({ signedIn: false });
   await submit(s, 'hello');
-  assert.deepEqual(s.lines(), ['Sign in to transmit']);
+  // Opening the card would hide the overlay and clear the line before anyone reads it.
+  assert.deepEqual(s.opened, []);
+  assert.deepEqual(s.lines(), ['Sign in to transmit. Your message is kept.']);
+  assert.equal(s.input.value, 'hello');
+  const action = s.copies()[0].querySelector('.signal-action');
+  assert.equal(action.textContent, 'Sign in');
+  action.fire('click');
+  assert.deepEqual(s.opened, [['request', 'chat']]);
+});
+
+test('each line is a clock, a type mark and the words', async () => {
+  const s = await signal();
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  assert.equal(line.querySelector('.signal-mark').textContent, '((\u2022))');
+  assert.match(line.querySelector('.signal-time').textContent, /^\d\d:\d\d$/);
+  assert.equal(line.querySelector('.signal-label').textContent, 'DIR');
 });
 
 test('blacked-out words are drawn as redaction bars', async () => {
@@ -269,16 +293,54 @@ test('an unknown slash command lists the commands in the stream and posts nothin
   assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
 });
 
-test('a line stays until its climb finishes, however late the climb runs', async () => {
-  const s = await signal({ reducedMotion: false });
+// Steps the climb one 1/30 s frame at a time.
+function frameClock(frames) {
+  let t = 0;
+  return (n = 1) => { for (let i = 0; i < n; i++) frames.splice(0).forEach((fn) => fn((t += 1000 / 30))); };
+}
+
+test('lines climb in turn: a line waits unseen until the one above has climbed clear', async () => {
+  const frames = [];
+  const s = await signal({ reducedMotion: false, frames });
+  const step = frameClock(frames);
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  s.track({ title: 'Dial Tone Lullaby', artist: 'Modem Choir' });
+  const [first, second] = s.stack().children;
+  step(2);
+  assert.equal(first.classList.contains('signal-waiting'), false);
+  assert.equal(second.classList.contains('signal-waiting'), true);
+  // 30px tall plus an 8px gap: the second line enters once the first has climbed 38px.
+  for (let i = 0; i < 200 && second.classList.contains('signal-waiting'); i++) step();
+  assert.equal(second.classList.contains('signal-waiting'), false);
+  assert.ok(-parseFloat(first.style.transform.match(/-?[\d.]+/)[0]) >= 38);
+});
+
+test('a burst queues at most six lines and the page keeps running', async () => {
+  const frames = [];
+  const s = await signal({ reducedMotion: false, frames });
+  const step = frameClock(frames);
+  for (let i = 0; i < 9; i++) s.track({ title: 'Track ' + i, artist: 'Modem Choir' });
+  const waiting = s.stack().children.filter((c) => c.classList.contains('signal-waiting'));
+  assert.equal(waiting.length, 6);
+  assert.equal(s.stack().children.length, 6);
+  step();
+  assert.equal(s.stack().children.filter((c) => c.classList.contains('signal-waiting')).length, 5);
+  for (let i = 0; i < 2000 && frames.length; i++) step();
+  assert.equal(s.stack().children.length, 0);
+  assert.equal(frames.length, 0);
+});
+
+test('a line leaves once it has climbed past the middle of the page', async () => {
+  const frames = [];
+  const s = await signal({ reducedMotion: false, frames });
+  const step = frameClock(frames);
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   const [line] = s.stack().children;
-  await s.time.advance(30000);
+  step(30 * 11); // 300px lane plus 60px at 30px a second takes 12 seconds
   assert.equal(line.isConnected, true);
-  line.fire('animationend', { animationName: 'signal-appear' });
-  assert.equal(line.isConnected, true);
-  line.fire('animationend', { animationName: 'signal-rise' });
-  assert.equal(s.lines().some((l) => l.startsWith('Now playing')), false);
+  step(30 * 2);
+  assert.equal(line.isConnected, false);
+  assert.equal(frames.length, 0); // nothing left to climb, so the loop stops
 });
 
 test('with reduced motion a station line leaves after its 12 second life', async () => {
@@ -302,10 +364,13 @@ test('a line on screen when the overlay hides is gone when it shows again', asyn
   assert.deepEqual(s.lines().filter((l) => l.startsWith('Now playing')), []);
 });
 
-test('a line whose climb never finishes still leaves within three of its lifetimes', async () => {
-  const s = await signal({ reducedMotion: false });
+test('a line that never gets to climb still goes', async () => {
+  const frames = [];
+  const s = await signal({ reducedMotion: false, frames });
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   const [line] = s.stack().children;
-  await s.time.advance(36000);
+  await s.time.advance(89999);
+  assert.equal(line.isConnected, true);
+  await s.time.advance(1);
   assert.equal(line.isConnected, false);
 });
