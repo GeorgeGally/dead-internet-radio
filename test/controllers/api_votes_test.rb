@@ -40,6 +40,28 @@ class ApiVotesTest < ActionDispatch::IntegrationTest
     assert_equal [0, 0], counts
   end
 
+  test "signed in to the admin, the browser's player votes are the station's" do
+    vote(@song, -1)
+    assert_equal 1, Vote.where.not(voter: Vote::ADMIN).count
+
+    ENV["ADMIN_USERNAME"] = "admin"
+    ENV["ADMIN_PASSWORD"] = "secret"
+    post admin_login_path, params: { username: "admin", password: "secret" }
+    get admin_path
+
+    assert_equal [Vote::ADMIN], Vote.pluck(:voter)
+    assert_equal(-1, @song.reload.station_vote)
+    assert_equal [0, 1], counts
+
+    vote(@song, 1)
+    assert_equal [Vote::ADMIN], Vote.pluck(:voter)
+    assert_equal 1, @song.reload.station_vote
+    assert_equal [1, 0], counts
+  ensure
+    ENV.delete("ADMIN_USERNAME")
+    ENV.delete("ADMIN_PASSWORD")
+  end
+
   private
 
   def vote(track, value)

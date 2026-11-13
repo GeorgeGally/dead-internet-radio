@@ -1,5 +1,7 @@
 class Track < ApplicationRecord
   STATION_ARTIST = "Dead Internet Radio"
+  # The station's own vote (the admin's) counts as this many listeners'.
+  STATION_WEIGHT = 3
 
   belongs_to :show
   # A set plays songs from the library: its track points back at the song.
@@ -15,8 +17,11 @@ class Track < ApplicationRecord
   # a set's copy of a song.
   scope :songs, -> {
     joins(:show).merge(Show.completed).where(origin_track_id: nil)
-      .where.not(artist: [nil, "", STATION_ARTIST]).where("tracks.duration_ms > 0")
+      .where.not(artist: [ nil, "", STATION_ARTIST ]).where("tracks.duration_ms > 0")
   }
+  # SQL twins of vetoed?.
+  scope :not_vetoed, -> { where(vetoed_at: nil).where.not(station_vote: -1) }
+  scope :vetoed, -> { where.not(vetoed_at: nil).or(where(station_vote: -1)) }
 
   # The library song this track plays (itself, unless it's in a set).
   def song
@@ -32,12 +37,30 @@ class Track < ApplicationRecord
   end
 
   def score
-    up_votes - down_votes
+    weighted_up - weighted_down
   end
 
   # Listeners turned it away: it leaves rotation, and its sound becomes a lesson.
   def retired?
-    down_votes >= 3 && down_votes > 2 * up_votes
+    weighted_down >= 3 && weighted_down > 2 * weighted_up
+  end
+
+  # The station turned it away for good: vetoed, or disliked by the station.
+  def vetoed?
+    vetoed_at.present? || station_vote == -1
+  end
+
+  # Out of rotation: no new set picks it unless a listener asked for it.
+  def kept_out?
+    vetoed? || retired?
+  end
+
+  def weighted_up
+    up_votes + (STATION_WEIGHT - 1) * station_vote.clamp(0, 1)
+  end
+
+  def weighted_down
+    down_votes + (STATION_WEIGHT - 1) * -station_vote.clamp(-1, 0)
   end
 
   # Resolve the DB-stored path to the canonical master on disk.

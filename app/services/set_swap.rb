@@ -8,14 +8,14 @@ class SetSwap
 
   def self.candidates(track, query: nil, limit: 8)
     in_set = track.show.tracks.where.not(origin_track_id: nil).pluck(:origin_track_id)
-    songs = Track.songs.includes(:show).where(vetoed_at: nil).where.not(id: in_set)
+    songs = Track.songs.includes(:show).not_vetoed.where.not(id: in_set)
     if query.present?
       q = "%#{Track.sanitize_sql_like(query)}%"
       songs = songs.where("tracks.artist ILIKE ? OR tracks.title ILIKE ?", q, q)
     end
     songs = songs.to_a.select { |s| s.audio_path && File.exist?(s.audio_path) }.reject(&:retired?)
     bpm = track.bpm.to_f
-    songs.sort_by { |s| [bpm.positive? && s.bpm ? (s.bpm.to_f - bpm).abs : 999, -s.score, -s.id] }.first(limit)
+    songs.sort_by { |s| [ bpm.positive? && s.bpm ? (s.bpm.to_f - bpm).abs : 999, -s.score, -s.id ] }.first(limit)
   end
 
   def self.swap!(track, song, at: Time.current)
@@ -28,7 +28,7 @@ class SetSwap
     name = "#{prefix}-#{File.basename(song.audio_path).sub(/\A\d+-/, '')}"
     replaced = dir.join(".replaced")
     FileUtils.mkdir_p(replaced)
-    [track.audio_path, track.voiceover_path].compact.each do |path|
+    [ track.audio_path, track.voiceover_path ].compact.each do |path|
       FileUtils.mv(path, replaced.join(path.basename)) if File.exist?(path)
     end
     dest = dir.join(name)
@@ -57,7 +57,7 @@ class SetSwap
 
     BroadcastSegment.where(track: track).where("starts_at > ?", at).order(starts_at: :desc).each do |seg|
       BroadcastSegment.where("starts_at >= ?", seg.ends_at)
-        .update_all(["starts_at = starts_at + make_interval(secs => ?), ends_at = ends_at + make_interval(secs => ?)", delta, delta])
+        .update_all([ "starts_at = starts_at + make_interval(secs => ?), ends_at = ends_at + make_interval(secs => ?)", delta, delta ])
       seg.update_columns(ends_at: seg.ends_at + delta)
     end
   end

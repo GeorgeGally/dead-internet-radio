@@ -18,7 +18,13 @@ module Api
 
       private
 
+      # Signed in to the admin, the browser votes as the station.
       def voter
+        if session[:admin] == true
+          Vote.claim_for_station!(cookies.signed[:dir_voter])
+          return Vote::ADMIN
+        end
+
         cookies.signed[:dir_voter].presence || SecureRandom.uuid.tap do |id|
           cookies.signed[:dir_voter] = { value: id, expires: 10.years, httponly: true, same_site: :lax }
         end

@@ -20,18 +20,18 @@ module Library
 
   # The candidates for a new set: requests first (they must play), then the
   # songs listeners like, then the ones that haven't aired for longest.
-  # Vetoed, retired and recently aired songs sit out.
+  # Vetoed (a station dislike is a veto), retired and recently aired songs sit out.
   def self.pool(at: Time.current)
     aired = last_aired
     waiting = SongRequest.waiting_for_set.includes(:user).index_by(&:track_id)
-    songs = self.songs.where(vetoed_at: nil).to_a.select { |t| t.audio_path && File.exist?(t.audio_path) }
+    songs = self.songs.not_vetoed.to_a.select { |t| t.audio_path && File.exist?(t.audio_path) }
     songs.reject! { |t| t.retired? && !waiting.key?(t.id) }
     # While the library is small the station loops it, so every song has aired
     # or is booked within hours: the resting ones then join at the back,
     # longest unheard first, rather than leaving the DJ nothing.
     resting, fresh = songs.partition { |t| !waiting.key?(t.id) && aired[t.id] && aired[t.id] > at - RESTING }
-    fresh.sort_by! { |t| [waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id] }
-    resting.sort_by! { |t| [aired[t.id], t.id] } if fresh.size < MIN_FRESH
+    fresh.sort_by! { |t| [ waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id ] }
+    resting.sort_by! { |t| [ aired[t.id], t.id ] } if fresh.size < MIN_FRESH
     pool = fresh.size < MIN_FRESH ? fresh + resting : fresh
     pool.first(POOL_SIZE).map { |t| candidate(t, waiting[t.id]) }
   end
@@ -50,8 +50,8 @@ module Library
       request: request && {
         id: request.id,
         requester: RequestFilter.blocked?(request.user.first_name) ? "a listener" : request.user.first_name,
-        note: request.note,
-      },
+        note: request.note
+      }
     }
   end
 
@@ -59,10 +59,10 @@ module Library
   def self.taste
     songs = self.songs.where("up_votes + down_votes > 0").to_a
     liked = songs.select { |t| t.score >= 2 }.sort_by { |t| -t.score }.first(6)
-    turned = (songs.select(&:retired?) + Track.songs.where.not(vetoed_at: nil).to_a).uniq.first(6)
+    turned = (songs + self.songs.vetoed.to_a).uniq.select(&:kept_out?).sort_by { |t| -t.id }.first(6)
     {
       liked: liked.filter_map(&:sound_caption),
-      turned_away: turned.filter_map(&:sound_caption),
+      turned_away: turned.filter_map(&:sound_caption)
     }
   end
 
