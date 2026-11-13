@@ -59,8 +59,9 @@ visuals.register('eyes', (() => {
         }
       }
 
-      // Fill the viewport on every aspect ratio, including portrait phones.
-      // Preserve the GIF's proportions and crop the overflow symmetrically.
+      // Full-bleed at all sizes. Portrait phones frame the left-hand eye:
+      // position the first quarter of the wide GIF at the screen centre.
+      // Desktop stays centre-cropped; neither path distorts the source.
       function drawFrame(i, alpha) {
         const f = frames[i];
         const d = p.pixelDensity();
@@ -71,7 +72,8 @@ visuals.register('eyes', (() => {
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = alpha;
-        ctx.drawImage(f, ((p.width - w) / 2) * d, ((p.height - h) / 2) * d, w * d, h * d);
+        const x = p.width < p.height ? p.width / 2 - w * 0.25 : (p.width - w) / 2;
+        ctx.drawImage(f, x * d, ((p.height - h) / 2) * d, w * d, h * d);
         ctx.restore();
       }
 
