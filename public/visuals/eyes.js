@@ -59,18 +59,19 @@ visuals.register('eyes', (() => {
         }
       }
 
-      // The GIF's height fills the screen; the sides crop on anything wider
-      // than its 500:210 frame and letterbox on anything narrower.
+      // Fill the viewport on every aspect ratio, including portrait phones.
+      // Preserve the GIF's proportions and crop the overflow symmetrically.
       function drawFrame(i, alpha) {
         const f = frames[i];
         const d = p.pixelDensity();
-        const s = p.height / f.height;
+        const s = Math.max(p.width / f.width, p.height / f.height);
         const w = f.width * s;
+        const h = f.height * s;
         const ctx = p.drawingContext;
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = alpha;
-        ctx.drawImage(f, ((p.width - w) / 2) * d, 0, w * d, p.height * d);
+        ctx.drawImage(f, ((p.width - w) / 2) * d, ((p.height - h) / 2) * d, w * d, h * d);
         ctx.restore();
       }
 
