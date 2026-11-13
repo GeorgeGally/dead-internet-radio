@@ -10,13 +10,11 @@ module SignalFilter
   SWEAR_STEMS = %w[fuck shit].freeze
   SWEARS = %w[
     cunt wank twat bitch bastard piss crap damn goddamn dammit goddammit bollocks
-    arse arsehole ass asshole dumbass jackass slut whore
+    arse arsehole asshole dumbass jackass slut whore dickhead cocks cocksucker pricks
   ].freeze
-  SWEAR_NOUNS = %w[dick cock prick].freeze
   SWEAR_PATTERN = /
     [[:alnum:]]*(?:#{SWEAR_STEMS.join("|")})[[:alnum:]]* |
-    (?<![[:alnum:]])(?:#{SWEARS.join("|")})(?:s|es|ed|er|ers|ing|in|y|py|ty|ting|ted|head|heads)?(?![[:alnum:]]) |
-    (?<![[:alnum:]])(?:#{SWEAR_NOUNS.join("|")})(?:s|head|heads)?(?![[:alnum:]])
+    (?<![[:alnum:]])(?:#{SWEARS.join("|")})(?:s|es|ed|er|ers|ing|in|y|py|ty|ting|ted|head|heads)?(?![[:alnum:]])
   /ix
   SYSTEM = <<~PROMPT.freeze
     You moderate the text-only public chat of Dead Internet Radio, a fictional

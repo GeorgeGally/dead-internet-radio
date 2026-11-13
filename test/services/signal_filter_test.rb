@@ -59,7 +59,7 @@ class SignalFilterTest < ActiveSupport::TestCase
 
   test "listed swearing is blacked out when the model omits redact" do
     replies('{"allow":true}')
-    assert_equal "the bass is ███", SignalFilter.check("the bass is ass").body
+    assert_equal "the bass is ████", SignalFilter.check("the bass is crap").body
   end
 
   test "the model can black out words beyond the list" do
@@ -94,6 +94,19 @@ class SignalFilterTest < ActiveSupport::TestCase
     replies('{"allow":true,"redact":[]}')
     text = "nightwatch saltwater Atwater swanky swank Scunthorpe cocked pricked cocker Dicky"
     assert_equal text, SignalFilter.check(text).body
+  end
+
+  test "names and words that are only sometimes swears pass unless the model flags them" do
+    replies('{"allow":true,"redact":[]}', '{"allow":true,"redact":[]}', '{"allow":true,"redact":["dick"]}')
+    assert_equal "Philip K. Dick wrote this", SignalFilter.check("Philip K. Dick wrote this").body
+    assert_equal "Moby Dick", SignalFilter.check("Moby Dick").body
+    assert_equal "don't be a ████", SignalFilter.check("don't be a dick").body
+  end
+
+  test "unambiguous forms of those words are always blacked out" do
+    replies('{"allow":true,"redact":[]}')
+    assert_equal "████████ █████ ██████████ ██████",
+      SignalFilter.check("dickhead cocks cocksucker pricks").body
   end
 
   test "an unparseable reply falls through to the free router" do
