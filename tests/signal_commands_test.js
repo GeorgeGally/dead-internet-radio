@@ -13,7 +13,8 @@ function node(tag) {
   const classes = new Set();
   const handlers = {};
   const n = {
-    tag, children: [], parent: null, attrs: {}, dataset: {}, style: { setProperty() {} },
+    tag, children: [], parent: null, attrs: {}, dataset: {}, style: { props: {}, setProperty(k, v) { n.style.props[k] = v; } },
+    getBoundingClientRect: () => ({ height: 0 }),
     textContent: '', value: '', hidden: false, isConnected: true,
     get className() { return [...classes].join(' '); },
     set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
@@ -116,7 +117,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } 
   const form = root.querySelector('.signal-compose');
   const stack = root.querySelector('.signal-stack');
   return {
-    posts, opened, form, time, page,
+    posts, opened, form, time, page, stack: () => stack,
     input: root.querySelector('.signal-input'),
     lines: () => stack.children.map((line) => line.querySelector('.signal-copy').textContent),
     copies: () => stack.children.map((line) => line.querySelector('.signal-copy')),
@@ -267,4 +268,15 @@ test('an unknown slash command lists the commands in the stream and posts nothin
   assert.deepEqual(s.opened, []);
   assert.equal(s.input.value, '');
   assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
+});
+
+test('a line added while the stack is hidden still climbs for its whole life', async () => {
+  const s = await signal();
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  assert.deepEqual(line.style.props, { '--signal-life': '12000ms' });
+  await s.time.advance(11999);
+  assert.equal(line.isConnected, true);
+  await s.time.advance(1);
+  assert.equal(line.isConnected, false);
 });

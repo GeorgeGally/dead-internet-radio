@@ -100,10 +100,7 @@
     // Old messages may provide atmosphere on entry but never remain as chat history.
     // Each line drifts up the stack to mid-screen, fading as it climbs, then goes.
     const lifetime = initial ? 10000 : event.kind === 'chat' ? 10000 : 12000;
-    if (!reduced.matches) {
-      line.style.setProperty('--signal-rise', -(stack.getBoundingClientRect?.().height || 0) + 'px');
-      line.style.setProperty('--signal-life', lifetime + 'ms');
-    }
+    line.style.setProperty('--signal-life', lifetime + 'ms');
     setTimeout(() => {
       if (!line.isConnected) return;
       entries.delete(key);

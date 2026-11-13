@@ -26,6 +26,7 @@
   overflow: clip; /* not a scroll container, so flex-end overflow drops off the top */
   flex: 1;
   min-height: 0;
+  container-type: size;
   /* Solid for the first quarter of the climb, then a long, slow fade to nothing at mid-page. */
   -webkit-mask-image: linear-gradient(to top, #000, #000 25%, transparent);
   mask-image: linear-gradient(to top, #000, #000 25%, transparent);
@@ -116,7 +117,7 @@
 /* The stack's mask does the fading; the line only climbs. */
 @keyframes signal-rise {
   from { transform: translateY(0); }
-  to { transform: translateY(var(--signal-rise, 0px)); }
+  to { transform: translateY(-100cqh); }
 }
 @keyframes signal-heart-up {
   from { opacity: 0; transform: translateY(0) scale(.6); }
@@ -147,5 +148,6 @@ body.slot-preview .signal-hearts { display: none; }
   .signal-entry { padding: 6px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .signal-entry, .signal-floating-heart { animation-duration: 1ms; }
+  .signal-entry { animation: signal-appear 1ms both; }
+  .signal-floating-heart { animation-duration: 1ms; }
 }
