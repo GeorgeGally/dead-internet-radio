@@ -1939,8 +1939,49 @@ body.slot-preview #info-btn { display: none !important; }
   min-height: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   background: #0c0c0c;
   padding: 12px 18px 14px;
+  transform: translateY(-24px);
+  transition: transform 0.25s ease-in;
+}
+
+/* The panel slides on under the deck, then the set arrives line by line. */
+#set-page.open .set-column {
+  transform: none;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.set-head {
+  flex: 0 0 auto;
+  margin: 0 0 18px;
+  font-size: 17px;
+  font-weight: 500;
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.set-head:empty { display: none; }
+
+.set-head.enter,
+.set-row.enter {
+  opacity: 0;
+  animation: set-row-in 0.22s ease-out forwards;
+}
+
+@keyframes set-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #set-page,
+  #set-page.open,
+  .set-column,
+  #set-page.open .set-column { transition: none; transform: none; }
+  .set-head.enter,
+  .set-row.enter { animation: none; opacity: 1; }
 }
 
 .set-rows {
@@ -1983,7 +2024,7 @@ body.slot-preview #info-btn { display: none !important; }
 body.set-open #info-btn,
 body.set-open #info-card { display: none; }
 
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1439px) {
   .set-column {
     width: 881px;
     max-width: 100%;
