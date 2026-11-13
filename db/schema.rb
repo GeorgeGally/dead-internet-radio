@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_06_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -126,6 +126,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_06_120000) do
     t.index ["show_id"], name: "index_tracks_on_show_id"
   end
 
+  create_table "transmissions", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "kind", null: false
+    t.string "body", limit: 240, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_transmissions_on_created_at"
+    t.index ["user_id", "created_at"], name: "index_transmissions_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_transmissions_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "google_uid", null: false
     t.string "email"
@@ -168,6 +180,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_06_120000) do
   add_foreign_key "generation_jobs", "shows"
   add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", on_delete: :nullify
+  add_foreign_key "transmissions", "users"
   add_foreign_key "song_requests", "users"
   add_foreign_key "tracks", "shows"
   add_foreign_key "tracks", "tracks", column: "origin_track_id", on_delete: :nullify

@@ -1,6 +1,7 @@
 # A listener who signed in with Google to make requests. Listening never needs one.
 class User < ApplicationRecord
   has_many :song_requests, dependent: :destroy
+  has_many :transmissions, dependent: :nullify
 
   validates :google_uid, presence: true, uniqueness: true
 

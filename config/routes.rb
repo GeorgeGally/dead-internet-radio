@@ -20,6 +20,9 @@ Rails.application.routes.draw do
       post "session/google", to: "sessions#google"
       delete "session", to: "sessions#destroy"
       resources :requests, only: [:index, :create]
+      resources :transmissions, only: [:index, :create] do
+        post :heart, on: :collection
+      end
       post "songs/:song_id/vote", to: "votes#create", as: :song_vote
     end
   end
@@ -77,6 +80,8 @@ Rails.application.routes.draw do
     get "ace_step/status", to: "ace_step#status", as: :ace_step_status
     post "ace_step/toggle", to: "ace_step#toggle", as: :ace_step_toggle
   end
+
+  mount ActionCable.server => "/cable"
 
   # root serves static public/index.html (the player)
 end
