@@ -97,10 +97,10 @@
   border: 0;
   background: transparent;
   color: #e9e6df;
-  cursor: pointer;
   font-family: "IBM Plex Mono", monospace;
 }
-.signal-plus { width: 34px; font-size: 22px; color: #ff5a1f; }
+.signal-send, .signal-heart { cursor: pointer; }
+.signal-plus { width: 34px; font-size: 22px; line-height: 34px; text-align: center; color: #ff5a1f; }
 .signal-send { width: 30px; font-size: 20px; translate: 0 -2px; }
 .signal-send:disabled { opacity: .4; }
 .signal-heart { width: 32px; font-size: 24px; }

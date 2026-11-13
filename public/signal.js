@@ -25,9 +25,8 @@
   const heart = make('button', 'signal-heart', '♡');
   heart.type = 'button';
   heart.setAttribute('aria-label', 'Send heart');
-  const plus = make('button', 'signal-plus', '+');
-  plus.type = 'button';
-  plus.setAttribute('aria-label', 'Show commands');
+  const plus = make('span', 'signal-plus', '+');
+  plus.setAttribute('aria-hidden', 'true');
   form.append(plus, input, send, heart);
   // Slash commands open the station's own pages instead of posting to chat.
   const commands = {
@@ -79,7 +78,7 @@
   function forget(line) {
     const at = climbing.findIndex(c => c.line === line);
     if (at >= 0) climbing.splice(at, 1);
-    const queued = waiting.indexOf(line);
+    const queued = waiting.findIndex(w => w.line === line);
     if (queued >= 0) waiting.splice(queued, 1);
   }
   function climb(now) {
@@ -328,7 +327,6 @@
     return true;
   }
   const COMMANDS = 'Commands: /request, /tracklist';
-  plus.addEventListener('click', () => notice(COMMANDS));
   input.addEventListener('focus', () => { if (signedIn) profile(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();

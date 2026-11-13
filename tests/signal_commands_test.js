@@ -258,13 +258,6 @@ test('a signed-out message is answered in the stream as well as opening sign-in'
   assert.deepEqual(s.opened, [['request', 'chat'], ['request', 'chat']]);
 });
 
-test('the plus key lists the commands in the stream', async () => {
-  const s = await signal();
-  s.form.querySelector('.signal-plus').fire('click');
-  assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
-  assert.deepEqual(s.posts, []);
-});
-
 test('each line is a clock, a type mark and the words', async () => {
   const s = await signal();
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
@@ -312,6 +305,21 @@ test('lines climb in turn: a line waits unseen until the one above has climbed c
   for (let i = 0; i < 200 && second.classList.contains('signal-waiting'); i++) step();
   assert.equal(second.classList.contains('signal-waiting'), false);
   assert.ok(-parseFloat(first.style.transform.match(/-?[\d.]+/)[0]) >= 38);
+});
+
+test('a burst queues at most six lines and the page keeps running', async () => {
+  const frames = [];
+  const s = await signal({ reducedMotion: false, frames });
+  const step = frameClock(frames);
+  for (let i = 0; i < 9; i++) s.track({ title: 'Track ' + i, artist: 'Modem Choir' });
+  const waiting = s.stack().children.filter((c) => c.classList.contains('signal-waiting'));
+  assert.equal(waiting.length, 6);
+  assert.equal(s.stack().children.length, 6);
+  step();
+  assert.equal(s.stack().children.filter((c) => c.classList.contains('signal-waiting')).length, 5);
+  for (let i = 0; i < 2000 && frames.length; i++) step();
+  assert.equal(s.stack().children.length, 0);
+  assert.equal(frames.length, 0);
 });
 
 test('a line leaves once it has climbed past the middle of the page', async () => {
