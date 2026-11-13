@@ -67,6 +67,23 @@ class SignalFilterTest < ActiveSupport::TestCase
     assert_equal "████ this, the bass is ████", SignalFilter.check("frak this, the bass is shit").body
   end
 
+  test "swears glued into other words are blacked out" do
+    replies('{"allow":true,"redact":[]}')
+    assert_equal "████████ ████████ ███████████ ███████",
+      SignalFilter.check("fuckface shitshow bullshitter fuckwit").body
+  end
+
+  test "goddamn, dammit and crappy are blacked out" do
+    replies('{"allow":true,"redact":[]}')
+    assert_equal "███████ ██████ this ██████ mix", SignalFilter.check("goddamn dammit this crappy mix").body
+  end
+
+  test "ordinary words containing a mild swear stay intact" do
+    replies('{"allow":true,"redact":[]}')
+    text = "class act: a peacock reading Dickens"
+    assert_equal text, SignalFilter.check(text).body
+  end
+
   test "an unparseable reply falls through to the free router" do
     replies("I cannot comply.", '{"allow":true,"redact":[]}')
     assert_equal :allowed, SignalFilter.check("hello").status

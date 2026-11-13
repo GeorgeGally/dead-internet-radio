@@ -39,11 +39,18 @@ module FictionBulletins
     Write #{BATCH} new ones. Respond with exactly one JSON object: {"lines":["...","..."]}
   PROMPT
 
+  # Development jobs run in a separate worker process, so the lines live on disk there.
+  def self.store
+    return Rails.cache unless Rails.env.development?
+
+    @store ||= ActiveSupport::Cache::FileStore.new(Rails.root.join("tmp/cache/fiction-bulletins"))
+  end
+
   # Never waits on a model: serves what is cached and refreshes stale lines in the background.
   def self.current
-    cached = Rails.cache.read(CACHE_KEY)
+    cached = store.read(CACHE_KEY)
     if cached.nil? || cached[:at] < FRESH_FOR.ago
-      if Rails.cache.write(LOCK_KEY, true, expires_in: 5.minutes, unless_exist: true)
+      if store.write(LOCK_KEY, true, expires_in: 5.minutes, unless_exist: true)
         RefreshFictionBulletinsJob.perform_later
       end
     end
@@ -53,7 +60,7 @@ module FictionBulletins
   # A failed refresh keeps serving the old lines; the lock's expiry spaces out retries.
   def self.refresh!
     lines = generate
-    Rails.cache.write(CACHE_KEY, { at: Time.current, lines: lines }) if lines.any?
+    store.write(CACHE_KEY, { at: Time.current, lines: lines }) if lines.any?
     lines
   end
 
