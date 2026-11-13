@@ -199,7 +199,6 @@ test('a track that changes while the overlay is hidden is announced once it show
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   assert.deepEqual(s.lines(), []);
   s.page.modalOpen = false;
-  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   await s.time.advance(1500);
   assert.deepEqual(s.lines().filter((l) => l.startsWith('Now playing')),
     ['Now playing: Buffering Memories · Dead Internet Radio']);
