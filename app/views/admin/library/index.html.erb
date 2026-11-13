@@ -47,7 +47,7 @@
       <td><%= local_time(@last_aired[song.id]) %></td>
       <td class="like-cell"><%= render "admin/tracks/like", song: song, mine: @mine[song.id] %></td>
       <td><%= @requests[song.id]&.user&.name %></td>
-      <td><%= button_to(song.vetoed_at ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-quiet") %></td>
+      <td><%= button_to(song.vetoed? ? "Unveto" : "Veto", veto_admin_library_path(song), class: "btn-quiet") %></td>
     </tr>
   <% end %>
 </table>

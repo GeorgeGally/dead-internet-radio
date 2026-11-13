@@ -109,4 +109,20 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     post like_admin_track_path(@track), params: { value: -1 }, as: :json
     assert_equal({ "up" => 0, "down" => 1, "mine" => -1 }, response.parsed_body)
   end
+
+  test "unveto of a song the station disliked brings it back" do
+    @track.update!(duration_ms: 60_000)
+    post like_admin_track_path(@track), params: { value: -1 }, as: :json
+
+    post veto_admin_library_path(@track)
+    assert_equal "Bad Track: back in the library", flash[:notice]
+    @track.reload
+    refute @track.vetoed?
+    assert_equal 0, @track.station_vote
+    assert_includes Track.not_vetoed, @track
+
+    post veto_admin_library_path(@track)
+    assert_equal "Bad Track: vetoed", flash[:notice]
+    assert @track.reload.vetoed_at
+  end
 end

@@ -19,10 +19,15 @@ module Admin
     # Veto is for good: the song never airs again. Pressed again, it comes back.
     def veto
       song = Track.songs.find(params[:id])
-      song.update!(vetoed_at: song.vetoed_at ? nil : Time.current)
-      Station.drop_upcoming(song.id) if song.vetoed_at
+      if song.vetoed?
+        song.update!(vetoed_at: nil)
+        Vote.cast!(song, Vote::ADMIN, 0) if song.station_vote == -1
+      else
+        song.update!(vetoed_at: Time.current)
+        Station.drop_upcoming(song.id)
+      end
       Library.write_taste!
-      redirect_to admin_library_index_path, notice: "#{song.title}: #{song.vetoed_at ? 'vetoed' : 'back in the library'}"
+      redirect_to admin_library_index_path, notice: "#{song.title}: #{song.vetoed? ? 'vetoed' : 'back in the library'}"
     end
 
     def build
