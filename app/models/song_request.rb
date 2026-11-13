@@ -35,16 +35,16 @@ class SongRequest < ApplicationRecord
 
     label = { "accepted" => "requested", "generating" => "generating", "scheduled" => "scheduled" }.fetch(status)
     Transmission.create!(kind: "request", user: user,
-      body: "#{user.first_name} #{label}: #{title} — #{artist}",
-      metadata: { request_id: id, phase: status })
+      body: "#{user.public_handle} #{label}: #{title} — #{artist}",
+      metadata: { request_id: id, phase: status, handle: user.public_handle })
   rescue StandardError => e
     Rails.logger.error("Request #{id} signal failed: #{e.class}: #{e.message}")
   end
 
   def render_spec
-    # The name comes from Google, unscreened: it is read on air, so screen it.
-    name = user.first_name
-    { requester: RequestFilter.blocked?(name) ? "a listener" : name,
+    # The DJ reads the listener handle, never the Google name.
+    name = user.public_handle
+    { requester: name,
       artist: artist, title: title, note: note, seed_caption: matched_track&.sound_caption }
   end
 

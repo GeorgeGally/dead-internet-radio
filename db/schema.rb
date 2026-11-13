@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_13_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_123000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -130,21 +130,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_120000) do
     t.bigint "user_id"
     t.string "kind", null: false
     t.string "body", limit: 240, null: false
+    t.datetime "hidden_at"
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["created_at"], name: "index_transmissions_on_created_at"
+    t.index ["hidden_at"], name: "index_transmissions_on_hidden_at"
     t.index ["user_id", "created_at"], name: "index_transmissions_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_transmissions_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
+    t.string "signal_handle"
+    t.datetime "signal_muted_until"
     t.string "google_uid", null: false
     t.string "email"
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
+    t.index ["signal_handle"], name: "index_users_on_signal_handle", unique: true
   end
 
   create_table "visual_looks", force: :cascade do |t|

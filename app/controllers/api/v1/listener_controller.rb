@@ -33,6 +33,7 @@ module Api
         {
           signed_in: current_user.present?,
           name: current_user&.first_name,
+          public_handle: current_user&.public_handle,
           requests_left: current_user ? current_user.requests_left_today : SongRequest::DAILY_LIMIT,
           google_client_id: GoogleIdToken.client_id,
           csrf_token: form_authenticity_token,
