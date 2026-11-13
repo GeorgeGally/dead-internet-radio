@@ -1,13 +1,13 @@
 'use strict';
 
-// A green-phosphor terminal title card for whatever is on air: the song title
+// A dim cream terminal title card for whatever is on air: the song title
 // glows in the middle, the artist sits huge and faint behind it, the corners
 // are level meters. Cutoff sets the grid, resonance glitches the headline,
 // sensitivity sets how hard it all answers the music.
 visuals.register('system_terminal', (() => {
   let myP5 = null;
 
-  const GREEN = [61, 255, 90];
+  const INK = [196, 188, 168]; // dim cream
   const FONT = '"IBM Plex Mono", "Courier New", monospace';
 
   function trackInfo() {
@@ -53,7 +53,7 @@ visuals.register('system_terminal', (() => {
       let hitGlow = 0;
       let ghostShift = 0;
 
-      const rgba = (a) => `rgba(${GREEN[0]},${GREEN[1]},${GREEN[2]},${a})`;
+      const rgba = (a) => `rgba(${INK[0]},${INK[1]},${INK[2]},${a})`;
 
       p.setup = () => {
         visuals.setupP5Canvas(p);
@@ -90,7 +90,7 @@ visuals.register('system_terminal', (() => {
         for (let x = (p.width % g) / 2; x < p.width; x += g) { ctx.moveTo(x, 0); ctx.lineTo(x, p.height); }
         for (let y = (p.height % g) / 2; y < p.height; y += g) { ctx.moveTo(0, y); ctx.lineTo(p.width, y); }
         ctx.stroke();
-        ctx.strokeStyle = rgba(0.22);
+        ctx.strokeStyle = rgba(0.14);
         ctx.beginPath();
         for (let x = (p.width % g) / 2 + g; x < p.width; x += g * 2) {
           for (let y = (p.height % g) / 2 + g; y < p.height; y += g * 2) {
@@ -107,7 +107,7 @@ visuals.register('system_terminal', (() => {
         values.forEach((v, i) => {
           for (let k = 0; k < 3; k++) {
             const lit = v > (k + 1) / 4;
-            ctx.fillStyle = rgba(lit ? 0.9 : 0.15);
+            ctx.fillStyle = rgba(lit ? 0.6 : 0.1);
             const cx = x + dir * i * (cell + 3);
             ctx.fillRect(dir > 0 ? cx : cx - cell, y - k * (cell + 3) * (y > p.height / 2 ? 1 : -1), cell, cell);
           }
@@ -157,9 +157,9 @@ visuals.register('system_terminal', (() => {
         const lh = fs * 1.02;
         const top = H * 0.46 - ((lines.length - 1) * lh) / 2;
         ctx.save();
-        ctx.shadowColor = rgba(0.9);
-        ctx.shadowBlur = fs * (0.25 + a.level * 0.35 + hitGlow * 0.3);
-        ctx.fillStyle = rgba(0.85 + hitGlow * 0.15);
+        ctx.shadowColor = rgba(0.35);
+        ctx.shadowBlur = fs * (0.12 + a.level * 0.15 + hitGlow * 0.15);
+        ctx.fillStyle = rgba(0.62 + hitGlow * 0.1);
         lines.forEach((l, i) => {
           const jitter = res > 0 && Math.random() < res * 0.25 ? (Math.random() - 0.5) * fs * res : 0;
           ctx.fillText(l, W / 2 + jitter, top + i * lh);
@@ -174,7 +174,7 @@ visuals.register('system_terminal', (() => {
         const chars = Math.floor((now - typedFrom) / 45);
         const left = W / 2 - Math.min(W * 0.35, widest / 2);
         let used = 0;
-        ctx.fillStyle = rgba(0.8);
+        ctx.fillStyle = rgba(0.55);
         readout.forEach((line, i) => {
           const n = Math.max(0, Math.min(line.length, chars - used));
           used += line.length;
@@ -191,13 +191,13 @@ visuals.register('system_terminal', (() => {
         ctx.stroke();
         ctx.textAlign = 'center';
         ctx.font = `400 ${Math.round(small * 1.25)}px ${FONT}`;
-        ctx.fillStyle = rgba(0.85);
+        ctx.fillStyle = rgba(0.55);
         ctx.fillText('[ 0321.9 KHZ ]', W / 2, fy);
 
         // Status, top left.
         ctx.textAlign = 'left';
         ctx.font = `400 ${Math.round(small * 0.85)}px ${FONT}`;
-        ctx.fillStyle = rgba(0.75);
+        ctx.fillStyle = rgba(0.5);
         ['SIGNAL: ONLINE', info.show && `SHOW: ${info.show}`, `TIME: ${new Date().toTimeString().slice(0, 8)}`]
           .filter(Boolean)
           .forEach((s, i) => ctx.fillText(s, small * 1.6, small * (2 + i * 1.3)));
