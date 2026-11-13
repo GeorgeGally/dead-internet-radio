@@ -13,7 +13,7 @@ function node(tag) {
   const classes = new Set();
   const handlers = {};
   const n = {
-    tag, children: [], parent: null, attrs: {}, dataset: {}, style: { setProperty() {} },
+    tag, children: [], parent: null, attrs: {}, dataset: {}, style: { props: {}, setProperty(k, v) { n.style.props[k] = v; } },
     textContent: '', value: '', hidden: false, isConnected: true,
     get className() { return [...classes].join(' '); },
     set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
@@ -70,7 +70,7 @@ function clock(start) {
   };
 }
 
-async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } = {}) {
+async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
@@ -86,7 +86,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } 
       querySelector: () => (page.modalOpen ? {} : null),
     },
     window: { addEventListener: (type, fn) => (listeners[type] ||= []).push(fn), innerHeight: 800 },
-    matchMedia: () => ({ matches: false }),
+    matchMedia: () => ({ matches: reducedMotion }),
     getComputedStyle: () => ({ display: 'none' }),
     sessionStorage: { getItem: () => null },
     location: { protocol: 'https:', host: 'example.test' },
@@ -116,7 +116,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } 
   const form = root.querySelector('.signal-compose');
   const stack = root.querySelector('.signal-stack');
   return {
-    posts, opened, form, time, page,
+    posts, opened, form, time, page, stack: () => stack,
     input: root.querySelector('.signal-input'),
     lines: () => stack.children.map((line) => line.querySelector('.signal-copy').textContent),
     copies: () => stack.children.map((line) => line.querySelector('.signal-copy')),
@@ -138,7 +138,7 @@ const states = [
   ['signed out, chat offline', { signedIn: false, chatEnabled: false }],
 ];
 for (const [label, state] of states) {
-  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']]]) {
+  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']], ['/playlist', ['tracklist']], ['/SetList', ['tracklist']]]) {
     test(`typing ${typed.trim()} opens its page and posts nothing (${label})`, async () => {
       const s = await signal(state);
       assert.notEqual(s.input.readOnly, true);
@@ -258,4 +258,54 @@ test('blacked-out words are drawn as redaction bars', async () => {
   const bars = s.copies()[0].children.filter((c) => c.classList.contains('signal-redacted'));
   assert.equal(bars.length, 1);
   assert.equal(bars[0].textContent, '\u2588\u2588\u2588\u2588');
+});
+
+test('an unknown slash command lists the commands in the stream and posts nothing', async () => {
+  const s = await signal();
+  await submit(s, '/dance');
+  assert.deepEqual(s.posts, []);
+  assert.deepEqual(s.opened, []);
+  assert.equal(s.input.value, '');
+  assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
+});
+
+test('a line stays until its climb finishes, however late the climb runs', async () => {
+  const s = await signal({ reducedMotion: false });
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  await s.time.advance(30000);
+  assert.equal(line.isConnected, true);
+  line.fire('animationend', { animationName: 'signal-appear' });
+  assert.equal(line.isConnected, true);
+  line.fire('animationend', { animationName: 'signal-rise' });
+  assert.equal(s.lines().some((l) => l.startsWith('Now playing')), false);
+});
+
+test('with reduced motion a station line leaves after its 12 second life', async () => {
+  const s = await signal();
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  await s.time.advance(11999);
+  assert.equal(line.isConnected, true);
+  await s.time.advance(1);
+  assert.equal(line.isConnected, false);
+});
+
+test('a line on screen when the overlay hides is gone when it shows again', async () => {
+  const s = await signal({ reducedMotion: false });
+  await s.time.advance(1500);
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  s.page.modalOpen = true;
+  await s.time.advance(1500);
+  s.page.modalOpen = false;
+  await s.time.advance(1500);
+  assert.deepEqual(s.lines().filter((l) => l.startsWith('Now playing')), []);
+});
+
+test('a line whose climb never finishes still leaves within three of its lifetimes', async () => {
+  const s = await signal({ reducedMotion: false });
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  await s.time.advance(36000);
+  assert.equal(line.isConnected, false);
 });

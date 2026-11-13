@@ -28,12 +28,15 @@ module FictionBulletins
     "The comment section north of the river has been cordoned off. Do not engage.",
     "Tonight’s blackout is sponsored. Thank you for your continued attention."
   ].map { |line| PREFIX + line }.freeze
+  # The captain's favourite; always in rotation, and the lead example for the model.
+  HAZMATS = FALLBACK.first
   PROMPT = <<~PROMPT.freeze
     You write fictional public-safety bulletins for Dead Internet Radio, a station
-    broadcasting after the internet died and the humans mostly left. The voice is
-    a dry, deadpan municipal announcer for a post-human city run by servers, bots
-    and abandoned platforms. Each bulletin is one sentence or two, under #{MAX_LENGTH}
-    characters, plain text, no hashtags, no emoji, no links, no real people or brands.
+    broadcasting after the internet died and the humans mostly left. Each one is a
+    short, dry, practical public-safety warning for a ruined world, read flatly by a
+    municipal announcer: weather, hazards, closures, curfews, what to wear or avoid.
+    One sentence or two, under #{MAX_LENGTH} characters, plain text, no hashtags,
+    no emoji, no links, no real people or brands.
     Examples:
     #{FALLBACK.first(4).map { |l| "- #{l.delete_prefix(PREFIX)}" }.join("\n")}
     Write #{BATCH} new ones. Respond with exactly one JSON object: {"lines":["...","..."]}
@@ -54,7 +57,8 @@ module FictionBulletins
         RefreshFictionBulletinsJob.perform_later
       end
     end
-    cached&.dig(:lines).presence || FALLBACK
+    lines = cached&.dig(:lines).presence || FALLBACK
+    [ HAZMATS, *lines ].uniq
   end
 
   # A failed refresh keeps serving the old lines; the lock's expiry spaces out retries.

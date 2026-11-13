@@ -31,6 +31,7 @@
     '/request': () => typeof requestLine !== 'undefined' && requestLine.open('request'),
     '/tracklist': () => typeof setList !== 'undefined' && setList.open()
   };
+  commands['/playlist'] = commands['/setlist'] = commands['/tracklist'];
   root.append(stack, form);
   const hearts = make('div', 'signal-hearts');
   document.body.append(root, hearts);
@@ -97,12 +98,16 @@
       old.remove();
     }
     // Old messages may provide atmosphere on entry but never remain as chat history.
-    const lifetime = initial ? 8000 : event.kind === 'chat' ? 6500 : 8500;
-    setTimeout(() => {
+    // Each line drifts up the stack to mid-screen, fading as it climbs, then goes.
+    const lifetime = initial ? 10000 : event.kind === 'chat' ? 10000 : 12000;
+    line.style.setProperty('--signal-life', lifetime + 'ms');
+    const drop = () => {
       if (!line.isConnected) return;
-      line.classList.add('signal-leaving');
-      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 900);
-    }, lifetime);
+      entries.delete(key);
+      line.remove();
+    };
+    setTimeout(drop, reduced.matches ? lifetime : lifetime * 3);
+    if (!reduced.matches) line.addEventListener('animationend', e => { if (e.animationName === 'signal-rise') drop(); });
   }
   function remove(id) {
     const key = String(id);
@@ -262,6 +267,11 @@
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (runCommand(input.value)) return;
+    if (/^\/\S*$/.test(input.value.trim())) {
+      input.value = '';
+      notice('Commands: /request, /tracklist');
+      return;
+    }
     if (hidden()) return;
     if (!chatEnabled) {
       if (input.value.trim()) notice('Chat is offline');
@@ -325,6 +335,7 @@
   // A visit starts with the intro / closed deck. Resume activity after it exits.
   setInterval(() => {
     const nowHidden = hidden();
+    if (!wasHidden && nowHidden) { entries.forEach(line => line.remove()); entries.clear(); }
     if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);
