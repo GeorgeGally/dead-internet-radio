@@ -58,12 +58,22 @@ class FictionBulletinsTest < ActiveJob::TestCase
     replies({ lines: [ "The tide is out. The data is not coming back." ] }.to_json)
     FictionBulletins.refresh!
     assert_no_enqueued_jobs do
-      assert_equal [ "DIR FICTION / The tide is out. The data is not coming back." ], FictionBulletins.current
+      assert_equal [ FictionBulletins::HAZMATS, "DIR FICTION / The tide is out. The data is not coming back." ],
+        FictionBulletins.current
     end
     travel 21.minutes do
       Rails.cache.delete(FictionBulletins::LOCK_KEY)
       assert_enqueued_with(job: RefreshFictionBulletinsJob) { FictionBulletins.current }
     end
+  end
+
+  test "the hazmats warning stays in rotation and leads the model's examples" do
+    assert_equal "DIR FICTION / Radiation will be heavy over the western sector this afternoon. Don’t forget those hazmats!",
+      FictionBulletins::HAZMATS
+    replies({ lines: [ "Acid fog expected downtown. Keep umbrellas closed and lungs open." ] }.to_json)
+    FictionBulletins.refresh!
+    assert_includes FictionBulletins.current, FictionBulletins::HAZMATS
+    assert_includes FictionBulletins::PROMPT, "- Radiation will be heavy over the western sector"
   end
 
   test "a failed generation keeps the fallback and caches nothing" do

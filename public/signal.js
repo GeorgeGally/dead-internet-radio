@@ -31,6 +31,7 @@
     '/request': () => typeof requestLine !== 'undefined' && requestLine.open('request'),
     '/tracklist': () => typeof setList !== 'undefined' && setList.open()
   };
+  commands['/playlist'] = commands['/setlist'] = commands['/tracklist'];
   root.append(stack, form);
   const hearts = make('div', 'signal-hearts');
   document.body.append(root, hearts);
@@ -97,11 +98,16 @@
       old.remove();
     }
     // Old messages may provide atmosphere on entry but never remain as chat history.
-    const lifetime = initial ? 8000 : event.kind === 'chat' ? 6500 : 8500;
+    // Each line drifts up the stack to mid-screen, fading as it climbs, then goes.
+    const lifetime = initial ? 10000 : event.kind === 'chat' ? 10000 : 12000;
+    if (!reduced.matches) {
+      line.style.setProperty('--signal-rise', -(stack.getBoundingClientRect?.().height || 0) + 'px');
+      line.style.setProperty('--signal-life', lifetime + 'ms');
+    }
     setTimeout(() => {
       if (!line.isConnected) return;
-      line.classList.add('signal-leaving');
-      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 900);
+      entries.delete(key);
+      line.remove();
     }, lifetime);
   }
   function remove(id) {
@@ -262,6 +268,11 @@
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (runCommand(input.value)) return;
+    if (/^\/\S*$/.test(input.value.trim())) {
+      input.value = '';
+      notice('Commands: /request, /tracklist');
+      return;
+    }
     if (hidden()) return;
     if (!chatEnabled) {
       if (input.value.trim()) notice('Chat is offline');

@@ -7,7 +7,7 @@
   margin-inline: auto;
   bottom: calc(clamp(76px, 11vh, 118px) + var(--signal-keyboard-offset, 0px));
   width: min(640px, calc(100vw - 76px));
-  max-height: 42vh;
+  top: 50vh; /* lines climb to the middle of the page */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -24,9 +24,11 @@
   gap: 10px;
   overflow: hidden;
   overflow: clip; /* not a scroll container, so flex-end overflow drops off the top */
-  max-height: 33vh;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
-  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
+  flex: 1;
+  min-height: 0;
+  /* Solid for the first quarter of the climb, then a long, slow fade to nothing at mid-page. */
+  -webkit-mask-image: linear-gradient(to top, #000, #000 25%, transparent);
+  mask-image: linear-gradient(to top, #000, #000 25%, transparent);
 }
 .signal-entry {
   max-width: 100%;
@@ -40,9 +42,9 @@
   border-radius: 18px;
   overflow-wrap: anywhere;
   text-shadow: 0 1px 2px #000;
-  animation: signal-appear 280ms cubic-bezier(.16,1,.3,1) both;
+  animation: signal-appear 280ms cubic-bezier(.16,1,.3,1) both,
+    signal-rise var(--signal-life, 0ms) cubic-bezier(.45,0,.75,1) forwards;
 }
-.signal-entry.signal-leaving { animation: signal-disappear 900ms ease-in forwards; }
 .signal-label { color: #ff5a1f; font-weight: 500; margin-right: 7px; }
 .signal-chat .signal-label { color: #e9e6df; }
 .signal-request .signal-label { color: #c69bdf; }
@@ -108,14 +110,13 @@
   animation: signal-heart-up 2400ms ease-out forwards;
 }
 @keyframes signal-appear {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-/* Rise first, then fade on the way out. */
-@keyframes signal-disappear {
-  from { opacity: 1; transform: translateY(0); }
-  55% { opacity: 1; transform: translateY(-22px); }
-  to { opacity: 0; transform: translateY(-36px); }
+/* The stack's mask does the fading; the line only climbs. */
+@keyframes signal-rise {
+  from { transform: translateY(0); }
+  to { transform: translateY(var(--signal-rise, 0px)); }
 }
 @keyframes signal-heart-up {
   from { opacity: 0; transform: translateY(0) scale(.6); }
@@ -135,16 +136,16 @@ body:has(#set-page.open) .signal-hearts,
 body:has(#info-card.open) .signal-hearts,
 body.slot-preview .signal-hearts { display: none; }
 .signal-keyboard-open .signal-stack { display: none; }
+#signal-overlay.signal-keyboard-open { top: auto; }
 @media (max-width: 767px) {
   #signal-overlay {
     bottom: calc(max(88px, env(safe-area-inset-bottom) + 72px) + var(--signal-keyboard-offset, 0px));
     width: calc(100vw - 32px);
-    max-height: 36vh;
     font-size: 14px;
   }
-  .signal-stack { gap: 8px; max-height: 30vh; }
+  .signal-stack { gap: 8px; }
   .signal-entry { padding: 6px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .signal-entry, .signal-entry.signal-leaving, .signal-floating-heart { animation-duration: 1ms; }
+  .signal-entry, .signal-floating-heart { animation-duration: 1ms; }
 }

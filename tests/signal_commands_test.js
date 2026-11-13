@@ -138,7 +138,7 @@ const states = [
   ['signed out, chat offline', { signedIn: false, chatEnabled: false }],
 ];
 for (const [label, state] of states) {
-  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']]]) {
+  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']], ['/playlist', ['tracklist']], ['/SetList', ['tracklist']]]) {
     test(`typing ${typed.trim()} opens its page and posts nothing (${label})`, async () => {
       const s = await signal(state);
       assert.notEqual(s.input.readOnly, true);
@@ -258,4 +258,13 @@ test('blacked-out words are drawn as redaction bars', async () => {
   const bars = s.copies()[0].children.filter((c) => c.classList.contains('signal-redacted'));
   assert.equal(bars.length, 1);
   assert.equal(bars[0].textContent, '\u2588\u2588\u2588\u2588');
+});
+
+test('an unknown slash command lists the commands in the stream and posts nothing', async () => {
+  const s = await signal();
+  await submit(s, '/dance');
+  assert.deepEqual(s.posts, []);
+  assert.deepEqual(s.opened, []);
+  assert.equal(s.input.value, '');
+  assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
 });
