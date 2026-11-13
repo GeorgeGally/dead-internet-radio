@@ -1,0 +1,30 @@
+<h2>Signal / Live Transmissions</h2>
+<p>
+  Chat: <strong><%= @chat_enabled ? "ON" : "OFF" %></strong>
+  <%= button_to (@chat_enabled ? "Disable chat now" : "Enable chat"), toggle_chat_admin_transmissions_path, class: "btn-key" %>
+  <small>Public messages require server moderation. SIGNAL_CHAT_ENABLED=false overrides this switch.</small>
+</p>
+<table class="requests">
+  <tr><th>When</th><th>Listener</th><th>Type</th><th>Message</th><th>Visible</th><th>Actions</th></tr>
+  <% @transmissions.each do |item| %>
+    <tr>
+      <td><%= local_time(item.created_at) %></td>
+      <td><%= item.metadata["handle"] || item.user&.public_handle || "Station" %></td>
+      <td><%= item.kind %></td>
+      <td><%= item.body %></td>
+      <td><%= item.hidden_at? ? "Removed" : "Yes" %></td>
+      <td>
+        <% unless item.hidden_at? %>
+          <%= button_to "Remove", hide_admin_transmission_path(item), class: "btn-key" %>
+        <% end %>
+        <% if item.kind == "chat" && item.user %>
+          <% if item.user.signal_muted? %>
+            <%= button_to "Unmute", unmute_admin_transmission_path(item), class: "btn-key" %>
+          <% else %>
+            <%= button_to "Mute 24h", mute_admin_transmission_path(item), class: "btn-key" %>
+          <% end %>
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
+</table>

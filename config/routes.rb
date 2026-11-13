@@ -20,6 +20,8 @@ Rails.application.routes.draw do
       post "session/google", to: "sessions#google"
       delete "session", to: "sessions#destroy"
       resources :requests, only: [:index, :create]
+      get "signal/lineup", to: "signal#lineup"
+      post "signal/identity", to: "sessions#signal_identity"
       resources :transmissions, only: [:index, :create] do
         post :heart, on: :collection
       end
@@ -59,6 +61,10 @@ Rails.application.routes.draw do
     resources :library, only: [:index] do
       post :veto, on: :member
       post :build, on: :collection
+    end
+    resources :transmissions, only: [:index] do
+      post :hide, :mute, :unmute, on: :member
+      post :toggle_chat, on: :collection
     end
     resources :requests, only: [:index] do
       post :fulfill, on: :member
