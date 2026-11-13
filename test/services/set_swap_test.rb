@@ -54,6 +54,18 @@ class SetSwapTest < ActiveSupport::TestCase
     assert_in_delta 3.3, seg.reload.ends_at - seg.starts_at, 0.3
   end
 
+  test "a slot booked before it was measured is resized to the new song's length" do
+    at = Time.current
+    seg = BroadcastSegment.create!(track: @slot, starts_at: at + 60, ends_at: at + 210)
+    later = BroadcastSegment.create!(track: @after, starts_at: at + 210, ends_at: at + 310)
+    @slot.update_column(:mix_out_ms, 120_000)
+
+    SetSwap.swap!(@slot, @new, at: at)
+
+    assert_in_delta at + 240, seg.reload.ends_at, 0.01
+    assert_in_delta at + 240, later.reload.starts_at, 0.01
+  end
+
   test "a song on air can't be swapped" do
     BroadcastSegment.create!(track: @slot, starts_at: 1.minute.ago, ends_at: 2.minutes.from_now)
     assert_raises(SetSwap::Error) { SetSwap.swap!(@slot, @new) }

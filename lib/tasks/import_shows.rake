@@ -39,7 +39,7 @@ namespace :import do
       )
 
       playlist["tracks"].each_with_index do |track_data, idx|
-        Track.create!(
+        track = Track.new(
           show: show,
           position: idx + 1,
           title: track_data["title"],
@@ -57,6 +57,8 @@ namespace :import do
           modulation_type: track_data["modulationType"],
           signal_path: track_data["signalPath"],
         )
+        track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
+        track.save!
       end
 
       puts "  imported: #{show.name} (#{show.track_count} tracks)"

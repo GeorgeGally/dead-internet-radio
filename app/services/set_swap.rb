@@ -41,21 +41,21 @@ class SetSwap
     FileUtils.mkdir_p(dir.join("prompts"))
     FileUtils.cp(log, dir.join("prompts", "#{dest.basename('.mp3')}.prompt.json")) if File.exist?(log)
 
-    old_ms = track.air_ms
     Track.transaction do
       track.update!(origin_track: song, artist: song.artist, title: song.title, bpm: song.bpm, key: song.key,
                     caption: song.caption, lyrics: song.lyrics, duration_ms: song.duration_ms,
                     mix_out_ms: song.mix_out_ms || MixOut.measure(dest, song.duration_ms), audio_file: name, voiceover_file: nil, cue_seconds: nil)
-      reflow!(track, (track.air_ms - old_ms) / 1000.0, at)
+      reflow!(track, at)
     end
     track
   end
 
   # Each future booking of the slot stretches or shrinks; later ones follow.
-  def self.reflow!(track, delta, at)
-    return if delta.zero?
-
+  def self.reflow!(track, at)
     BroadcastSegment.where(track: track).where("starts_at > ?", at).order(starts_at: :desc).each do |seg|
+      delta = track.air_ms / 1000.0 - (seg.ends_at - seg.starts_at)
+      next if delta.zero?
+
       BroadcastSegment.where("starts_at >= ?", seg.ends_at)
         .update_all([ "starts_at = starts_at + make_interval(secs => ?), ends_at = ends_at + make_interval(secs => ?)", delta, delta ])
       seg.update_columns(ends_at: seg.ends_at + delta)
