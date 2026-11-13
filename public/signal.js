@@ -26,6 +26,11 @@
   heart.type = 'button';
   heart.setAttribute('aria-label', 'Send heart');
   form.append(input, send, heart);
+  // Slash commands open the station's own pages instead of posting to chat.
+  const commands = {
+    '/request': () => typeof requestLine !== 'undefined' && requestLine.open('request'),
+    '/tracklist': () => typeof setList !== 'undefined' && setList.open()
+  };
   root.append(stack, form);
   const hearts = make('div', 'signal-hearts');
   document.body.append(root, hearts);
@@ -35,7 +40,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let csrf = '', signedIn = false, handle = '', chatEnabled = false;
   let socket, retry, lastHeart = 0, geoDone = false, catchupInFlight = false;
-  let wasHidden = true;
+  let wasHidden = true, localId = 0;
 
   function hidden() {
     const deck = document.getElementById('deck');
@@ -49,8 +54,6 @@
   function updateForm() {
     input.placeholder = !chatEnabled ? 'Chat frequency offline' :
       !signedIn ? 'Sign in to transmit...' : 'Transmit a message...';
-    input.readOnly = !chatEnabled || !signedIn;
-    send.disabled = !chatEnabled;
     send.setAttribute('aria-label', signedIn ? 'Send transmission' : 'Sign in to transmit');
   }
   function shortAge(created) {
@@ -88,7 +91,7 @@
     setTimeout(() => {
       if (!line.isConnected) return;
       line.classList.add('signal-leaving');
-      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 500);
+      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 900);
     }, lifetime);
   }
   function remove(id) {
@@ -100,8 +103,11 @@
   function floatHeart() {
     if (hidden()) return;
     const node = make('span', 'signal-floating-heart', '♥');
-    node.style.left = (8 + Math.random() * 65) + '%';
-    node.style.fontSize = (17 + Math.random() * 15) + 'px';
+    // Every heart rises from the heart key, with a little drift so a burst spreads.
+    const from = heart.getBoundingClientRect();
+    node.style.left = (from.left + from.width / 2 + (Math.random() - 0.5) * 24) + 'px';
+    node.style.top = (from.top + from.height / 2) + 'px';
+    node.style.fontSize = (30 + Math.random() * 18) + 'px';
     hearts.append(node);
     setTimeout(() => node.remove(), reduced.matches ? 100 : 2400);
   }
@@ -195,10 +201,22 @@
     'DIR FICTION / Radiation will be heavy over the western sector this afternoon. Don’t forget those hazmats!',
     'DIR FICTION / Municipal servers advise residents to ignore the second moon.',
     'DIR FICTION / Signal contamination detected near Sector 9. Reception may improve.',
-    'DIR FICTION / The last functioning vending machine has entered sleep mode.'
+    'DIR FICTION / The last functioning vending machine has entered sleep mode.',
+    'DIR FICTION / Residents are reminded that the fog is not accepting new followers.',
+    'DIR FICTION / The bridge to Sector 4 is closed for buffering. Expect delays of one to forty years.',
+    'DIR FICTION / Lost: one password, last seen in 2009. Answers to "password1".',
+    'DIR FICTION / Pollen count is low. Packet loss is high. Dress accordingly.',
+    'DIR FICTION / The council confirms the sky has been updated. No restart is required.',
+    'DIR FICTION / Please do not feed the abandoned chatbots. They are learning.',
+    'DIR FICTION / Water supply restored to the eastern districts. Taste may include advertising.',
+    'DIR FICTION / A light drizzle of expired cookies is expected after midnight.',
+    'DIR FICTION / The public library has archived itself. Opening hours are unknown.',
+    'DIR FICTION / Curfew remains in effect for unverified accounts. Stay indoors and stay human.',
+    'DIR FICTION / The comment section north of the river has been cordoned off. Do not engage.',
+    'DIR FICTION / Tonight’s blackout is sponsored. Thank you for your continued attention.'
   ];
   function bulletin() {
-    const slot = Math.floor(Date.now() / 1200000);
+    const slot = Math.floor(Date.now() / 240000);
     add({ id: 'bulletin:' + slot, kind: 'station', body: fiction[slot % fiction.length] });
   }
   function requestSignIn() {
@@ -206,16 +224,26 @@
     // Reuse DIR's existing Google flow without adding a second sign-in UI.
     if (typeof requestLine !== 'undefined') requestLine.open('chat');
   }
-  input.addEventListener('pointerdown', e => {
-    if (!signedIn && chatEnabled) { e.preventDefault(); requestSignIn(); }
-  });
-  input.addEventListener('focus', () => {
-    if (!signedIn) requestSignIn();
-    else profile();
-  });
+  function runCommand(text) {
+    const run = commands[text.trim().toLowerCase()];
+    if (!run) return false;
+    input.value = '';
+    input.setCustomValidity('');
+    input.blur();
+    run();
+    return true;
+  }
+  input.addEventListener('focus', () => { if (signedIn) profile(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    if (hidden() || !chatEnabled) return;
+    if (runCommand(input.value)) return;
+    if (hidden()) return;
+    if (!chatEnabled) {
+      if (!input.value.trim()) return;
+      input.blur();
+      add({ id: 'local:' + ++localId, kind: 'station', body: 'Chat is offline' });
+      return;
+    }
     if (!signedIn) return requestSignIn();
     const body = input.value.trim();
     if (!body) return;
@@ -231,7 +259,7 @@
       if (res.ok) { input.value = ''; add(data); }
       else { input.setCustomValidity(data.message || 'Transmission rejected.'); input.reportValidity(); }
     } catch (_) { input.setCustomValidity('Signal lost.'); input.reportValidity(); }
-    finally { send.disabled = !chatEnabled; }
+    finally { send.disabled = false; }
   });
   input.addEventListener('input', () => input.setCustomValidity(''));
   heart.addEventListener('click', async () => {
@@ -256,10 +284,24 @@
   viewport?.addEventListener('resize', adjustKeyboard);
   viewport?.addEventListener('scroll', adjustKeyboard);
   window.addEventListener('dir:listener-auth', () => { geoDone = false; profile(); });
+  let nowPlaying = '', latestTrack = null;
+  function announceTrack() {
+    if (!latestTrack || hidden()) return;
+    const { title, artist } = latestTrack;
+    const key = title + '\n' + artist;
+    if (key === nowPlaying) return;
+    nowPlaying = key;
+    add({ id: 'local:' + ++localId, kind: 'station', body: 'Now playing: ' + title + ' · ' + artist });
+  }
+  window.addEventListener('dir:track', e => {
+    if (!e.detail?.title) return;
+    latestTrack = e.detail;
+    announceTrack();
+  });
   // A visit starts with the intro / closed deck. Resume activity after it exits.
   setInterval(() => {
     const nowHidden = hidden();
-    if (wasHidden && !nowHidden) { history(); upcoming(); }
+    if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);
   updateForm();
@@ -267,8 +309,6 @@
   connect();
   setInterval(history, 12000);
   setInterval(profile, 60000);
-  setTimeout(upcoming, 8000);
   setInterval(upcoming, 15 * 60000);
-  setTimeout(bulletin, 18000);
-  setInterval(bulletin, 20 * 60000);
+  setInterval(bulletin, 4 * 60000);
 })();

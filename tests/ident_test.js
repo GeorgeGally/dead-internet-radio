@@ -191,7 +191,8 @@ function loadApp() {
       removeEventListener() {},
     },
     location: { protocol: 'http:', hostname: 'radio.test', port: '', pathname: '/' },
-    window: { location: { pathname: '/' }, addEventListener() {} },
+    window: { location: { pathname: '/' }, addEventListener() {}, dispatchEvent() {} },
+    CustomEvent: class {},
     fetch: async (url) => {
       const key = Object.keys(responses).find((k) => url.endsWith(k));
       if (!key) return { ok: false, status: 404, json: async () => ({}) };
