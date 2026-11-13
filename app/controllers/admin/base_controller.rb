@@ -2,7 +2,7 @@
 
 module Admin
   class BaseController < ApplicationController
-    layout 'admin'
+    layout "admin"
     before_action :require_admin
     before_action :claim_player_votes
 

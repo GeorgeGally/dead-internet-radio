@@ -30,8 +30,8 @@ module Library
     # or is booked within hours: the resting ones then join at the back,
     # longest unheard first, rather than leaving the DJ nothing.
     resting, fresh = songs.partition { |t| !waiting.key?(t.id) && aired[t.id] && aired[t.id] > at - RESTING }
-    fresh.sort_by! { |t| [waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id] }
-    resting.sort_by! { |t| [aired[t.id], t.id] } if fresh.size < MIN_FRESH
+    fresh.sort_by! { |t| [ waiting.key?(t.id) ? 0 : 1, -t.score, aired[t.id] || Time.at(0), t.id ] }
+    resting.sort_by! { |t| [ aired[t.id], t.id ] } if fresh.size < MIN_FRESH
     pool = fresh.size < MIN_FRESH ? fresh + resting : fresh
     pool.first(POOL_SIZE).map { |t| candidate(t, waiting[t.id]) }
   end
@@ -50,8 +50,8 @@ module Library
       request: request && {
         id: request.id,
         requester: RequestFilter.blocked?(request.user.first_name) ? "a listener" : request.user.first_name,
-        note: request.note,
-      },
+        note: request.note
+      }
     }
   end
 
@@ -62,7 +62,7 @@ module Library
     turned = (songs + self.songs.vetoed.to_a).uniq.select(&:kept_out?).sort_by { |t| -t.id }.first(6)
     {
       liked: liked.filter_map(&:sound_caption),
-      turned_away: turned.filter_map(&:sound_caption),
+      turned_away: turned.filter_map(&:sound_caption)
     }
   end
 

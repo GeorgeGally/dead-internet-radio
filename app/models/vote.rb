@@ -7,7 +7,7 @@ class Vote < ApplicationRecord
   belongs_to :track
 
   validates :voter, presence: true
-  validates :value, inclusion: { in: [-1, 1] }
+  validates :value, inclusion: { in: [ -1, 1 ] }
 
   # Sets value (1, -1, or 0 to take the vote back) and returns the song.
   def self.cast!(song, voter, value)

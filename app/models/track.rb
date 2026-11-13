@@ -17,7 +17,7 @@ class Track < ApplicationRecord
   # a set's copy of a song.
   scope :songs, -> {
     joins(:show).merge(Show.completed).where(origin_track_id: nil)
-      .where.not(artist: [nil, "", STATION_ARTIST]).where("tracks.duration_ms > 0")
+      .where.not(artist: [ nil, "", STATION_ARTIST ]).where("tracks.duration_ms > 0")
   }
   # SQL twins of vetoed?.
   scope :not_vetoed, -> { where(vetoed_at: nil).where.not(station_vote: -1) }

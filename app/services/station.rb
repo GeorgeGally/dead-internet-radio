@@ -36,7 +36,7 @@ class Station
       current = BroadcastSegment.upcoming(at).first
       start = current ? current.ends_at : at
       BroadcastSegment.where("starts_at >= ?", start)
-        .update_all(["starts_at = starts_at + make_interval(secs => ?), ends_at = ends_at + make_interval(secs => ?)", duration, duration])
+        .update_all([ "starts_at = starts_at + make_interval(secs => ?), ends_at = ends_at + make_interval(secs => ?)", duration, duration ])
       BroadcastSegment.create!(track: track, source: source, starts_at: start, ends_at: start + duration)
     end
   end
@@ -51,7 +51,7 @@ class Station
         gap = seg.ends_at - seg.starts_at
         seg.destroy!
         BroadcastSegment.where("starts_at >= ?", seg.ends_at)
-          .update_all(["starts_at = starts_at - make_interval(secs => ?), ends_at = ends_at - make_interval(secs => ?)", gap, gap])
+          .update_all([ "starts_at = starts_at - make_interval(secs => ?), ends_at = ends_at - make_interval(secs => ?)", gap, gap ])
       end
     end
   end
@@ -90,7 +90,7 @@ class Station
   def self.with_station_id(tracks)
     return tracks if tracks.first.artist == Track::STATION_ARTIST
     id = Interlude.station_id
-    id ? [id] + tracks : tracks
+    id ? [ id ] + tracks : tracks
   end
 
   # Least-recently-aired show or set with playable tracks; never-aired first.
@@ -99,7 +99,7 @@ class Station
   def self.next_show_tracks
     last_aired = BroadcastSegment.joins(:track).group("tracks.show_id").maximum(:starts_at)
     out = Track.vetoed.pluck(:id).to_set
-    shows = Show.airable.includes(:tracks).sort_by { |s| [last_aired[s.id] || Time.at(0), s.id] }
+    shows = Show.airable.includes(:tracks).sort_by { |s| [ last_aired[s.id] || Time.at(0), s.id ] }
     shows.each do |show|
       playable = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
       tracks = playable.reject { |t| t.votable? && out.include?(t.song_id) }
