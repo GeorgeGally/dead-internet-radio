@@ -58,7 +58,7 @@ module FictionBulletins
       end
     end
     lines = cached&.dig(:lines).presence || FALLBACK
-    [HAZMATS, *lines].uniq
+    [ HAZMATS, *lines ].uniq
   end
 
   # A failed refresh keeps serving the old lines; the lock's expiry spaces out retries.
