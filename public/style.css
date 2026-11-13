@@ -770,15 +770,18 @@ body.prewarming #block-canvas {
 .info-more {
   padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.18);
+  /* The captain's key-row position from the final board design, at every size. */
+  translate: -16px -35px;
 }
 
-/* Wide screens only: the captain's tunes from the 2a · open board (captures 45-71). */
+/* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
 @media (min-width: 1001px) {
   #info-card { padding-left: 88px; padding-right: 88px; }
   .info-title span:nth-of-type(n),
   #info-card .info-page-title { font-size: 64px; }
+  .info-lore { max-width: none; columns: 2; column-gap: 56px; }
   .info-lore p:first-child { translate: 0 -11px; }
-  .info-more { translate: -16px -74px; border-top-width: 0; }
+  .info-more { border-top-width: 0; }
   .info-opens { translate: 16px 0; }
   .info-close { translate: 8px -1px; }
   #info-card .info-free { padding-bottom: 16px; }
@@ -822,7 +825,13 @@ body.prewarming #block-canvas {
 .info-key:focus-visible { outline: 2px solid #ec6a1f; outline-offset: 3px; }
 
 /* Page keys: grey-blue caps with an orange lamp that glows on the page on screen. */
-.info-open { --c: #8d9aa6; color: #2a2a6f; }
+.info-open {
+  --c: #8d9aa6;
+  color: #0b0b0b;
+  font-family: "Anka Coder", "IBM Plex Mono", monospace;
+  font-weight: 600;
+  letter-spacing: 0;
+}
 
 .info-open::before {
   content: "";
