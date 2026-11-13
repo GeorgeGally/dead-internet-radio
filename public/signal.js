@@ -76,7 +76,17 @@
     const label = make('span', 'signal-label',
       event.kind === 'chat' ? (event.name || 'listener') :
       event.kind === 'request' ? 'REQUEST' : fictional ? 'DIR / SAFETY' : 'DIR');
-    const body = make('span', 'signal-copy', (event.body || '').replace(/^DIR FICTION \/ /, ''));
+    const text = (event.body || '').replace(/^DIR FICTION \/ /, '');
+    const body = make('span', 'signal-copy', text.includes('\u2588') ? undefined : text);
+    // Moderation blacks out swearing as solid bars; draw them as a censored document.
+    if (text.includes('\u2588')) text.split(/(\u2588+)/).forEach(part => {
+      if (!part) return;
+      if (part[0] === '\u2588') {
+        const bar = make('span', 'signal-redacted', part);
+        bar.setAttribute('aria-label', 'redacted');
+        body.append(bar);
+      } else body.append(document.createTextNode(part));
+    });
     line.append(label, document.createTextNode(' '), body);
     if (event.created_at) line.append(make('span', 'signal-age', shortAge(event.created_at)));
     entries.set(key, line);
@@ -197,7 +207,8 @@
         body: 'Coming up in the next hour: tracks from ' + list + '.' });
     } catch (_) {}
   }
-  const fiction = [
+  // Lines written fresh on the server; these stand in when the station can't be reached.
+  let fiction = [
     'DIR FICTION / Radiation will be heavy over the western sector this afternoon. Don’t forget those hazmats!',
     'DIR FICTION / Municipal servers advise residents to ignore the second moon.',
     'DIR FICTION / Signal contamination detected near Sector 9. Reception may improve.',
@@ -215,9 +226,24 @@
     'DIR FICTION / The comment section north of the river has been cordoned off. Do not engage.',
     'DIR FICTION / Tonight’s blackout is sponsored. Thank you for your continued attention.'
   ];
-  function bulletin() {
+  async function bulletins() {
+    try {
+      const res = await fetch('/api/v1/signal/bulletins');
+      if (!res.ok) return;
+      const lines = ((await res.json()).lines || []).filter(l => typeof l === 'string' && l.startsWith('DIR FICTION /'));
+      if (lines.length) fiction = lines;
+    } catch (_) {}
+  }
+  async function bulletin() {
+    if (hidden()) return;
+    await bulletins();
     const slot = Math.floor(Date.now() / 240000);
     add({ id: 'bulletin:' + slot, kind: 'station', body: fiction[slot % fiction.length] });
+  }
+  // Every notice is a station line in the stream, never a browser popup.
+  function notice(body) {
+    input.blur();
+    add({ id: 'local:' + ++localId, kind: 'station', body });
   }
   function requestSignIn() {
     if (!chatEnabled || signedIn) return;
@@ -228,7 +254,6 @@
     const run = commands[text.trim().toLowerCase()];
     if (!run) return false;
     input.value = '';
-    input.setCustomValidity('');
     input.blur();
     run();
     return true;
@@ -239,16 +264,16 @@
     if (runCommand(input.value)) return;
     if (hidden()) return;
     if (!chatEnabled) {
-      if (!input.value.trim()) return;
-      input.blur();
-      add({ id: 'local:' + ++localId, kind: 'station', body: 'Chat is offline' });
+      if (input.value.trim()) notice('Chat is offline');
       return;
     }
-    if (!signedIn) return requestSignIn();
+    if (!signedIn) {
+      if (input.value.trim()) notice('Sign in to transmit');
+      return requestSignIn();
+    }
     const body = input.value.trim();
     if (!body) return;
     send.disabled = true;
-    input.setCustomValidity('');
     try {
       const res = await fetch('/api/v1/transmissions', {
         method: 'POST', credentials: 'same-origin',
@@ -257,11 +282,10 @@
       });
       const data = await res.json();
       if (res.ok) { input.value = ''; add(data); }
-      else { input.setCustomValidity(data.message || 'Transmission rejected.'); input.reportValidity(); }
-    } catch (_) { input.setCustomValidity('Signal lost.'); input.reportValidity(); }
+      else notice(data.message || 'Transmission rejected.');
+    } catch (_) { notice('Signal lost.'); }
     finally { send.disabled = false; }
   });
-  input.addEventListener('input', () => input.setCustomValidity(''));
   heart.addEventListener('click', async () => {
     if (hidden() || Date.now() - lastHeart < 1000) return;
     lastHeart = Date.now();

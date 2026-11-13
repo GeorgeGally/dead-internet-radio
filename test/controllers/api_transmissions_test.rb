@@ -34,7 +34,7 @@ class ApiTransmissionsTest < ActionDispatch::IntegrationTest
     token = sign_in
     user = User.last
     user.assign_signal_handle!(city: "London")
-    stub(SignalFilter, :check, :allowed) do
+    stub(SignalFilter, :check, SignalFilter::Result.new(:allowed, "The bass is alive")) do
       post_signal({ body: "The bass is alive" }, token)
     end
     assert_response :created
@@ -67,9 +67,30 @@ class ApiTransmissionsTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "bulletins answer at once with station fiction" do
+    old = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+    get "/api/v1/signal/bulletins"
+    assert_response :success
+    lines = response.parsed_body["lines"]
+    assert lines.any?
+    assert lines.all? { |line| line.start_with?("DIR FICTION / ") }
+  ensure
+    ActiveJob::Base.queue_adapter = old
+  end
+
+  test "swearing goes on air blacked out" do
+    token = sign_in
+    stub(SignalFilter, :check, SignalFilter::Result.new(:allowed, "\u2588\u2588\u2588\u2588 this")) do
+      post_signal({ body: "fuck this" }, token)
+    end
+    assert_response :created
+    assert_equal "\u2588\u2588\u2588\u2588 this", Transmission.last.body
+  end
+
   test "moderation rejects without creating a public message" do
     token = sign_in
-    stub(SignalFilter, :check, :rejected) do
+    stub(SignalFilter, :check, SignalFilter::Result.new(:rejected, nil)) do
       post_signal({ body: "a message rejected by the service" }, token)
     end
     assert_response :unprocessable_entity
@@ -78,7 +99,7 @@ class ApiTransmissionsTest < ActionDispatch::IntegrationTest
 
   test "model outage fails closed" do
     token = sign_in
-    stub(SignalFilter, :check, :unavailable) do
+    stub(SignalFilter, :check, SignalFilter::Result.new(:unavailable, nil)) do
       post_signal({ body: "hello world" }, token)
     end
     assert_response :service_unavailable

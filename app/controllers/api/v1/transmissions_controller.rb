@@ -24,9 +24,11 @@ module Api
           return render json: { message: "Your transmission line is temporarily muted." }, status: :forbidden
         end
         body = params[:body].to_s.gsub(/\s+/, " ").strip
-        case SignalFilter.check(body)
+        verdict = SignalFilter.check(body)
+        case verdict.status
         when :allowed
-          # Only an explicit approval can put a listener on air.
+          # Only an explicit approval can put a listener on air, swearing blacked out.
+          body = verdict.body
         when :rejected
           return render json: { message: "That transmission doesn't belong on this frequency." }, status: :unprocessable_entity
         else

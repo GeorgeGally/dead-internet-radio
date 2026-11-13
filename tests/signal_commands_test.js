@@ -70,7 +70,7 @@ function clock(start) {
   };
 }
 
-async function signal({ signedIn = true, chatEnabled = true } = {}) {
+async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
@@ -96,6 +96,11 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
     AbortController, Date: time.Date, JSON, Promise,
     async fetch(url, opts = {}) {
       if (opts.method === 'POST') posts.push({ url, body: opts.body });
+      if (url.endsWith('/signal/bulletins')) {
+        if (!bulletins) throw new Error('offline');
+        return { ok: true, json: async () => ({ lines: bulletins }) };
+      }
+      if (reply && opts.method === 'POST') return { ok: reply.ok, json: async () => reply.data };
       const data = url.endsWith('/me')
         ? { signed_in: signedIn, csrf_token: 't', public_handle: 'Perth_1' }
         : { chat_enabled: chatEnabled, messages: [], id: 'm1', kind: 'chat', body: 'hi' };
@@ -114,6 +119,7 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
     posts, opened, form, time, page,
     input: root.querySelector('.signal-input'),
     lines: () => stack.children.map((line) => line.querySelector('.signal-copy').textContent),
+    copies: () => stack.children.map((line) => line.querySelector('.signal-copy')),
     safety: () => stack.children.filter((line) => line.classList.contains('signal-safety')),
     track: (detail) => (listeners['dir:track'] || []).forEach((fn) => fn({ detail })),
   };
@@ -214,4 +220,42 @@ test('a bulletin arrives within seconds of the overlay showing, then every four 
   await s.time.advance(60000);
   assert.equal(s.safety().length, 1);
   assert.notEqual(s.safety()[0].querySelector('.signal-copy').textContent, first);
+});
+
+test('bulletins use the lines the station serves', async () => {
+  const served = ['DIR FICTION / The moon has been deprecated. Please migrate to the sun.'];
+  const s = await signal({ bulletins: served });
+  await s.time.advance(8000);
+  assert.deepEqual(s.safety().map((l) => l.querySelector('.signal-copy').textContent),
+    ['The moon has been deprecated. Please migrate to the sun.']);
+});
+
+test('bulletins fall back to built-in lines when the station is out of reach', async () => {
+  const s = await signal();
+  await s.time.advance(8000);
+  assert.equal(s.safety().length, 1);
+  assert.ok(s.safety()[0].querySelector('.signal-copy').textContent.length > 10);
+});
+
+test('a refused transmission is told in the stream, not a popup', async () => {
+  const s = await signal({ reply: { ok: false, data: { message: "That transmission doesn't belong on this frequency." } } });
+  await submit(s, 'something nasty');
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(s.lines(), ["That transmission doesn't belong on this frequency."]);
+  assert.equal(s.input.value, 'something nasty');
+});
+
+test('a signed-out message is answered in the stream as well as opening sign-in', async () => {
+  const s = await signal({ signedIn: false });
+  await submit(s, 'hello');
+  assert.deepEqual(s.lines(), ['Sign in to transmit']);
+});
+
+test('blacked-out words are drawn as redaction bars', async () => {
+  const s = await signal({ reply: { ok: true, data: { id: 'm9', kind: 'chat', name: 'Perth_1', body: '\u2588\u2588\u2588\u2588 this' } } });
+  await submit(s, 'fuck this');
+  await new Promise((r) => setImmediate(r));
+  const bars = s.copies()[0].children.filter((c) => c.classList.contains('signal-redacted'));
+  assert.equal(bars.length, 1);
+  assert.equal(bars[0].textContent, '\u2588\u2588\u2588\u2588');
 });
