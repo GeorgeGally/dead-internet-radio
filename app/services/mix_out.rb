@@ -24,7 +24,7 @@ module MixOut
     # Only a quiet that runs to the end of the file is a tail.
     return full unless quiet_from && (quiet_to.nil? || quiet_to < quiet_from || quiet_to * 1000 >= full - 250)
 
-    ends = [(quiet_from * 1000 + RING_MS).round, full].min
+    ends = [ (quiet_from * 1000 + RING_MS).round, full ].min
     # A clip that is quiet from the start keeps its length.
     ends < 1000 ? full : ends
   end

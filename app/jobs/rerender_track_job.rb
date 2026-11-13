@@ -73,7 +73,7 @@ class RerenderTrackJob < ApplicationJob
   end
 
   def replace_audio(track, spec)
-    duration_ms = measured_ms(track.audio_path) || spec['duration'].to_i * 1000
+    duration_ms = measured_ms(track.audio_path) || spec["duration"].to_i * 1000
     track.update!(
       bpm: spec['bpm'],
       key: spec['keyscale'].presence || track.key,
