@@ -112,12 +112,12 @@ class SignalFilterTest < ActiveSupport::TestCase
   test "an unparseable reply falls through to the free router" do
     replies("I cannot comply.", '{"allow":true,"redact":[]}')
     assert_equal :allowed, SignalFilter.check("hello").status
-    assert_equal ["paid/model", "openrouter/free"], @calls
+    assert_equal [ "paid/model", "openrouter/free" ], @calls
   end
 
   test "unavailable after two failed attempts, with no third call" do
     replies(*Array.new(3) { RuntimeError.new("moderation HTTP 500") })
     assert_equal :unavailable, SignalFilter.check("hello").status
-    assert_equal ["paid/model", "openrouter/free"], @calls
+    assert_equal [ "paid/model", "openrouter/free" ], @calls
   end
 end

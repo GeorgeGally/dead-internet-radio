@@ -78,7 +78,7 @@ module FictionBulletins
     uri = URI(RequestFilter::OPENROUTER_URL)
     body = { model: MODEL, max_tokens: 900, temperature: 1.0,
       response_format: { type: "json_object" },
-      messages: [{ role: "user", content: PROMPT }] }
+      messages: [ { role: "user", content: PROMPT } ] }
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 40) do |http|
       http.post(uri.path, body.to_json, "Authorization" => "Bearer #{key}", "Content-Type" => "application/json")
     end

@@ -3,9 +3,9 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      resources :shows, only: [:index, :show]
-      resources :tracks, only: [:show]
-      resources :visuals, only: [:index]
+      resources :shows, only: [ :index, :show ]
+      resources :tracks, only: [ :show ]
+      resources :visuals, only: [ :index ]
       get "idents", to: "idents#index"
       get "looks", to: "looks#index"
       post "looks/merge", to: "looks#merge"
@@ -19,11 +19,11 @@ Rails.application.routes.draw do
       get "me", to: "sessions#me"
       post "session/google", to: "sessions#google"
       delete "session", to: "sessions#destroy"
-      resources :requests, only: [:index, :create]
+      resources :requests, only: [ :index, :create ]
       get "signal/lineup", to: "signal#lineup"
       get "signal/bulletins", to: "signal#bulletins"
       post "signal/identity", to: "sessions#signal_identity"
-      resources :transmissions, only: [:index, :create] do
+      resources :transmissions, only: [ :index, :create ] do
         post :heart, on: :collection
       end
       post "songs/:song_id/vote", to: "votes#create", as: :song_vote
@@ -44,7 +44,7 @@ Rails.application.routes.draw do
 
   namespace :admin do
     get "/", to: "dashboard#index"
-    resources :shows, only: [:index, :show, :destroy] do
+    resources :shows, only: [ :index, :show, :destroy ] do
       member do
         post :remix
         post :reimport
@@ -52,18 +52,18 @@ Rails.application.routes.draw do
     end
     get "schedule", to: "schedule#index", as: :schedule
     get "artists/:name", to: "artists#show", as: :artist, constraints: { name: %r{[^/]+} }
-    resources :tracks, only: [:show, :destroy] do
+    resources :tracks, only: [ :show, :destroy ] do
       post :rerender, on: :member
       post :remix, on: :member
       post :like, on: :member
       get :swap_options, on: :member
       post :swap, on: :member
     end
-    resources :library, only: [:index] do
+    resources :library, only: [ :index ] do
       post :veto, on: :member
       post :build, on: :collection
     end
-    resources :transmissions, only: [:index] do
+    resources :transmissions, only: [ :index ] do
       member do
         post :hide
         post :mute
@@ -71,13 +71,13 @@ Rails.application.routes.draw do
       end
       post :toggle_chat, on: :collection
     end
-    resources :requests, only: [:index] do
+    resources :requests, only: [ :index ] do
       post :fulfill, on: :member
       post :retry, on: :member
     end
-    resources :visuals, only: [:index, :update]
-    resources :idents, only: [:index, :update]
-    resources :generation, only: [:index, :new, :create, :show] do
+    resources :visuals, only: [ :index, :update ]
+    resources :idents, only: [ :index, :update ]
+    resources :generation, only: [ :index, :new, :create, :show ] do
       member do
         post :retry
         get :progress

@@ -33,8 +33,8 @@ class FictionBulletinsTest < ActiveJob::TestCase
   test "only OpenRouter's free router writes the lines" do
     replies("```json\n{\"lines\":[\"The moon has been deprecated. Please migrate to the sun.\"]}\n```")
     lines = FictionBulletins.refresh!
-    assert_equal ["openrouter/free"], @calls
-    assert_equal ["DIR FICTION / The moon has been deprecated. Please migrate to the sun."], lines
+    assert_equal [ "openrouter/free" ], @calls
+    assert_equal [ "DIR FICTION / The moon has been deprecated. Please migrate to the sun." ], lines
   end
 
   test "lines are cleaned to one plain bulletin of at most 140 characters" do
@@ -44,7 +44,7 @@ class FictionBulletinsTest < ActiveJob::TestCase
       long, "too short", "Visit https://example.com for updates on the outage.",
       "Fog advisory for Sector 2 remains in effect."
     ] }.to_json)
-    assert_equal ["DIR FICTION / Fog advisory for Sector 2 remains in effect."], FictionBulletins.refresh!
+    assert_equal [ "DIR FICTION / Fog advisory for Sector 2 remains in effect." ], FictionBulletins.refresh!
   end
 
   test "serves the built-in lines at once and refreshes in the background" do
@@ -55,10 +55,10 @@ class FictionBulletinsTest < ActiveJob::TestCase
   end
 
   test "fresh generated lines are served until they go stale" do
-    replies({ lines: ["The tide is out. The data is not coming back."] }.to_json)
+    replies({ lines: [ "The tide is out. The data is not coming back." ] }.to_json)
     FictionBulletins.refresh!
     assert_no_enqueued_jobs do
-      assert_equal ["DIR FICTION / The tide is out. The data is not coming back."], FictionBulletins.current
+      assert_equal [ "DIR FICTION / The tide is out. The data is not coming back." ], FictionBulletins.current
     end
     travel 21.minutes do
       Rails.cache.delete(FictionBulletins::LOCK_KEY)

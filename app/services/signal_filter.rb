@@ -60,7 +60,7 @@ module SignalFilter
   # OpenRouter's free router when the first answer fails or isn't a verdict.
   def self.models
     primary = ENV.fetch("SIGNAL_FILTER_MODEL") { ENV.fetch("REQUEST_FILTER_MODEL", RequestFilter::MODEL) }
-    [primary, FALLBACK_MODEL]
+    [ primary, FALLBACK_MODEL ]
   end
 
   def self.complete(model, key, text)
@@ -94,7 +94,7 @@ module SignalFilter
         rescue JSON::ParserError
           next
         end
-        next unless object.is_a?(Hash) && [true, false].include?(object["allow"])
+        next unless object.is_a?(Hash) && [ true, false ].include?(object["allow"])
 
         redact = Array(object["redact"]).grep(String)
         return { "allow" => object["allow"], "redact" => redact }
