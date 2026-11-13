@@ -41,12 +41,12 @@ class SetSwap
     FileUtils.mkdir_p(dir.join("prompts"))
     FileUtils.cp(log, dir.join("prompts", "#{dest.basename('.mp3')}.prompt.json")) if File.exist?(log)
 
-    old_ms = track.duration_ms.to_i
+    old_ms = track.air_ms
     Track.transaction do
       track.update!(origin_track: song, artist: song.artist, title: song.title, bpm: song.bpm, key: song.key,
                     caption: song.caption, lyrics: song.lyrics, duration_ms: song.duration_ms,
-                    audio_file: name, voiceover_file: nil, cue_seconds: nil)
-      reflow!(track, (song.duration_ms.to_i - old_ms) / 1000.0, at)
+                    mix_out_ms: song.mix_out_ms, audio_file: name, voiceover_file: nil, cue_seconds: nil)
+      reflow!(track, (track.air_ms - old_ms) / 1000.0, at)
     end
     track
   end
