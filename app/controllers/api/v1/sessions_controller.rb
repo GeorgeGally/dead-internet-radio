@@ -2,6 +2,7 @@ module Api
   module V1
     # Google sign-in for listeners, asked only when they make a request.
     class SessionsController < ListenerController
+      before_action :require_user, only: :signal_identity
       def me
         render json: me_json
       end

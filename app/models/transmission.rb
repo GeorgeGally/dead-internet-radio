@@ -19,9 +19,13 @@ class Transmission < ApplicationRecord
     return unless hidden_at.present?
 
     ActionCable.server.broadcast("dir_signal", { type: "remove", id: id })
+  rescue StandardError => e
+    Rails.logger.warn("Signal removal broadcast failed for #{id}: #{e.class}")
   end
 
   def broadcast_signal
     ActionCable.server.broadcast("dir_signal", { type: "message", event: as_signal })
+  rescue StandardError => e
+    Rails.logger.warn("Signal broadcast failed for #{id}: #{e.class}")
   end
 end

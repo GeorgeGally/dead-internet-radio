@@ -63,7 +63,11 @@ Rails.application.routes.draw do
       post :build, on: :collection
     end
     resources :transmissions, only: [:index] do
-      post :hide, :mute, :unmute, on: :member
+      member do
+        post :hide
+        post :mute
+        post :unmute
+      end
       post :toggle_chat, on: :collection
     end
     resources :requests, only: [:index] do

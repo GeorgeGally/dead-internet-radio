@@ -34,6 +34,9 @@ module Api
         # Serialize sends by this user, preventing rapid concurrent duplicates.
         item = nil
         current_user.with_lock do
+          if !SignalControls.chat_enabled? || current_user.signal_muted?
+            return render json: { message: "The transmission line is unavailable." }, status: :service_unavailable
+          end
           if current_user.transmissions.where(kind: "chat").where("created_at > ?", 8.seconds.ago).exists?
             return render json: { message: "Wait a moment before transmitting again." }, status: :too_many_requests
           end
