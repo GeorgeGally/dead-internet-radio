@@ -14,7 +14,8 @@ class ApiTransmissionsTest < ActionDispatch::IntegrationTest
   test "any listener can read but signed-out listeners cannot send" do
     get "/api/v1/transmissions"
     assert_response :success
-    post_signal({ body: "hello" }, nil)
+    get "/api/v1/me"
+    post_signal({ body: "hello" }, response.parsed_body["csrf_token"])
     assert_response :unauthorized
   end
 
