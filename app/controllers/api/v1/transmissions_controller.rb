@@ -25,9 +25,11 @@ module Api
         end
         body = params[:body].to_s.gsub(/\s+/, " ").strip
         case SignalFilter.check(body)
+        when :allowed
+          # Only an explicit approval can put a listener on air.
         when :rejected
           return render json: { message: "That transmission doesn't belong on this frequency." }, status: :unprocessable_entity
-        when :unavailable
+        else
           return render json: { message: "The chat frequency is temporarily down." }, status: :service_unavailable
         end
 
