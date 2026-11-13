@@ -239,7 +239,9 @@
     if (runCommand(input.value)) return;
     if (hidden()) return;
     if (!chatEnabled) {
-      if (input.value.trim()) add({ id: 'local:' + ++localId, kind: 'station', body: 'Chat is offline' });
+      if (!input.value.trim()) return;
+      input.blur();
+      add({ id: 'local:' + ++localId, kind: 'station', body: 'Chat is offline' });
       return;
     }
     if (!signedIn) return requestSignIn();
@@ -282,18 +284,24 @@
   viewport?.addEventListener('resize', adjustKeyboard);
   viewport?.addEventListener('scroll', adjustKeyboard);
   window.addEventListener('dir:listener-auth', () => { geoDone = false; profile(); });
-  let nowPlaying = '';
-  window.addEventListener('dir:track', e => {
-    const { title, artist } = e.detail || {};
+  let nowPlaying = '', latestTrack = null;
+  function announceTrack() {
+    if (!latestTrack || hidden()) return;
+    const { title, artist } = latestTrack;
     const key = title + '\n' + artist;
-    if (!title || key === nowPlaying) return;
+    if (key === nowPlaying) return;
     nowPlaying = key;
     add({ id: 'local:' + ++localId, kind: 'station', body: 'Now playing: ' + title + ' · ' + artist });
+  }
+  window.addEventListener('dir:track', e => {
+    if (!e.detail?.title) return;
+    latestTrack = e.detail;
+    announceTrack();
   });
   // A visit starts with the intro / closed deck. Resume activity after it exits.
   setInterval(() => {
     const nowHidden = hidden();
-    if (wasHidden && !nowHidden) { history(); upcoming(); setTimeout(bulletin, 4000); }
+    if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);
   updateForm();

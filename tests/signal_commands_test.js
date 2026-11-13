@@ -32,7 +32,7 @@ function node(tag) {
     querySelectorAll(sel) { return n.all().filter((k) => k.classList.contains(sel.replace('.', ''))); },
     querySelector(sel) { return n.querySelectorAll(sel)[0] || null; },
     matches: () => false,
-    setCustomValidity() {}, reportValidity() {}, blur() {},
+    setCustomValidity() {}, reportValidity() {}, blur() { n.blurred = true; },
   };
   return n;
 }
@@ -74,6 +74,7 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
+  const page = { modalOpen: false };
   const posts = [];
   const opened = [];
   const sandbox = {
@@ -82,7 +83,7 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
       createElement: (tag) => node(tag),
       createTextNode: (text) => text,
       getElementById: () => null,
-      querySelector: () => null,
+      querySelector: () => (page.modalOpen ? {} : null),
     },
     window: { addEventListener: (type, fn) => (listeners[type] ||= []).push(fn), innerHeight: 800 },
     matchMedia: () => ({ matches: false }),
@@ -110,7 +111,7 @@ async function signal({ signedIn = true, chatEnabled = true } = {}) {
   const form = root.querySelector('.signal-compose');
   const stack = root.querySelector('.signal-stack');
   return {
-    posts, opened, form, time,
+    posts, opened, form, time, page,
     input: root.querySelector('.signal-input'),
     lines: () => stack.children.map((line) => line.querySelector('.signal-copy').textContent),
     safety: () => stack.children.filter((line) => line.classList.contains('signal-safety')),
@@ -171,6 +172,7 @@ for (const [label, state] of [['signed in', {}], ['signed out', { signedIn: fals
     assert.deepEqual(s.posts, []);
     assert.deepEqual(s.opened, []);
     assert.equal(s.input.value, 'hello');
+    assert.equal(s.input.blurred, true);
     assert.deepEqual(s.lines(), ['Chat is offline']);
     await s.time.advance(15000);
     assert.equal(s.lines().includes('Chat is offline'), false);
@@ -187,6 +189,20 @@ test('each track change posts one now playing message', async () => {
     'Now playing: Buffering Memories · Dead Internet Radio',
     'Now playing: Dial Tone Lullaby · Modem Choir',
   ]);
+});
+
+test('a track that changes while the overlay is hidden is announced once it shows', async () => {
+  const s = await signal();
+  await s.time.advance(1500);
+  s.page.modalOpen = true;
+  await s.time.advance(1500);
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  assert.deepEqual(s.lines(), []);
+  s.page.modalOpen = false;
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  await s.time.advance(1500);
+  assert.deepEqual(s.lines().filter((l) => l.startsWith('Now playing')),
+    ['Now playing: Buffering Memories · Dead Internet Radio']);
 });
 
 test('a bulletin arrives within seconds of the overlay showing, then every four minutes', async () => {
