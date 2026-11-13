@@ -101,11 +101,13 @@
     // Each line drifts up the stack to mid-screen, fading as it climbs, then goes.
     const lifetime = initial ? 10000 : event.kind === 'chat' ? 10000 : 12000;
     line.style.setProperty('--signal-life', lifetime + 'ms');
-    setTimeout(() => {
+    const drop = () => {
       if (!line.isConnected) return;
       entries.delete(key);
       line.remove();
-    }, lifetime);
+    };
+    if (reduced.matches) setTimeout(drop, lifetime);
+    else line.addEventListener('animationend', e => { if (e.animationName === 'signal-rise') drop(); });
   }
   function remove(id) {
     const key = String(id);

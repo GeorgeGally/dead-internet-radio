@@ -14,7 +14,6 @@ function node(tag) {
   const handlers = {};
   const n = {
     tag, children: [], parent: null, attrs: {}, dataset: {}, style: { props: {}, setProperty(k, v) { n.style.props[k] = v; } },
-    getBoundingClientRect: () => ({ height: 0 }),
     textContent: '', value: '', hidden: false, isConnected: true,
     get className() { return [...classes].join(' '); },
     set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
@@ -71,7 +70,7 @@ function clock(start) {
   };
 }
 
-async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } = {}) {
+async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
@@ -87,7 +86,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply } 
       querySelector: () => (page.modalOpen ? {} : null),
     },
     window: { addEventListener: (type, fn) => (listeners[type] ||= []).push(fn), innerHeight: 800 },
-    matchMedia: () => ({ matches: false }),
+    matchMedia: () => ({ matches: reducedMotion }),
     getComputedStyle: () => ({ display: 'none' }),
     sessionStorage: { getItem: () => null },
     location: { protocol: 'https:', host: 'example.test' },
@@ -270,11 +269,22 @@ test('an unknown slash command lists the commands in the stream and posts nothin
   assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
 });
 
-test('a line added while the stack is hidden still climbs for its whole life', async () => {
+test('a line stays until its climb finishes, however late the climb runs', async () => {
+  const s = await signal({ reducedMotion: false });
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  await s.time.advance(60000);
+  assert.equal(line.isConnected, true);
+  line.fire('animationend', { animationName: 'signal-appear' });
+  assert.equal(line.isConnected, true);
+  line.fire('animationend', { animationName: 'signal-rise' });
+  assert.equal(s.lines().some((l) => l.startsWith('Now playing')), false);
+});
+
+test('with reduced motion a station line leaves after its 12 second life', async () => {
   const s = await signal();
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   const [line] = s.stack().children;
-  assert.deepEqual(line.style.props, { '--signal-life': '12000ms' });
   await s.time.advance(11999);
   assert.equal(line.isConnected, true);
   await s.time.advance(1);
