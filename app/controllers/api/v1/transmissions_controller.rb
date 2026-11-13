@@ -4,9 +4,9 @@ module Api
       skip_forgery_protection only: :heart
       before_action :require_user, only: :create
 
-      rate_limit to: 5, within: 1.minute, only: :create,
+      rate_limit to: 5, within: 1.minute, only: :create, name: 'signal_chat',
         with: -> { render json: { message: "Frequency busy. Try again shortly." }, status: :too_many_requests }
-      rate_limit to: 20, within: 1.minute, only: :heart,
+      rate_limit to: 20, within: 1.minute, only: :heart, name: 'signal_heart',
         with: -> { render json: { message: "Slow down." }, status: :too_many_requests }
 
       def index
