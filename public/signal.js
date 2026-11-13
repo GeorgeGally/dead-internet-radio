@@ -91,7 +91,7 @@
     setTimeout(() => {
       if (!line.isConnected) return;
       line.classList.add('signal-leaving');
-      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 500);
+      setTimeout(() => { entries.delete(key); line.remove(); }, reduced.matches ? 0 : 900);
     }, lifetime);
   }
   function remove(id) {
@@ -103,8 +103,11 @@
   function floatHeart() {
     if (hidden()) return;
     const node = make('span', 'signal-floating-heart', '♥');
-    node.style.left = (8 + Math.random() * 65) + '%';
-    node.style.fontSize = (17 + Math.random() * 15) + 'px';
+    // Every heart rises from the heart key, with a little drift so a burst spreads.
+    const from = heart.getBoundingClientRect();
+    node.style.left = (from.left + from.width / 2 + (Math.random() - 0.5) * 24) + 'px';
+    node.style.top = (from.top + from.height / 2) + 'px';
+    node.style.fontSize = (30 + Math.random() * 18) + 'px';
     hearts.append(node);
     setTimeout(() => node.remove(), reduced.matches ? 100 : 2400);
   }

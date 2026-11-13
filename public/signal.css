@@ -12,7 +12,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 15px;
-  font: 400 13px/1.5 "IBM Plex Mono", monospace;
+  font: 400 16px/1.45 "IBM Plex Mono", monospace;
   color: #e9e6df;
   pointer-events: none;
 }
@@ -20,8 +20,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 13px;
+  justify-content: flex-end; /* overflow clips the oldest line, never the newest */
+  gap: 10px;
   overflow: hidden;
+  overflow: clip; /* not a scroll container, so flex-end overflow drops off the top */
   max-height: 33vh;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
   mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
@@ -29,21 +31,24 @@
 .signal-entry {
   max-width: 100%;
   width: fit-content;
-  padding: 0;
+  padding: 7px 14px;
   margin: 0;
-  background: transparent;
+  background: rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   border: 0;
+  border-radius: 18px;
   overflow-wrap: anywhere;
-  text-shadow: 0 1px 4px #000, 0 0 9px #000, 0 0 18px #000;
+  text-shadow: 0 1px 2px #000;
   animation: signal-appear 280ms cubic-bezier(.16,1,.3,1) both;
 }
-.signal-entry.signal-leaving { animation: signal-disappear 500ms ease forwards; }
+.signal-entry.signal-leaving { animation: signal-disappear 900ms ease-in forwards; }
 .signal-label { color: #ff5a1f; font-weight: 500; margin-right: 7px; }
 .signal-chat .signal-label { color: #e9e6df; }
 .signal-request .signal-label { color: #c69bdf; }
 .signal-safety .signal-label { color: #efd15a; }
 .signal-copy { color: #f4f1ec; }
-.signal-age { color: rgba(233,230,223,.65); font-size: 10px; white-space: nowrap; margin-left: 10px; }
+.signal-age { color: rgba(233,230,223,.65); font-size: 12px; white-space: nowrap; margin-left: 10px; }
 .signal-compose {
   pointer-events: auto;
   align-self: center;
@@ -86,15 +91,17 @@
 .signal-hearts {
   position: fixed;
   z-index: 8;
-  right: 4vw;
-  bottom: clamp(105px, 14vh, 150px);
-  width: 45px;
-  height: 250px;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 .signal-floating-heart {
   position: absolute;
-  bottom: 0;
+  width: 1em;
+  height: 1em;
+  margin: -.5em 0 0 -.5em;
+  line-height: 1;
+  text-align: center;
   color: #ed352c;
   text-shadow: 0 2px 8px #0009;
   animation: signal-heart-up 2400ms ease-out forwards;
@@ -103,14 +110,16 @@
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Rise first, then fade on the way out. */
 @keyframes signal-disappear {
   from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-14px); }
+  55% { opacity: 1; transform: translateY(-22px); }
+  to { opacity: 0; transform: translateY(-36px); }
 }
 @keyframes signal-heart-up {
-  from { opacity: 0; transform: translateY(12px) scale(.7); }
-  18% { opacity: .95; }
-  to { opacity: 0; transform: translateY(-215px) scale(1.15); }
+  from { opacity: 0; transform: translateY(0) scale(.6); }
+  14% { opacity: .95; }
+  to { opacity: 0; transform: translateY(-260px) scale(1.2); }
 }
 body:has(#deck.expanded) #signal-overlay,
 body:has(#deck.ejected) #signal-overlay,
@@ -130,10 +139,10 @@ body.slot-preview .signal-hearts { display: none; }
     bottom: calc(max(88px, env(safe-area-inset-bottom) + 72px) + var(--signal-keyboard-offset, 0px));
     width: calc(100vw - 32px);
     max-height: 36vh;
-    font-size: 12px;
+    font-size: 14px;
   }
-  .signal-stack { gap: 10px; max-height: 27vh; margin-right: 33px; }
-  .signal-hearts { right: 2vw; bottom: 145px; }
+  .signal-stack { gap: 8px; max-height: 30vh; margin-right: 33px; }
+  .signal-entry { padding: 6px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .signal-entry, .signal-entry.signal-leaving, .signal-floating-heart { animation-duration: 1ms; }
