@@ -45,7 +45,7 @@ class SetSwap
     Track.transaction do
       track.update!(origin_track: song, artist: song.artist, title: song.title, bpm: song.bpm, key: song.key,
                     caption: song.caption, lyrics: song.lyrics, duration_ms: song.duration_ms,
-                    mix_out_ms: song.mix_out_ms, audio_file: name, voiceover_file: nil, cue_seconds: nil)
+                    mix_out_ms: song.mix_out_ms || MixOut.measure(dest, song.duration_ms), audio_file: name, voiceover_file: nil, cue_seconds: nil)
       reflow!(track, (track.air_ms - old_ms) / 1000.0, at)
     end
     track

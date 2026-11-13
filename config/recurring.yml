@@ -9,6 +9,11 @@
 #     priority: 2
 #     schedule: at 5am every day
 
+development:
+  measure_mix_outs:
+    class: MeasureMixOutsJob
+    schedule: every 10 minutes
+
 production:
   measure_mix_outs:
     class: MeasureMixOutsJob

@@ -21,7 +21,7 @@ class ReimportShowJob < ApplicationJob
 
     data['tracks'].each_with_index do |track_data, idx|
       track = show.tracks.find_or_initialize_by(position: idx + 1)
-      track.update!(
+      track.assign_attributes(
         title: track_data['title'],
         artist: track_data['artist'],
         caption: track_data['caption'],
@@ -31,6 +31,8 @@ class ReimportShowJob < ApplicationJob
         audio_file: track_data['file'],
         voiceover_file: track_data['voiceoverFile']
       )
+      track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
+      track.save!
     end
 
     import_cues(show, root)

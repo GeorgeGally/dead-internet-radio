@@ -73,11 +73,13 @@ class RerenderTrackJob < ApplicationJob
   end
 
   def replace_audio(track, spec)
+    duration_ms = measured_ms(track.audio_path) || spec['duration'].to_i * 1000
     track.update!(
       bpm: spec['bpm'],
       key: spec['keyscale'].presence || track.key,
       lyrics: spec['lyrics'],
-      duration_ms: measured_ms(track.audio_path) || spec['duration'].to_i * 1000,
+      duration_ms: duration_ms,
+      mix_out_ms: MixOut.measure(track.audio_path, duration_ms),
     )
     say('Done. Remix the show to hear it in its mix.') if track.show&.mix_file.present?
   end
