@@ -180,7 +180,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_120000) do
   add_foreign_key "generation_jobs", "shows"
   add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", on_delete: :nullify
-  add_foreign_key "transmissions", "users"
+  add_foreign_key "transmissions", "users", on_delete: :nullify
   add_foreign_key "song_requests", "users"
   add_foreign_key "tracks", "shows"
   add_foreign_key "tracks", "tracks", column: "origin_track_id", on_delete: :nullify
