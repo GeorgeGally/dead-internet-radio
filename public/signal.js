@@ -342,8 +342,9 @@
       return;
     }
     if (!signedIn) {
-      if (input.value.trim()) notice('Sign in to transmit. Your message is kept.', { label: 'Sign in', run: requestSignIn });
-      return requestSignIn();
+      // Opening the card at once would hide the stream and this line with it.
+      if (!input.value.trim()) return requestSignIn();
+      return notice('Sign in to transmit. Your message is kept.', { label: 'Sign in', run: requestSignIn });
     }
     const body = input.value.trim();
     if (!body) return;

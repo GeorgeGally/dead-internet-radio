@@ -165,11 +165,17 @@ test('ordinary messages still transmit', async () => {
   assert.deepEqual(s.opened, []);
 });
 
-test('a signed-out ordinary message asks for sign-in and posts nothing', async () => {
+test('a signed-out ordinary message posts nothing', async () => {
   const s = await signal({ signedIn: false });
   await submit(s, 'hello');
-  assert.deepEqual(s.opened, [['request', 'chat']]);
   assert.deepEqual(s.posts, []);
+});
+
+test('a signed-out empty submit opens sign-in', async () => {
+  const s = await signal({ signedIn: false });
+  await submit(s, '');
+  assert.deepEqual(s.opened, [['request', 'chat']]);
+  assert.deepEqual(s.lines(), []);
 });
 
 for (const [label, state] of [['signed in', {}], ['signed out', { signedIn: false }]]) {
@@ -247,15 +253,17 @@ test('a refused transmission is told in the stream, not a popup', async () => {
   assert.equal(s.input.value, 'something nasty');
 });
 
-test('a signed-out message is answered in the stream as well as opening sign-in', async () => {
+test('a signed-out message is answered in the stream and its Sign in link opens sign-in', async () => {
   const s = await signal({ signedIn: false });
   await submit(s, 'hello');
+  // Opening the card would hide the overlay and clear the line before anyone reads it.
+  assert.deepEqual(s.opened, []);
   assert.deepEqual(s.lines(), ['Sign in to transmit. Your message is kept.']);
   assert.equal(s.input.value, 'hello');
   const action = s.copies()[0].querySelector('.signal-action');
   assert.equal(action.textContent, 'Sign in');
   action.fire('click');
-  assert.deepEqual(s.opened, [['request', 'chat'], ['request', 'chat']]);
+  assert.deepEqual(s.opened, [['request', 'chat']]);
 });
 
 test('each line is a clock, a type mark and the words', async () => {
