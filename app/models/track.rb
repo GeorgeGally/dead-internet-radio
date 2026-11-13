@@ -79,6 +79,12 @@ class Track < ApplicationRecord
     {}
   end
 
+  # What the live timeline books: the track up to where its sound ends
+  # (MixOut), so its silent tail never airs.
+  def air_ms
+    mix_out_ms.to_i.between?(1, duration_ms.to_i) ? mix_out_ms : duration_ms.to_i
+  end
+
   def voiceover_path
     resolve_media(voiceover_file)
   end

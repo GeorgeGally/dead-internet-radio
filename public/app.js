@@ -221,6 +221,9 @@ function setupAudio(noSeek) {
 
   audio.removeEventListener('ended', onTrackEnd);
   audio.addEventListener('ended', onTrackEnd);
+  audio.removeEventListener('timeupdate', onSegmentTime);
+  audio.addEventListener('timeupdate', onSegmentTime);
+  segmentLeaving = null;
 
   const tryPlay = (e) => {
     if (e && e.target && e.target.closest && (e.target.closest('.transport') || e.target.closest('.deck-transport') || e.target.closest('#btn-gallery'))) {
@@ -360,7 +363,32 @@ function retryAudio() {
 let trackChangeInProgress = false;
 
 function onTrackEnd() {
+  const onAir = playlist && playlist.live ? playlist.tracks[currentTrack] : null;
+  if (onAir && segmentLeaving === onAir.id) return;
   advanceTrack(true);
+}
+
+// The live timeline books a song only up to where its sound ends, so the next
+// one comes straight in instead of after its silent tail. The timeline is
+// fetched a few seconds early so the change itself waits on nothing.
+const TIMELINE_AHEAD_S = 6;
+let segmentLeaving = null;
+let segmentRefreshed = null;
+
+function onSegmentTime() {
+  if (!playlist || !playlist.live) return;
+  const onAir = playlist.tracks[currentTrack];
+  const audio = document.getElementById('player');
+  if (!onAir || audio.paused) return;
+  const left = onAir.durationMs / 1000 - audio.currentTime;
+  if (left < TIMELINE_AHEAD_S && segmentRefreshed !== onAir.id) {
+    segmentRefreshed = onAir.id;
+    refreshTimeline().catch(() => {});
+  }
+  if (left <= 0.15 && segmentLeaving !== onAir.id) {
+    segmentLeaving = onAir.id;
+    advanceTrack(true);
+  }
 }
 
 function advanceTrack(ident) {
@@ -907,6 +935,7 @@ async function refreshTimeline() {
   if (at < 0 && onAir) fresh.tracks.unshift(onAir);
   playlist = fresh;
   currentTrack = Math.max(at, 0);
+  timelineFetchedAt = Date.now();
   bufferNext();
 }
 
@@ -925,6 +954,8 @@ function rejoinIfStranded() {
 
 const TIMELINE_POLL_MS = 30000;
 const TIMELINE_WAIT_MS = 1500;
+const TIMELINE_FRESH_MS = 10000;
+let timelineFetchedAt = 0;
 const LIVE_RETRY_MS = 2000;
 let liveRetry = 0;
 
@@ -942,10 +973,12 @@ async function goLive(fromTrackEnd, ident) {
   clearTimeout(liveRetry);
   let next = playlist;
   if (timelineCoversNow()) {
-    await Promise.race([
-      refreshTimeline().catch(() => {}),
-      new Promise((resolve) => setTimeout(resolve, TIMELINE_WAIT_MS)),
-    ]);
+    if (Date.now() - timelineFetchedAt > TIMELINE_FRESH_MS) {
+      await Promise.race([
+        refreshTimeline().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, TIMELINE_WAIT_MS)),
+      ]);
+    }
     next = playlist;
   } else {
     try {

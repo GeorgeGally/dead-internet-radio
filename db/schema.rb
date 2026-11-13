@@ -122,6 +122,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
     t.integer "down_votes", default: 0, null: false
     t.datetime "vetoed_at"
     t.integer "station_vote", default: 0, null: false
+    t.integer "mix_out_ms"
     t.index ["origin_track_id"], name: "index_tracks_on_origin_track_id"
     t.index ["show_id", "position"], name: "index_tracks_on_show_id_and_position", unique: true
     t.index ["show_id"], name: "index_tracks_on_show_id"

@@ -36,7 +36,7 @@ module ShowImporter
     )
 
     data['tracks'].each_with_index do |track_data, idx|
-      Track.create!(
+      track = Track.new(
         show: show,
         position: idx + 1,
         title: track_data['title'],
@@ -51,6 +51,8 @@ module ShowImporter
         lyrics: track_data['lyrics'],
         brief: track_data['brief']
       )
+      track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
+      track.save!
     end
 
     import_cues(show, root)

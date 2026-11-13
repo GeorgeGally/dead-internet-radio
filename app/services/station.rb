@@ -31,7 +31,7 @@ class Station
 
   # Slot a track in right after whatever is on air, pushing the rest back.
   def self.insert_next(track, source: "request", at: Time.current)
-    duration = track.duration_ms.to_i / 1000.0
+    duration = track.air_ms / 1000.0
     locked do
       current = BroadcastSegment.upcoming(at).first
       start = current ? current.ends_at : at
@@ -75,7 +75,7 @@ class Station
         tracks = next_show_tracks
         break if tracks.empty?
         with_station_id(tracks).each do |track|
-          ends = cursor + track.duration_ms / 1000.0
+          ends = cursor + track.air_ms / 1000.0
           booked << BroadcastSegment.create!(track: track, starts_at: cursor, ends_at: ends)
           cursor = ends
         end

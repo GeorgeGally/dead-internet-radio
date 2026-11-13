@@ -41,6 +41,31 @@ class SetSwapTest < ActiveSupport::TestCase
     assert_in_delta at + 240, later.reload.starts_at, 0.01
   end
 
+  test "an unmeasured song swapped in is booked only up to where its sound ends" do
+    file = File.join(@root, "lib-show", "02-new.mp3")
+    system("ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
+           "-af", "apad=pad_dur=4", "-ar", "44100", file, exception: true)
+    @new.update!(duration_ms: 7_000)
+    at = Time.current
+    seg = BroadcastSegment.create!(track: @slot, starts_at: at + 60, ends_at: at + 210)
+
+    SetSwap.swap!(@slot, @new, at: at)
+
+    assert_in_delta 3.3, seg.reload.ends_at - seg.starts_at, 0.3
+  end
+
+  test "a slot booked before it was measured is resized to the new song's length" do
+    at = Time.current
+    seg = BroadcastSegment.create!(track: @slot, starts_at: at + 60, ends_at: at + 210)
+    later = BroadcastSegment.create!(track: @after, starts_at: at + 210, ends_at: at + 310)
+    @slot.update_column(:mix_out_ms, 120_000)
+
+    SetSwap.swap!(@slot, @new, at: at)
+
+    assert_in_delta at + 240, seg.reload.ends_at, 0.01
+    assert_in_delta at + 240, later.reload.starts_at, 0.01
+  end
+
   test "a song on air can't be swapped" do
     BroadcastSegment.create!(track: @slot, starts_at: 1.minute.ago, ends_at: 2.minutes.from_now)
     assert_raises(SetSwap::Error) { SetSwap.swap!(@slot, @new) }
