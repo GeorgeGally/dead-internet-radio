@@ -827,6 +827,10 @@ body.prewarming #block-canvas {
 /* Page keys: grey-blue caps with an orange lamp that glows on the page on screen. */
 .info-open {
   --c: #8d9aa6;
+  /* Lamps on the left, all in the same place (capture 79). */
+  justify-content: flex-start;
+  /* A thin ring in the key colour with a white inner highlight (captures 80-82). */
+  box-shadow: 0 0 0 1px #8d9aa6, inset 0 2px 4px #fff, inset 0 0 0 0 transparent, 0 0 0 0 transparent;
   color: #0b0b0b;
   font-family: "Anka Coder", "IBM Plex Mono", monospace;
   font-weight: 600;
@@ -850,7 +854,8 @@ body.prewarming #block-canvas {
 .info-close { --c: #ec6a1f; color: #fff; margin-left: auto; }
 
 /* Every key the same width. */
-.info-key { min-width: 152px; justify-content: center; }
+.info-key { min-width: 152px; }
+.info-close { justify-content: center; }
 
 .info-page-title { font-size: clamp(36px, 5.76vw, 83px); }
 
