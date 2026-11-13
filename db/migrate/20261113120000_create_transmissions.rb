@@ -1,7 +1,7 @@
 class CreateTransmissions < ActiveRecord::Migration[8.0]
   def change
     create_table :transmissions do |t|
-      t.references :user, foreign_key: true
+      t.references :user, foreign_key: { on_delete: :nullify }
       t.string :kind, null: false
       t.string :body, null: false, limit: 240
       t.jsonb :metadata, null: false, default: {}
