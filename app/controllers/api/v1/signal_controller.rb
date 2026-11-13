@@ -16,6 +16,11 @@ module Api
         end.uniq.first(3)
         render json: { artists: artists, generated_at: now.iso8601 }
       end
+
+      # Instant: cached model-written lines or the built-in ones, never a live model call.
+      def bulletins
+        render json: { lines: FictionBulletins.current }
+      end
     end
   end
 end

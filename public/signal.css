@@ -48,6 +48,7 @@
 .signal-request .signal-label { color: #c69bdf; }
 .signal-safety .signal-label { color: #efd15a; }
 .signal-copy { color: #f4f1ec; }
+.signal-redacted { background: #000; color: #000; text-shadow: none; border-radius: 1px; }
 .signal-age { color: rgba(233,230,223,.65); font-size: 12px; white-space: nowrap; margin-left: 10px; }
 .signal-compose {
   pointer-events: auto;

@@ -21,6 +21,7 @@ Rails.application.routes.draw do
       delete "session", to: "sessions#destroy"
       resources :requests, only: [:index, :create]
       get "signal/lineup", to: "signal#lineup"
+      get "signal/bulletins", to: "signal#bulletins"
       post "signal/identity", to: "sessions#signal_identity"
       resources :transmissions, only: [:index, :create] do
         post :heart, on: :collection
