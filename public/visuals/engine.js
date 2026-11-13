@@ -98,12 +98,12 @@ const visuals = (() => {
     p.canvas.style.position = 'fixed';
     p.canvas.style.top = '0';
     p.canvas.style.left = '0';
-    // Match the visible mobile viewport, not the page's older 100vh box.
-    // Keep the canvas buffer's aspect ratio when it differs during rotation
-    // or browser-chrome transitions; stretching distorts whole artworks.
+    // The sketch draws at the current viewport size. Cover any momentary
+    // mismatch during browser-chrome transitions/rotation without stretching
+    // pixels or introducing letterbox borders.
     p.canvas.style.width = '100vw';
     p.canvas.style.height = '100dvh';
-    p.canvas.style.objectFit = 'contain';
+    p.canvas.style.objectFit = 'cover';
     p.canvas.style.zIndex = '1';
     // Sketches without their own handler still follow the window, so the
     // filter overlays (sized from this canvas) never lag behind a resize.
