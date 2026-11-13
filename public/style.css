@@ -1996,3 +1996,34 @@ body.set-open #info-card { display: none; }
   #set-page { padding: 12px; }
   .deck-transport { gap: 6px; }
 }
+
+
+/* ---- Artwork viewport: preserve proportions on portrait screens ---- */
+/* The fullscreen surfaces used to be stretched to 100vw x 100vh, even when
+   the underlying sketch/film was rendered at another aspect ratio. On phones
+   preserve the artwork's geometry instead of pulling it into a tall frame.
+   FX must use the same fitting mode as the canvas it samples. */
+@media (max-width: 767px) and (orientation: portrait) {
+  #gif-bg,
+  canvas.p5Canvas,
+  #block-canvas,
+  #overlay-canvas,
+  #fx-canvas,
+  #hud-canvas {
+    object-fit: contain;
+  }
+}
+
+/* iOS' dynamic browser chrome changes the visible viewport height. Keep all
+   artwork and post-processing layers in exactly the same viewport rectangle. */
+@supports (height: 100dvh) {
+  #gif-bg,
+  canvas.p5Canvas,
+  #block-canvas,
+  #overlay-canvas,
+  #fx-canvas,
+  #hud-canvas {
+    width: 100vw;
+    height: 100dvh;
+  }
+}
