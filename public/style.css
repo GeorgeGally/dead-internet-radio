@@ -1996,3 +1996,26 @@ body.set-open #info-card { display: none; }
   #set-page { padding: 12px; }
   .deck-transport { gap: 6px; }
 }
+
+
+/* Full-bleed artwork: never distort pixels or expose letterboxing.
+   Generated sketches normally resize to the viewport; cover is the fallback
+   while Safari's browser chrome or device rotation changes its dimensions. */
+#gif-bg { object-fit: cover; }
+canvas.p5Canvas,
+#block-canvas,
+#overlay-canvas,
+#fx-canvas,
+#hud-canvas { object-fit: cover; }
+
+@supports (height: 100dvh) {
+  #gif-bg,
+  canvas.p5Canvas,
+  #block-canvas,
+  #overlay-canvas,
+  #fx-canvas,
+  #hud-canvas {
+    width: 100vw;
+    height: 100dvh;
+  }
+}

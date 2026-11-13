@@ -160,3 +160,23 @@ test('short station clips hold the song after them in memory, and a dead segment
   assert.match(js, /if \(next\.durationMs >= SONG_MS\) break;/);
   assert.match(js, /setInterval\(rejoinIfStranded, 2000\)/);
 });
+
+
+test('artworks fill the mobile viewport without distortion or borders', () => {
+  const engine = fs.readFileSync(path.join(root, 'public/visuals/engine.js'), 'utf8');
+  const eyes = fs.readFileSync(path.join(root, 'public/visuals/eyes.js'), 'utf8');
+  assert.match(engine, /p\\.canvas\\.style\\.objectFit = 'cover'/);
+  assert.match(engine, /p\\.canvas\\.style\\.height = '100dvh'/);
+  assert.match(css, /canvas\\.p5Canvas,[\\s\\S]*?object-fit: cover/);
+  assert.match(css, /@supports \\(height: 100dvh\\)/);
+  assert.match(eyes, /Math\\.max\\(p\\.width \\/ f\\.width, p\\.height \\/ f\\.height\\)/);
+  assert.match(eyes, /\\(\\(p\\.height - h\\) \\/ 2\\) \\* d/);
+});
+
+test('Eyes uses left-eye framing on portrait while B-roll remains centre-cropped', () => {
+  const eyes = fs.readFileSync(path.join(root, 'public/visuals/eyes.js'), 'utf8');
+  const broll = fs.readFileSync(path.join(root, 'public/visuals/prelinger_broll.js'), 'utf8');
+  assert.match(eyes, /p\\.width < p\\.height \\? p\\.width \\/ 2 - w \\* 0\\.25/);
+  assert.match(broll, /Math\\.max\\(p\\.width \\/ b\\.w, p\\.height \\/ b\\.h\\)/);
+  assert.match(broll, /\\(p\\.width - dw\\) \\/ 2/);
+});

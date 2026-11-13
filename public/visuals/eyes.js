@@ -59,18 +59,21 @@ visuals.register('eyes', (() => {
         }
       }
 
-      // The GIF's height fills the screen; the sides crop on anything wider
-      // than its 500:210 frame and letterbox on anything narrower.
+      // Full-bleed at all sizes. Portrait phones frame the left-hand eye:
+      // position the first quarter of the wide GIF at the screen centre.
+      // Desktop stays centre-cropped; neither path distorts the source.
       function drawFrame(i, alpha) {
         const f = frames[i];
         const d = p.pixelDensity();
-        const s = p.height / f.height;
+        const s = Math.max(p.width / f.width, p.height / f.height);
         const w = f.width * s;
+        const h = f.height * s;
         const ctx = p.drawingContext;
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = alpha;
-        ctx.drawImage(f, ((p.width - w) / 2) * d, 0, w * d, p.height * d);
+        const x = p.width < p.height ? p.width / 2 - w * 0.25 : (p.width - w) / 2;
+        ctx.drawImage(f, x * d, ((p.height - h) / 2) * d, w * d, h * d);
         ctx.restore();
       }
 
