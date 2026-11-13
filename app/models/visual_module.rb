@@ -29,6 +29,7 @@ class VisualModule < ApplicationRecord
     "self_avoiding_walk_3d" => "Self Avoiding Walk 3D",
     "cubes_token_sha" => "Cubes Token SHA",
     "led_grid" => "LED Grid Visual",
+    "computers" => "Mainframe",
   }.freeze
 
   def self.registered_slugs

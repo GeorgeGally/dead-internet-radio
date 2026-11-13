@@ -112,8 +112,8 @@ function playerArtworks(onAir) {
   const sandbox = { console, setTimeout() { return 0; }, clearTimeout() {}, document: {}, performance };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens|robots)\.js"/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens', 'robots']);
+  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens|robots|computers)\.js"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens', 'robots', 'computers']);
   for (const name of scripts) vm.runInContext(read(`visuals/${name}.js`), sandbox);
   const visuals = vm.runInContext('visuals', sandbox);
   visuals.setEnabled(onAir);
@@ -162,6 +162,19 @@ test('the drawer shows the admin\'s name for Robots', () => {
   const d = drawer(visuals);
   d.gallery.open();
   assert.deepEqual(d.tiles().map((t) => t.children[0].textContent), ['Aliens', 'Thinking Machines']);
+});
+
+test('Mainframe has its own drawer tile after Robots, and choosing it plays Mainframe', () => {
+  const { visuals, activated } = playerArtworks(['prelinger_broll', 'aliens', 'robots', 'computers', 'grid']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  const tiles = d.tiles();
+  assert.deepEqual(tiles.map((t) => t.dataset.id), ['prelinger_broll', 'aliens', 'robots', 'computers']);
+  assert.deepEqual(tiles.map((t) => t.children[0].textContent), ['B-roll', 'Aliens', 'Robots', 'Mainframe']);
+  assert.match(tiles[3].style.backgroundImage, /thumbs\/computers\.jpg/);
+  assert.ok(fs.existsSync(path.resolve(__dirname, '../public/visuals/thumbs/computers.jpg')));
+  tiles[3].click();
+  assert.deepEqual(activated, ['computers']);
 });
 
 test('switching Robots off in the admin takes only its tile out of the drawer', () => {

@@ -206,7 +206,7 @@ test('giphy holds two buffered clips and keeps them when the artwork leaves', as
 });
 
 function themedPage(id, results) {
-  const page = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js'], [id]);
+  const page = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js'], [id]);
   page.searches = [];
   page.context.fetch = async (url) => {
     page.fetches.push(url);
@@ -222,6 +222,7 @@ function themedPage(id, results) {
 }
 const aliensPage = (results) => themedPage('aliens', results);
 const robotsPage = (results) => themedPage('robots', results);
+const computersPage = (results) => themedPage('computers', results);
 
 const alienFilms = (videos) => videos.filter((v) => v.url?.startsWith('/broll/')).map((v) => v.url.split('/')[2]);
 
@@ -372,8 +373,47 @@ test('Robots hands its frame to the filters', async () => {
   assert.deepEqual(filtered, [instances.at(-1).p]);
 });
 
+test('Mainframe plays what its archive.org computer searches find, not a fixed list', async () => {
+  const { artworks, context, videos, instances, searches, fetches } = computersPage((q) => (q.includes('title:(computer') ? ['ibm-system-36', 'univac-ad'] : ['wargames']));
+  assert.equal(artworks.computers.name, 'Mainframe');
+  await until(() => alienFilms(videos).length === 3);
+  await tick();
+  artworks.computers.start();
+  instances.at(-1).p.draw();
+
+  assert.equal(context.__pb.ready, true);
+  assert.equal(instances.at(-1).leaderDrawn, 0);
+  assert.deepEqual(alienFilms(videos).sort(), ['ibm-system-36', 'univac-ad', 'wargames']);
+  assert.equal(new Set(searches).size, 2);
+  assert.ok(searches.every((q) => /\bcomputers?\b/.test(q) && /mainframe/.test(q) && /modem/.test(q) && q.endsWith('AND mediatype:movies')));
+  assert.ok(searches.every((q) => q.length <= 500 && q.includes('item_size:[1000000 TO 90000000]') && q.includes('NOT collection:computercommercials')));
+  assert.ok(!searches.some((q) => /ufo|saucer|robot/i.test(q)));
+  assert.ok(!fetches.some((url) => url.includes('giphy')));
+});
+
+test('Mainframe with no archive.org results shows nothing else in their place', async () => {
+  const { artworks, context, videos, instances, fetches } = computersPage(() => []);
+  artworks.computers.start();
+  await until(() => context.__pb.failed);
+  instances.at(-1).p.draw();
+
+  assert.equal(videos.length, 0);
+  assert.ok(!fetches.some((url) => url.includes('giphy') || url.startsWith('/broll/')));
+  assert.ok(instances.at(-1).leaderDrawn > 0);
+});
+
+test('Mainframe hands its frame to the filters', async () => {
+  const { artworks, context, instances } = computersPage(() => ['ibm-system-36']);
+  const filtered = [];
+  context.canvasFilters.applyToP5 = (p) => filtered.push(p);
+  artworks.computers.start();
+  await until(() => context.__pb.ready && !context.__pb.loading);
+  instances.at(-1).p.draw();
+  assert.deepEqual(filtered, [instances.at(-1).p]);
+});
+
 test('the original B-roll keeps its own themed searches', async () => {
-  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js'], ['prelinger_broll']);
+  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js'], ['prelinger_broll']);
   await until(() => videos.filter((v) => v.url?.startsWith('/broll/')).length === 3);
   const searched = fetches.filter((url) => url.includes('broll-index/search')).map(decodeURIComponent);
   assert.ok(searched.some((q) => q.includes('collection:classic_tv_commercials')));
