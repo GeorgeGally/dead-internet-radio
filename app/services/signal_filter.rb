@@ -7,14 +7,16 @@ module SignalFilter
   URL = "https://openrouter.ai/api/v1/chat/completions"
   BAR = "█".freeze
   FALLBACK_MODEL = "openrouter/free".freeze
-  SWEAR_STEMS = %w[fuck shit cunt wank twat].freeze
+  SWEAR_STEMS = %w[fuck shit].freeze
   SWEARS = %w[
-    bitch bastard dick cock prick piss crap damn goddamn dammit goddammit bollocks
+    cunt wank twat bitch bastard piss crap damn goddamn dammit goddammit bollocks
     arse arsehole ass asshole dumbass jackass slut whore
   ].freeze
+  SWEAR_NOUNS = %w[dick cock prick].freeze
   SWEAR_PATTERN = /
     [[:alnum:]]*(?:#{SWEAR_STEMS.join("|")})[[:alnum:]]* |
-    (?<![[:alnum:]])(?:#{SWEARS.join("|")})(?:s|es|ed|er|ers|ing|in|y|py|ty|ting|ted|head|heads)?(?![[:alnum:]])
+    (?<![[:alnum:]])(?:#{SWEARS.join("|")})(?:s|es|ed|er|ers|ing|in|y|py|ty|ting|ted|head|heads)?(?![[:alnum:]]) |
+    (?<![[:alnum:]])(?:#{SWEAR_NOUNS.join("|")})(?:s|head|heads)?(?![[:alnum:]])
   /ix
   SYSTEM = <<~PROMPT.freeze
     You moderate the text-only public chat of Dead Internet Radio, a fictional

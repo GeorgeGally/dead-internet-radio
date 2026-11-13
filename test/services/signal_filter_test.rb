@@ -84,6 +84,18 @@ class SignalFilterTest < ActiveSupport::TestCase
     assert_equal text, SignalFilter.check(text).body
   end
 
+  test "whole-word swears and their forms are blacked out" do
+    replies('{"allow":true,"redact":[]}')
+    assert_equal "██████ ███████ █████ ████████ █████",
+      SignalFilter.check("wanker wanking twats dickhead cunts").body
+  end
+
+  test "ordinary words that contain a swear stay intact" do
+    replies('{"allow":true,"redact":[]}')
+    text = "nightwatch saltwater Atwater swanky swank Scunthorpe cocked pricked cocker Dicky"
+    assert_equal text, SignalFilter.check(text).body
+  end
+
   test "an unparseable reply falls through to the free router" do
     replies("I cannot comply.", '{"allow":true,"redact":[]}')
     assert_equal :allowed, SignalFilter.check("hello").status
