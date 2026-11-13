@@ -31,9 +31,9 @@ class SongRequest < ApplicationRecord
   # What generate.py --request-json needs: who asked, what for, and the sound to
   # lean on (the matched artist's ACE-Step caption, if any).
   def announce_status
-    return unless %w[accepted generating scheduled].include?(status)
+    return unless %w[accepted generating ready scheduled].include?(status)
 
-    label = { "accepted" => "requested", "generating" => "generating", "scheduled" => "scheduled" }.fetch(status)
+    label = { "accepted" => "requested", "generating" => "generating", "ready" => "ready", "scheduled" => "scheduled" }.fetch(status)
     Transmission.create!(kind: "request", user: user,
       body: "#{user.public_handle} #{label}: #{title} — #{artist}",
       metadata: { request_id: id, phase: status, handle: user.public_handle })
