@@ -8,7 +8,7 @@ class SetSwap
 
   def self.candidates(track, query: nil, limit: 8)
     in_set = track.show.tracks.where.not(origin_track_id: nil).pluck(:origin_track_id)
-    songs = Track.songs.includes(:show).where(vetoed_at: nil).where.not(id: in_set)
+    songs = Track.songs.includes(:show).not_vetoed.where.not(id: in_set)
     if query.present?
       q = "%#{Track.sanitize_sql_like(query)}%"
       songs = songs.where("tracks.artist ILIKE ? OR tracks.title ILIKE ?", q, q)

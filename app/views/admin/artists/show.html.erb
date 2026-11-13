@@ -7,7 +7,7 @@
 <table class="songs">
   <tr><th></th><th>Title</th><th>Show</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Votes</th><th></th></tr>
   <% @songs.each do |song| %>
-    <tr style="<%= 'opacity:.4' if song.vetoed_at || song.retired? %>">
+    <tr style="<%= 'opacity:.4' if song.kept_out? %>">
       <td class="play-cell">
         <% if song.audio_path && File.exist?(song.audio_path) %>
           <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>

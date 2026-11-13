@@ -16,10 +16,11 @@ module Admin
       @sets = GenerationJob.where("options->>'kind' = 'set'").recent.limit(5)
     end
 
-    # Veto is for good: the song never airs in a set again. Pressed again, it comes back.
+    # Veto is for good: the song never airs again. Pressed again, it comes back.
     def veto
       song = Track.songs.find(params[:id])
       song.update!(vetoed_at: song.vetoed_at ? nil : Time.current)
+      Station.drop_upcoming(song.id) if song.vetoed_at
       Library.write_taste!
       redirect_to admin_library_index_path, notice: "#{song.title}: #{song.vetoed_at ? 'vetoed' : 'back in the library'}"
     end

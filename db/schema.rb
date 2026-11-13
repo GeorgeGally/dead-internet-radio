@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_13_123000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -121,6 +121,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_123000) do
     t.integer "up_votes", default: 0, null: false
     t.integer "down_votes", default: 0, null: false
     t.datetime "vetoed_at"
+    t.integer "station_vote", default: 0, null: false
     t.index ["origin_track_id"], name: "index_tracks_on_origin_track_id"
     t.index ["show_id", "position"], name: "index_tracks_on_show_id_and_position", unique: true
     t.index ["show_id"], name: "index_tracks_on_show_id"

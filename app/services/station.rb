@@ -41,6 +41,21 @@ class Station
     end
   end
 
+  # Take a song off the timeline ahead: its bookings after the one on air go,
+  # and what follows each moves up to close the gap.
+  def self.drop_upcoming(song_id, at: Time.current)
+    locked do
+      BroadcastSegment.joins(:track).where("broadcast_segments.starts_at > ?", at)
+        .where("COALESCE(tracks.origin_track_id, tracks.id) = ?", song_id)
+        .order(starts_at: :desc).each do |seg|
+        gap = seg.ends_at - seg.starts_at
+        seg.destroy!
+        BroadcastSegment.where("starts_at >= ?", seg.ends_at)
+          .update_all(["starts_at = starts_at - make_interval(secs => ?), ends_at = ends_at - make_interval(secs => ?)", gap, gap])
+      end
+    end
+  end
+
   def self.fill!(at = Time.current)
     booked = book!(at)
     RequestNotifier.scheduled!(booked) if booked.any?
@@ -79,12 +94,16 @@ class Station
   end
 
   # Least-recently-aired show or set with playable tracks; never-aired first.
+  # Songs kept out (vetoed, disliked by the station, retired) are skipped, and
+  # a show left with no song at all sits out.
   def self.next_show_tracks
     last_aired = BroadcastSegment.joins(:track).group("tracks.show_id").maximum(:starts_at)
+    out = Track.kept_out.pluck(:id).to_set
     shows = Show.airable.includes(:tracks).sort_by { |s| [last_aired[s.id] || Time.at(0), s.id] }
     shows.each do |show|
-      tracks = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
-      return tracks if tracks.any?
+      playable = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
+      tracks = playable.reject { |t| t.votable? && out.include?(t.song_id) }
+      return tracks if tracks.any? && (tracks.size == playable.size || tracks.any?(&:votable?))
     end
     []
   end

@@ -20,11 +20,11 @@ module Library
 
   # The candidates for a new set: requests first (they must play), then the
   # songs listeners like, then the ones that haven't aired for longest.
-  # Vetoed, retired and recently aired songs sit out.
+  # Vetoed (a station dislike is a veto), retired and recently aired songs sit out.
   def self.pool(at: Time.current)
     aired = last_aired
     waiting = SongRequest.waiting_for_set.includes(:user).index_by(&:track_id)
-    songs = self.songs.where(vetoed_at: nil).to_a.select { |t| t.audio_path && File.exist?(t.audio_path) }
+    songs = self.songs.not_vetoed.to_a.select { |t| t.audio_path && File.exist?(t.audio_path) }
     songs.reject! { |t| t.retired? && !waiting.key?(t.id) }
     # While the library is small the station loops it, so every song has aired
     # or is booked within hours: the resting ones then join at the back,
@@ -59,7 +59,7 @@ module Library
   def self.taste
     songs = self.songs.where("up_votes + down_votes > 0").to_a
     liked = songs.select { |t| t.score >= 2 }.sort_by { |t| -t.score }.first(6)
-    turned = (songs.select(&:retired?) + Track.songs.where.not(vetoed_at: nil).to_a).uniq.first(6)
+    turned = self.songs.kept_out.order(id: :desc).first(6)
     {
       liked: liked.filter_map(&:sound_caption),
       turned_away: turned.filter_map(&:sound_caption),
