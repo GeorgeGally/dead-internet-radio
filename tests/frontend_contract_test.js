@@ -160,3 +160,13 @@ test('short station clips hold the song after them in memory, and a dead segment
   assert.match(js, /if \(next\.durationMs >= SONG_MS\) break;/);
   assert.match(js, /setInterval\(rejoinIfStranded, 2000\)/);
 });
+
+
+test('portrait artworks preserve their aspect ratio and use the visible mobile viewport', () => {
+  const engine = fs.readFileSync(path.join(root, 'public/visuals/engine.js'), 'utf8');
+  assert.match(engine, /p\.canvas\.style\.objectFit = 'contain'/);
+  assert.match(engine, /p\.canvas\.style\.height = '100dvh'/);
+  assert.match(css, /@media \(max-width: 767px\) and \(orientation: portrait\)/);
+  assert.match(css, /#gif-bg,[\s\S]*?canvas\.p5Canvas,[\s\S]*?object-fit: contain/);
+  assert.match(css, /@supports \(height: 100dvh\)/);
+});
