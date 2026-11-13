@@ -18,6 +18,7 @@
     <a href="/admin/library">Library</a>
     <% outstanding_requests = SongRequest.outstanding.count %>
     <a href="/admin/requests">Requests<% if outstanding_requests.positive? %><span class="nav-count"><%= outstanding_requests %></span><% end %></a>
+    <a href="/admin/transmissions">Signal</a>
     <a href="/admin/visuals">Visuals</a>
     <a href="/admin/idents">Station IDs</a>
     <a href="/admin/generation">Generate</a>
