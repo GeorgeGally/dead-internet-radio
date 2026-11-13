@@ -26,8 +26,9 @@ Rails.application.configure do
     config.public_file_server.headers = { "cache-control" => "no-cache, no-store, must-revalidate" }
   end
 
+  # Shared on disk so the bin/jobs worker and the web server see the same cache.
   # Change to :null_store to avoid any caching.
-  config.cache_store = :memory_store
+  config.cache_store = :file_store, Rails.root.join("tmp/cache/store")
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

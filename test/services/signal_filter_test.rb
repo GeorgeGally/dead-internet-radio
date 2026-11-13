@@ -2,15 +2,14 @@ require "test_helper"
 
 class SignalFilterTest < ActiveSupport::TestCase
   setup do
-    @env = ENV.to_h.slice("OPENROUTER_API_KEY", "OPENROUTER_MODEL", "SIGNAL_FILTER_MODEL")
+    @env = ENV.to_h.slice("OPENROUTER_API_KEY", "SIGNAL_FILTER_MODEL")
     ENV["OPENROUTER_API_KEY"] = "test-key"
     ENV["SIGNAL_FILTER_MODEL"] = "paid/model"
-    ENV["OPENROUTER_MODEL"] = "a/one:free,b/two:free"
     @calls = []
   end
 
   teardown do
-    %w[OPENROUTER_API_KEY OPENROUTER_MODEL SIGNAL_FILTER_MODEL].each { |k| ENV[k] = @env[k] }
+    %w[OPENROUTER_API_KEY SIGNAL_FILTER_MODEL].each { |k| ENV[k] = @env[k] }
     SignalFilter.singleton_class.send(:remove_method, :complete) if @stubbed
   end
 
@@ -51,21 +50,32 @@ class SignalFilterTest < ActiveSupport::TestCase
     assert_equal :rejected, SignalFilter.check("you specifically are worthless").status
   end
 
-  test "an unparseable reply is retried once on the same model" do
-    replies("I cannot comply.", '{"allow":true}')
-    assert_equal :allowed, SignalFilter.check("hello").status
-    assert_equal ["paid/model", "paid/model"], @calls
+  test "listed swearing is blacked out even when the model redacts nothing" do
+    replies('{"allow":true,"redact":[]}')
+    result = SignalFilter.check("FUCKING hell, this shit slaps")
+    assert_equal :allowed, result.status
+    assert_equal "███████ hell, this ████ slaps", result.body
   end
 
-  test "after a retry fails the free models are tried in order" do
-    replies("nope", "still nope", RuntimeError.new("moderation HTTP 429"), '{"allow":true}')
-    assert_equal :allowed, SignalFilter.check("hello").status
-    assert_equal ["paid/model", "paid/model", "a/one:free", "openrouter/free"], @calls
+  test "listed swearing is blacked out when the model omits redact" do
+    replies('{"allow":true}')
+    assert_equal "the bass is ███", SignalFilter.check("the bass is ass").body
   end
 
-  test "unavailable only when every model fails" do
-    replies(*Array.new(6) { RuntimeError.new("moderation HTTP 500") })
+  test "the model can black out words beyond the list" do
+    replies('{"allow":true,"redact":["frak"]}')
+    assert_equal "████ this, the bass is ████", SignalFilter.check("frak this, the bass is shit").body
+  end
+
+  test "an unparseable reply falls through to the free router" do
+    replies("I cannot comply.", '{"allow":true,"redact":[]}')
+    assert_equal :allowed, SignalFilter.check("hello").status
+    assert_equal ["paid/model", "openrouter/free"], @calls
+  end
+
+  test "unavailable after two failed attempts, with no third call" do
+    replies(*Array.new(3) { RuntimeError.new("moderation HTTP 500") })
     assert_equal :unavailable, SignalFilter.check("hello").status
-    assert_equal ["paid/model", "a/one:free", "openrouter/free"], @calls
+    assert_equal ["paid/model", "openrouter/free"], @calls
   end
 end

@@ -2,9 +2,8 @@ require "test_helper"
 
 class FictionBulletinsTest < ActiveJob::TestCase
   setup do
-    @env = ENV.to_h.slice("OPENROUTER_API_KEY", "OPENROUTER_MODEL")
+    @env = ENV.to_h.slice("OPENROUTER_API_KEY")
     ENV["OPENROUTER_API_KEY"] = "test-key"
-    ENV["OPENROUTER_MODEL"] = "paid/model,a/one:free"
     @old_cache = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
     @old_adapter = ActiveJob::Base.queue_adapter
@@ -13,7 +12,7 @@ class FictionBulletinsTest < ActiveJob::TestCase
   end
 
   teardown do
-    %w[OPENROUTER_API_KEY OPENROUTER_MODEL].each { |k| ENV[k] = @env[k] }
+    %w[OPENROUTER_API_KEY].each { |k| ENV[k] = @env[k] }
     Rails.cache = @old_cache
     ActiveJob::Base.queue_adapter = @old_adapter
     FictionBulletins.singleton_class.send(:remove_method, :complete) if @stubbed
@@ -22,8 +21,8 @@ class FictionBulletinsTest < ActiveJob::TestCase
   def replies(*answers)
     calls = @calls
     @stubbed = true
-    FictionBulletins.define_singleton_method(:complete) do |model, _key|
-      calls << model
+    FictionBulletins.define_singleton_method(:complete) do |_key|
+      calls << FictionBulletins::MODEL
       answer = answers.shift
       raise answer if answer.is_a?(Exception)
 
@@ -31,11 +30,10 @@ class FictionBulletinsTest < ActiveJob::TestCase
     end
   end
 
-  test "free models only, in order, until one answers" do
-    replies(RuntimeError.new("HTTP 429"),
-      "```json\n{\"lines\":[\"The moon has been deprecated. Please migrate to the sun.\"]}\n```")
+  test "only OpenRouter's free router writes the lines" do
+    replies("```json\n{\"lines\":[\"The moon has been deprecated. Please migrate to the sun.\"]}\n```")
     lines = FictionBulletins.refresh!
-    assert_equal ["a/one:free", "openrouter/free"], @calls
+    assert_equal ["openrouter/free"], @calls
     assert_equal ["DIR FICTION / The moon has been deprecated. Please migrate to the sun."], lines
   end
 
@@ -69,7 +67,9 @@ class FictionBulletinsTest < ActiveJob::TestCase
   end
 
   test "a failed generation keeps the fallback and caches nothing" do
-    replies(RuntimeError.new("HTTP 500"), "not json")
+    replies(RuntimeError.new("HTTP 500"))
+    assert_equal [], FictionBulletins.refresh!
+    replies("not json")
     assert_equal [], FictionBulletins.refresh!
     assert_equal FictionBulletins::FALLBACK, FictionBulletins.current
   end

@@ -1,6 +1,6 @@
 require "net/http"
 
-# DIR FICTION bulletins, written fresh by OpenRouter's free models and cached.
+# DIR FICTION bulletins, written fresh by OpenRouter's free router and cached.
 # Listeners always get an instant answer: the cache, or the hand-written lines.
 module FictionBulletins
   PREFIX = "DIR FICTION / ".freeze
@@ -9,6 +9,7 @@ module FictionBulletins
   FRESH_FOR = 20.minutes
   MAX_LENGTH = 140
   BATCH = 6
+  MODEL = "openrouter/free".freeze
   FALLBACK = [
     "Radiation will be heavy over the western sector this afternoon. Don’t forget those hazmats!",
     "Municipal servers advise residents to ignore the second moon.",
@@ -56,27 +57,19 @@ module FictionBulletins
     lines
   end
 
-  def self.models
-    free = ENV["OPENROUTER_MODEL"].to_s.split(",").map(&:strip).select { |m| m.end_with?(":free") }
-    [*free, "openrouter/free"].uniq
-  end
-
   def self.generate
     key = ENV["OPENROUTER_API_KEY"].presence
     return [] unless key
 
-    models.each do |model|
-      lines = parse(complete(model, key))
-      return lines if lines.any?
-    rescue StandardError => e
-      Rails.logger.warn("Fiction bulletins via #{model} failed: #{e.class}")
-    end
+    parse(complete(key))
+  rescue StandardError => e
+    Rails.logger.warn("Fiction bulletins via #{MODEL} failed: #{e.class}")
     []
   end
 
-  def self.complete(model, key)
+  def self.complete(key)
     uri = URI(RequestFilter::OPENROUTER_URL)
-    body = { model: model, max_tokens: 900, temperature: 1.0,
+    body = { model: MODEL, max_tokens: 900, temperature: 1.0,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: PROMPT }] }
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 40) do |http|
