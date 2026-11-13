@@ -20,6 +20,11 @@ Rails.application.routes.draw do
       post "session/google", to: "sessions#google"
       delete "session", to: "sessions#destroy"
       resources :requests, only: [:index, :create]
+      get "signal/lineup", to: "signal#lineup"
+      post "signal/identity", to: "sessions#signal_identity"
+      resources :transmissions, only: [:index, :create] do
+        post :heart, on: :collection
+      end
       post "songs/:song_id/vote", to: "votes#create", as: :song_vote
     end
   end
@@ -57,6 +62,14 @@ Rails.application.routes.draw do
       post :veto, on: :member
       post :build, on: :collection
     end
+    resources :transmissions, only: [:index] do
+      member do
+        post :hide
+        post :mute
+        post :unmute
+      end
+      post :toggle_chat, on: :collection
+    end
     resources :requests, only: [:index] do
       post :fulfill, on: :member
       post :retry, on: :member
@@ -77,6 +90,8 @@ Rails.application.routes.draw do
     get "ace_step/status", to: "ace_step#status", as: :ace_step_status
     post "ace_step/toggle", to: "ace_step#toggle", as: :ace_step_toggle
   end
+
+  mount ActionCable.server => "/cable"
 
   # root serves static public/index.html (the player)
 end

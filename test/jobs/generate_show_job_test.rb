@@ -17,7 +17,8 @@ class GenerateShowJobTest < ActiveJob::TestCase
       1
     }
 
-    with_singleton_method(worker, :run_and_stream, stream_stub) do
+    with_singleton_method(AceStepManager, :installed?, -> { true }) do
+      with_singleton_method(worker, :run_and_stream, stream_stub) do
       with_singleton_method(AceStepManager, :acquire, -> {
         AceStepSession.create!(job_type: 'GenerateShowJob', last_activity_at: Time.current)
       }) do
@@ -25,6 +26,8 @@ class GenerateShowJobTest < ActiveJob::TestCase
           worker.perform(generation_job.id)
         end
       end
+    end
+
     end
 
     generation_job.reload

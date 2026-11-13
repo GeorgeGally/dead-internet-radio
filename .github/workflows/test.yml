@@ -1,0 +1,43 @@
+name: DIR tests
+
+on:
+  pull_request:
+  push:
+    branches: [feat/signal-live-overlay]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dead_internet_radio_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/dead_internet_radio_test
+      OPENROUTER_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: Prepare database
+        run: bin/rails db:prepare
+      - name: Run complete test suite
+        run: bin/rails test
+      - name: Check signal JavaScript syntax
+        run: |
+          node --check public/signal.js
+          node --check public/request.js

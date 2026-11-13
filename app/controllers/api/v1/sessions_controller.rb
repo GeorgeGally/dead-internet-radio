@@ -2,6 +2,7 @@ module Api
   module V1
     # Google sign-in for listeners, asked only when they make a request.
     class SessionsController < ListenerController
+      before_action :require_user, only: :signal_identity
       def me
         render json: me_json
       end
@@ -16,9 +17,15 @@ module Api
 
         user = User.find_or_initialize_by(google_uid: claims["sub"])
         user.update!(email: claims["email"], name: claims["name"].presence || claims["given_name"])
+        user.assign_signal_handle!
         session[:user_id] = user.id
         @current_user = user
         render json: me_json
+      end
+
+      def signal_identity
+        current_user.assign_signal_handle!(city: params[:city])
+        render json: { handle: current_user.public_handle }
       end
 
       def destroy

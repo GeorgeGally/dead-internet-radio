@@ -2,7 +2,7 @@
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, log = [], gsiLoading = null;
+  let card, led, me = null, log = [], gsiLoading = null, openReason = 'request';
   // Set while Google's sign-in is out, so the line reopens if the page reloads.
   const RETURN_KEY = 'dir-request-return';
 
@@ -103,7 +103,12 @@ const requestLine = (() => {
     rememberReturn(false);
     if (!tokenResp || !tokenResp.access_token) { render('Google didn\'t vouch for that.'); return; }
     const { ok, data } = await call('POST', '/session/google', { access_token: tokenResp.access_token });
-    if (ok) { me = data; await refreshMe(); render(); } else render(data.message || 'Google didn\'t vouch for that.');
+    if (ok) {
+      me = data;
+      await refreshMe();
+      window.dispatchEvent(new Event('dir:listener-auth'));
+      if (openReason === 'chat') close(); else render();
+    } else render(data.message || 'Google didn\'t vouch for that.');
   }
 
   // The site's own button opens Google's popup (Google's rendered button
@@ -117,7 +122,7 @@ const requestLine = (() => {
       lede.textContent = me ? 'Sign-in isn\'t set up yet.' : (msg || 'The line went dead. Try again later.');
       return;
     }
-    lede.textContent = 'Name a band that never existed. The station makes the song.';
+    lede.textContent = openReason === 'chat' ? 'Sign in with Google to transmit a message to the station.' : 'Name a band that never existed. The station makes the song.';
     const foot = el('div', 'rq-foot');
     const out = el('p', 'rq-msg', msg || 'Sign in with Google to send one.');
     const { wrap, go } = goButton('google');
@@ -302,8 +307,9 @@ const requestLine = (() => {
     else renderSignIn(body, msg);
   }
 
-  async function open() {
+  async function open(reason = 'request') {
     if (isOpen()) return;
+    openReason = reason;
     card.classList.add('open');
     led.classList.add('on');
     card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
@@ -338,7 +344,7 @@ const requestLine = (() => {
     card.append(top, el('div', 'rq-body'));
     document.body.appendChild(card);
 
-    btn.addEventListener('click', () => (isOpen() ? close() : open()));
+    btn.addEventListener('click', () => (isOpen() ? close() : open('request')));
     if (shouldReturn()) open();
     // Typing in the card must not reach the artwork and filter keys.
     card.addEventListener('keydown', (e) => {

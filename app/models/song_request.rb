@@ -19,6 +19,8 @@ class SongRequest < ApplicationRecord
 
   normalizes :artist, :title, :note, with: ->(s) { s.to_s.gsub(/\s+/, " ").strip.presence }
 
+  after_update_commit :announce_status, if: :saved_change_to_status?
+
   scope :recent, -> { order(created_at: :desc) }
   # Asked for and still on its way to a set.
   scope :outstanding, -> { where(status: %i[pending accepted queued generating ready]) }
@@ -28,10 +30,21 @@ class SongRequest < ApplicationRecord
 
   # What generate.py --request-json needs: who asked, what for, and the sound to
   # lean on (the matched artist's ACE-Step caption, if any).
+  def announce_status
+    return unless %w[accepted generating ready scheduled].include?(status)
+
+    label = { "accepted" => "requested", "generating" => "generating", "ready" => "ready", "scheduled" => "scheduled" }.fetch(status)
+    Transmission.create!(kind: "request", user: user,
+      body: "#{user.public_handle} #{label}: #{title} — #{artist}",
+      metadata: { request_id: id, phase: status, handle: user.public_handle })
+  rescue StandardError => e
+    Rails.logger.error("Request #{id} signal failed: #{e.class}: #{e.message}")
+  end
+
   def render_spec
-    # The name comes from Google, unscreened: it is read on air, so screen it.
-    name = user.first_name
-    { requester: RequestFilter.blocked?(name) ? "a listener" : name,
+    # The DJ reads the listener handle, never the Google name.
+    name = user.public_handle
+    { requester: name,
       artist: artist, title: title, note: note, seed_caption: matched_track&.sound_caption }
   end
 
