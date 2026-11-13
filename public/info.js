@@ -15,7 +15,7 @@
   // The deck's own key labels and what each one does.
   const USE = [
     ['Play', 'Starts the station. Press it again to stop.'],
-    ['Visuals', 'Opens the artwork gallery. The arrow keys or V change the artwork without it.'],
+    ['Visuals', 'Opens the artwork gallery. The arrow keys step through the artwork; the letters A–Z jump straight to one.'],
     ['Request', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
     ['Like · Dislike', 'Votes on the song playing. The DJs read the votes when they build the next sets.'],
     ['FX 1 2 3', 'Three filters over the artwork. Turn filter to pick one, press its ON, and turn dry/wet to mix it. Keys 1 to 9 pick a filter and 0 clears them.'],
