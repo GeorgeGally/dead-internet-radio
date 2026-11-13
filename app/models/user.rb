@@ -37,6 +37,7 @@ class User < ApplicationRecord
 
   def self.signal_city(raw)
     city = ActiveSupport::Inflector.transliterate(raw.to_s[0, 64]).gsub(/[^a-zA-Z ]/, " ").squish.tr(" ", "_")[0, 24]
+    city = city.split("_").map(&:capitalize).join("_")
     reserved = %w[Admin Moderator DIR Station System Safety Alert Radio]
     city.presence unless reserved.any? { |name| name.casecmp?(city) }
   rescue ArgumentError
