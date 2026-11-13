@@ -19,15 +19,9 @@ class Track < ApplicationRecord
     joins(:show).merge(Show.completed).where(origin_track_id: nil)
       .where.not(artist: [nil, "", STATION_ARTIST]).where("tracks.duration_ms > 0")
   }
-  # SQL twins of vetoed? and kept_out?.
+  # SQL twins of vetoed?.
   scope :not_vetoed, -> { where(vetoed_at: nil).where.not(station_vote: -1) }
   scope :vetoed, -> { where.not(vetoed_at: nil).or(where(station_vote: -1)) }
-  scope :kept_out, -> {
-    vetoed.or(where(
-      "tracks.down_votes >= 3 AND tracks.down_votes > 2 * (tracks.up_votes + ? * GREATEST(tracks.station_vote, 0))",
-      STATION_WEIGHT - 1
-    ))
-  }
 
   # The library song this track plays (itself, unless it's in a set).
   def song

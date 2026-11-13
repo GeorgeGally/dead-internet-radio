@@ -41,7 +41,6 @@ class StationDislikeTest < ActiveSupport::TestCase
     other.tracks.first.update!(origin_track: @good)
     refute_includes SetSwap.candidates(other.tracks.first).map(&:id), @bad.id
     refute_includes Track.not_vetoed, @bad
-    assert_includes Track.kept_out, @bad
 
     Station.fill!
     ids = aired_song_ids
@@ -95,6 +94,21 @@ class StationDislikeTest < ActiveSupport::TestCase
 
     Station.fill!
     assert_includes aired_song_ids, @bad.id
+  end
+
+  test "the DJ hears what the station and listeners turned away" do
+    dir = File.join(@show.directory, "prompts")
+    FileUtils.mkdir_p(dir)
+    { "01-bad" => "bad", "02-good" => "good" }.each { |f, c| File.write(File.join(dir, "#{f}.prompt.json"), { payload: { caption: c } }.to_json) }
+    vetoed = make_show("vetoed", "show", "01-vetoed.mp3").tracks.first
+    FileUtils.mkdir_p(File.join(vetoed.show.directory, "prompts"))
+    File.write(File.join(vetoed.show.directory, "prompts", "01-vetoed.prompt.json"), { payload: { caption: "vetoed" } }.to_json)
+
+    Vote.cast!(@bad, Vote::ADMIN, -1)
+    vetoed.update!(vetoed_at: Time.current)
+    %w[listener-1 listener-2 listener-3].each { |v| Vote.cast!(@good, v, -1) }
+
+    assert_equal %w[bad good vetoed].sort, Library.taste[:turned_away].sort
   end
 
   test "the station's vote weighs more than a listener's" do

@@ -59,7 +59,7 @@ module Library
   def self.taste
     songs = self.songs.where("up_votes + down_votes > 0").to_a
     liked = songs.select { |t| t.score >= 2 }.sort_by { |t| -t.score }.first(6)
-    turned = self.songs.kept_out.order(id: :desc).first(6)
+    turned = (songs + self.songs.vetoed.to_a).uniq.select(&:kept_out?).sort_by { |t| -t.id }.first(6)
     {
       liked: liked.filter_map(&:sound_caption),
       turned_away: turned.filter_map(&:sound_caption),
