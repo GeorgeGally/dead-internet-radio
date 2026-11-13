@@ -89,6 +89,14 @@ class StationDislikeTest < ActiveSupport::TestCase
     refute_includes Library.pool.map { |c| c[:id] }, @bad.id
   end
 
+  test "a song listeners retired still airs where it is already booked" do
+    %w[listener-1 listener-2 listener-3].each { |v| Vote.cast!(@bad, v, -1) }
+    assert @bad.reload.retired?
+
+    Station.fill!
+    assert_includes aired_song_ids, @bad.id
+  end
+
   test "the station's vote weighs more than a listener's" do
     Vote.cast!(@good, Vote::ADMIN, 1)
     Vote.cast!(@good, "listener-1", -1)

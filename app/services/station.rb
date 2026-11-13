@@ -94,11 +94,11 @@ class Station
   end
 
   # Least-recently-aired show or set with playable tracks; never-aired first.
-  # Songs kept out (vetoed, disliked by the station, retired) are skipped, and
-  # a show left with no song at all sits out.
+  # Songs the station vetoed or disliked are skipped, and a show left with no
+  # song at all sits out.
   def self.next_show_tracks
     last_aired = BroadcastSegment.joins(:track).group("tracks.show_id").maximum(:starts_at)
-    out = Track.kept_out.pluck(:id).to_set
+    out = Track.vetoed.pluck(:id).to_set
     shows = Show.airable.includes(:tracks).sort_by { |s| [last_aired[s.id] || Time.at(0), s.id] }
     shows.each do |show|
       playable = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }

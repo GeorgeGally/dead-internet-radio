@@ -21,8 +21,9 @@ class Track < ApplicationRecord
   }
   # SQL twins of vetoed? and kept_out?.
   scope :not_vetoed, -> { where(vetoed_at: nil).where.not(station_vote: -1) }
+  scope :vetoed, -> { where.not(vetoed_at: nil).or(where(station_vote: -1)) }
   scope :kept_out, -> {
-    where.not(vetoed_at: nil).or(where(station_vote: -1)).or(where(
+    vetoed.or(where(
       "tracks.down_votes >= 3 AND tracks.down_votes > 2 * (tracks.up_votes + ? * GREATEST(tracks.station_vote, 0))",
       STATION_WEIGHT - 1
     ))
@@ -55,7 +56,7 @@ class Track < ApplicationRecord
     vetoed_at.present? || station_vote == -1
   end
 
-  # Off air: no new set picks it and the clock skips it in shows and sets.
+  # Out of rotation: no new set picks it unless a listener asked for it.
   def kept_out?
     vetoed? || retired?
   end

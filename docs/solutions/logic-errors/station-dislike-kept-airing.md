@@ -42,12 +42,15 @@ Two leaks:
 - Signed in to the admin, the browser's player votes go in as the station's,
   and `Vote.claim_for_station!` turns its earlier cookie votes into the
   station's on its next admin page.
-- `Station.next_show_tracks` skips every song in `Track.kept_out` (vetoed,
-  station-disliked, retired), and a show left with no song sits out.
+- `Station.next_show_tracks` skips every song in `Track.vetoed` (vetoed or
+  station-disliked), and a show left with no song sits out. Listener-retired
+  songs still play where already booked into a show or set, so a listener's
+  request for one still airs.
 - A station dislike or veto calls `Station.drop_upcoming`, which removes the
   song's bookings ahead (up to `STATION_HORIZON_HOURS`) and closes the gaps.
 
 ## Prevention
 
-Anything that decides what airs reads `Track.kept_out` / `kept_out?`, not
-`vetoed_at` alone. Covered by `test/services/station_dislike_test.rb`.
+Code deciding what airs on the clock reads the station veto (`Track.vetoed` /
+`vetoed?`, which include `station_vote`), not `vetoed_at` alone and not
+retirement. Covered by `test/services/station_dislike_test.rb`.
