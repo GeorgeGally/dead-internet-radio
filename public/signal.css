@@ -59,28 +59,6 @@
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
-.signal-commands {
-  pointer-events: auto;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 13px;
-}
-.signal-commands[hidden], .signal-command[hidden] { display: none; }
-.signal-command {
-  min-height: 38px;
-  padding: 0 16px;
-  border: 1px solid rgba(233,230,223,.8);
-  border-radius: 24px;
-  background: rgba(0,0,0,.30);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  color: #ff5a1f;
-  font: 500 14px/1 "IBM Plex Mono", monospace;
-  cursor: pointer;
-}
-.signal-command:hover, .signal-command:focus-visible { border-color: #ff5a1f; outline: 0; }
 .signal-input {
   flex: 1;
   min-width: 0;

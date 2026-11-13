@@ -35,7 +35,7 @@ function node(tag) {
   return n;
 }
 
-async function signal() {
+async function signal({ signedIn = true, chatEnabled = true } = {}) {
   const body = node('body');
   const posts = [];
   const opened = [];
@@ -58,8 +58,8 @@ async function signal() {
     async fetch(url, opts = {}) {
       if (opts.method === 'POST') posts.push({ url, body: opts.body });
       const data = url.endsWith('/me')
-        ? { signed_in: true, csrf_token: 't', public_handle: 'Perth_1' }
-        : { chat_enabled: true, messages: [], id: 'm1', kind: 'chat', body: 'hi' };
+        ? { signed_in: signedIn, csrf_token: 't', public_handle: 'Perth_1' }
+        : { chat_enabled: chatEnabled, messages: [], id: 'm1', kind: 'chat', body: 'hi' };
       return { ok: true, json: async () => data };
     },
     requestLine: { open: (reason) => opened.push(['request', reason]) },
@@ -73,45 +73,58 @@ async function signal() {
   return {
     posts, opened, form,
     input: root.querySelector('.signal-input'),
-    hints: root.querySelector('.signal-commands'),
-    hint: (name) => root.querySelectorAll('.signal-command').find((h) => h.dataset.command === name),
   };
 }
 
-for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']]]) {
-  test(`typing ${typed.trim()} opens its page and posts nothing`, async () => {
-    const s = await signal();
-    s.input.value = typed;
-    s.form.fire('submit');
-    await new Promise((r) => setImmediate(r));
-    assert.deepEqual(s.opened, [want]);
-    assert.deepEqual(s.posts, []);
-    assert.equal(s.input.value, '');
-  });
+async function submit(s, text) {
+  s.input.value = text;
+  s.form.fire('submit');
+  await new Promise((r) => setImmediate(r));
 }
 
-test('a slash shows the commands, narrowed as the listener types', async () => {
-  const s = await signal();
-  assert.equal(s.hints.hidden, true);
-  s.input.value = '/';
-  s.input.fire('input');
-  assert.equal(s.hints.hidden, false);
-  assert.equal(s.hint('/request').hidden, false);
-  assert.equal(s.hint('/tracklist').hidden, false);
-  s.input.value = '/t';
-  s.input.fire('input');
-  assert.equal(s.hint('/request').hidden, true);
-  s.hint('/tracklist').fire('click');
-  assert.deepEqual(s.opened, [['tracklist']]);
-  assert.equal(s.hints.hidden, true);
-  assert.deepEqual(s.posts, []);
+const states = [
+  ['signed in, chat on', {}],
+  ['signed out', { signedIn: false }],
+  ['chat offline', { chatEnabled: false }],
+  ['signed out, chat offline', { signedIn: false, chatEnabled: false }],
+];
+for (const [label, state] of states) {
+  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']]]) {
+    test(`typing ${typed.trim()} opens its page and posts nothing (${label})`, async () => {
+      const s = await signal(state);
+      assert.notEqual(s.input.readOnly, true);
+      await submit(s, typed);
+      assert.deepEqual(s.opened, [want]);
+      assert.deepEqual(s.posts, []);
+      assert.equal(s.input.value, '');
+    });
+  }
+}
+
+test('focusing the composer while signed out does not ask for sign-in', async () => {
+  const s = await signal({ signedIn: false });
+  s.input.fire('pointerdown');
+  s.input.fire('focus');
+  assert.deepEqual(s.opened, []);
 });
 
 test('ordinary messages still transmit', async () => {
   const s = await signal();
-  s.input.value = 'hello request line';
-  s.form.fire('submit');
-  await new Promise((r) => setImmediate(r));
+  await submit(s, 'hello request line');
   assert.equal(s.posts.length, 1);
+  assert.deepEqual(s.opened, []);
+});
+
+test('a signed-out ordinary message asks for sign-in and posts nothing', async () => {
+  const s = await signal({ signedIn: false });
+  await submit(s, 'hello');
+  assert.deepEqual(s.opened, [['request', 'chat']]);
+  assert.deepEqual(s.posts, []);
+});
+
+test('an ordinary message is not sent while chat is offline', async () => {
+  const s = await signal({ chatEnabled: false });
+  await submit(s, 'hello');
+  assert.deepEqual(s.posts, []);
   assert.deepEqual(s.opened, []);
 });

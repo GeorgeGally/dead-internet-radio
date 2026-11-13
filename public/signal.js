@@ -31,18 +31,7 @@
     '/request': () => typeof requestLine !== 'undefined' && requestLine.open('request'),
     '/tracklist': () => typeof setList !== 'undefined' && setList.open()
   };
-  const hints = make('div', 'signal-commands');
-  hints.hidden = true;
-  Object.keys(commands).forEach(name => {
-    const hint = make('button', 'signal-command', name);
-    hint.type = 'button';
-    hint.dataset.command = name;
-    // Keep focus in the input so the tap is not lost to a blur.
-    hint.addEventListener('mousedown', e => e.preventDefault());
-    hint.addEventListener('click', () => runCommand(name));
-    hints.append(hint);
-  });
-  root.append(stack, hints, form);
+  root.append(stack, form);
   const hearts = make('div', 'signal-hearts');
   document.body.append(root, hearts);
 
@@ -65,8 +54,6 @@
   function updateForm() {
     input.placeholder = !chatEnabled ? 'Chat frequency offline' :
       !signedIn ? 'Sign in to transmit...' : 'Transmit a message...';
-    input.readOnly = !chatEnabled || !signedIn;
-    send.disabled = !chatEnabled;
     send.setAttribute('aria-label', signedIn ? 'Send transmission' : 'Sign in to transmit');
   }
   function shortAge(created) {
@@ -222,33 +209,16 @@
     // Reuse DIR's existing Google flow without adding a second sign-in UI.
     if (typeof requestLine !== 'undefined') requestLine.open('chat');
   }
-  function showHints() {
-    const typed = input.value.trimStart().toLowerCase();
-    let any = false;
-    hints.querySelectorAll('.signal-command').forEach(hint => {
-      const match = typed.startsWith('/') && hint.dataset.command.startsWith(typed.trimEnd());
-      hint.hidden = !match;
-      any ||= match;
-    });
-    hints.hidden = !any;
-  }
   function runCommand(text) {
     const run = commands[text.trim().toLowerCase()];
     if (!run) return false;
     input.value = '';
     input.setCustomValidity('');
-    showHints();
     input.blur();
     run();
     return true;
   }
-  input.addEventListener('pointerdown', e => {
-    if (!signedIn && chatEnabled) { e.preventDefault(); requestSignIn(); }
-  });
-  input.addEventListener('focus', () => {
-    if (!signedIn) requestSignIn();
-    else profile();
-  });
+  input.addEventListener('focus', () => { if (signedIn) profile(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (runCommand(input.value)) return;
@@ -265,12 +235,12 @@
         body: JSON.stringify({ body })
       });
       const data = await res.json();
-      if (res.ok) { input.value = ''; showHints(); add(data); }
+      if (res.ok) { input.value = ''; add(data); }
       else { input.setCustomValidity(data.message || 'Transmission rejected.'); input.reportValidity(); }
     } catch (_) { input.setCustomValidity('Signal lost.'); input.reportValidity(); }
-    finally { send.disabled = !chatEnabled; }
+    finally { send.disabled = false; }
   });
-  input.addEventListener('input', () => { input.setCustomValidity(''); showHints(); });
+  input.addEventListener('input', () => input.setCustomValidity(''));
   heart.addEventListener('click', async () => {
     if (hidden() || Date.now() - lastHeart < 1000) return;
     lastHeart = Date.now();
