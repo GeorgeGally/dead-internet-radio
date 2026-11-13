@@ -29,7 +29,7 @@ class FulfillRequestJobTest < ActiveJob::TestCase
     assert_includes gen_job.output_log, "generate.py failed with exit 1"
     refute_includes gen_job.output_log, "Running: djmix.py"
     request = JSON.parse(File.read(cmd_seen[cmd_seen.index("--request-json") + 1]))
-    assert_equal "Pat", request["requester"]
+    assert_equal @req.user.public_handle, request["requester"]
   end
 
   test "dry run puts the request back in line" do

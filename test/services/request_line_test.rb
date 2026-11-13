@@ -23,7 +23,7 @@ class RequestLineTest < ActiveJob::TestCase
     lines = RequestLine.waiting
     assert_equal [@req.id, later.id], lines.map { |l| l.split(" ", 2).first.to_i }
     spec = JSON.parse(lines.first.split(" ", 2).last)
-    assert_equal({ "requester" => "Pat", "artist" => "Static Bloom", "title" => "Carrier Signal",
+    assert_equal({ "requester" => @user.public_handle, "artist" => "Static Bloom", "title" => "Carrier Signal",
                    "note" => "colder", "seed_caption" => nil }, spec)
   end
 
