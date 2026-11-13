@@ -1,0 +1,131 @@
+/* Livestream motion, DIR typography. Individual entries, no chat-card block. */
+#signal-overlay {
+  position: fixed;
+  z-index: 8;
+  left: clamp(16px, 4vw, 56px);
+  bottom: clamp(76px, 11vh, 118px);
+  width: min(640px, calc(100vw - 76px));
+  max-height: 42vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 15px;
+  font: 400 13px/1.5 "IBM Plex Mono", monospace;
+  color: #e9e6df;
+  pointer-events: none;
+}
+.signal-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  overflow: hidden;
+  max-height: 33vh;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000);
+}
+.signal-entry {
+  max-width: 100%;
+  width: fit-content;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 4px #000, 0 0 9px #000, 0 0 18px #000;
+  animation: signal-appear 280ms cubic-bezier(.16,1,.3,1) both;
+}
+.signal-entry.signal-leaving { animation: signal-disappear 500ms ease forwards; }
+.signal-label { color: #ff5a1f; font-weight: 500; margin-right: 7px; }
+.signal-chat .signal-label { color: #e9e6df; }
+.signal-request .signal-label { color: #c69bdf; }
+.signal-copy { color: #f4f1ec; }
+.signal-compose {
+  pointer-events: auto;
+  width: min(100%, 520px);
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px 0 14px;
+  border: 1px solid rgba(233,230,223,.8);
+  border-radius: 24px;
+  background: rgba(0,0,0,.3);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.signal-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: #fff;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+.signal-input::placeholder { color: rgba(233,230,223,.75); }
+.signal-send, .signal-heart {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #e9e6df;
+  cursor: pointer;
+  width: 30px;
+  height: 32px;
+  font: 22px/1 "IBM Plex Mono", monospace;
+}
+.signal-send:disabled { opacity: .3; }
+.signal-heart { font-size: 30px; }
+.signal-hearts {
+  position: fixed;
+  z-index: 8;
+  right: 4vw;
+  bottom: clamp(105px, 14vh, 150px);
+  width: 45px;
+  height: 250px;
+  pointer-events: none;
+}
+.signal-floating-heart {
+  position: absolute;
+  bottom: 0;
+  color: #ed352c;
+  text-shadow: 0 2px 8px #0009;
+  animation: signal-heart-up 2400ms ease-out forwards;
+}
+@keyframes signal-appear {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes signal-disappear {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-14px); }
+}
+@keyframes signal-heart-up {
+  from { opacity: 0; transform: translateY(12px) scale(.7); }
+  18% { opacity: .95; }
+  to { opacity: 0; transform: translateY(-215px) scale(1.15); }
+}
+body:has(#deck.expanded) #signal-overlay,
+body:has(#deck.ejected) #signal-overlay,
+body:has(.request-card.open) #signal-overlay,
+body:has(#set-page.open) #signal-overlay,
+body.slot-preview #signal-overlay,
+body:has(#deck.expanded) .signal-hearts,
+body:has(#deck.ejected) .signal-hearts,
+body:has(.request-card.open) .signal-hearts,
+body:has(#set-page.open) .signal-hearts,
+body.slot-preview .signal-hearts { display: none; }
+@media (max-width: 767px) {
+  #signal-overlay {
+    left: 16px;
+    bottom: max(88px, calc(env(safe-area-inset-bottom) + 72px));
+    width: calc(100vw - 65px);
+    max-height: 36vh;
+    font-size: 12px;
+  }
+  .signal-stack { gap: 10px; max-height: 27vh; }
+  .signal-hearts { right: 2vw; bottom: 145px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-entry, .signal-entry.signal-leaving, .signal-floating-heart { animation-duration: 1ms; }
+}
