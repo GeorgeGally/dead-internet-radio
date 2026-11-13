@@ -46,11 +46,11 @@
     if (!event || !event.id || seen.has(String(event.id)) || hidden()) return;
     seen.add(String(event.id));
     if (seen.size > 400) seen.clear();
-    const line = make('div', 'signal-entry signal-' + (event.kind || 'station'));
+    const line = make('div', 'signal-entry signal-' + (event.kind || 'station') + (event.body?.startsWith('DIR FICTION /') ? ' signal-safety' : ''));
     const label = make('span', 'signal-label',
       event.kind === 'chat' ? (event.name || 'listener') :
-      event.kind === 'request' ? 'REQUEST' : 'DIR');
-    line.append(label, document.createTextNode(' '), make('span', 'signal-copy', event.body));
+      event.kind === 'request' ? 'REQUEST' : event.body?.startsWith('DIR FICTION /') ? 'DIR / SAFETY' : 'DIR');
+    line.append(label, document.createTextNode(' '), make('span', 'signal-copy', event.body?.replace(/^DIR FICTION \/ /, '') || ''));
     stack.append(line);
     while (stack.childElementCount > maxVisible) stack.firstElementChild.remove();
     setTimeout(() => {
@@ -94,7 +94,7 @@
       socket.onmessage = e => {
         let data;
         try { data = JSON.parse(e.data); } catch (_) { return; }
-        if (data.message?.type === 'heart') floatHeart();
+        if (data.message?.type === 'heart' && Date.now() - lastHeart > 1200) floatHeart();
         if (data.message?.type === 'message') add(data.message.event);
       };
       socket.onclose = () => { clearTimeout(retry); retry = setTimeout(connect, 5000); };
@@ -151,6 +151,7 @@
     finally { send.disabled = false; }
   });
   input.addEventListener('input', () => input.setCustomValidity(''));
+  input.addEventListener('focus', profile);
   heart.addEventListener('click', async () => {
     if (hidden() || Date.now() - lastHeart < 1000) return;
     lastHeart = Date.now();
