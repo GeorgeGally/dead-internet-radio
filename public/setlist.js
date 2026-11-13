@@ -5,7 +5,7 @@
 const setList = (() => {
   const REFRESH_MS = 30000;
   const READ_WAIT = 10000;
-  let page, rows, led, btn, segments = [], offsetMs = 0, ticker = 0, refresher = 0, loadedAt = 0;
+  let page, head, rows, reveal = false, led, btn, segments = [], offsetMs = 0, ticker = 0, refresher = 0, loadedAt = 0;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -47,8 +47,22 @@ const setList = (() => {
     }
   }
 
+  // '<DJ> - <show> Tracklist', from what is on now.
+  function headline(at) {
+    const seg = segments.find((x) => state(x, at) === 'now') || segments.find((x) => state(x, at) === 'next') || segments[0];
+    if (!seg || !seg.showName) return 'Tracklist';
+    return `${seg.djName ? `${seg.djName} - ` : ''}${seg.showName} Tracklist`;
+  }
+
+  function enter(node, delayMs) {
+    node.classList.add('enter');
+    node.style.animationDelay = `${delayMs}ms`;
+    node.addEventListener('animationend', () => { node.classList.remove('enter'); node.style.animationDelay = ''; }, { once: true });
+  }
+
   function render() {
     const at = now();
+    head.textContent = headline(at);
     rows.replaceChildren(...segments.map((seg) => {
       const row = el('div', `set-row ${state(seg, at)}`);
       const what = el('span', 'set-what');
@@ -56,6 +70,12 @@ const setList = (() => {
       row.append(el('span', 'set-when', clock(seg.startsAt)), what, el('span', 'set-len', length(seg.durationMs)));
       return row;
     }));
+    // The first list after opening arrives one line at a time.
+    if (reveal) {
+      enter(head, 240);
+      rows.querySelectorAll('.set-row').forEach((row, i) => enter(row, 360 + i * 45));
+      reveal = false;
+    }
     if (!segments.length) rows.append(el('p', 'set-empty', 'The set list is out of reach.'));
   }
 
@@ -64,7 +84,7 @@ const setList = (() => {
     const at = now();
     const list = rows.querySelectorAll('.set-row');
     segments.forEach((seg, i) => {
-      if (list[i]) list[i].className = `set-row ${state(seg, at)}`;
+      if (list[i]) list[i].className = `set-row ${state(seg, at)}${list[i].classList.contains('enter') ? ' enter' : ''}`;
     });
     const last = segments[segments.length - 1];
     if (last && at >= last.startsAt + last.durationMs && Date.now() - loadedAt > 2000) load();
@@ -95,6 +115,9 @@ const setList = (() => {
     if (isOpen()) return;
     if (typeof gallery !== 'undefined' && gallery.close) gallery.close();
     if (typeof requestLine !== 'undefined' && requestLine.isOpen()) requestLine.close();
+    reveal = true;
+    head.textContent = '';
+    rows.replaceChildren();
     document.body.classList.add('set-open');
     page.classList.add('open');
     led.classList.add('on');
@@ -126,8 +149,9 @@ const setList = (() => {
     page.setAttribute('role', 'dialog');
     page.setAttribute('aria-label', 'Set list');
     const column = el('div', 'set-column');
+    head = el('h2', 'set-head');
     rows = el('div', 'set-rows');
-    column.append(rows);
+    column.append(head, rows);
     page.append(column);
     document.body.appendChild(page);
 

@@ -40,7 +40,7 @@ function node(tag) {
   const classes = new Set();
   const handlers = {};
   const n = {
-    tag, children: [], parent: null, attrs: {}, textContent: '', offsetTop: 0, scrollTop: 0,
+    tag, children: [], parent: null, attrs: {}, style: {}, textContent: '', offsetTop: 0, scrollTop: 0,
     get className() { return [...classes].join(' '); },
     set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
     classList: {
@@ -98,7 +98,7 @@ test('the Tracks key opens the set on air with played, now and next rows', async
   const t = Date.now();
   const segs = [
     { startsAt: t - 90000, durationMs: 60000, title: 'Geiger Baseline', artist: 'Drift Anchor' },
-    { startsAt: t - 30000, durationMs: 190032, title: 'Substation Hum', artist: 'Cold Storage' },
+    { startsAt: t - 30000, durationMs: 190032, title: 'Substation Hum', artist: 'Cold Storage', showName: 'Afternoon Collapse', djName: 'Polygon' },
     { startsAt: t + 160032, durationMs: 161000, title: 'Bad Girls Dismantle', artist: 'Scaffold Collapse' },
   ];
   const p = player(segs, t);
@@ -110,7 +110,9 @@ test('the Tracks key opens the set on air with played, now and next rows', async
   assert.ok(p.body.classList.contains('set-open'));
   assert.ok(p.els.deck.classList.contains('expanded'), 'the deck stays open above the list');
   const rows = p.page.querySelectorAll('set-row');
-  assert.deepEqual(rows.map((r) => r.className), ['set-row played', 'set-row now', 'set-row next']);
+  assert.deepEqual(rows.map((r) => r.className), ['set-row played enter', 'set-row now enter', 'set-row next enter']);
+  assert.deepEqual(rows.map((r) => r.style.animationDelay), ['360ms', '405ms', '450ms'], 'the rows arrive one line at a time');
+  assert.equal(p.page.querySelector('set-head').textContent, 'Polygon - Afternoon Collapse Tracklist');
   assert.equal(rows[1].querySelector('set-title').textContent, 'Substation Hum');
   assert.equal(rows[1].querySelector('set-len').textContent, '3:10');
 });
