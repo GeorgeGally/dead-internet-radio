@@ -106,8 +106,8 @@
       entries.delete(key);
       line.remove();
     };
-    if (reduced.matches) setTimeout(drop, lifetime);
-    else line.addEventListener('animationend', e => { if (e.animationName === 'signal-rise') drop(); });
+    setTimeout(drop, reduced.matches ? lifetime : lifetime * 3);
+    if (!reduced.matches) line.addEventListener('animationend', e => { if (e.animationName === 'signal-rise') drop(); });
   }
   function remove(id) {
     const key = String(id);
@@ -335,6 +335,7 @@
   // A visit starts with the intro / closed deck. Resume activity after it exits.
   setInterval(() => {
     const nowHidden = hidden();
+    if (!wasHidden && nowHidden) { entries.forEach(line => line.remove()); entries.clear(); }
     if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);

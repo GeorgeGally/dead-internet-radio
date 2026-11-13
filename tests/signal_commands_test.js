@@ -273,7 +273,7 @@ test('a line stays until its climb finishes, however late the climb runs', async
   const s = await signal({ reducedMotion: false });
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   const [line] = s.stack().children;
-  await s.time.advance(60000);
+  await s.time.advance(30000);
   assert.equal(line.isConnected, true);
   line.fire('animationend', { animationName: 'signal-appear' });
   assert.equal(line.isConnected, true);
@@ -288,5 +288,24 @@ test('with reduced motion a station line leaves after its 12 second life', async
   await s.time.advance(11999);
   assert.equal(line.isConnected, true);
   await s.time.advance(1);
+  assert.equal(line.isConnected, false);
+});
+
+test('a line on screen when the overlay hides is gone when it shows again', async () => {
+  const s = await signal({ reducedMotion: false });
+  await s.time.advance(1500);
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  s.page.modalOpen = true;
+  await s.time.advance(1500);
+  s.page.modalOpen = false;
+  await s.time.advance(1500);
+  assert.deepEqual(s.lines().filter((l) => l.startsWith('Now playing')), []);
+});
+
+test('a line whose climb never finishes still leaves within three of its lifetimes', async () => {
+  const s = await signal({ reducedMotion: false });
+  s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
+  const [line] = s.stack().children;
+  await s.time.advance(36000);
   assert.equal(line.isConnected, false);
 });
