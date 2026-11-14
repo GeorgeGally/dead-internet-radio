@@ -104,6 +104,7 @@ body.prewarming #block-canvas {
   background: #000;
   isolation: isolate;
   font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 14px;
   letter-spacing: 0.04em;
   color: #e9e6df;
   z-index: 10;
