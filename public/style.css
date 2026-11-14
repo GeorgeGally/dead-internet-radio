@@ -1557,8 +1557,8 @@ body.prewarming #block-canvas {
   grid-area: 1 / 1;
   width: 26px;
   height: 12px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 4px 10px 4px 4px;
+  border: none;
   border-radius: 2px;
   background: none;
   cursor: pointer;
