@@ -315,6 +315,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
   // Something to watch while the first film buffers: the film that was on
   // screen, else the last film from an earlier visit, else one Giphy clip.
   // Giphy's media host sends CORS headers, so the filters still work on it.
+  // An artwork with its own searches only ever stands in its own last film.
   const GIPHY_API_KEY = '23JUZnCbRcIFMOcQtjTZT1ZIwtfdbbc5';
   const STANDIN_TERMS = ['vintage film', 'old footage', '1950s', 'home movie', 'film grain', 'retro tv'];
   let standIn = null;
@@ -322,20 +323,22 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
   let standInAsked = false;
 
   // One small film from the last reel is kept in Cache Storage, so the next
-  // visit starts on it at once instead of on Giphy.
-  const LAST_KEY = '/__broll-last-film';
+  // visit starts on it at once instead of on Giphy or the leader. Each artwork
+  // keeps its own, so Aliens never opens on a film from the B-roll reel.
+  const LAST_KEY = id === 'prelinger_broll' ? '/__broll-last-film' : `/__broll-last-film/${id}`;
+  const LAST_ID_KEY = id === 'prelinger_broll' ? 'dir-broll-last' : `dir-broll-last:${id}`;
   const LAST_MAX_BYTES = 20 * 1024 * 1024;
   let remembered = false;
-  async function rememberFilm(id, url, size) {
+  async function rememberFilm(filmId, url, size) {
     try {
-      if (searches || remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
-      if (localStorage.getItem('dir-broll-last') === id) return;
+      if (remembered || !musicIsSafe() || !('caches' in window) || !(size <= LAST_MAX_BYTES)) return;
+      if (localStorage.getItem(LAST_ID_KEY) === filmId) return;
       remembered = true;
       const res = await fetch(url, { priority: 'low' });
       if (!res.ok) return;
       const cache = await caches.open('dir-broll');
       await cache.put(LAST_KEY, res);
-      localStorage.setItem('dir-broll-last', id);
+      localStorage.setItem(LAST_ID_KEY, filmId);
     } catch (e) {}
   }
 
@@ -354,7 +357,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
   }
 
   async function loadStandIn() {
-    if (searches || standInLoading) return;
+    if (standInLoading) return;
     standInLoading = true;
     await findStandIn();
     standInLoading = false;
@@ -368,6 +371,7 @@ function createPrelingerBroll({ id = 'prelinger_broll', name = 'B-roll', searche
       standIn = cached;
       return;
     }
+    if (searches) return;
     try {
       const q = encodeURIComponent(STANDIN_TERMS[Math.floor(Math.random() * STANDIN_TERMS.length)]);
       const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${q}&limit=25&rating=pg-13`);
