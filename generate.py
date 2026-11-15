@@ -779,10 +779,11 @@ def share_artists(songs: list, numbers: list[int]) -> list:
     for word; this makes sure it does."""
     if numbers and all(0 < n <= len(songs) for n in numbers):
         act = [songs[n - 1] for n in numbers]
-        name = str(act[0].get("artist") or "").strip()
+        name = next((str(s.get("artist") or "").strip() for s in act if str(s.get("artist") or "").strip()), "")
         sound = next((str(s.get("sound") or "").strip() for s in act if s.get("sound")), "")
         for song in act:
-            song["artist"] = name
+            if name:
+                song["artist"] = name
             caption = str(song.get("caption") or "").strip()
             if sound and sound.lower() not in caption.lower():
                 song["caption"] = f"{caption} {sound}".strip()

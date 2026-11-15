@@ -52,6 +52,17 @@ class SharedArtistTest(unittest.TestCase):
         self.assertIn(generate.MIX_LINE, caption)
         self.assertEqual(generate.station_caption(caption), caption)
 
+    def test_act_name_comes_from_first_named_track(self):
+        songs = [
+            song("", "EBM, 122 BPM in A minor."),
+            song("Other", "EBM, 124 BPM in D minor."),
+            song("Grey Relay", "EBM, 120 BPM in C minor."),
+        ]
+        out = generate.share_artists(songs, [1, 3])
+        self.assertEqual(out[0]["artist"], "Grey Relay")
+        self.assertEqual(out[2]["artist"], "Grey Relay")
+        self.assertEqual(out[1]["artist"], "Other")
+
 
 if __name__ == "__main__":
     unittest.main()
