@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 import urllib.error
@@ -753,6 +754,27 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
     print(f"Spec: {json.dumps({k: song.get(k) for k in ('caption', 'lyrics', 'bpm', 'keyscale', 'duration')})}")
 
 
+PLAN_PREFIX = "plan "
+PLAN_SONG_KEYS = ("title", "artist", "caption", "lyrics", "bpm", "keyscale", "duration")
+
+
+def plan_song(song: dict) -> dict:
+    """The fields ACE-Step is sent for one song, as the plan shows and keeps them."""
+    return {key: song.get(key) for key in PLAN_SONG_KEYS}
+
+
+def read_plan(slot: str) -> dict | None:
+    """A slot of "plan {json}" is a plan written by --plan-out and edited on the
+    admin: the show is made from exactly it, with no producer or DJ calls. It
+    rides in the slot so the generation PC passes it on unchanged."""
+    if not slot.startswith(PLAN_PREFIX + "{"):
+        return None
+    plan = json.loads(slot[len(PLAN_PREFIX):])
+    if not isinstance(plan, dict) or not isinstance(plan.get("tracks"), list) or not plan["tracks"]:
+        raise ValueError("plan has no tracks")
+    return plan
+
+
 def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
     """The DJ reads a listener request on air. Falls back to a plain read."""
     who, title, artist = request["requester"], request["title"], request["artist"]
@@ -792,6 +814,8 @@ def main():
                         help="Resume from an existing show directory (skips producer, announcer, DJ phases)")
     parser.add_argument("--request-json", type=str, default="",
                         help="A listener request (requester, artist, title, note, seed_caption): one track, read on air")
+    parser.add_argument("--plan-out", type=str, default="",
+                        help="Write the show's plan (names, brief, opening words, songs) as JSON to this file and stop")
     args = parser.parse_args()
 
     if not OPENROUTER_API_KEY:
@@ -802,6 +826,13 @@ def main():
     if slot.startswith("remix {"):
         render_take(json.loads(slot[len("remix "):]), args.dj_name, args.stop_ace_step)
         return
+
+    plan = read_plan(slot)
+    if plan:
+        slot = str(plan.get("slot") or "planned show")
+        args.tracks = len(plan["tracks"])
+    if args.plan_out:
+        args.dry_run = True
 
     # A listener request is a one-track show: the DJ reads the request, then it plays.
     request = json.loads(Path(args.request_json).read_text()) if args.request_json else None
@@ -870,9 +901,10 @@ def main():
         print(f"   DJ: {dj_name}")
 
     # ── Fresh generation: create dir, run LLM phases ────────────
-    # ── Fresh generation: create dir, run LLM phases ────────────
     if not args.resume_dir:
-        show_dir = OUTPUT_DIR / f"{slugify(slot)}-{time.strftime('%Y%m%d-%H%M%S')}"
+        # A plan is only written, never broadcast: its folder is thrown away.
+        output_root = Path(tempfile.mkdtemp()) if args.plan_out else OUTPUT_DIR
+        show_dir = output_root / f"{slugify(slot)}-{time.strftime('%Y%m%d-%H%M%S')}"
         show_prompts_dir = show_dir / "prompts"
         show_dir.mkdir(parents=True, exist_ok=True)
         show_prompts_dir.mkdir(exist_ok=True)
@@ -885,21 +917,26 @@ def main():
         print(f"Dead Internet Radio — {slot}")
         print()
 
-        print("1. Producer writing show name and program brief...", flush=True)
+        if plan:
+            print("1. Using the edited plan: no producer or DJ calls", flush=True)
+            show_name = str(plan.get("show_name") or slot).strip()
+            brief = str(plan.get("brief") or "").strip()
+        else:
+            print("1. Producer writing show name and program brief...", flush=True)
         producer_input = f"Time slot: {slot}\n\nWrite a program brief for this slot."
         if request:
             producer_input = (f"Time slot: {slot}\n\nThis show is one listener request: \"{request['title']}\" "
                               f"by {request['artist']}.\n\nWrite a program brief for it.")
-        raw = call_llm(producer_prompt, producer_input)
-
-        try:
-            result = extract_json(raw)
-            show_name = result.get("show_name", "").strip()
-            brief = result.get("brief", "").strip()
-        except (ValueError, json.JSONDecodeError, AttributeError):
-            show_name = ""
-            brief = ""
-        if not show_name or not brief or "User Safety:" in brief or len(brief) < 20:
+        if not plan:
+            raw = call_llm(producer_prompt, producer_input)
+            try:
+                result = extract_json(raw)
+                show_name = result.get("show_name", "").strip()
+                brief = result.get("brief", "").strip()
+            except (ValueError, json.JSONDecodeError, AttributeError):
+                show_name = ""
+                brief = ""
+        if not plan and (not show_name or not brief or "User Safety:" in brief or len(brief) < 20):
             print("  Producer output malformed or moderated, retrying with different model...", flush=True)
             raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
             try:
@@ -928,18 +965,20 @@ def main():
         print("2. Announcer writing DJ opening announcement...", flush=True)
         announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
 
-        dj_name = args.dj_name or random_dj_name()
+        dj_name = str((plan or {}).get("dj_name") or "").strip() or args.dj_name or random_dj_name()
         # Update show metadata with actual DJ name
         show_meta["dj_name"] = dj_name
         (show_dir / "show.json").write_text(json.dumps(show_meta, indent=2))
         print(f"   DJ: {dj_name}")
         emit_progress({"type": "show", "show_name": show_name, "dj_name": dj_name, "slot": slot})
 
-        if args.delay > 0:
+        if args.delay > 0 and not plan:
             print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
             time.sleep(args.delay)
 
-        if request:
+        if plan:
+            dj_announce = str(plan.get("dj_announce") or "").strip() or f"Dead Internet Radio. {show_name}. DJ {dj_name}."
+        elif request:
             dj_announce = request_announcement(announcer_prompt, slot, dj_name, request)
         else:
             dj_announce = call_llm(
@@ -984,14 +1023,18 @@ def main():
 
         ace_healthy = None
         # A request names its own artist, often one the station already played.
-        avoid = "" if request else avoid_block() + taste_block()
+        avoid = "" if request or plan else avoid_block() + taste_block()
         if avoid:
             used_artists, used_titles = already_broadcast_names()
             print(f"   Anti-reuse list: {len(used_artists)} artist names, "
                   f"{len(used_titles)} titles from previous broadcasts", flush=True)
 
+        if plan:
+            songs = [plan_song(song) for song in plan["tracks"]]
+            dj_input = ""
+
         # --- BATCH MODE: compose all tracks in one LLM call ---
-        if not args.no_batch:
+        if not plan and not args.no_batch:
             print(f"3. DJ composing {args.tracks} tracks (batch)...", flush=True)
             if args.delay > 0:
                 print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
@@ -1025,7 +1068,7 @@ def main():
                 args.no_batch = True
 
         # --- FALLBACK: per-track mode ---
-        if args.no_batch:
+        if not plan and args.no_batch:
             print(f"3. DJ composing {args.tracks} tracks (per-track)...", flush=True)
             songs = []
             for i in range(1, args.tracks + 1):
@@ -1079,9 +1122,11 @@ def main():
                 songs.append(song)
 
         # --- Process tracks (shared between batch and per-track) ---
-        lengths = spread_lengths([song.get("duration") for song in songs])
+        # An edited plan is sent as it stands.
+        lengths = [song.get("duration") for song in songs] if plan else spread_lengths([song.get("duration") for song in songs])
         for i, song in enumerate(songs, 1):
-            song.update(ensure_voice(song))
+            if not plan:
+                song.update(ensure_voice(song))
             song["duration"] = lengths[i - 1]
             track_prompt = song.pop("_prompt", dj_input)
 
@@ -1122,6 +1167,16 @@ def main():
             prompt_file.write_text(json.dumps(prompt_data, indent=2))
             print(f"  Prompt log → {prompt_file}")
         print()
+
+        if args.plan_out:
+            Path(args.plan_out).write_text(json.dumps({
+                "slot": slot, "show_name": show_name, "brief": brief,
+                "dj_name": dj_name, "dj_announce": dj_announce,
+                "tracks": [plan_song(t["payload"]) for t in track_history],
+            }, indent=2))
+            shutil.rmtree(output_root, ignore_errors=True)
+            print(f"Plan written → {args.plan_out}")
+            return
 
         # ── Save resume state ────────────────────────────────────────
         voiceover_schedule = []

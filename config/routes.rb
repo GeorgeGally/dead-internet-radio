@@ -81,6 +81,7 @@ Rails.application.routes.draw do
       member do
         post :retry
         get :progress
+        patch :plan
         get "file/*file_path", to: "generation#output", as: :output_file
       end
     end

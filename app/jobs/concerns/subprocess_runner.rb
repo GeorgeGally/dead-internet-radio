@@ -10,6 +10,8 @@ module SubprocessRunner
   extend ActiveSupport::Concern
 
   BUFFER_FLUSH_LINES = 25
+  # generate.py's numbered steps ("3. DJ composing", "4.2 Sending track 2") show at once on the job page.
+  STEP_LINE = /\A\d+\.\d* /
 
   private
 
@@ -26,7 +28,7 @@ module SubprocessRunner
         yield line if block_given?
         @buffer << line
         ProgressParser.parse(@gen_job, line.chomp)
-        flush_buffer if (line_count += 1) % BUFFER_FLUSH_LINES == 0
+        flush_buffer if (line_count += 1) % BUFFER_FLUSH_LINES == 0 || line.match?(STEP_LINE)
       end
       flush_buffer
       status = wait_thr.value

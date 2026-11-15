@@ -1,0 +1,70 @@
+<% plan = job.plan %>
+<div class="tx-form plan-form">
+<%= form_tag plan_admin_generation_path(job), method: :patch, id: "plan-form" do %>
+  <div class="plan-show">
+    <div class="field-row">
+      <div class="field">
+        <%= label_tag "plan_show_name", "Show name" %>
+        <%= text_field_tag "plan[show_name]", plan["show_name"], id: "plan_show_name" %>
+      </div>
+      <div class="field">
+        <%= label_tag "plan_dj_name", "DJ" %>
+        <%= text_field_tag "plan[dj_name]", plan["dj_name"], id: "plan_dj_name" %>
+      </div>
+    </div>
+    <div class="field">
+      <%= label_tag "plan_brief", "Brief" %>
+      <%= text_area_tag "plan[brief]", plan["brief"], id: "plan_brief", rows: 4 %>
+    </div>
+    <div class="field">
+      <%= label_tag "plan_dj_announce", "Opening words" %>
+      <%= text_area_tag "plan[dj_announce]", plan["dj_announce"], id: "plan_dj_announce", rows: 2 %>
+    </div>
+  </div>
+
+  <ol class="plan-tracks">
+    <% plan["tracks"].each_with_index do |song, i| %>
+      <% key = "plan[tracks][#{i}]"; id = "plan_track_#{i}" %>
+      <li class="plan-track">
+        <div class="field-row">
+          <div class="field">
+            <%= label_tag "#{id}_title", "#{i + 1}. Title" %>
+            <%= text_field_tag "#{key}[title]", song["title"], id: "#{id}_title" %>
+          </div>
+          <div class="field">
+            <%= label_tag "#{id}_artist", "Artist" %>
+            <%= text_field_tag "#{key}[artist]", song["artist"], id: "#{id}_artist" %>
+          </div>
+        </div>
+        <div class="field">
+          <%= label_tag "#{id}_caption", "Vibe" %>
+          <%= text_area_tag "#{key}[caption]", song["caption"], id: "#{id}_caption", rows: 3 %>
+        </div>
+        <div class="field">
+          <%= label_tag "#{id}_lyrics", "Lyrics" %>
+          <%= text_area_tag "#{key}[lyrics]", song["lyrics"], id: "#{id}_lyrics", rows: 5 %>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <%= label_tag "#{id}_bpm", "BPM" %>
+            <%= number_field_tag "#{key}[bpm]", song["bpm"], id: "#{id}_bpm", min: 40, max: 220 %>
+          </div>
+          <div class="field">
+            <%= label_tag "#{id}_keyscale", "Key" %>
+            <%= text_field_tag "#{key}[keyscale]", song["keyscale"], id: "#{id}_keyscale" %>
+          </div>
+          <div class="field">
+            <%= label_tag "#{id}_duration", "Length (s)" %>
+            <%= number_field_tag "#{key}[duration]", song["duration"], id: "#{id}_duration", min: 30, max: 300 %>
+          </div>
+        </div>
+      </li>
+    <% end %>
+  </ol>
+
+  <button type="submit" class="btn btn-submit" data-busy-label="TRANSMITTING">TRANSMIT</button>
+  <p class="form-busy" role="status" aria-live="polite"></p>
+<% end %>
+</div>
+
+<%= render "busy_form", form_id: "plan-form" %>

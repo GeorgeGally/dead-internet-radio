@@ -1,0 +1,42 @@
+<script>
+  // The page stays up until the next one arrives, which can take a while: the
+  // key goes dark at once and says so, and a second press can't send it twice.
+  (function() {
+    var form = document.getElementById('<%= form_id %>');
+    if (!form) return;
+    var button = form.querySelector('button[type=submit]');
+    var status = form.querySelector('.form-busy');
+    var idle = button.textContent, timer = null;
+
+    function reset() {
+      clearInterval(timer);
+      form.classList.remove('busy');
+      button.disabled = false;
+      button.textContent = idle;
+      if (status) status.textContent = '';
+    }
+
+    form.addEventListener('submit', function(e) {
+      if (form.classList.contains('busy')) { e.preventDefault(); return; }
+      form.classList.add('busy');
+      button.textContent = button.dataset.busyLabel || idle;
+      // Disabled after the submit is under way, so the browser still sends the form.
+      setTimeout(function() { button.disabled = true; }, 0);
+      var start = Date.now();
+      var tick = function() {
+        if (status) status.textContent = 'Sending… ' + Math.floor((Date.now() - start) / 1000) + 's';
+      };
+      tick();
+      timer = setInterval(tick, 1000);
+      // Still here after a minute: the request never came back.
+      setTimeout(function() {
+        if (!form.classList.contains('busy')) return;
+        reset();
+        if (status) status.textContent = 'No answer from the server. Press again to retry.';
+      }, 60000);
+    });
+
+    // Back from the next page restores this one as it was left: busy.
+    window.addEventListener('pageshow', function(e) { if (e.persisted) reset(); });
+  })();
+</script>
