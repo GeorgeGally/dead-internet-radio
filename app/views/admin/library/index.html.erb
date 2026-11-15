@@ -38,7 +38,7 @@
           <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
         <% end %>
       </td>
-      <td data-scrub><%= link_to song.title, admin_track_path(song) %></td>
+      <td data-scrub><%= link_to song.title, admin_track_path(song), title: song.idea %></td>
       <td><%= artist_link(song.artist) %></td>
       <td class="genre"><%= song.genre %></td>
       <td><%= song.bpm %></td>

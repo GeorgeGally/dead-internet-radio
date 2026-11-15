@@ -123,7 +123,8 @@ class RemixVoiceTest(unittest.TestCase):
         self.assertIn("Notes: faster, add a 303 line", llm.call_args.args[1])
         sent = render.call_args.args[0]
         self.assertEqual((sent["caption"], sent["bpm"], sent["keyscale"]), ("acid 303 line, 909 kick", 132, "A minor"))
-        self.assertEqual(sent["frequency_band"], "low")
+        # The old sound fields describe the old sound; a rewrite that gives none drops them.
+        self.assertEqual(sent["frequency_band"], "")
         self.assertEqual(log["rerender"]["notes"], "faster, add a 303 line")
         self.assertEqual(song["caption"], "cold synths")
 

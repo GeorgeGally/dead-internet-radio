@@ -115,6 +115,17 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     refute GenerationJob.last.options.key?("instructions"), "an empty field is a plain remix"
   end
 
+  test "the song page shows the producer's idea for it" do
+    FileUtils.mkdir_p(File.join(@show_dir, "prompts"))
+    File.write(File.join(@show_dir, "prompts", "02-bad-track.prompt.json"), { payload: { caption: "EBM.", idea: "From the log" } }.to_json)
+    @track.update!(idea: "A 1983 rehearsal room, a borrowed Juno, nobody speaking.")
+
+    get admin_track_path(@track)
+
+    assert_select "dl.prompt dt", text: "Idea"
+    assert_select "dl.prompt dd", text: "A 1983 rehearsal room, a borrowed Juno, nobody speaking."
+  end
+
   test "re-render needs notes" do
     assert_no_difference -> { GenerationJob.count } do
       post rerender_admin_track_path(@track), params: { instructions: " " }

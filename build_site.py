@@ -268,6 +268,7 @@ def find_shows(only=None):
                 "frequencyBand": payload.get("frequency_band", ""),
                 "modulationType": payload.get("modulation_type", ""),
                 "signalPath": payload.get("signal_path", ""),
+                "idea": payload.get("idea") or "",
             })
 
         if not tracks:
