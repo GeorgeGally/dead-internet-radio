@@ -81,6 +81,5 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', startClocks);
   window.initTrackJobLoaders = startClocks;
 })();

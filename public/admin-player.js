@@ -188,7 +188,6 @@ function sortTable(th) {
 function initAdminTables() {
   var player = document.querySelector('[data-set-player]'), first = document.querySelector('table.songs tr[data-track]');
   if (player && first && !player.dataset.song) showSong(first.dataset.track);
-  if (window.initTrackJobLoaders) window.initTrackJobLoaders();
   document.querySelectorAll('table.sortable tr:first-child th').forEach(function(th) {
     if (!th.textContent.trim() || th.querySelector('.th-sort')) return;
     var key = document.createElement('button');
@@ -200,4 +199,7 @@ function initAdminTables() {
     th.appendChild(key);
   });
 }
-document.addEventListener('DOMContentLoaded', initAdminTables);
+document.addEventListener('DOMContentLoaded', function() {
+  initAdminTables();
+  if (window.initTrackJobLoaders) window.initTrackJobLoaders();
+});
