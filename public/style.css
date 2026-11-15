@@ -777,8 +777,9 @@ body.prewarming #block-canvas {
 .info-more {
   padding-top: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.18);
-  /* The captain's key-row position from the final board design, at every size. */
-  translate: -16px -35px;
+  /* The captain's key-row position from the final board design, at every size,
+     as spacing so the row never rides up over the page above it. */
+  margin: 0 0 96px -12px;
 }
 
 /* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
@@ -989,8 +990,19 @@ body.prewarming #block-canvas {
   letter-spacing: -0.8px;
 }
 
+/* FAQ: the same parts as How it works, three to a row. */
+.info-faq .info-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 28px; }
+
+.info-faq .info-part dd {
+  font-family: "IBM Plex Mono", monospace;
+  line-height: 26px;
+  letter-spacing: -0.8px;
+}
+
 @media (max-width: 1000px) {
   .info-body { justify-content: flex-start; }
+
+  .info-faq .info-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .info-parts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1005,7 +1017,8 @@ body.prewarming #block-canvas {
 @media (max-width: 520px) {
   #info-card { padding-top: 16px; }
 
-  .info-parts { grid-template-columns: minmax(0, 1fr); }
+  .info-parts,
+  .info-faq .info-parts { grid-template-columns: minmax(0, 1fr); }
   .info-use .info-part { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .info-fig { display: inline-flex; }
 }
