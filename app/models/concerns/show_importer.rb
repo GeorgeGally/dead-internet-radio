@@ -49,7 +49,8 @@ module ShowImporter
         voiceover_file: track_data['voiceoverFile'],
         script: track_data['script'],
         lyrics: track_data['lyrics'],
-        brief: track_data['brief']
+        brief: track_data['brief'],
+        idea: track_data['idea'].presence
       )
       track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
       track.save!

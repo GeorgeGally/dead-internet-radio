@@ -60,6 +60,7 @@
     <p class="meta">No prompt log for this track.</p>
   <% else %>
     <dl class="prompt">
+      <% if (idea = @song.idea.presence || @payload['idea'].presence) %><dt>Idea</dt><dd><%= idea %></dd><% end %>
       <dt>Sound</dt><dd><%= @payload['caption'] %></dd>
       <% %w[frequency_band modulation_type signal_path].each do |k| %>
         <% if @payload[k].present? %><dt><%= k.humanize %></dt><dd><%= @payload[k] %></dd><% end %>

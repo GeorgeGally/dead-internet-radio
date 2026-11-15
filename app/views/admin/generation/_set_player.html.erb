@@ -4,6 +4,7 @@
   <% tracks.each do |track| %>
     <div class="sp-song" data-track="<%= track.id %>" hidden>
       <p class="sp-now"><span class="sp-pos"><%= format("%02d", track.position) %></span> <span class="sp-name"><%= track.artist %> — <%= track.title %></span></p>
+      <% if track.song.idea.present? %><p class="sp-idea"><%= track.song.idea %></p><% end %>
       <% if track.song.votable? %>
         <ol class="sp-takes">
           <% SongTakes.for(track.song).each do |take| %>

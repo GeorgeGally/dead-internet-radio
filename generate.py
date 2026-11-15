@@ -292,6 +292,108 @@ def avoid_block() -> str:
     )
 
 
+# Words too common to make a phrase distinctive on their own.
+PHRASE_FILLER = {
+    "a", "an", "the", "and", "of", "in", "on", "at", "to", "with", "through", "into", "from",
+    "by", "for", "over", "under", "its", "it", "is", "that", "this", "every", "one", "bpm",
+    "minor", "major", "sharp", "flat", "four", "two", "floor", "four-on-the-floor",
+}
+
+
+def phrases(text: str, size: int = 4) -> set[str]:
+    """The runs of `size` words inside each clause of a text, lowercased, minus
+    the ones made of filler alone ("on two and four") or of tempo and key."""
+    out = set()
+    for clause in re.split(r"[.,;:!?()/—–]+", str(text or "").lower()):
+        words = re.findall(r"[a-z0-9][a-z0-9'-]*", clause)
+        for i in range(len(words) - size + 1):
+            run = words[i:i + size]
+            if sum(w not in PHRASE_FILLER and not w.isdigit() and len(w) > 1 for w in run) >= 2 and "bpm" not in run:
+                out.add(" ".join(run))
+    return out
+
+
+def song_sound_text(payload: dict) -> str:
+    return " ".join(str(payload.get(k) or "") for k in ("caption", "frequency_band", "modulation_type", "signal_path"))
+
+
+def worn_phrases(shows: int = 4, limit: int = 30) -> list[str]:
+    """Phrases the last few shows wrote into more than one song. The DJ copies
+    the station's own words from song to song ("pushed through an overloaded
+    preamp until the concrete answers back"), so recent sets read the same."""
+    by_show: dict[Path, list[Path]] = {}
+    for log in OUTPUT_DIR.glob("*/prompts/[0-9]*.prompt.json"):
+        by_show.setdefault(log.parent, []).append(log)
+    recent = sorted(by_show.values(), key=lambda logs: max(l.stat().st_mtime for l in logs), reverse=True)[:shows]
+    songs: dict[str, int] = {}
+    sets: dict[str, set] = {}
+    for logs in recent:
+        for log in logs:
+            try:
+                payload = json.loads(log.read_text(errors="replace")).get("payload") or {}
+            except (json.JSONDecodeError, OSError, AttributeError):
+                continue
+            # A remix is its song again, not a new song repeating it.
+            if not isinstance(payload, dict) or not payload.get("bpm") or log.parent.parent.name.startswith("remix-"):
+                continue
+            for p in phrases(song_sound_text(payload)):
+                songs[p] = songs.get(p, 0) + 1
+                sets.setdefault(p, set()).add(log.parent)
+    picked: list[str] = []
+    # Worn across sets first, then within one.
+    for p in sorted(songs, key=lambda p: (-len(sets[p]), -songs[p], p)):
+        if songs[p] < 2:
+            continue
+        # Neighbouring runs of one sentence say the same thing; keep one.
+        head, tail = p.rsplit(" ", 1)[0], p.split(" ", 1)[1]
+        if any(head in q or tail in q for q in picked):
+            continue
+        picked.append(p)
+        if len(picked) == limit:
+            break
+    return picked
+
+
+def worn_block() -> str:
+    """The phrases recent sets wore out, for the DJ to write around."""
+    worn = worn_phrases()
+    if not worn:
+        return ""
+    return ("\n\nWORN PHRASES — recent sets used these in several songs. Never write them "
+            "or close variants; say it another way or say something else:\n"
+            + "\n".join(f"- {p}" for p in worn) + "\n")
+
+
+def shared_phrases(songs: list, exempt: list[int] = ()) -> list[str]:
+    """Phrases two songs of one set share, apart from what tracks by one shared
+    artist (numbers in `exempt`) say about their act's sound."""
+    seen: dict[str, int] = {}
+    shared = set()
+    for i, song in enumerate(songs, 1):
+        for p in phrases(song_sound_text(song)):
+            if p in seen and not (i in exempt and seen[p] in exempt):
+                shared.add(p)
+            seen.setdefault(p, i)
+    return sorted(shared)
+
+
+def track_ideas(result, count: int) -> list[str]:
+    """The producer's idea for each track: what that one song is. Missing ones
+    stay empty and the DJ works from the brief alone."""
+    ideas = result.get("tracks") if isinstance(result, dict) else None
+    ideas = [str((i.get("idea") if isinstance(i, dict) else i) or "").strip() for i in ideas] if isinstance(ideas, list) else []
+    return (ideas + [""] * count)[:count]
+
+
+def ideas_block(ideas: list[str]) -> str:
+    lines = [f"{n}. {idea}" for n, idea in enumerate(ideas, 1) if idea]
+    if not lines:
+        return ""
+    return ("TRACK IDEAS — the producer's idea for each track. Track N is idea N: "
+            "its subject, era, instruments, voice and room come from it, so a listener "
+            "could tell the ideas apart with the titles covered:\n" + "\n".join(lines) + "\n\n")
+
+
 LISTENER_TASTE_PATH = OUTPUT_DIR / "listener-taste.json"
 
 
@@ -677,17 +779,62 @@ def ensure_voice(song: dict) -> dict:
     return {**song, "lyrics": lyrics}
 
 
+# Words in the station's notes that ask for nothing by themselves.
+NOTE_FILLER = {
+    "make", "makes", "have", "feel", "more", "bit", "some", "like", "with", "sound", "sounds",
+    "track", "song", "this", "that", "into", "much", "very", "kind", "lots", "just", "also",
+    "really", "please", "keep", "want", "give", "should", "could", "would", "it's", "and",
+}
+NOTE_EASING = re.compile(r"\b(too|no|not|without|less|never|don't|dont|stop|remove|lose|cut)\b")
+
+
+def missing_terms(notes: str, song: dict) -> list[str]:
+    """Words of the station's notes the rewritten song never says. A note
+    asking for less ("too cheesy", "no hats") is met by leaving things out, so
+    it is not checked; a tempo is checked against bpm."""
+    text = " ".join(str(song.get(k) or "") for k in ("caption", "frequency_band", "modulation_type", "signal_path")).lower()
+    missing = []
+    for term in re.split(r"[,;.\n]+|\band\b", str(notes or "").lower()):
+        if not term.strip() or NOTE_EASING.search(term):
+            continue
+        tempo = re.search(r"(\d{2,3})\s*bpm", term)
+        if tempo:
+            if str(song.get("bpm")) != tempo.group(1):
+                missing.append(f"{tempo.group(1)} BPM")
+            term = term.replace(tempo.group(0), " ")
+        for word in re.findall(r"[a-z][a-z'-]+", term):
+            if len(word) > 3 and word not in NOTE_FILLER and word not in text and word not in missing:
+                missing.append(word)
+    return missing
+
+
+SOUND_FIELDS = ("frequency_band", "modulation_type", "signal_path")
+
+
 def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, dict]:
-    """The producer rewrites the song's caption, lyrics, tempo, key and length
-    from the station's notes. Returns the new song and the producer's review."""
+    """The producer rewrites the song from the station's notes: caption, sound
+    fields, lyrics, tempo, key and length. Returns the new song and the
+    producer's review. The notes lead, so a rewrite that leaves out one of
+    their words is asked for once more."""
     message = (
         f"Artist: {artist}\nTitle: {title}\n"
-        f"Caption: {old.get('caption', '')}\nLyrics:\n{old.get('lyrics', '[Instrumental]')}\n"
+        f"Caption: {old.get('caption', '')}\n"
+        + "".join(f"{key.replace('_', ' ').capitalize()}: {old.get(key)}\n" for key in SOUND_FIELDS if old.get(key))
+        + f"Lyrics:\n{old.get('lyrics', '[Instrumental]')}\n"
         f"BPM: {old.get('bpm')}\nKey: {old.get('keyscale', '')}\nDuration: {old.get('duration')}\n\n"
         f"Notes: {notes}"
     )
-    new = extract_json(call_llm(load_prompt(RERENDER_PROMPT_PATH), message))
+    system = load_prompt(RERENDER_PROMPT_PATH)
+    new = extract_json(call_llm(system, message))
     new = new if isinstance(new, dict) else {}
+    left_out = missing_terms(notes, new)
+    if new and left_out:
+        print(f"  Rewrite leaves out {', '.join(left_out)}; asking again", flush=True)
+        retry = extract_json(call_llm(system, message + f"\n\nYour last rewrite left out: {', '.join(left_out)}. "
+                                      "Every term in the notes must be in the new song.\n"
+                                      f"Your last rewrite: {json.dumps(new)}"))
+        if isinstance(retry, dict) and retry.get("caption") and len(missing_terms(notes, retry)) < len(left_out):
+            new = retry
     duration = int(new.get("duration") or old.get("duration") or 150)
     song = {
         "title": title,
@@ -697,6 +844,8 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
         "bpm": new.get("bpm") or old.get("bpm"),
         "keyscale": str(new.get("keyscale") or old.get("keyscale") or ""),
         "duration": min(max(duration, MIN_TRACK_SECONDS), MAX_TRACK_SECONDS),
+        # The old sound fields describe the old sound: a rewrite replaces them or drops them.
+        **{key: str(new.get(key) or "") for key in SOUND_FIELDS},
     }
     changes = new.get("changes") if isinstance(new.get("changes"), list) else []
     return song, {"diagnosis": str(new.get("diagnosis") or ""), "changes": [str(c) for c in changes]}
@@ -759,7 +908,7 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
 
 
 PLAN_PREFIX = "plan "
-PLAN_SONG_KEYS = ("title", "artist", "caption", "lyrics", "bpm", "keyscale", "duration")
+PLAN_SONG_KEYS = ("title", "artist", "idea", "caption", "lyrics", "bpm", "keyscale", "duration")
 
 
 def shared_artist_tracks(count: int) -> list[int]:
@@ -793,8 +942,8 @@ def share_artists(songs: list, numbers: list[int]) -> list:
 
 
 def plan_song(song: dict) -> dict:
-    """The fields ACE-Step is sent for one song, as the plan shows and keeps them."""
-    return {key: song.get(key) for key in PLAN_SONG_KEYS}
+    """One song as the plan shows and keeps it: its idea and what ACE-Step is sent."""
+    return {key: song.get(key) for key in PLAN_SONG_KEYS if key != "idea" or key in song}
 
 
 def read_plan(slot: str) -> dict | None:
@@ -955,28 +1104,36 @@ def main():
             print("1. Using the edited plan: no producer or DJ calls", flush=True)
             show_name = str(plan.get("show_name") or slot).strip()
             brief = str(plan.get("brief") or "").strip()
+            ideas = [str(song.get("idea") or "").strip() for song in plan["tracks"]]
         else:
             print("1. Producer writing show name and program brief...", flush=True)
-        producer_input = f"Time slot: {slot}\n\nWrite a program brief for this slot."
+        ideas_ask = f"\n\nWrite {args.tracks} track ideas, one per track."
+        producer_input = f"Time slot: {slot}\n\nWrite a program brief for this slot.{ideas_ask}"
         if request:
             producer_input = (f"Time slot: {slot}\n\nThis show is one listener request: \"{request['title']}\" "
-                              f"by {request['artist']}.\n\nWrite a program brief for it.")
+                              f"by {request['artist']}"
+                              + (f". The listener said: {request['note']}" if request.get("note") else "")
+                              + ".\n\nWrite a program brief for the song they asked for: its world, "
+                              f"not the station's request line.{ideas_ask}")
         if not plan:
             raw = call_llm(producer_prompt, producer_input)
             try:
                 result = extract_json(raw)
                 show_name = result.get("show_name", "").strip()
                 brief = result.get("brief", "").strip()
+                ideas = track_ideas(result, args.tracks)
             except (ValueError, json.JSONDecodeError, AttributeError):
                 show_name = ""
                 brief = ""
+                ideas = [""] * args.tracks
         if not plan and (not show_name or not brief or "User Safety:" in brief or len(brief) < 20):
             print("  Producer output malformed or moderated, retrying with different model...", flush=True)
-            raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.")
+            raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.{ideas_ask}")
             try:
                 result2 = extract_json(raw2)
                 show_name = result2.get("show_name", "").strip()
                 brief = result2.get("brief", "").strip()
+                ideas = track_ideas(result2, args.tracks)
             except (ValueError, json.JSONDecodeError, AttributeError):
                 show_name = ""
                 brief = ""
@@ -984,6 +1141,9 @@ def main():
                 show_name = slot
                 brief = "A late-night broadcast from Dead Internet Radio."
         print(f"\nShow: {show_name}\n{brief}\n")
+        for n, idea in enumerate(ideas, 1):
+            if idea:
+                print(f"   Idea {n}: {idea}")
 
         # Save show metadata
         show_meta = {
@@ -1058,6 +1218,7 @@ def main():
         ace_healthy = None
         # A request names its own artist, often one the station already played.
         avoid = "" if request or plan else avoid_block() + taste_block()
+        worn = "" if plan else worn_block()
         if avoid:
             used_artists, used_titles = already_broadcast_names()
             print(f"   Anti-reuse list: {len(used_artists)} artist names, "
@@ -1089,6 +1250,7 @@ def main():
 
             dj_input = (
                 f"Program brief:\n\n{brief}\n\n"
+                f"{ideas_block(ideas)}"
                 f"Compose {args.tracks} tracks for this DJ set. "
                 f"Return a JSON array of exactly {args.tracks} objects.\n\n"
                 f"CONSTRAINTS — all tracks must be distinct:\n"
@@ -1096,6 +1258,8 @@ def main():
                 f"- Genre: whatever the slot or brief asks for, any genre or blend (e.g. 'slomo disco', 'electroclash'), vary the tracks within it; with only a mood or time, choose freely in the station's sound. Follow the DJ lessons so it never turns cheesy. When the slot names a genre, every caption starts with that genre word and at most one track leans into a neighbouring genre. Play the genre at its own tempo and beat (electroclash and techno 125+ BPM, four-on-the-floor). Party words (party, club, banger, dancefloor, rave) mean four-on-the-floor bangers at the top of the genre's range. Mood words make tracks slower and darker, never ambient or drone; every track has drums, 90 BPM or more\n"
                 f"- Different basslines, synth palettes and textures; the drum pattern is the genre's own\n"
                 f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n"
+                f"- Every caption in its own words: no run of four or more words may appear in two captions of this set{', except the shared artist sound' if shared else ''}.\n"
+                f"- Station wear (tape, cassette, mains hum, relays, preamp overload, a cracked handset, a basement) goes on at most {max(1, args.tracks // 3)} of the {args.tracks} tracks, a different one each time; the rest are clean recordings in rooms of their own.\n"
                 f"{one_act}\n"
                 f"Guidance:\n"
                 f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
@@ -1105,11 +1269,16 @@ def main():
                 f"Output a JSON array of {args.tracks} objects, each with: "
                 f"title, artist, caption, lyrics, bpm, keyscale, duration"
                 f"{', and sound on the tracks by the shared artist' if shared else ''}."
-                f"{avoid}"
+                f"{avoid}{worn}"
             )
 
             song_json = call_llm(dj_prompt, dj_input)
             songs = share_artists(extract_json_array(song_json), shared)
+            for song, idea in zip(songs, ideas):
+                song["idea"] = idea
+            repeated = shared_phrases(songs, shared)
+            if repeated:
+                print(f"  Note: the set repeats {len(repeated)} phrases across songs: {'; '.join(repeated[:8])}", flush=True)
 
             if len(songs) < 2:
                 print(f"  WARNING: Batch returned only {len(songs)} tracks, falling back to per-track mode",
@@ -1125,9 +1294,11 @@ def main():
                     print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
                     time.sleep(args.delay)
 
+                idea = ideas[i - 1] if i <= len(ideas) else ""
+                idea_line = f"This track's idea, from the producer: {idea}\nIts subject, era, instruments, voice and room come from it.\n\n" if idea else ""
                 if i == 1:
                     dj_input = (
-                        f"Program brief:\n\n{brief}\n\n"
+                        f"Program brief:\n\n{brief}\n\n{idea_line}"
                         f"This is track 1 of {args.tracks}. Compose the opening track for this DJ set."
                     )
                 else:
@@ -1139,7 +1310,7 @@ def main():
                     prev_keys = [t["keyscale"] for t in track_history if t["keyscale"]]
                     prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
                     dj_input = (
-                        f"Program brief:\n\n{brief}\n\n"
+                        f"Program brief:\n\n{brief}\n\n{idea_line}"
                         f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
                         f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
                         f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
@@ -1155,7 +1326,7 @@ def main():
                     "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                     "- The genre the slot or brief asks for wins; follow the DJ lessons so it never turns cheesy. Every track has drums, 90 BPM or more.\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
-                    f"{avoid}"
+                    f"{avoid}{worn}"
                 )
                 if request:
                     dj_input += request_block(request)
@@ -1167,6 +1338,7 @@ def main():
                     song = song[0]
                 if request:
                     song["title"], song["artist"] = request["title"], request["artist"]
+                song["idea"] = idea
                 song["_prompt"] = dj_input
                 songs.append(song)
 

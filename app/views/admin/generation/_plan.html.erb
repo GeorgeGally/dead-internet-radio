@@ -37,6 +37,10 @@
           </div>
         </div>
         <div class="field">
+          <%= label_tag "#{id}_idea", "Idea" %>
+          <%= text_area_tag "#{key}[idea]", song["idea"], id: "#{id}_idea", rows: 2 %>
+        </div>
+        <div class="field">
           <%= label_tag "#{id}_caption", "Vibe" %>
           <%= text_area_tag "#{key}[caption]", song["caption"], id: "#{id}_caption", rows: 3 %>
         </div>

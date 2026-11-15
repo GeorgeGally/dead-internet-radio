@@ -56,6 +56,7 @@ namespace :import do
           frequency_band: track_data["frequencyBand"],
           modulation_type: track_data["modulationType"],
           signal_path: track_data["signalPath"],
+          idea: track_data["idea"].presence,
         )
         track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
         track.save!

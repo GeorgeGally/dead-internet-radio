@@ -120,7 +120,7 @@ module Admin
     private
 
     PLAN_TEXT = %w[show_name brief dj_name dj_announce].freeze
-    SONG_TEXT = %w[title artist caption lyrics keyscale].freeze
+    SONG_TEXT = %w[title artist idea caption lyrics keyscale].freeze
     # The generation PC's GPU runs out of memory past this (generate.py MAX_TRACK_SECONDS).
     MAX_SECONDS = 300
 
@@ -131,7 +131,7 @@ module Admin
       plan = job.plan.merge(PLAN_TEXT.index_with { |key| text(edits[key], job.plan[key]) })
       plan['tracks'] = job.plan['tracks'].each_with_index.map do |song, i|
         edit = edits.dig(:tracks, i.to_s) || {}
-        song.merge(SONG_TEXT.index_with { |key| text(edit[key], song[key]) })
+        song.merge(SONG_TEXT.index_with { |key| text(edit[key], song[key]) }.compact)
             .merge('bpm' => number(edit[:bpm], song['bpm']),
                    'duration' => number(edit[:duration], song['duration'])&.clamp(30, MAX_SECONDS))
       end

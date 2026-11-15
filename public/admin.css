@@ -649,6 +649,8 @@ table.requests tr:target td { background: rgba(255, 90, 31, 0.1); }
 .set-player { max-width: 720px; margin: 0 0 40px; }
 .set-player .show-mix { margin: 0 0 20px; max-width: none; }
 .sp-now { display: flex; gap: 14px; align-items: baseline; font-size: 18px; margin: 0 0 16px; }
+.sp-now:has(+ .sp-idea) { margin-bottom: 8px; }
+.sp-idea { color: #6f6a61; font-size: 14px; line-height: 1.5; margin: 0 0 16px; max-width: 60ch; }
 .sp-pos { color: #c03f0d; font-variant-numeric: tabular-nums; }
 .sp-takes { list-style: none; margin: 0 0 8px; }
 .sp-takes li {
