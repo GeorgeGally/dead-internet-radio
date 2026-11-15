@@ -784,12 +784,19 @@ NOTE_FILLER = {
     "make", "makes", "have", "feel", "more", "bit", "some", "like", "with", "sound", "sounds",
     "track", "song", "this", "that", "into", "much", "very", "kind", "lots", "just", "also",
     "really", "please", "keep", "want", "give", "should", "could", "would", "it's", "and",
+    "super", "dark", "darker", "heavy", "heavier", "light", "lighter", "fast", "faster", "slow", "slower",
+    "hard", "harder", "soft", "softer", "loud", "louder", "quiet", "quieter", "gritty", "grittier",
+    "dirty", "dirtier", "clean", "cleaner", "deep", "deeper", "warm", "warmer", "cold", "colder",
+    "bright", "brighter", "sparse", "sparser", "dense", "denser", "big", "bigger", "huge", "tight",
+    "tighter", "loose", "looser", "wide", "wider", "thin", "thinner", "thick", "thicker", "raw", "rawer",
 }
 NOTE_EASING = re.compile(r"\b(too|no|not|without|less|never|don't|dont|stop|remove|lose|cut)\b")
 
 
 def missing_terms(notes: str, song: dict) -> list[str]:
-    """Words of the station's notes the rewritten song never says. A note
+    """Genre, style and instrument words of the station's notes the rewritten
+    song never says; direction words (faster, darker) are met by the change
+    itself and are not checked. A note
     asking for less ("too cheesy", "no hats") is met by leaving things out, so
     it is not checked; a tempo is checked against bpm."""
     text = " ".join(str(song.get(k) or "") for k in ("caption", "frequency_band", "modulation_type", "signal_path")).lower()
@@ -831,7 +838,7 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
     if new and left_out:
         print(f"  Rewrite leaves out {', '.join(left_out)}; asking again", flush=True)
         retry = extract_json(call_llm(system, message + f"\n\nYour last rewrite left out: {', '.join(left_out)}. "
-                                      "Every term in the notes must be in the new song.\n"
+                                      "Every genre, style and instrument the notes name must be in the new song.\n"
                                       f"Your last rewrite: {json.dumps(new)}"))
         if isinstance(retry, dict) and retry.get("caption") and len(missing_terms(notes, retry)) < len(left_out):
             new = retry

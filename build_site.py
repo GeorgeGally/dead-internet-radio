@@ -168,7 +168,6 @@ def build_playlist(tracks):
             "frequencyBand": payload.get("frequency_band", ""),
             "modulationType": payload.get("modulation_type", ""),
             "signalPath": payload.get("signal_path", ""),
-            "idea": payload.get("idea") or "",
         })
 
     dj_name = select_dj_name()
