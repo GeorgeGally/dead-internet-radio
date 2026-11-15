@@ -19,15 +19,15 @@
   pointer-events: none;
 }
 /* Lines climb from the composer to mid-page. Solid until a quarter of the
-   screen height, then a long, slow fade to nothing at the halfway line. */
+   screen height, then a quick fade to nothing well below the halfway line. */
 .signal-stack {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   overflow: clip;
-  -webkit-mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent);
-  mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent);
+  -webkit-mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent calc(37.5vh - var(--signal-bottom) - 62px));
+  mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent calc(37.5vh - var(--signal-bottom) - 62px));
 }
 .signal-entry {
   box-sizing: border-box;
@@ -74,7 +74,6 @@
   align-items: center;
   gap: 4px;
   padding: 0 10px 0 4px;
-  border: 1px solid rgba(233,230,223,.6);
   border-radius: 8px;
   background: rgba(0,0,0,.7);
 }
