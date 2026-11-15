@@ -104,10 +104,11 @@ body.prewarming #block-canvas {
   background: #000;
   isolation: isolate;
   font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 14px;
   letter-spacing: 0.04em;
   color: #e9e6df;
   z-index: 10;
-  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+  transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -140,7 +141,7 @@ body.prewarming #block-canvas {
   border-bottom: 1px solid #b9b4a8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
   color: #1a1a1a;
-  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+  transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
               color 0.15s ease-out, background 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
@@ -175,7 +176,7 @@ body.prewarming #block-canvas {
 #deck.ejected .deck-logo { display: none; }
 
 .logo-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.16em;
   color: inherit;
@@ -229,9 +230,9 @@ body.prewarming #block-canvas {
 }
 
 .mini-track {
-  font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
-  font-size: 13px;
-  font-weight: 800;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: 0;
   color: inherit;
   white-space: nowrap;
@@ -280,7 +281,7 @@ body.prewarming #block-canvas {
 #deck.ejected .deck-content > * {
   opacity: 0;
   transform: translateY(6px);
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
 }
 
@@ -319,7 +320,6 @@ body.prewarming #block-canvas {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-right: 8px;
 }
 
 .ctrl {
@@ -378,22 +378,25 @@ body.prewarming #block-canvas {
 /* Light-grey buttons with a single orange accent (Rams) */
 /* ---- Deck keys: square toggles, each with its word on it ----
    The key is a square dark well; inside it, a cap with softly rounded corners and
-   its word in white across the top. Every key springs back up; its light shows
+   its word in white along the bottom. Every key springs back up; its light shows
    whether it is on. Pressed, the cap shrinks evenly, so the rim stays even. */
 .key {
   --c: #8d9aa6;
   --txt: #fff;
+  --half: 31px;
   position: relative;
-  width: 54px;
-  height: 54px;
-  padding: 27px;
+  width: calc(var(--half) * 2);
+  height: calc(var(--half) * 2);
+  padding: var(--half);
   border-radius: 0;
   background: var(--c) content-box;
   box-shadow:
-    inset 0 0 0 27px #17120f,
+    inset 0 0 0 var(--half) #17120f,
     3px 5px 10px rgba(0, 0, 0, .28);
 }
-.key.k-play { --c: #718d94; }
+.key.k-play { --c: #c94814; }
+.key.k-vis { --c: #2a2a2a; }
+.key.k-req { --c: #5c8299; }
 .key.k-up { --c: #649066; }
 .key.k-down { --c: #c94814; }
 .key .cap {
@@ -413,8 +416,9 @@ body.prewarming #block-canvas {
 }
 .key .word {
   display: block;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 7.5px;
+  padding-bottom: 2px;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 9.5px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: .04em;
@@ -427,7 +431,7 @@ body.prewarming #block-canvas {
 .key:active:not(:disabled) {
   transform: none;
   box-shadow:
-    inset 0 0 0 27px #17120f,
+    inset 0 0 0 var(--half) #17120f,
     1px 2px 4px rgba(0, 0, 0, .22);
 }
 .key:active:not(:disabled) .cap {
@@ -436,7 +440,7 @@ body.prewarming #block-canvas {
     inset 0 0 0 1px rgba(255, 255, 255, .14),
     inset 0 2px 3px rgba(0, 0, 0, .25);
 }
-.key.vote:disabled { cursor: default; color: rgba(255, 255, 255, .38); }
+.key.vote:disabled { cursor: default; color: #fff; }
 
 /* ---- Request card: a dark card over the artwork, fades like a TV ---- */
 /* ---- Request line: a full-screen page in the deck's colours (Rams, TE) ---- */
@@ -941,7 +945,7 @@ body.prewarming #block-canvas {
   width: auto;
   align-self: stretch;
   padding: 6px 8px;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto;
   border: 0;
   background: #17120f;
 }
@@ -1273,7 +1277,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-group {
-  flex: 0 1 auto;
+  /* Text keeps its old 210px column before the meter takes any room. */
+  flex: 1 1 210px;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1281,8 +1286,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-lines {
-  width: 210px;
-  flex: 0 1 auto;
+  width: auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1292,7 +1297,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-wave {
-  flex: 1 1 auto;
+  /* Meter only gets room past the text columns, and shares it with them. */
+  flex: 4.5 1 0;
   min-width: 0;
   height: 100%;
   display: block;
@@ -1504,7 +1510,7 @@ body.prewarming #block-canvas {
   opacity: 0.45;
 }
 
-/* Each row: slot number, its on/off button, then the filter name. The rows share
+/* Each row: on/off button, then the filter name. The rows share
    the panel's columns, so every name, Artwork's too, starts at the same place. */
 .fx-lcd {
   flex: 0 0 auto;
@@ -1512,7 +1518,7 @@ body.prewarming #block-canvas {
   align-self: stretch;
   padding-left: 14px;
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto 1fr;
   grid-auto-rows: minmax(0, max-content);
   align-content: center;
   gap: 1px 7px;
@@ -1547,6 +1553,7 @@ body.prewarming #block-canvas {
 
 .fx-num {
   grid-area: 1 / 1;
+  justify-self: center;
   width: 8px;
   font-size: 8px;
   font-weight: 600;
@@ -1554,7 +1561,7 @@ body.prewarming #block-canvas {
 }
 
 .fx-name {
-  grid-area: 1 / 3;
+  grid-area: 1 / 2;
   font-family: "Anka Coder", sans-serif;
   min-width: 0;
   white-space: nowrap;
@@ -1563,11 +1570,11 @@ body.prewarming #block-canvas {
 }
 
 .fx-on {
-  grid-area: 1 / 2;
+  grid-area: 1 / 1;
   width: 26px;
   height: 12px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 4px 10px 4px 4px;
+  border: none;
   border-radius: 2px;
   background: none;
   cursor: pointer;
@@ -1581,8 +1588,11 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on .fx-on {
-  color: #ff5a1f;
+  color: #fff;
+  font-weight: 600;
+  line-height: 11px;
   border-color: #ff5a1f;
+  background: #ff5a1f;
 }
 
 .fx-on:disabled {
@@ -1833,7 +1843,7 @@ body.prewarming #block-canvas {
   color: rgba(255, 255, 255, 0.6);
   font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
   font-weight: 400;
-  font-size: var(--fs, 64px);
+  font-size: min(23px, var(--fs, 64px));
   line-height: 1.02;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1853,14 +1863,29 @@ body.prewarming #block-canvas {
 }
 
 #listener-report .lr-row {
+  position: relative;
   display: flex;
   justify-content: space-between;
   white-space: nowrap;
 }
 
 #listener-report .lr-label {
-  justify-content: center;
-  padding-right: 18%;
+  justify-content: flex-start;
+}
+
+/* The region sits on the line above the city. */
+#listener-report .lr-right {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: 0 -1em;
+}
+
+#listener-report .lr-row span {
+  font-family: "Dogica", sans-serif;
+  font-weight: 600;
+  letter-spacing: calc(-4em / 23);
+  color: #5ad442;
 }
 
 
@@ -2005,7 +2030,7 @@ body.prewarming #block-canvas {
   }
 
   .npd-lines {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     width: auto;
   }
 
@@ -2051,7 +2076,7 @@ body.prewarming #block-canvas {
     padding: 8px 12px;
   }
 
-  .npd-group { width: 100%; }
+  .npd-group { width: 100%; flex: 0 0 auto; }
 
   .fx-lcd {
     width: 100%;
@@ -2320,7 +2345,8 @@ body.set-open #info-card { display: none; }
 
 @media (max-width: 767px) {
   #set-page { padding: 12px; }
-  .deck-transport { gap: 6px; }
+  .deck-transport { gap: 5px; }
+  .key { --half: 27px; }
 }
 
 

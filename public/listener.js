@@ -169,8 +169,8 @@ const listenerReport = (() => {
     }
     const rows = lines();
     // One font size for everything, as large as the longest line allows.
-    const longest = Math.max(...rows.map((r) => r[0].length + (r[2] ? r[2].length + 3 : 0)));
-    const byWidth = (innerWidth * 0.75) / (longest * 0.6);
+    const longest = Math.max(...rows.map((r) => Math.max(r[0].length, r[2] ? r[2].length : 0)));
+    const byWidth = (innerWidth * 0.75) / (longest * (19 / 23));
     const byHeight = (innerHeight * 0.72) / (rows.length * 1.02);
     el.style.setProperty('--fs', `${Math.floor(Math.min(byWidth, byHeight))}px`);
     el.innerHTML = rows.map(([text, align, right], i) => {
