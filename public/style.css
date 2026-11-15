@@ -2347,7 +2347,7 @@ body.set-open #info-card { display: none; }
 
 @media (max-width: 767px) {
   #set-page { padding: 12px; }
-  .deck-transport { gap: 5px; }
+  .deck-transport { gap: 5px; padding-bottom: 7px; }
   .key { --half: 27px; }
 }
 
