@@ -1858,6 +1858,14 @@ body.prewarming #block-canvas {
   padding-right: 18%;
 }
 
+#listener-report .lr-row span {
+  font-family: "Dogica", sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -4px;
+  color: #5ad442;
+}
+
 
 /* ---- Narrow screens: the menubar gives up the spectrum first, then the
    artwork/show lines, then shrinks its knobs and buttons ---- */
