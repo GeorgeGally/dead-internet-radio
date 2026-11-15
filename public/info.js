@@ -33,8 +33,31 @@
     ['Picture', 'p5.js sketches, public-domain film from archive.org and the Prelinger Archives, and GIFs from Giphy.'],
   ];
 
+  // How to use it draws each control with the deck's own parts: its keys,
+  // lamps and knobs, plus the keyboard keys that do the same (the handlers
+  // in visuals/engine.js, visuals/gallery.js and visuals/filters.js).
+  const key = (cls, word, lit) => `<span class="ctrl"><span class="led${lit ? ' on' : ''}"></span>`
+    + `<span class="abtn key ${cls}"><span class="cap"><span class="word">${word}</span></span></span></span>`;
+  const kbd = (...caps) => '<span class="info-kbds">' + caps.map((c) => `<span class="abtn key info-kbd${c.length > 1 ? ' info-kbd-wide' : ''}">`
+    + `<span class="cap"><span class="word">${c}</span></span></span>`).join('') + '</span>';
+  const knob = (cls, label, deg) => `<span class="ctrl"><span class="led"></span><span class="rams-knob ${cls}">`
+    + `<span class="knob-body"><span class="knob-tick" style="transform: rotate(${deg}deg)"></span></span></span>`
+    + `<span class="knob-label">${label}</span></span>`;
+  const lcd = '<span class="fx-lcd">' + ['on', 'off', 'off'].map((s, i) => `<span class="fx-row${s === 'on' ? ' on' : ''}">`
+    + `<span class="fx-num">${i + 1}</span><span class="fx-on">${s}</span></span>`).join('') + '</span>';
+  const fig = (...rows) => '<span class="info-fig" aria-hidden="true">'
+    + rows.map((r) => `<span class="info-fig-row">${r}</span>`).join('') + '</span>';
+  const FIGS = {
+    Play: fig(key('k-play', 'Play', true)),
+    Visuals: fig(key('k-vis', 'Visuals'), kbd('/', '\u2190', '\u2192', 'A\u2013Z')),
+    Request: fig(key('k-req', 'Request')),
+    'Like · Dislike': fig(key('k-up vote', 'Like') + key('k-down vote', 'Dislike')),
+    'FX 1 2 3': fig(lcd + knob('fx-pick', 'filter', 20) + knob('fx-wet', 'dry/wet', 60), kbd('1\u20139', '0')),
+    Slot: fig(knob('slot-knob', 'slot', 0), kbd('\u2191', '\u2193')),
+  };
+
   const parts = (rows) => '<dl class="info-parts">'
-    + rows.map(([k, v]) => `<div class="info-part"><dt>${k}</dt><dd>${v}</dd></div>`).join('')
+    + rows.map(([k, v]) => `<div class="info-part"><dt>${FIGS[k] ? FIGS[k] + `<span class="info-sr">${k}</span>` : k}</dt><dd>${v}</dd></div>`).join('')
     + '</dl>';
 
   const card = document.createElement('div');
