@@ -43,16 +43,16 @@
   const knob = (cls, label, deg) => `<span class="ctrl"><span class="led"></span><span class="rams-knob ${cls}">`
     + `<span class="knob-body"><span class="knob-tick" style="transform: rotate(${deg}deg)"></span></span></span>`
     + `<span class="knob-label">${label}</span></span>`;
-  const lcd = '<span class="fx-lcd">' + ['on', 'off', 'off'].map((s, i) => `<span class="fx-row${s === 'on' ? ' on' : ''}">`
-    + `<span class="fx-num">${i + 1}</span><span class="fx-on">${s}</span></span>`).join('') + '</span>';
+  const lcd = '<span class="fx-lcd">' + ['on', 'off', 'off'].map((s) => `<span class="fx-row${s === 'on' ? ' on' : ''}">`
+    + `<span class="fx-on">${s}</span></span>`).join('') + '</span>';
   const fig = (...rows) => '<span class="info-fig" aria-hidden="true">'
     + rows.map((r) => `<span class="info-fig-row">${r}</span>`).join('') + '</span>';
   const FIGS = {
     Play: fig(key('k-play', 'Play', true)),
-    Visuals: fig(key('k-vis', 'Visuals'), kbd('/', '\u2190', '\u2192', 'A\u2013Z')),
+    Art: fig(key('k-vis', 'Art'), kbd('/', '\u2190', '\u2192', 'A\u2013Z')),
     Request: fig(key('k-req', 'Request')),
     'Like · Dislike': fig(key('k-up vote', 'Like') + key('k-down vote', 'Dislike')),
-    'FX 1 2 3': fig(lcd + knob('fx-pick', 'filter', 20) + knob('fx-wet', 'dry/wet', 60), kbd('1\u20139', '0')),
+    FX: fig(lcd + knob('fx-pick', 'filter', 20) + knob('fx-wet', 'dry/wet', 60), kbd('1\u20139', '0')),
     Slot: fig(knob('slot-knob', 'slot', 0), kbd('\u2191', '\u2193')),
   };
 

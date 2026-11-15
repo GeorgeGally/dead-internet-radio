@@ -944,7 +944,7 @@ body.prewarming #block-canvas {
   width: auto;
   align-self: stretch;
   padding: 6px 8px;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto;
   border: 0;
   background: #17120f;
 }
