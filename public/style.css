@@ -1240,7 +1240,7 @@ body.prewarming #block-canvas {
   font-family: "Anka Coder", sans-serif;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -1250,7 +1250,7 @@ body.prewarming #block-canvas {
   font-size: 15px;
   line-height: 16px;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: #c94814;
 }
 
@@ -1258,7 +1258,7 @@ body.prewarming #block-canvas {
   font-family: "Anka Coder", sans-serif;
   font-size: 15px;
   font-weight: 400;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: #fff;
 }
 
@@ -1267,7 +1267,7 @@ body.prewarming #block-canvas {
   font-size: 15px;
   line-height: 16px;
   font-weight: 400;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: #5c8299;
 }
 
