@@ -42,7 +42,9 @@ The fix:
   repeat their act's sound sentence and nothing else.
 - Station wear goes on at most a third of a set's tracks.
 - Re-render notes lead. The producer rewrites all the sound fields, and
-  `missing_terms()` asks once more when a word from the notes is missing.
+  `missing_terms()` asks once more when a genre, style or instrument word
+  (`NOTE_VOCABULARY`) or the tempo from the notes is missing. Direction words
+  (faster, darker) are met by the change and are not checked.
 
 Test with the production model list. The local `.env` uses `openrouter/free`,
 which writes keyword-soup captions and broken JSON, so it hides prompt changes.
