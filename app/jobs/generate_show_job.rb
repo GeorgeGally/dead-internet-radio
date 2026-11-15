@@ -19,6 +19,7 @@ class GenerateShowJob < ApplicationJob
   def render(job_id)
     gen_job = GenerationJob.find(job_id)
     return unless gen_job.pending?
+    return if gen_job.awaiting_plan?
     return hand_to_pc(gen_job) unless gen_job.dry_run? || AceStepManager.installed?
 
     gen_job.update!(status: :running, started_at: Time.current, output_log: '')
@@ -38,7 +39,7 @@ class GenerateShowJob < ApplicationJob
       # The DJ writing new songs hears how listeners voted on the old ones.
       Library.write_taste!
 
-      cmd1 = [Rails.configuration.x.python, 'generate.py', gen_job.slot, '--tracks', gen_job.track_count.to_s]
+      cmd1 = [Rails.configuration.x.python, 'generate.py', gen_job.generate_slot, '--tracks', gen_job.track_count.to_s]
       cmd1 += ['--dj-name', gen_job.dj_name] if gen_job.dj_name
       cmd1 += ['--dry-run'] if gen_job.dry_run?
       cmd1 += ['--resume-dir', resume_dir] if resume_dir

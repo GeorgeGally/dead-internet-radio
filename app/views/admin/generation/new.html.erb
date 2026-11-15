@@ -2,7 +2,11 @@
   <div class="tx-form">
     <h2>Trigger Generation</h2>
 
-    <%= form_tag admin_generation_index_path, method: :post do %>
+    <% if @job&.errors&.any? %>
+      <p class="form-error"><%= @job.errors.full_messages.to_sentence %></p>
+    <% end %>
+
+    <%= form_tag admin_generation_index_path, method: :post, id: "generation-form" do %>
       <div class="field">
         <%= label_tag :slot, "Slot (mood/description)" %>
         <%= text_field_tag :slot, params[:slot], placeholder: "late night slow techno synths", required: true %>
@@ -26,13 +30,19 @@
       </div>
 
       <label class="field-check">
+        <%= check_box_tag :preview, "1", params[:preview] == "1" %>
+        Preview and edit before sending
+      </label>
+
+      <label class="field-check">
         <%= check_box_tag :dry_run, "1", params[:dry_run] == "1" %>
         Dry run — prompts only, skip ACE-Step and mixing
       </label>
 
-      <%= submit_tag "TRANSMIT", class: "btn btn-submit" %>
+      <button type="submit" class="btn btn-submit" data-busy-label="TRANSMITTING">TRANSMIT</button>
+      <p class="form-busy" role="status" aria-live="polite"></p>
     <% end %>
-
-    <p class="meta">This runs the full Python pipeline (Producer, DJ, ACE-Step music, Kokoro TTS, crossfade mix). Check the job page for progress.</p>
   </div>
 </div>
+
+<%= render "busy_form", form_id: "generation-form" %>

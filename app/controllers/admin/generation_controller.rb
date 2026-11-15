@@ -18,13 +18,19 @@ module Admin
         options: {
           'dj_name' => params[:dj_name].presence,
           'crossfade' => params[:crossfade].presence,
-          'dry_run' => params[:dry_run].presence
+          'dry_run' => params[:dry_run].presence,
+          'preview' => (true if params[:preview] == '1')
         }.compact
       )
 
       if @job.save
-        GenerateShowJob.perform_later(@job.id)
-        redirect_to admin_generation_path(@job), notice: 'Generation started'
+        if @job.preview?
+          PlanShowJob.perform_later(@job.id)
+          redirect_to admin_generation_path(@job), notice: 'Writing the plan'
+        else
+          GenerateShowJob.perform_later(@job.id)
+          redirect_to admin_generation_path(@job), notice: 'Generation started'
+        end
       else
         render :new, status: :unprocessable_entity
       end
@@ -36,7 +42,8 @@ module Admin
         options = @job.options || {}
         options = options.except('on_pc', 'take') if options['kind'] == 'remix'
         @job.update!(status: :pending, started_at: nil, completed_at: nil, output_log: nil, options: options)
-        { 'set' => BuildSetJob, 'rerender' => RerenderTrackJob, 'remix' => RerenderTrackJob }.fetch(@job.options&.dig('kind'), GenerateShowJob).perform_later(@job.id)
+        next_job = @job.awaiting_plan? ? PlanShowJob : GenerateShowJob
+        { 'set' => BuildSetJob, 'rerender' => RerenderTrackJob, 'remix' => RerenderTrackJob }.fetch(@job.options&.dig('kind'), next_job).perform_later(@job.id)
         redirect_to admin_generation_path(@job), notice: 'Generation restarted (resuming from existing state)'
       elsif @job.running?
         redirect_to admin_generation_path(@job), alert: 'Job is still running'
@@ -50,20 +57,43 @@ module Admin
       rerender_review if @job.options&.dig('kind') == 'rerender'
     end
 
+    # The edited plan, confirmed: the show is made from exactly these values.
+    def plan
+      @job = GenerationJob.find(params[:id])
+      unless @job.pending? && @job.awaiting_plan? && @job.plan.present?
+        return redirect_to admin_generation_path(@job), alert: 'This plan has already been sent'
+      end
+
+      plan = edited_plan(@job)
+      @job.update!(track_count: plan['tracks'].size,
+                   options: @job.options.merge('plan' => plan, 'plan_confirmed' => true,
+                                               'show_name' => plan['show_name'].presence,
+                                               'dj_name' => plan['dj_name'].presence).compact)
+      GenerateShowJob.perform_later(@job.id)
+      redirect_to admin_generation_path(@job), notice: 'Generation started'
+    end
+
     def progress
       job = GenerationJob.find(params[:id])
       opts = job.options || {}
       render json: {
         status: job.status,
+        stage: job.stage,
+        plan_ready: job.awaiting_plan? && job.plan.present?,
+        since: (job.started_at || job.created_at)&.iso8601,
+        fraction: job.fraction,
+        tracks_done: job.tracks_done,
+        planned: (1..job.total_tracks.to_i).map { |i| job.planned_title(i) },
         show_name: opts["show_name"],
         dj_name: opts["dj_name"],
         tracks: opts["tracks"] || {},
         current_track: opts["current_track"],
-        total_tracks: opts["total_tracks"],
+        total_tracks: job.total_tracks,
         voiceovers: opts["voiceovers"],
         voiceovers_done: opts["voiceovers_done"] || [],
         complete: opts["complete"],
         show_dir: opts["show_dir"],
+        log: job.output_log.to_s.last(20_000),
       }
     end
 
@@ -86,6 +116,33 @@ module Admin
     end
 
     private
+
+    PLAN_TEXT = %w[show_name brief dj_name dj_announce].freeze
+    SONG_TEXT = %w[title artist caption lyrics keyscale].freeze
+    # The generation PC's GPU runs out of memory past this (generate.py MAX_TRACK_SECONDS).
+    MAX_SECONDS = 300
+
+    # The plan as written, with the admin's edits in place. Songs are the ones the
+    # plan already has; only their values change.
+    def edited_plan(job)
+      edits = params.fetch(:plan, {})
+      plan = job.plan.merge(PLAN_TEXT.index_with { |key| text(edits[key], job.plan[key]) })
+      plan['tracks'] = job.plan['tracks'].each_with_index.map do |song, i|
+        edit = edits.dig(:tracks, i.to_s) || {}
+        song.merge(SONG_TEXT.index_with { |key| text(edit[key], song[key]) })
+            .merge('bpm' => number(edit[:bpm], song['bpm']),
+                   'duration' => number(edit[:duration], song['duration'])&.clamp(30, MAX_SECONDS))
+      end
+      plan
+    end
+
+    def text(value, fallback)
+      value.nil? ? fallback : value.to_s.gsub("\r\n", "\n").strip
+    end
+
+    def number(value, fallback)
+      value.present? ? value.to_i : fallback
+    end
 
     # Before and after for a re-render: what the producer said went wrong and
     # what it changed. Jobs from before it said so fall back to the prompt logs.
