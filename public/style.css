@@ -383,14 +383,15 @@ body.prewarming #block-canvas {
 .key {
   --c: #8d9aa6;
   --txt: #fff;
+  --half: 31px;
   position: relative;
-  width: 62px;
-  height: 62px;
-  padding: 31px;
+  width: calc(var(--half) * 2);
+  height: calc(var(--half) * 2);
+  padding: var(--half);
   border-radius: 0;
   background: var(--c) content-box;
   box-shadow:
-    inset 0 0 0 31px #17120f,
+    inset 0 0 0 var(--half) #17120f,
     3px 5px 10px rgba(0, 0, 0, .28);
 }
 .key.k-play { --c: #c94814; }
@@ -430,7 +431,7 @@ body.prewarming #block-canvas {
 .key:active:not(:disabled) {
   transform: none;
   box-shadow:
-    inset 0 0 0 31px #17120f,
+    inset 0 0 0 var(--half) #17120f,
     1px 2px 4px rgba(0, 0, 0, .22);
 }
 .key:active:not(:disabled) .cap {
@@ -1495,7 +1496,7 @@ body.prewarming #block-canvas {
   opacity: 0.45;
 }
 
-/* Each row: on/off button, slot number, then the filter name. The rows share
+/* Each row: on/off button, then the filter name. The rows share
    the panel's columns, so every name, Artwork's too, starts at the same place. */
 .fx-lcd {
   flex: 0 0 auto;
@@ -1828,7 +1829,7 @@ body.prewarming #block-canvas {
   color: rgba(255, 255, 255, 0.6);
   font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
   font-weight: 400;
-  font-size: var(--fs, 64px);
+  font-size: min(23px, var(--fs, 64px));
   line-height: 1.02;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1869,8 +1870,7 @@ body.prewarming #block-canvas {
 #listener-report .lr-row span {
   font-family: "Dogica", sans-serif;
   font-weight: 600;
-  font-size: 23px;
-  letter-spacing: -4px;
+  letter-spacing: calc(-4em / 23);
   color: #5ad442;
 }
 
@@ -2331,7 +2331,8 @@ body.set-open #info-card { display: none; }
 
 @media (max-width: 767px) {
   #set-page { padding: 12px; }
-  .deck-transport { gap: 6px; }
+  .deck-transport { gap: 5px; }
+  .key { --half: 27px; }
 }
 
 
