@@ -34,7 +34,7 @@ Rails.application.routes.draw do
   get "broll-index/metadata/:item", to: "broll_index#metadata", format: false, constraints: { item: %r{[^/]+} }
 
   # archive.org films proxied same-origin so canvas filters keep working.
-  get "broll/:item/*file", to: "broll#show", format: false, as: :broll
+  get "broll/:item/*file", to: "broll#show", format: false, as: :broll, constraints: { item: %r{[^/]+} }
 
   # Audio streamed off disk from DB-linked paths (no blobs in DB).
   get "media/tracks/:id", to: "media#track", as: :media_track

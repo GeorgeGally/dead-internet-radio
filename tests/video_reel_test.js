@@ -304,6 +304,41 @@ test('Aliens with no archive.org results shows nothing else in their place', asy
   assert.ok(instances.at(-1).leaderDrawn > 0);
 });
 
+function cacheStorage(saved = {}) {
+  return {
+    saved,
+    async open() { return { put: async (key, res) => { saved[key] = res; } }; },
+    async match(key) { return saved[key] && { blob: async () => new Blob(['film']) }; },
+  };
+}
+
+test('Aliens keeps a film of its own for the next visit', async () => {
+  const page = aliensPage(() => ['saucer-reel']);
+  const store = {};
+  page.context.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+  page.context.caches = cacheStorage();
+  page.artworks.aliens.start();
+  await until(() => store['dir-broll-last:aliens']);
+
+  assert.equal(store['dir-broll-last:aliens'], 'saucer-reel');
+  assert.deepEqual(Object.keys(page.context.caches.saved), ['/__broll-last-film/aliens']);
+  assert.equal(store['dir-broll-last'], undefined);
+});
+
+test('Aliens opens on its kept film instead of the leader while the new reel loads', async () => {
+  const page = aliensPage(() => ['saucer-reel']);
+  page.context.caches = cacheStorage({ '/__broll-last-film/aliens': {}, '/__broll-last-film': {} });
+  page.context.fetch = () => new Promise(() => {});
+  page.artworks.aliens.start();
+  await until(() => page.videos.some((v) => v.url?.startsWith('blob:') && v.readyState === 4));
+  page.instances.at(-1).p.draw();
+
+  assert.equal(page.context.__pb.ready, false);
+  assert.equal(page.instances.at(-1).leaderDrawn, 0);
+  assert.equal(page.videos.filter((v) => v.url?.startsWith('blob:')).length, 1);
+  assert.ok(!page.fetches.some((url) => url.includes('giphy')));
+});
+
 test('Aliens hands its frame to the filters', async () => {
   const { artworks, context, videos, instances } = aliensPage(() => ['saucer-reel']);
   const filtered = [];

@@ -32,9 +32,10 @@ video is archive.org's removal notice. Measured on 2026-11-11, the two
 searches matched 56 and 101 items and most results had a usable mp4.
 
 An artwork with `searches` never shows the original's stand-ins: no cached
-film from the B-roll reel, no Giphy clip and no generic theme. With no
-results, or when archive.org is down, the leader and the existing unavailable
-line show. Search results are not checked shot by shot, so a reel can include
+film from the B-roll reel, no Giphy clip and no generic theme. Its only
+stand-in is its own last film (see below). With no results and nothing kept,
+or when archive.org is down, the leader and the existing unavailable line
+show. Search results are not checked shot by shot, so a reel can include
 talking heads or titles from an alien film; the trade is fresh footage on
 every track instead of two repeating shots.
 
@@ -75,3 +76,20 @@ its thumbnail, its selection and its removal when switched off.
 `node --test tests/video_reel_test.js tests/drawer_playing_outline_test.js`
 covers the searches, a new reel on a track change, no fallback footage, the
 filters, the original B-roll's themes and the drawer.
+
+## Leader on every visit (2026-11-15)
+
+Listeners saw the Aliens leader count down each time the artwork came up and
+asked whether anything was cached. The `/broll/` proxy already answers with
+`Cache-Control: public, max-age=31536000, immutable`, but Aliens picks films
+it has not shown lately from a random point, so the browser's HTTP cache never
+holds what it asks for next. And `searches` artworks skipped the one thing
+that bridges a load: the small film kept in Cache Storage.
+
+- Each artwork now keeps its own last film (`/__broll-last-film/<id>`,
+  `dir-broll-last:<id>`); the original B-roll keeps its old keys. A `searches`
+  artwork stands in only that film, never Giphy.
+- Item names with dots (`ufo-lt.-colonel-usaf-ret.-...`) matched no route,
+  because a Rails dynamic segment stops at a dot. `broll/:item/*file` now
+  takes `item: %r{[^/]+}` like `broll-index/metadata/:item`;
+  `BrollController::ITEM` still validates it.
