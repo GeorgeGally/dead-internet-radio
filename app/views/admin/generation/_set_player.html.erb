@@ -6,7 +6,6 @@
       <p class="sp-now"><span class="sp-pos"><%= format("%02d", track.position) %></span> <span class="sp-name"><%= track.artist %> — <%= track.title %></span></p>
       <% if track.song.votable? %>
         <ol class="sp-takes">
-          <% newest_replaced = SongTakes.newest_replaced_stamp(track.song) %>
           <% SongTakes.for(track.song).each do |take| %>
             <% song = take.song %>
             <li class="<%= 'in-set' if take.in_set?(track) %>">
@@ -17,7 +16,7 @@
                 <span class="btn-play-gap"></span>
               <% end %>
               <span class="sp-take" data-scrub>
-                <%= take.label(newest_replaced) %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
+                <%= take.label %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
               </span>
               <% if song.nil? %>
                 <%= link_to(take.job.pending? ? "Queued" : "Rendering", admin_generation_path(take.job), class: "sp-wait") %>
@@ -25,7 +24,7 @@
                 <% swap_params = { remix: 1, back: request.path } %>
                 <% swap_params[:replaced] = take.replaced_stamp if take.rerender? %>
                 <% swap_params[:song_id] = song.id unless take.rerender? %>
-                <% choice = take.rerender? ? take.label(newest_replaced).downcase : (take.original? ? "the original" : "remix #{take.number}") %>
+                <% choice = take.rerender? ? take.label.downcase : (take.original? ? "the original" : "remix #{take.number}") %>
                 <%= button_to "Use", swap_admin_track_path(track), params: swap_params,
                       class: "btn-key btn-key-go", form: { class: "sp-use" },
                       data: { confirm: "Put #{choice} in the set and remix the set?" } %>

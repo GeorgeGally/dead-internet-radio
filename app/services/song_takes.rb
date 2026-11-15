@@ -3,7 +3,7 @@
 # were asked for. A remix still rendering is a take without a song yet; a
 # failed one is left out.
 module SongTakes
-  Take = Struct.new(:song, :job, :number, :replaced_stamp, :replaced_notes, keyword_init: true) do
+  Take = Struct.new(:song, :job, :number, :replaced_stamp, :replaced_notes, :kept, keyword_init: true) do
     def original? = number.zero? && replaced_stamp.nil? && job.nil?
     def remix? = job.present?
     def rerender? = replaced_stamp.present?
@@ -35,11 +35,11 @@ module SongTakes
       song.id == slot.song_id && mine&.exist? && held&.exist? && File.identical?(held, mine)
     end
 
-    def label(newest_replaced_stamp)
+    def label
       if original?
-        newest_replaced_stamp ? "Current" : "Original"
+        kept ? "Current" : "Original"
       elsif rerender?
-        replaced_stamp == newest_replaced_stamp ? "Original" : "Earlier version"
+        "Earlier version"
       else
         "Remix #{number}"
       end
@@ -49,18 +49,13 @@ module SongTakes
   def self.for(song)
     root = original(song)
     replaced = SongReplaced.for_song(root)
-    newest = replaced.last&.stamp
-    current = Take.new(song: root, number: 0)
+    current = Take.new(song: root, number: 0, kept: replaced.any?)
     kept = replaced.map.with_index(1) do |entry, i|
       Take.new(song: root, number: i, replaced_stamp: entry.stamp, replaced_notes: entry.notes)
     end
     remix_takes = remix_chain(root)
     remix_takes.each.with_index(1 + kept.size) { |t, i| t.number = i }
     [ current ] + kept + remix_takes
-  end
-
-  def self.newest_replaced_stamp(song)
-    SongReplaced.for_song(original(song)).last&.stamp
   end
 
   def self.remix_chain(song)

@@ -88,8 +88,8 @@ class AdminSetPlayerTest < ActionDispatch::IntegrationTest
 
     takes = SongTakes.for(@song)
     assert_equal 1, takes.count(&:rerender?)
-    assert_equal "Current", takes.first.label("20260101-120000")
-    assert_equal "Original", takes[1].label("20260101-120000")
+    assert_equal "Current", takes.first.label
+    assert_equal "Earlier version", takes[1].label
     assert_equal "darker bass", takes[1].notes
 
     back = admin_generation_path(@job)
