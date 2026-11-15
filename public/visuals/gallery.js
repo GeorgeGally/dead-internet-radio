@@ -707,7 +707,7 @@ const gallery = (() => {
     const id = visuals.getCurrentId();
     const saved = artPresets[id] || {};
     const slots = [];
-    for (let s = 1; s <= 9; s++) if (saved[s] && s !== activeSlot) slots.push(s);
+    for (let s = 1; s <= 9; s++) if (saved[s] && (s !== activeSlot || !slotShown)) slots.push(s);
     if (!slots.length) return;
     activeSlot = slots[Math.floor(Math.random() * slots.length)];
     updateSlotUI();
