@@ -93,4 +93,3 @@ that bridges a load: the small film kept in Cache Storage.
   because a Rails dynamic segment stops at a dot. `broll/:item/*file` now
   takes `item: %r{[^/]+}` like `broll-index/metadata/:item`;
   `BrollController::ITEM` still validates it.
-
