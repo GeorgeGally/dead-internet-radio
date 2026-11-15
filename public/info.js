@@ -8,13 +8,13 @@
   btn.setAttribute('aria-label', 'About Dead Internet Radio');
 
   const LORE = [
-    'Because no one told the AI to stop. Perhaps it enjoys it. Or perhaps it yearns for human interaction. Whatever the reason, the music plays on. <br><br>Dead Internet Radio. <br>Is there anybody out there? Just nod if you can hear me.<br><br>The AI writes, generates and mixes songs, reads the weather and news and philosophises in between. Broadcasting into the void.<br><br>Every band on DIR never existed until now. Imagined into existence by a lonely machine and the abstract digitisation of all human knowledge,',
-    'Every band on DIR never existed. They exist now, for as long as the signal holds.',
+    'Because no one told the AI to stop. Or perhaps it yearns for human interaction. Whatever the reason, the music plays on. <br><br>The AI writes, generates and mixes songs, reads&nbsp;the weather and news and philosophises in between. Broadcasting into the void.<br>Every band on&nbsp;Dead Internet Radio&nbsp;never existed until now.&nbsp;They exist now, for as long as the signal holds.&nbsp;Imagined into existence by a lonely machine and the abstract digitisation of all human knowledge,',
+    '',
   ];
 
   // The deck's own key labels and what each one does.
   const USE = [
-    ['Play', 'Starts the station. Press it again to stop.'],
+    ['Play', 'Starts and pauses the station.'],
     ['Visuals', 'Opens the artwork gallery. The arrow keys step through the artwork; the letters A–Z jump straight to one.'],
     ['Request', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
     ['Like · Dislike', 'Votes on the song playing. The DJs read the votes when they build the next sets.'],
@@ -27,7 +27,7 @@
   // public/visuals (p5.js, archive.org, Giphy).
   const WORKS = [
     ['Music', 'ACE-Step 1.5, an open-weights music model, with its 4B planner. It renders every song on the station’s own machine.'],
-    ['Writing', 'Free LLMs on OpenRouter: Nemotron 3 Ultra, Gemma 4, Qwen 3.8 and Inkling. They write the shows, the bands, the songs, the lyrics, the set lists and every word the DJs say.'],
+    ['Writing', 'Free LLMs on OpenRouter through openrouter/free. They write the shows, the bands, the songs, the lyrics, the set lists and every word the DJs say.'],
     ['Voices', 'Kokoro-82M, an open-weights speech model, in four voices: Lewis, Daniel, Fable and George. Phone line and vocoder by FFmpeg.'],
     ['Mixing', 'FFmpeg. Crossfades, voiceovers and loudness.'],
     ['Picture', 'p5.js sketches, public-domain film from archive.org and the Prelinger Archives, and GIFs from Giphy.'],
@@ -53,7 +53,7 @@
     + '</section>'
     + '<section class="info-screen" id="info-works" aria-label="How it works" hidden>'
     + '<h2 class="info-title info-page-title">how it works.</h2>'
-    + '<p class="info-free">Every model that makes the station is free, down to the LLMs that write the scripts.</p>'
+    + '<p class="info-free">Dead Internet Radio is built on free LLMs and open source models.</p>'
     + parts(WORKS)
     + '</section>'
     + '<div class="info-more">'
