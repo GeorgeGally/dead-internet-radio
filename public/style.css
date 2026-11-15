@@ -938,9 +938,8 @@ body.prewarming #block-canvas {
 
 .info-fig-row { display: flex; align-items: flex-end; gap: 12px; }
 .info-fig .abtn,
-.info-fig .rams-knob,
-.info-fig .fx-on { display: block; }
-.info-fig .fx-on { min-width: 0; height: 12px; text-align: center; }
+.info-fig .rams-knob { display: block; }
+.info-fig .fx-on { display: flex; min-width: 0; height: 12px; }
 .info-fig .fx-row { height: 15px; }
 
 .info-fig .fx-lcd {
@@ -1556,7 +1555,8 @@ body.prewarming #block-canvas {
 .fx-num {
   grid-area: 1 / 1;
   justify-self: center;
-  width: 8px;
+  text-align: center;
+  line-height: 1;
   font-size: 8px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.4);
@@ -1573,17 +1573,20 @@ body.prewarming #block-canvas {
 
 .fx-on {
   grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 26px;
   height: 12px;
-  padding: 4px 10px 4px 4px;
+  padding: 0;
   border: none;
   border-radius: 2px;
   background: none;
   cursor: pointer;
   font-family: "Anka Coder", sans-serif;
   font-size: 7px;
-  line-height: 10px;
-  letter-spacing: 0.04em;
+  line-height: 1;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.5);
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -1592,7 +1595,6 @@ body.prewarming #block-canvas {
 .fx-row.on .fx-on {
   color: #fff;
   font-weight: 600;
-  line-height: 11px;
   border-color: #ff5a1f;
   background: #ff5a1f;
 }
