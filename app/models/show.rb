@@ -11,7 +11,8 @@ class Show < ApplicationRecord
   # Everything a listener can browse. Interludes are the station ID clips
   # between shows, not shows.
   scope :programmes, -> { completed.where.not(kind: %w[interlude remix]) }
-  # Requests and remixes render on their own but only ever air inside a set.
+  # A request or remix is a one-song show only between its import and joining
+  # its show (SongHome); until then it doesn't air on its own.
   scope :airable, -> { programmes.where.not(kind: "request") }
   scope :recent, -> { order(Arel.sql("generated_at DESC NULLS LAST, id DESC")) }
 

@@ -87,6 +87,17 @@ class GenerationJob < ApplicationRecord
     song ? "#{song['artist']} — #{song['title']}" : "Track #{number}"
   end
 
+  # The song a remix rendered. It joins its original song's show, so the job
+  # names it; a remix from before that is the one song of its own show.
+  def take_track
+    return unless options&.dig("kind") == "remix"
+
+    id = options["take_track_id"]
+    return Track.find_by(id: id) if id
+
+    show.tracks.min_by(&:position) if show&.kind == "remix"
+  end
+
   # A set picks its songs as it builds, so its count comes from the show.
   def tracks_shown
     set? ? show&.tracks&.count.to_i : track_count

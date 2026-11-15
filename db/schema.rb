@@ -124,6 +124,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_120000) do
     t.integer "station_vote", default: 0, null: false
     t.integer "mix_out_ms"
     t.text "idea"
+    t.string "folder"
+    t.boolean "take", default: false, null: false
     t.index ["origin_track_id"], name: "index_tracks_on_origin_track_id"
     t.index ["show_id", "position"], name: "index_tracks_on_show_id_and_position", unique: true
     t.index ["show_id"], name: "index_tracks_on_show_id"

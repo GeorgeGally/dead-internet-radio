@@ -41,7 +41,7 @@ class RequestLineTest < ActiveJob::TestCase
     assert_predicate @req.reload, :failed?
   end
 
-  test "done links the song, puts it on after the current one and emails the time" do
+  test "done links the song, puts it on after the current one in its show and emails the time" do
     show, track = rendered_show
     on_air = on_air_now
     @req.queued!
@@ -56,6 +56,10 @@ class RequestLineTest < ActiveJob::TestCase
     seg = BroadcastSegment.find_by!(track: track)
     assert_equal "request", seg.source
     assert_in_delta on_air.ends_at, seg.starts_at, 0.001
+    track.reload
+    assert_equal [ on_air.track.show_id, 2 ], [ track.show_id, track.position ]
+    assert_equal show.directory, track.folder
+    refute Show.exists?(show.id)
 
     assert_no_enqueued_emails { RequestLine.mark!(@req.id, "done", show.directory) }
     assert_equal 1, BroadcastSegment.where(track: track).count

@@ -19,8 +19,11 @@ class ReimportShowJob < ApplicationJob
       track_count: data['tracks'].length
     )
 
+    # Songs that joined the show from their own folder (requests, remixes)
+    # are not in this folder: the folder's songs are the rest, in order.
+    own = show.tracks.where(folder: nil).ordered.to_a
     data['tracks'].each_with_index do |track_data, idx|
-      track = show.tracks.find_or_initialize_by(position: idx + 1)
+      track = own[idx] || show.tracks.new(position: (show.tracks.maximum(:position) || 0) + 1)
       track.assign_attributes(
         title: track_data['title'],
         artist: track_data['artist'],

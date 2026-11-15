@@ -13,3 +13,13 @@ namespace :requests do
     end
   end
 end
+
+namespace :requests do
+  desc "Fold the one-song request and remix shows into the shows they belong to (SongHome). Dry run unless APPLY=1."
+  task fold_shows: :environment do
+    apply = ENV["APPLY"] == "1"
+    lines = SongHome.fold_all!(apply: apply)
+    puts lines
+    puts "#{lines.size} song(s), #{apply ? 'applied' : 'dry run: nothing changed, APPLY=1 to apply'}"
+  end
+end

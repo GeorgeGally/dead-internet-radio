@@ -20,7 +20,7 @@ module Api
 
       def show
         show = Show.programmes.find(params[:id])
-        tracks = show.tracks.ordered.map { |t|
+        tracks = show.tracks.running.ordered.map { |t|
           {
             id: t.id,
             position: t.position,

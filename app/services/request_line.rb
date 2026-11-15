@@ -27,11 +27,17 @@ module RequestLine
   end
 
   # Sets are built by hand now, so a request goes on right after the current
-  # song. The listener hears it soon and gets the time by email.
-  def self.air(req, folder)
-    track = Show.find_by!(directory: folder).tracks.ordered.last
+  # song and joins the show it airs in (SongHome). The listener hears it soon
+  # and gets the time by email.
+  def self.air!(req, track)
     req.update!(status: :ready, track: track)
-    RequestNotifier.scheduled!([Station.insert_next(track)])
+    segment = Station.insert_next(track)
+    SongHome.settle_request!(track, segment)
+    RequestNotifier.scheduled!([ segment ])
+  end
+
+  def self.air(req, folder)
+    air!(req, Show.find_by!(directory: folder).tracks.ordered.last)
   end
   private_class_method :air
 end

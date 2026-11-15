@@ -7,7 +7,7 @@ module Api
           return render json: { epoch: Time.now.to_i * 1000, tracks: [] }
         end
 
-        tracks = show.tracks.ordered.map { |t|
+        tracks = show.tracks.running.ordered.map { |t|
           {
             file: "/media/tracks/#{t.id}",
             durationMs: t.duration_ms,
