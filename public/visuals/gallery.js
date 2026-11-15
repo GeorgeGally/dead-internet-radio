@@ -48,6 +48,8 @@ const gallery = (() => {
   let slotPinned = false;
   // A saved slot stops being "the saved look" the moment a control moves.
   let slotDirty = false;
+  // The active slot's saved look is the one on screen.
+  let slotShown = false;
   let saveLit = false;
 
   // Looks live on the server. This browser keeps a copy for when it can't
@@ -91,7 +93,7 @@ const gallery = (() => {
     artPresets = looks || {};
     cacheLooks();
     const id = visuals.getCurrentId();
-    if (!slotHasPreset(id, activeSlot) && isQuiet()) applyRandomSlot(id);
+    if (!(slotShown && slotHasPreset(id, activeSlot)) && isQuiet()) applyRandomSlot(id);
     else updateSlotUI();
   }
 
@@ -475,7 +477,7 @@ const gallery = (() => {
   }
 
   function savePreset(id) {
-    if (_suppressSave || !id || slotHasPreset(id, activeSlot)) return;
+    if (_suppressSave || !id || slotShown) return;
     presets[id] = {
       fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
@@ -508,7 +510,7 @@ const gallery = (() => {
   // light clears until the user saves again.
   function markAltered() {
     if (_suppressSave) return;
-    slotDirty = true;
+    if (slotShown) slotDirty = true;
     saveLit = false;
     updateSlotUI();
   }
@@ -536,6 +538,7 @@ const gallery = (() => {
     artPresets[id][slot] = look;
     cacheLooks();
     slotDirty = false;
+    slotShown = true;
     saveLit = true;
     updateSlotUI();
     savedBox(`Slot ${slot} saved`, { id, name, slot });
@@ -597,6 +600,7 @@ const gallery = (() => {
     // slot shows the listener's own look, never the last slot's, so it can't
     // pass for a saved one.
     saveLit = !!p;
+    slotShown = !!p;
     applyLook(p || presets[id] || DEFAULT_PRESETS[id] || BLANK_LOOK);
     updateSlotUI();
   }
@@ -628,6 +632,7 @@ const gallery = (() => {
     activeSlot = 1;
     slotPinned = false;
     slotDirty = false;
+    slotShown = false;
     saveLit = false;
     updateSlotUI();
   }
@@ -734,7 +739,7 @@ const gallery = (() => {
     if (label) label.textContent = `slot ${activeSlot}`;
     const id = visuals.getCurrentId();
     const el = document.getElementById('slot-led');
-    if (el) el.classList.toggle('on', slotHasPreset(id, activeSlot) && !slotDirty);
+    if (el) el.classList.toggle('on', slotShown && !slotDirty);
     const sl = document.getElementById('save-slot-led');
     if (sl) sl.classList.toggle('on', saveLit);
   }

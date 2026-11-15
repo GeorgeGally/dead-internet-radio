@@ -244,6 +244,14 @@ test('saved slots read the same on the keypad and the dial: an empty slot never 
   assert.equal(p.message().keys, 'full - full - now - - - -');
 });
 
+test('at boot the first artwork shows its saved slot 1 once the looks arrive', async () => {
+  const p = player({ server: () => ({ looks: { bouncy: { 1: look(90) } }, admin: false }) });
+  p.gallery.saveCurrentPreset();
+  await p.gallery.syncLooks();
+  assert.equal(p.gallery.getActiveSlot(), 1);
+  assert.equal(p.restored.cutoff, 90);
+});
+
 test('slot preview loads its artwork and exact saved settings without uploading old looks', async () => {
   const old = JSON.stringify({ bouncy: { 7: look(70) } });
   const p = player({ stored: { 'visual-slot-presets': old }, server: () => ({
