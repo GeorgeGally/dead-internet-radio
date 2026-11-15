@@ -19,7 +19,7 @@
     ['Request', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
     ['Like · Dislike', 'Votes on the song playing. The DJs read the votes when they build the next sets.'],
     ['FX', 'Three filters over the artwork. Turn filter to pick one, press its ON, and turn dry/wet to mix it. Keys 1 to 9 pick a filter and 0 clears them.'],
-    ['Slot', 'Loads a look the station saved for this artwork; 0 is off. Your own FX changes stay with each artwork until you leave.'],
+    ['Slot', 'Loads a look the station saved for this artwork, 1 to 9. Your own FX changes stay with each artwork until you leave.'],
   ];
 
   // Every name here comes from the pipeline: generate.py (OpenRouter free

@@ -40,14 +40,16 @@ const gallery = (() => {
   const presets = {};
   let _suppressSave = false;
 
-  // Per-artwork slot presets (slots 1-9, slot 0 = live state)
+  // Per-artwork slot presets (slots 1-9). An empty slot holds the live state.
   let artPresets = {};
-  let activeSlot = 0;
+  let activeSlot = 1;
   // Just saved: the dial stays on that slot (no drift) until the listener
   // turns it or the artwork changes.
   let slotPinned = false;
   // A saved slot stops being "the saved look" the moment a control moves.
   let slotDirty = false;
+  // The active slot's saved look is the one on screen.
+  let slotShown = false;
   let saveLit = false;
 
   // Looks live on the server. This browser keeps a copy for when it can't
@@ -91,7 +93,7 @@ const gallery = (() => {
     artPresets = looks || {};
     cacheLooks();
     const id = visuals.getCurrentId();
-    if (activeSlot > 0 ? !slotHasPreset(id, activeSlot) : isQuiet()) applyRandomSlot(id);
+    if (!(slotShown && slotHasPreset(id, activeSlot)) && isQuiet()) applyRandomSlot(id);
     else updateSlotUI();
   }
 
@@ -360,6 +362,8 @@ const gallery = (() => {
   }
 
   // Saved looks keep the whole FX unit. Older saves held one filter key.
+  const BLANK_LOOK = { filters: [], cutoff: 130, resonance: 50, strength: 100 };
+
   function fxOf(p) {
     if (p.fx) return p.fx;
     const k = (p.filters || [])[0];
@@ -473,7 +477,7 @@ const gallery = (() => {
   }
 
   function savePreset(id) {
-    if (_suppressSave || !id || activeSlot > 0) return;
+    if (_suppressSave || !id || slotShown) return;
     presets[id] = {
       fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
@@ -485,7 +489,10 @@ const gallery = (() => {
   function loadPreset(id) {
     if (!id) return;
     const p = presets[id] || DEFAULT_PRESETS[id];
-    if (!p) return;
+    if (p) applyLook(p);
+  }
+
+  function applyLook(p) {
     _suppressSave = true;
     canvasFilters.setState(fxOf(p));
     if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
@@ -503,7 +510,7 @@ const gallery = (() => {
   // light clears until the user saves again.
   function markAltered() {
     if (_suppressSave) return;
-    if (activeSlot > 0) slotDirty = true;
+    if (slotShown) slotDirty = true;
     saveLit = false;
     updateSlotUI();
   }
@@ -531,6 +538,7 @@ const gallery = (() => {
     artPresets[id][slot] = look;
     cacheLooks();
     slotDirty = false;
+    slotShown = true;
     saveLit = true;
     updateSlotUI();
     savedBox(`Slot ${slot} saved`, { id, name, slot });
@@ -588,21 +596,18 @@ const gallery = (() => {
     if (slot < 1 || slot > 9) return;
     slotDirty = false;
     const p = artPresets[id] && artPresets[id][slot];
-    // Landing on a saved slot lights both: the slot and its save.
+    // Landing on a saved slot lights both: the slot and its save. An empty
+    // slot shows the listener's own look, never the last slot's, so it can't
+    // pass for a saved one.
     saveLit = !!p;
-    if (!p) { updateSlotUI(); return; }
-    _suppressSave = true;
-    canvasFilters.setState(fxOf(p));
-    if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
-    if (window._restoreResonance) window._restoreResonance(p.resonance);
-    if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);
-    _suppressSave = false;
+    slotShown = !!p;
+    applyLook(p || presets[id] || DEFAULT_PRESETS[id] || BLANK_LOOK);
     updateSlotUI();
   }
 
-  // Point the dial at a slot without loading it (used when saving into it).
+  // Point the dial at a slot without loading it.
   function selectSlot(slot) {
-    if (slot < 0 || slot > 9) return;
+    if (slot < 1 || slot > 9) return;
     activeSlot = slot;
     updateSlotUI();
   }
@@ -611,35 +616,28 @@ const gallery = (() => {
     return !!(artPresets[id] && artPresets[id][slot]);
   }
 
-  // Pressing the dial cycles (wrap), so 9 goes round to off and a look changed
-  // on slot 9 can be pressed back. Turning it stops at either end.
+  // Pressing the dial cycles (wrap), so 9 goes round to 1. Turning it stops at
+  // either end.
   function nextSlot(step, wrap) {
     step = step || 1;
-    const target = wrap ? (activeSlot + step + 10) % 10 : activeSlot + step;
-    if (target < 0 || target > 9) return;
+    const target = wrap ? ((activeSlot - 1 + step + 9) % 9) + 1 : activeSlot + step;
+    if (target < 1 || target > 9) return;
     activeSlot = target;
     slotPinned = false;
-    if (activeSlot === 0) {
-      slotDirty = false;
-      saveLit = false;
-    }
-    updateSlotUI();
-    const id = visuals.getCurrentId();
-    if (activeSlot > 0) {
-      loadSlot(id, activeSlot);
-    }
-    savedBox(activeSlot ? `Slot ${activeSlot}` : 'Slot off');
+    loadSlot(visuals.getCurrentId(), activeSlot);
+    savedBox(`Slot ${activeSlot}`);
   }
 
   function resetSlot() {
-    activeSlot = 0;
+    activeSlot = 1;
     slotPinned = false;
     slotDirty = false;
+    slotShown = false;
     saveLit = false;
     updateSlotUI();
   }
 
-  // A new artwork lands on one of its saved slots, not always on slot 0, so the
+  // A new artwork lands on one of its saved slots, not always on slot 1, so the
   // same artwork returns looking different across switches.
   function applyRandomSlot(id) {
     id = id || visuals.getCurrentId();
@@ -709,7 +707,7 @@ const gallery = (() => {
     const id = visuals.getCurrentId();
     const saved = artPresets[id] || {};
     const slots = [];
-    for (let s = 1; s <= 9; s++) if (saved[s] && s !== activeSlot) slots.push(s);
+    for (let s = 1; s <= 9; s++) if (saved[s] && (s !== activeSlot || !slotShown)) slots.push(s);
     if (!slots.length) return;
     activeSlot = slots[Math.floor(Math.random() * slots.length)];
     updateSlotUI();
@@ -725,7 +723,7 @@ const gallery = (() => {
     if (!_ticksCreated) {
       const c = document.createElement('div');
       c.className = 'slot-ticks';
-      for (let i = 0; i < 10; i++) {
+      for (let i = 1; i <= 9; i++) {
         const t = document.createElement('div');
         t.className = 'slot-tick';
         t.style.transform = `rotate(${-150 + i * 30}deg)`;
@@ -738,10 +736,10 @@ const gallery = (() => {
     if (tick) tick.style.transform = `rotate(${-150 + activeSlot * 30}deg)`;
     // The dial has no numbers; the label says where it is.
     const label = knob.parentElement && knob.parentElement.querySelector('.knob-label');
-    if (label) label.textContent = activeSlot ? `slot ${activeSlot}` : 'slot off';
+    if (label) label.textContent = `slot ${activeSlot}`;
     const id = visuals.getCurrentId();
     const el = document.getElementById('slot-led');
-    if (el) el.classList.toggle('on', activeSlot > 0 && slotHasPreset(id, activeSlot) && !slotDirty);
+    if (el) el.classList.toggle('on', slotShown && !slotDirty);
     const sl = document.getElementById('save-slot-led');
     if (sl) sl.classList.toggle('on', saveLit);
   }

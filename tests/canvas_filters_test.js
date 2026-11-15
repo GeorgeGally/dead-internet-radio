@@ -46,6 +46,18 @@ test('minus and equals, after the number row, pick Stretch and Speed Lines', () 
   assert.equal(fx.getActiveName(), 'none');
 });
 
+test('Stretch takes the place Edges had on the filter dial, and an old Edges look loads as no filter', () => {
+  const { fx } = loadFilters();
+  const names = fx.list().map((f) => f.name);
+  assert.equal(names.includes('Edges'), false);
+  assert.deepEqual(names.slice(names.indexOf('Mirror'), names.indexOf('Mirror') + 3), ['Mirror', 'Stretch', 'Diagonals']);
+  assert.equal(fx.list().find((f) => f.name === 'Stretch').key, 17);
+  fx.setState({ slots: [[14, true, 0.5, 0.5], [null, false], [null, false]], focus: 0 });
+  assert.equal(fx.getSlots()[0].key, null);
+  assert.equal(fx.getSlots()[0].on, false);
+  assert.equal(fx.getActiveName(), 'none');
+});
+
 test('Stretch start knob spans the whole frame, far edge to near edge', () => {
   const stretch = loadFilters().fx.FILTERS.find((f) => f.key === 17);
   assert.match(stretch.body, /float start = uP1 - 0\.5;/);

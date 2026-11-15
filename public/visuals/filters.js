@@ -183,32 +183,6 @@ const canvasFilters = (() => {
       q.x /= uRes.x / uRes.y;
       return texture2D(uTex, clamp(q + 0.5, 0.0, 1.0));` },
 
-    { key: 14, name: 'Edges', params: [['edges', 0.5], ['colour', 0.0]], body: `
-      vec2 t = (1.0 + uP1 * 2.0) * uScale / uRes;
-      float tl = luma(texture2D(uTex, vUv + vec2(-t.x,  t.y)).rgb);
-      float tc = luma(texture2D(uTex, vUv + vec2( 0.0,  t.y)).rgb);
-      float tr = luma(texture2D(uTex, vUv + vec2( t.x,  t.y)).rgb);
-      float ml = luma(texture2D(uTex, vUv + vec2(-t.x,  0.0)).rgb);
-      float mr = luma(texture2D(uTex, vUv + vec2( t.x,  0.0)).rgb);
-      float bl = luma(texture2D(uTex, vUv + vec2(-t.x, -t.y)).rgb);
-      float bc = luma(texture2D(uTex, vUv + vec2( 0.0, -t.y)).rgb);
-      float br = luma(texture2D(uTex, vUv + vec2( t.x, -t.y)).rgb);
-      float gx = tr + 2.0 * mr + br - tl - 2.0 * ml - bl;
-      float gy = tl + 2.0 * tc + tr - bl - 2.0 * bc - br;
-      float e = clamp(length(vec2(gx, gy)) * (1.0 + uP1 * 3.0), 0.0, 1.0);
-      vec3 c = texture2D(uTex, vUv).rgb;
-      return vec4(mix(vec3(e), c * e * 1.6 + c * 0.15, uP2), 1.0);` },
-
-
-    // Thin semi-transparent diagonal lines laid over the picture.
-    { key: 16, name: 'Diagonals', params: [['spacing', 0.3], ['opacity', 0.35]], body: `
-      vec4 c = texture2D(uTex, vUv);
-      vec2 px = vUv * uRes;
-      float s = mix(4.0, 28.0, uP1) * uScale;
-      float d = fract((px.x + px.y) / s);
-      float line = 1.0 - smoothstep(0.0, uScale * 1.2 / s, min(d, 1.0 - d));
-      return vec4(mix(c.rgb, vec3(1.0), line * uP2), c.a);` },
-
     // From Fragments: one line of pixels, anywhere across the frame, is pulled to the
     // far edge, growing there when the filter comes on, then holding.
     { key: 17, name: 'Stretch', params: [['start', 0.56], ['side', 0.4]], body: `
@@ -218,6 +192,15 @@ const canvasFilters = (() => {
       float t = dot(vUv - 0.5, dir) - start;
       if (t <= 0.0 || t > reach) return texture2D(uTex, vUv);
       return texture2D(uTex, vUv - dir * t);` },
+
+    // Thin semi-transparent diagonal lines laid over the picture.
+    { key: 16, name: 'Diagonals', params: [['spacing', 0.3], ['opacity', 0.35]], body: `
+      vec4 c = texture2D(uTex, vUv);
+      vec2 px = vUv * uRes;
+      float s = mix(4.0, 28.0, uP1) * uScale;
+      float d = fract((px.x + px.y) / s);
+      float line = 1.0 - smoothstep(0.0, uScale * 1.2 / s, min(d, 1.0 - d));
+      return vec4(mix(c.rgb, vec3(1.0), line * uP2), c.a);` },
 
     // From Fragments: 1px lines from the centre to the edge, each holding the
     // colour it finds at the centre, with the picture showing between them.

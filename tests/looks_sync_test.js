@@ -208,22 +208,48 @@ test('turning the slot dial names the slot without the keypad', async () => {
   const p = player({ server: () => ({ looks: {}, admin: false }) });
   await p.gallery.syncLooks();
   p.gallery.nextSlot(1);
-  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 1' });
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 2' });
   assert.equal(p.teletext(), true);
   p.gallery.nextSlot(-1);
-  assert.equal(p.message().words, 'Slot off');
+  assert.equal(p.message().words, 'Slot 1');
 });
 
-test('pressing the slot dial goes round from 9 to off; turning it stops at 9', async () => {
+test('the slot dial has no off: it starts on 1, stops at 1 and 9, and pressing goes round from 9 to 1', async () => {
   const p = player({ server: () => ({ looks: { bouncy: { 9: look(90) } }, admin: false }) });
   await p.gallery.syncLooks();
+  p.gallery.selectSlot(1);
+  p.gallery.nextSlot(-1);
+  assert.equal(p.gallery.getActiveSlot(), 1);
+  p.gallery.selectSlot(0);
+  assert.equal(p.gallery.getActiveSlot(), 1);
   p.gallery.selectSlot(9);
   p.gallery.nextSlot(1);
   assert.equal(p.gallery.getActiveSlot(), 9);
   p.gallery.nextSlot(1, true);
-  assert.equal(p.gallery.getActiveSlot(), 0);
-  p.gallery.nextSlot(1, true);
   assert.equal(p.gallery.getActiveSlot(), 1);
+});
+
+test('saved slots read the same on the keypad and the dial: an empty slot never shows the last saved look', async () => {
+  const p = player({ server: (url, method) => (method === 'PUT' ? {} : { looks: { bouncy: { 1: look(90), 3: look(200) } }, admin: true }) });
+  await p.gallery.syncLooks();
+  p.gallery.selectSlot(1);
+  p.gallery.nextSlot(1);
+  p.gallery.nextSlot(1);
+  assert.equal(p.restored.cutoff, 200);
+  p.gallery.nextSlot(1);
+  assert.equal(p.gallery.getActiveSlot(), 4);
+  assert.equal(p.gallery.slotHasPreset('bouncy', 4), false);
+  assert.equal(p.restored.cutoff, 110);
+  await p.gallery.saveSlot(5);
+  assert.equal(p.message().keys, 'full - full - now - - - -');
+});
+
+test('at boot the first artwork shows its saved slot 1 once the looks arrive', async () => {
+  const p = player({ server: () => ({ looks: { bouncy: { 1: look(90) } }, admin: false }) });
+  p.gallery.saveCurrentPreset();
+  await p.gallery.syncLooks();
+  assert.equal(p.gallery.getActiveSlot(), 1);
+  assert.equal(p.restored.cutoff, 90);
 });
 
 test('slot preview loads its artwork and exact saved settings without uploading old looks', async () => {
