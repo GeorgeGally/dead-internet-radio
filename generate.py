@@ -797,19 +797,26 @@ def missing_terms(notes: str, song: dict) -> list[str]:
     notes the rewritten song never says; every other word (faster, darker,
     punchier) is met by the change itself and is not checked. A note
     asking for less ("too cheesy", "no hats") is met by leaving things out, so
-    it is not checked; a tempo is checked against bpm."""
+    what follows its easing word is not checked; a tempo is checked against
+    bpm."""
     text = " ".join(str(song.get(k) or "") for k in ("caption", "frequency_band", "modulation_type", "signal_path")).lower()
+    heard = set(re.findall(r"[a-z0-9]+", text))
+    try:
+        bpm = float(re.search(r"\d+(?:\.\d+)?", str(song.get("bpm"))).group())
+    except (AttributeError, TypeError):
+        bpm = None
     missing = []
     for term in re.split(r"[,;.\n]+|\band\b", str(notes or "").lower()):
-        if not term.strip() or NOTE_EASING.search(term):
-            continue
+        easing = NOTE_EASING.search(term)
+        if easing:
+            term = term[:easing.start()]
         tempo = re.search(r"(\d{2,3})\s*bpm", term)
         if tempo:
-            if str(song.get("bpm")) != tempo.group(1):
+            if bpm != float(tempo.group(1)):
                 missing.append(f"{tempo.group(1)} BPM")
             term = term.replace(tempo.group(0), " ")
         for word in re.findall(r"[a-z0-9]+", term):
-            if word in NOTE_VOCABULARY and word not in text and word not in missing:
+            if word in NOTE_VOCABULARY and word not in heard and word not in missing:
                 missing.append(word)
     return missing
 
