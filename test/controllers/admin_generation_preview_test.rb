@@ -84,6 +84,8 @@ class AdminGenerationPreviewTest < ActionDispatch::IntegrationTest
     job.reload
     assert_predicate job, :plan_confirmed?
     assert_equal "Kode Red", job.dj_name
+    get progress_admin_generation_path(job)
+    assert_equal "Edited Club", response.parsed_body["show_name"]
     sent = JSON.parse(GenerationLine.spec(job)[:slot].delete_prefix("plan "))
     assert_equal "Edited Club", sent["show_name"]
     assert_equal "My words.", sent["dj_announce"]
@@ -128,6 +130,6 @@ class AdminGenerationPreviewTest < ActionDispatch::IntegrationTest
 
   def planned_job
     GenerationJob.create!(slot: "robot club", track_count: 2, status: :pending,
-                          options: { "preview" => true, "plan" => PLAN.deep_dup })
+                          options: { "preview" => true, "plan" => PLAN.deep_dup, "show_name" => PLAN["show_name"] })
   end
 end

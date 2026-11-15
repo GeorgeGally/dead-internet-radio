@@ -67,6 +67,7 @@ module Admin
       plan = edited_plan(@job)
       @job.update!(track_count: plan['tracks'].size,
                    options: @job.options.merge('plan' => plan, 'plan_confirmed' => true,
+                                               'show_name' => plan['show_name'].presence,
                                                'dj_name' => plan['dj_name'].presence).compact)
       GenerateShowJob.perform_later(@job.id)
       redirect_to admin_generation_path(@job), notice: 'Generation started'
