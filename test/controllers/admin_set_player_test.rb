@@ -59,7 +59,7 @@ class AdminSetPlayerTest < ActionDispatch::IntegrationTest
     assert_select "[data-set-player] .sp-song[data-track='#{@slot.id}'] .sp-takes li", 3
     assert_select ".sp-takes li.in-set", 1
     assert_select ".sp-takes form.sp-use", 1
-    assert_select ".sp-takes .sp-wait", text: "Queued"
+    assert_select ".sp-takes .track-job-loader"
     assert_select "table.songs tr[data-track='#{@slot.id}'][data-cue='0.0']"
   end
 

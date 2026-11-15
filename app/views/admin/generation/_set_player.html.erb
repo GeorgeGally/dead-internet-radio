@@ -18,7 +18,9 @@
               <span class="sp-take" data-scrub>
                 <%= take.label %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
               </span>
-              <% if song.nil? %>
+              <% if song.nil? && take.job.live? %>
+                <%= render "admin/shared/track_job_loader", job: take.job, compact: true %>
+              <% elsif song.nil? %>
                 <%= link_to(take.job.pending? ? "Queued" : "Rendering", admin_generation_path(take.job), class: "sp-wait") %>
               <% elsif !take.in_set?(track) && track.origin_track_id && show.kind == "set" %>
                 <% swap_params = { remix: 1, back: request.path } %>
@@ -32,13 +34,28 @@
             </li>
           <% end %>
         </ol>
-        <% if track.song.prompt_log['payload'].present? %>
-        <%= form_tag remix_admin_track_path(track), class: "rerender-form sp-remix" do %>
-          <%= hidden_field_tag :back, request.path %>
-          <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
-                 placeholder="More vocal stabs, faster, add a 303 line…">
-          <button type="submit" class="btn-key">Remix</button>
+        <% pending = pending_track_job_for(track.song) %>
+        <% take_rendering = SongTakes.for(track.song).any? { |t| t.song.nil? && t.job&.live? } %>
+        <% if pending && !take_rendering %>
+          <%= render "admin/shared/track_job_loader", job: pending, compact: true %>
         <% end %>
+        <% if track.song.votable? %>
+          <p class="action-hint meta"><%= Admin::TrackJobsHelper::EDIT_HINT %></p>
+          <%= form_tag rerender_admin_track_path(track), class: "rerender-form sp-remix" do %>
+            <%= hidden_field_tag :back, request.path %>
+            <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+                   placeholder="Slower, darker bass, no hi-hats, more space…">
+            <button type="submit" class="btn-key btn-key-go">Edit</button>
+          <% end %>
+        <% end %>
+        <% if track.song.prompt_log['payload'].present? %>
+          <p class="action-hint meta"><%= Admin::TrackJobsHelper::REMIX_HINT %></p>
+          <%= form_tag remix_admin_track_path(track), class: "rerender-form sp-remix" do %>
+            <%= hidden_field_tag :back, request.path %>
+            <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+                   placeholder="More vocal stabs, faster, add a 303 line…">
+            <button type="submit" class="btn-key">Remix</button>
+          <% end %>
         <% end %>
       <% end %>
     </div>

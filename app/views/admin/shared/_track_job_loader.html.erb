@@ -1,0 +1,14 @@
+<%# Live loader for a single-song rerender or remix; polls like the generation job page. %>
+<div class="track-job-loader job-loader<%= ' track-job-loader--compact' if local_assigns[:compact] %>"
+     role="status" aria-live="polite"
+     data-progress="<%= progress_admin_generation_path(job) %>"
+     data-kind="<%= job.options['kind'] %>"
+     data-since="<%= (job.started_at || job.created_at).iso8601 %>">
+  <a class="track-job-loader__link" href="<%= admin_generation_path(job) %>">
+    <div class="loader-bar loader-sweep"><div class="loader-fill js-track-job-fill"></div></div>
+    <p class="loader-line">
+      <span class="loader-stage js-track-job-stage"><%= job.stage %></span>
+      <span class="loader-clock js-track-job-clock">0:00</span>
+    </p>
+  </a>
+</div>

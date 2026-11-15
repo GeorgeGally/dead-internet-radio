@@ -78,6 +78,8 @@ module Admin
       opts = job.options || {}
       render json: {
         status: job.status,
+        kind: opts["kind"],
+        error: job.failed? ? job.output_log.to_s.lines.map(&:strip).reject(&:empty?).last : nil,
         stage: job.stage,
         plan_ready: job.awaiting_plan? && job.plan.present?,
         since: (job.started_at || job.created_at)&.iso8601,

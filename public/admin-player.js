@@ -80,7 +80,7 @@ function openRerender(btn) {
   if (!row.hidden) row.querySelector('input').focus();
 }
 
-// Edit or Remix opens the same notes field, prefilled or empty.
+// Edit or Remix opens the same notes field; remix posts to remix, edit to rerender.
 function openNotes(btn, mode) {
   var row = btn.closest('tr').nextElementSibling;
   while (row && !row.classList.contains('notes-row')) row = row.nextElementSibling;
@@ -88,8 +88,18 @@ function openNotes(btn, mode) {
   var open = row.hidden;
   row.hidden = !open;
   if (!open) return;
+  var remix = mode === 'remix';
+  var form = row.querySelector('.notes-form');
+  if (form) form.action = remix ? btn.dataset.remixUrl : btn.dataset.editUrl;
   var input = row.querySelector('input[name="instructions"]');
-  input.value = mode === 'remix' ? '' : (btn.dataset.notes || '');
+  input.value = remix ? '' : (btn.dataset.notes || '');
+  input.placeholder = remix
+    ? 'Optional direction: faster, add a 303 line…'
+    : 'How should it change? Slower, darker bass, more space…';
+  var submit = row.querySelector('.notes-submit');
+  if (submit) submit.textContent = remix ? 'Remix' : 'Edit';
+  var hint = row.querySelector('.notes-hint');
+  if (hint) hint.textContent = remix ? row.dataset.remixHint : row.dataset.editHint;
   input.focus();
 }
 
@@ -178,6 +188,7 @@ function sortTable(th) {
 function initAdminTables() {
   var player = document.querySelector('[data-set-player]'), first = document.querySelector('table.songs tr[data-track]');
   if (player && first && !player.dataset.song) showSong(first.dataset.track);
+  if (window.initTrackJobLoaders) window.initTrackJobLoaders();
   document.querySelectorAll('table.sortable tr:first-child th').forEach(function(th) {
     if (!th.textContent.trim() || th.querySelector('.th-sort')) return;
     var key = document.createElement('button');

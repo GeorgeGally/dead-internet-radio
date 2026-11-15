@@ -11,7 +11,8 @@ module Admin
       @render_jobs = GenerationJob.where(status: %i[pending running])
                                   .where("options->>'request_id' IS NOT NULL")
                                   .order(:id)
-                                  .index_by { |j| j.options['request_id'].to_i }
+                                  .index_by { |j| j.options["request_id"].to_i }
+      @pending_song_jobs = pending_track_jobs_by_song
     end
 
     def fulfill

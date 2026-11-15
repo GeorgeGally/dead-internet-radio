@@ -68,7 +68,9 @@ module Admin
                                              'request_id' => params[:request_id].presence,
                                              'show_name' => "#{song.artist} — #{song.title}" }.compact)
       RerenderTrackJob.perform_later(job.id)
-      return redirect_to admin_requests_path, notice: "Re-rendering #{song.artist} — #{song.title}" if params[:inline].present?
+      if params[:inline].present?
+        return redirect_to admin_requests_path, notice: "Editing #{song.artist} — #{song.title}"
+      end
 
       redirect_to admin_generation_path(job)
     end
@@ -83,9 +85,14 @@ module Admin
       job = GenerationJob.create!(slot: 'remix', track_count: 1, status: :pending,
                                   options: { 'kind' => 'remix', 'track_id' => song.id,
                                              'instructions' => params[:instructions].to_s.strip.first(400).presence,
+                                             'request_id' => params[:request_id].presence,
                                              'show_name' => "#{song.artist} — #{song.title}" }.compact)
       RerenderTrackJob.perform_later(job.id)
-      redirect_to back_path || admin_track_path(song), notice: "Remix queued: a new take of #{song.artist} — #{song.title}."
+      if params[:inline].present?
+        return redirect_to admin_requests_path, notice: "Remixing #{song.artist} — #{song.title}"
+      end
+
+      redirect_to back_path || admin_track_path(song), notice: "Remixing #{song.artist} — #{song.title}"
     end
 
     # The station's own like: a vote from "admin" on the song, counted with

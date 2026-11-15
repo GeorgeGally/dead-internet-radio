@@ -2,6 +2,8 @@
 
 module Admin
   class BaseController < ApplicationController
+    include Admin::TrackJobsHelper
+
     layout "admin"
     before_action :require_admin
     before_action :claim_player_votes
