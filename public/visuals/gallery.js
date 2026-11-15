@@ -40,9 +40,9 @@ const gallery = (() => {
   const presets = {};
   let _suppressSave = false;
 
-  // Per-artwork slot presets (slots 1-9, slot 0 = live state)
+  // Per-artwork slot presets (slots 1-9). An empty slot holds the live state.
   let artPresets = {};
-  let activeSlot = 0;
+  let activeSlot = 1;
   // Just saved: the dial stays on that slot (no drift) until the listener
   // turns it or the artwork changes.
   let slotPinned = false;
@@ -91,7 +91,7 @@ const gallery = (() => {
     artPresets = looks || {};
     cacheLooks();
     const id = visuals.getCurrentId();
-    if (activeSlot > 0 ? !slotHasPreset(id, activeSlot) : isQuiet()) applyRandomSlot(id);
+    if (!slotHasPreset(id, activeSlot) && isQuiet()) applyRandomSlot(id);
     else updateSlotUI();
   }
 
@@ -473,7 +473,7 @@ const gallery = (() => {
   }
 
   function savePreset(id) {
-    if (_suppressSave || !id || activeSlot > 0) return;
+    if (_suppressSave || !id || slotHasPreset(id, activeSlot)) return;
     presets[id] = {
       fx: canvasFilters.getState(),
       cutoff: window._cutoffVal != null ? window._cutoffVal : 130,
@@ -503,7 +503,7 @@ const gallery = (() => {
   // light clears until the user saves again.
   function markAltered() {
     if (_suppressSave) return;
-    if (activeSlot > 0) slotDirty = true;
+    slotDirty = true;
     saveLit = false;
     updateSlotUI();
   }
@@ -602,7 +602,7 @@ const gallery = (() => {
 
   // Point the dial at a slot without loading it (used when saving into it).
   function selectSlot(slot) {
-    if (slot < 0 || slot > 9) return;
+    if (slot < 1 || slot > 9) return;
     activeSlot = slot;
     updateSlotUI();
   }
@@ -611,35 +611,27 @@ const gallery = (() => {
     return !!(artPresets[id] && artPresets[id][slot]);
   }
 
-  // Pressing the dial cycles (wrap), so 9 goes round to off and a look changed
-  // on slot 9 can be pressed back. Turning it stops at either end.
+  // Pressing the dial cycles (wrap), so 9 goes round to 1. Turning it stops at
+  // either end.
   function nextSlot(step, wrap) {
     step = step || 1;
-    const target = wrap ? (activeSlot + step + 10) % 10 : activeSlot + step;
-    if (target < 0 || target > 9) return;
+    const target = wrap ? ((activeSlot - 1 + step + 9) % 9) + 1 : activeSlot + step;
+    if (target < 1 || target > 9) return;
     activeSlot = target;
     slotPinned = false;
-    if (activeSlot === 0) {
-      slotDirty = false;
-      saveLit = false;
-    }
-    updateSlotUI();
-    const id = visuals.getCurrentId();
-    if (activeSlot > 0) {
-      loadSlot(id, activeSlot);
-    }
-    savedBox(activeSlot ? `Slot ${activeSlot}` : 'Slot off');
+    loadSlot(visuals.getCurrentId(), activeSlot);
+    savedBox(`Slot ${activeSlot}`);
   }
 
   function resetSlot() {
-    activeSlot = 0;
+    activeSlot = 1;
     slotPinned = false;
     slotDirty = false;
     saveLit = false;
     updateSlotUI();
   }
 
-  // A new artwork lands on one of its saved slots, not always on slot 0, so the
+  // A new artwork lands on one of its saved slots, not always on slot 1, so the
   // same artwork returns looking different across switches.
   function applyRandomSlot(id) {
     id = id || visuals.getCurrentId();
@@ -725,7 +717,7 @@ const gallery = (() => {
     if (!_ticksCreated) {
       const c = document.createElement('div');
       c.className = 'slot-ticks';
-      for (let i = 0; i < 10; i++) {
+      for (let i = 1; i <= 9; i++) {
         const t = document.createElement('div');
         t.className = 'slot-tick';
         t.style.transform = `rotate(${-150 + i * 30}deg)`;
@@ -738,10 +730,10 @@ const gallery = (() => {
     if (tick) tick.style.transform = `rotate(${-150 + activeSlot * 30}deg)`;
     // The dial has no numbers; the label says where it is.
     const label = knob.parentElement && knob.parentElement.querySelector('.knob-label');
-    if (label) label.textContent = activeSlot ? `slot ${activeSlot}` : 'slot off';
+    if (label) label.textContent = `slot ${activeSlot}`;
     const id = visuals.getCurrentId();
     const el = document.getElementById('slot-led');
-    if (el) el.classList.toggle('on', activeSlot > 0 && slotHasPreset(id, activeSlot) && !slotDirty);
+    if (el) el.classList.toggle('on', slotHasPreset(id, activeSlot) && !slotDirty);
     const sl = document.getElementById('save-slot-led');
     if (sl) sl.classList.toggle('on', saveLit);
   }

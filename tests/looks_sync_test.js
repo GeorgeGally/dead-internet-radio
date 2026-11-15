@@ -208,20 +208,23 @@ test('turning the slot dial names the slot without the keypad', async () => {
   const p = player({ server: () => ({ looks: {}, admin: false }) });
   await p.gallery.syncLooks();
   p.gallery.nextSlot(1);
-  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 1' });
+  assert.deepEqual(p.message(), { shown: true, fail: false, keys: null, name: '', words: 'Slot 2' });
   assert.equal(p.teletext(), true);
   p.gallery.nextSlot(-1);
-  assert.equal(p.message().words, 'Slot off');
+  assert.equal(p.message().words, 'Slot 1');
 });
 
-test('pressing the slot dial goes round from 9 to off; turning it stops at 9', async () => {
+test('the slot dial has no off: it starts on 1, stops at 1 and 9, and pressing goes round from 9 to 1', async () => {
   const p = player({ server: () => ({ looks: { bouncy: { 9: look(90) } }, admin: false }) });
   await p.gallery.syncLooks();
+  p.gallery.selectSlot(1);
+  p.gallery.nextSlot(-1);
+  assert.equal(p.gallery.getActiveSlot(), 1);
+  p.gallery.selectSlot(0);
+  assert.equal(p.gallery.getActiveSlot(), 1);
   p.gallery.selectSlot(9);
   p.gallery.nextSlot(1);
   assert.equal(p.gallery.getActiveSlot(), 9);
-  p.gallery.nextSlot(1, true);
-  assert.equal(p.gallery.getActiveSlot(), 0);
   p.gallery.nextSlot(1, true);
   assert.equal(p.gallery.getActiveSlot(), 1);
 });

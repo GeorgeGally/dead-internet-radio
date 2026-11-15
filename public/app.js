@@ -788,7 +788,7 @@ function setupControls() {
   window._filterStrengthVal = 100;
   gallery.bindFxUnit();
 
-  // Slot preset knob — click or drag to change slot 0-9
+  // Slot preset knob — click or drag to change slot 1-9
   const slotKnob = document.getElementById('slot-knob');
   if (slotKnob) {
     gallery.updateSlotUI();
@@ -841,16 +841,8 @@ function setupControls() {
   const saveBtn = document.getElementById('btn-save-slot');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      // Save what's on screen, where the dial is. From slot 0 (off) it goes
-      // into the first empty slot; the dial moves there without loading
-      // anything over the look being saved.
-      let slot = gallery.getActiveSlot();
-      if (slot === 0) {
-        const id = visuals.getCurrentId();
-        slot = [1, 2, 3, 4, 5, 6, 7, 8, 9].find((s) => !gallery.slotHasPreset(id, s)) || 1;
-        gallery.selectSlot(slot);
-      }
-      gallery.saveSlot(slot);
+      // Save what's on screen, where the dial is.
+      gallery.saveSlot(gallery.getActiveSlot());
     });
   }
 
