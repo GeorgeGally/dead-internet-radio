@@ -32,6 +32,17 @@ class AdminRequestsBadgeTest < ActionDispatch::IntegrationTest
     assert_select ".nav-count", false
   end
 
+  test "a request that has played still shows when it aired" do
+    show = Show.create!(slot: "request line", directory: "req-#{SecureRandom.hex(4)}", kind: "request")
+    track = Track.create!(show: show, position: 1, artist: "jumpers", title: "fatties", duration_ms: 212_000)
+    seg = BroadcastSegment.create!(track: track, source: "request", starts_at: 38.minutes.ago, ends_at: 34.minutes.ago)
+    @user.song_requests.create!(artist: "jumpers", title: "fatties", status: :scheduled, track: track)
+
+    get admin_requests_path
+
+    assert_select "tr td span[title='Aired'] time[datetime='#{seg.starts_at.utc.iso8601}']"
+  end
+
   private
 
   def request_with(status)

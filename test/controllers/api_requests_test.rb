@@ -48,6 +48,22 @@ class ApiRequestsTest < ActionDispatch::IntegrationTest
     assert_equal track.id, booked["track_id"]
   end
 
+  # Request #6 on the live line: booked right after the song on air, emailed
+  # "airs 17:30", played, then gone from every upcoming list.
+  test "a request that has played says when it aired" do
+    sign_in
+    user = User.last
+    show = Show.create!(slot: "request line", directory: "req-#{SecureRandom.hex(4)}", kind: "request")
+    track = Track.create!(show: show, position: 1, artist: "jumpers", title: "fatties", duration_ms: 212_000)
+    seg = BroadcastSegment.create!(track: track, source: "request", starts_at: 38.minutes.ago, ends_at: 34.minutes.ago)
+    user.song_requests.create!(artist: "jumpers", title: "fatties", status: :scheduled, track: track)
+
+    get "/api/v1/requests"
+    played = response.parsed_body.first
+    assert_nil played["airs_at"]
+    assert_equal seg.starts_at.iso8601(3), Time.zone.parse(played["aired_at"]).iso8601(3)
+  end
+
   test "writes need the csrf token and the same origin" do
     token = sign_in
     post "/api/v1/requests", params: { artist: "A", title: "B" }.to_json,

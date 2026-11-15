@@ -7,6 +7,7 @@ module Admin
       # The render job behind each request that's being made now, including
       # re-renders started from a row.
       @airs = BroadcastSegment.next_for(@requests.filter_map(&:track_id))
+      @aired = BroadcastSegment.last_aired_for(@requests.filter_map(&:track_id))
       @render_jobs = GenerationJob.where(status: %i[pending running])
                                   .where("options->>'request_id' IS NOT NULL")
                                   .order(:id)
