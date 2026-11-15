@@ -40,7 +40,7 @@ module Admin
       @job = GenerationJob.find(params[:id])
       if @job.failed? || (@job.running? && @job.started_at < 1.hour.ago)
         options = @job.options || {}
-        options = options.except('on_pc', 'take') if options['kind'] == 'remix'
+        options = options.except('on_pc', 'take') if options['kind'].in?(%w[remix rerender])
         @job.update!(status: :pending, started_at: nil, completed_at: nil, output_log: nil, options: options)
         next_job = @job.awaiting_plan? ? PlanShowJob : GenerateShowJob
         { 'set' => BuildSetJob, 'rerender' => RerenderTrackJob, 'remix' => RerenderTrackJob }.fetch(@job.options&.dig('kind'), next_job).perform_later(@job.id)

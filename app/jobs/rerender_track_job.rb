@@ -23,14 +23,8 @@ class RerenderTrackJob < ApplicationJob
     @buffer = +''
     begin
       track = Track.find(@gen_job.options['track_id'])
-      if @gen_job.options['kind'] == 'remix' && !AceStepManager.installed?
-        payload = track.prompt_log['payload']
-        raise 'No prompt log to remix from' if payload.blank? || payload['caption'].blank?
-        take = { 'payload' => payload.merge('title' => track.title, 'artist' => track.artist),
-                 'file' => track.audio_path.relative_path_from(Rails.root).to_s,
-                 'notes' => @gen_job.options['instructions'] }.compact
-        @gen_job.update!(options: @gen_job.options.merge('on_pc' => true, 'take' => take, 'dj_name' => track.show&.dj_name),
-                         output_log: "Waiting for the generation PC\n")
+      if pc_render?(@gen_job) && !AceStepManager.installed?
+        hand_to_pc!(track)
         return
       end
 
@@ -57,13 +51,44 @@ class RerenderTrackJob < ApplicationJob
       @gen_job.update!(status: :done, completed_at: Time.current)
     rescue StandardError => e
       say("ERROR: #{e.message}")
-      @gen_job.update!(status: :failed, completed_at: Time.current)
+      log = @gen_job.reload.output_log.presence || "ERROR: #{e.message}\n"
+      @gen_job.update!(status: :failed, completed_at: Time.current, output_log: log)
     ensure
       AceStepManager.release(@ace_session) if @ace_session
     end
   end
 
+  # The generation PC renders into a remix folder; fold it onto the library
+  # song and drop the temporary show so votes stay on the same track id.
+  def self.finish_pc_rerender!(job, folder)
+    remix_show = Show.find_by!(directory: folder)
+    new_track = remix_show.tracks.ordered.first
+    raise "No track in #{folder}" unless new_track&.audio_path&.exist?
+
+    song = Track.find(job.options.fetch('track_id'))
+    RerenderApply.merge_new_audio!(song, new_track.audio_path,
+                                   notes: job.options['instructions'])
+    remix_show.tracks.destroy_all
+    remix_show.destroy
+    song.show
+  end
+
   private
+
+  def pc_render?(gen_job)
+    %w[remix rerender].include?(gen_job.options['kind'])
+  end
+
+  def hand_to_pc!(track)
+    payload = track.prompt_log['payload']
+    raise 'No prompt log to render from' if payload.blank? || payload['caption'].blank?
+
+    take = { 'payload' => payload.merge('title' => track.title, 'artist' => track.artist),
+             'file' => track.audio_path.relative_path_from(Rails.root).to_s,
+             'notes' => @gen_job.options['instructions'] }.compact
+    @gen_job.update!(options: @gen_job.options.merge('on_pc' => true, 'take' => take, 'dj_name' => track.show&.dj_name),
+                     output_log: "Waiting for the generation PC\n")
+  end
 
   def import_take(show_dir)
     raise 'rerender.py did not report a show folder' unless show_dir

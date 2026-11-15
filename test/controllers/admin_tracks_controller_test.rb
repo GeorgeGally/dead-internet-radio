@@ -65,6 +65,29 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     assert_equal "darker bass, no hi-hats", job.options["instructions"]
   end
 
+  test "re-render goes to the generation PC like remix when ACE-Step is not here" do
+    ActiveJob::Base.queue_adapter = :test
+    FileUtils.mkdir_p(File.join(@show_dir, "prompts"))
+    File.write(File.join(@show_dir, "prompts", "02-bad-track.prompt.json"),
+               JSON.generate(payload: { caption: "cold synths", lyrics: "[Instrumental]", bpm: 126 }))
+
+    post rerender_admin_track_path(@track), params: { instructions: "super dark darkwave" }
+    job = GenerationJob.last
+    assert_redirected_to admin_generation_path(job)
+
+    installed = AceStepManager.method(:installed?)
+    AceStepManager.define_singleton_method(:installed?) { false }
+    begin
+      RerenderTrackJob.perform_now(job.id)
+    ensure
+      AceStepManager.define_singleton_method(:installed?, installed)
+    end
+    assert job.reload.options["on_pc"]
+    take = job.options["take"]
+    assert_equal "super dark darkwave", take["notes"]
+    assert_includes GenerationLine.spec(job)[:slot], "remix "
+  end
+
   test "remix carries the admin's direction to the generation PC" do
     ActiveJob::Base.queue_adapter = :test
     FileUtils.mkdir_p(File.join(@show_dir, "prompts"))

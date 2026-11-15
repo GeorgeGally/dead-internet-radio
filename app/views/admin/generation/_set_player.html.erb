@@ -8,21 +8,26 @@
         <ol class="sp-takes">
           <% SongTakes.for(track.song).each do |take| %>
             <% song = take.song %>
-            <li class="<%= 'in-set' if song && song.id == track.song_id %>">
-              <% if song&.audio_path && File.exist?(song.audio_path) %>
-                <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+            <li class="<%= 'in-set' if take.in_set?(track) %>">
+              <% if take.audio_path&.exist? %>
+                <% src = take.rerender? ? media_track_replaced_path(song, take.replaced_stamp) : media_track_path(song) %>
+                <button type="button" class="btn-play" data-src="<%= src %>" onclick="playTrack(this)" aria-label="Play">▶</button>
               <% else %>
                 <span class="btn-play-gap"></span>
               <% end %>
               <span class="sp-take" data-scrub>
-                <%= take.original? ? "Original" : "Remix #{take.number}" %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
+                <%= take.label %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
               </span>
               <% if song.nil? %>
                 <%= link_to(take.job.pending? ? "Queued" : "Rendering", admin_generation_path(take.job), class: "sp-wait") %>
-              <% elsif song.id != track.song_id && track.origin_track_id && show.kind == "set" %>
-                <%= button_to "Use", swap_admin_track_path(track), params: { song_id: song.id, remix: 1, back: request.path },
+              <% elsif !take.in_set?(track) && track.origin_track_id && show.kind == "set" %>
+                <% swap_params = { remix: 1, back: request.path } %>
+                <% swap_params[:replaced] = take.replaced_stamp if take.rerender? %>
+                <% swap_params[:song_id] = song.id unless take.rerender? %>
+                <% choice = take.rerender? ? take.label.downcase : (take.original? ? "the original" : "remix #{take.number}") %>
+                <%= button_to "Use", swap_admin_track_path(track), params: swap_params,
                       class: "btn-key btn-key-go", form: { class: "sp-use" },
-                      data: { confirm: "Put #{take.original? ? 'the original' : "remix #{take.number}"} in the set and remix the set?" } %>
+                      data: { confirm: "Put #{choice} in the set and remix the set?" } %>
               <% end %>
             </li>
           <% end %>

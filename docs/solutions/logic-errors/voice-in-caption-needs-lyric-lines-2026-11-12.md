@@ -34,7 +34,9 @@ the take's `notes`; the producer revises the song from it first (`revise_song`,
 shared with re-render), before the voice guard runs. The original stays untouched. Remix shows are
 excluded from public programmes and from the static site's show manifests, and
 air only through a set. Re-render with
-notes still replaces the song's audio in place.
+notes still replaces the song's audio in place, moving the old file to the
+show's `.replaced/` folder; the set player lists it as a take (`SongTakes`)
+and Use switches back.
 
-On apps1, `GenerationLine` hands the take payload to the generation PC. The
+On apps1, `GenerationLine` hands the take payload (remix and re-render alike) to the generation PC. The
 servers repository's `dir-pc-setup.sh` deploys `generate.py` to that PC.

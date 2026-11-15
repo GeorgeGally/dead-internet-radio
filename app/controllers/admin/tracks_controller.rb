@@ -28,12 +28,21 @@ module Admin
     # From the set player, the chosen take goes in and the mix is made again.
     def swap
       track = Track.find(params[:id])
-      SetSwap.swap!(track, Track.find(params[:song_id]))
+      notice = if params[:replaced].present?
+        song = track.song
+        in_set = track.origin_track_id && track.show&.kind == "set"
+        SetSwap.ensure_off_air!(track) if in_set
+        SongReplaced.apply!(song, params[:replaced].to_s)
+        SetSwap.resync!(track) if in_set
+        "Using #{song.reload.artist} — #{song.title}"
+      else
+        SetSwap.swap!(track, Track.find(params[:song_id]))
+        "Swapped in #{track.reload.artist} — #{track.title}"
+      end
       RemixShowJob.perform_later(track.show_id) if params[:remix].present?
-      notice = "Swapped in #{track.reload.artist} — #{track.title}"
       notice += ". Remixing the set." if params[:remix].present?
       redirect_to back_path || admin_show_path(track.show), notice: notice
-    rescue SetSwap::Error => e
+    rescue SetSwap::Error, SongReplaced::Error => e
       redirect_to back_path || admin_show_path(track.show), alert: e.message
     end
 

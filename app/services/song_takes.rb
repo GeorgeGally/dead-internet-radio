@@ -1,31 +1,80 @@
-# Every take of a song: the original and each remix of it, and remixes of
-# those, in the order they were asked for. A remix still rendering is a take
-# without a song yet; a failed one is left out.
+# Every take of a song: what's on the library master now, kept re-renders
+# in .replaced/, and each remix (and remixes of those) in the order they
+# were asked for. A remix still rendering is a take without a song yet; a
+# failed one is left out.
 module SongTakes
-  Take = Struct.new(:song, :job, :number, keyword_init: true) do
-    def original? = number.zero?
-    def notes = job&.options&.dig("instructions")
+  Take = Struct.new(:song, :job, :number, :replaced_stamp, :replaced_notes, :kept, keyword_init: true) do
+    def original? = number.zero? && replaced_stamp.nil? && job.nil?
+    def remix? = job.present?
+    def rerender? = replaced_stamp.present?
+
+    def notes = replaced_notes.presence || job&.options&.dig("instructions")
+
+    def audio_path
+      return SongReplaced.path(song, replaced_stamp) if rerender?
+
+      song&.audio_path
+    end
+
+    def active?
+      return false if job && song.nil?
+      return false unless song
+
+      live = song.audio_path
+      take_audio = audio_path
+      live && take_audio&.exist? && File.identical?(live, take_audio)
+    end
+
+    def in_set?(slot)
+      return false unless slot.origin_track_id
+
+      return song&.id == slot.song_id if remix?
+
+      mine = audio_path
+      held = slot.audio_path
+      song.id == slot.song_id && mine&.exist? && held&.exist? && File.identical?(held, mine)
+    end
+
+    def label
+      if original?
+        kept ? "Current" : "Original"
+      elsif rerender?
+        "Earlier version"
+      else
+        "Remix #{number}"
+      end
+    end
   end
 
   def self.for(song)
     root = original(song)
+    replaced = SongReplaced.for_song(root)
+    current = Take.new(song: root, number: 0, kept: replaced.any?)
+    kept = replaced.map.with_index(1) do |entry, i|
+      Take.new(song: root, number: i, replaced_stamp: entry.stamp, replaced_notes: entry.notes)
+    end
+    remix_takes = remix_chain(root)
+    remix_takes.each.with_index(1 + kept.size) { |t, i| t.number = i }
+    [ current ] + kept + remix_takes
+  end
+
+  def self.remix_chain(song)
     takes = []
-    queue = [ root.id ]
-    seen = [ root.id ]
+    queue = [ song.id ]
+    seen = [ song.id ]
     while (id = queue.shift)
       remix_jobs.where("options->>'track_id' = ?", id.to_s).where.not(status: :failed).includes(show: :tracks).each do |job|
-        take = job.show&.tracks&.min_by(&:position)
-        takes << Take.new(song: take, job: job)
-        next if take.nil? || seen.include?(take.id)
+        take_track = job.show&.tracks&.min_by(&:position)
+        takes << Take.new(song: take_track, job: job)
+        next if take_track.nil? || seen.include?(take_track.id)
 
-        seen << take.id
-        queue << take.id
+        seen << take_track.id
+        queue << take_track.id
       end
     end
-    takes.sort_by! { |t| t.job.created_at }
-    takes.each.with_index(1) { |t, i| t.number = i }
-    [ Take.new(song: root, number: 0) ] + takes
+    takes.sort_by { |t| t.job.created_at }
   end
+  private_class_method :remix_chain
 
   # The song a take was remixed from, back to the first one. A remix is
   # imported as a one-song show, so its show names the job that made it.

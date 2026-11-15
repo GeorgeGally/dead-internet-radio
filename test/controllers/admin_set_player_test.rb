@@ -10,7 +10,8 @@ class AdminSetPlayerTest < ActionDispatch::IntegrationTest
     @old_queue_adapter = ActiveJob::Base.queue_adapter
     ActiveJob::Base.queue_adapter = :test
     @root = Dir.mktmpdir
-    lib_dir = File.join(@root, "lib-show")
+    @lib_dir = File.join(@root, "lib-show")
+    lib_dir = @lib_dir
     take_dir = File.join(@root, "take-show")
     set_dir = File.join(@root, "a-set")
     [ lib_dir, take_dir, set_dir ].each { |d| FileUtils.mkdir_p(d) }
@@ -74,5 +75,28 @@ class AdminSetPlayerTest < ActionDispatch::IntegrationTest
   test "a back path off the admin is ignored" do
     post swap_admin_track_path(@slot), params: { song_id: @take.id, back: "//evil.example/admin/" }
     assert_redirected_to admin_show_path(@set)
+  end
+
+  test "kept re-renders show up as takes and Use switches the library master back" do
+    replaced = File.join(@lib_dir, ".replaced")
+    FileUtils.mkdir_p(replaced)
+    File.write(File.join(@lib_dir, "01-old.mp3"), "new-master")
+    File.write(File.join(replaced, "01-old-20260101-120000.mp3"), "old-master")
+    File.write(File.join(replaced, "01-old-20260101-120000.prompt.json"),
+               JSON.generate(payload: { bpm: 120, keyscale: "C", lyrics: "[Instrumental]", duration: 150 },
+                             rerender: { notes: "darker bass" }))
+
+    takes = SongTakes.for(@song)
+    assert_equal 1, takes.count(&:rerender?)
+    assert_equal "Current", takes.first.label
+    assert_equal "Earlier version", takes[1].label
+    assert_equal "darker bass", takes[1].notes
+
+    back = admin_generation_path(@job)
+    post swap_admin_track_path(@slot), params: { replaced: "20260101-120000", remix: 1, back: back }
+    assert_redirected_to back
+    assert_equal "old-master", File.read(File.join(@lib_dir, "01-old.mp3"))
+    assert_equal @song.id, @slot.reload.origin_track_id
+    assert Dir.glob(File.join(replaced, "01-old-*.mp3")).size >= 1, "the swapped-out master stays in .replaced/"
   end
 end
