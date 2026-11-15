@@ -31,7 +31,7 @@ module Admin
       SetSwap.swap!(track, Track.find(params[:song_id]))
       RemixShowJob.perform_later(track.show_id) if params[:remix].present?
       notice = "Swapped in #{track.reload.artist} — #{track.title}"
-      notice += '. Remixing the set.' if params[:remix].present?
+      notice += ". Remixing the set." if params[:remix].present?
       redirect_to back_path || admin_show_path(track.show), notice: notice
     rescue SetSwap::Error => e
       redirect_to back_path || admin_show_path(track.show), alert: e.message
@@ -94,7 +94,7 @@ module Admin
     # Where a form on another admin page asked to come back to.
     def back_path
       back = params[:back].to_s
-      back if back.start_with?('/admin/') && !back.start_with?('//')
+      back if back.start_with?("/admin/") && !back.start_with?("//")
     end
 
     # Moves audio + voiceover files into <show_dir>/.removed/ rather than deleting,

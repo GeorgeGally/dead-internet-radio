@@ -4,7 +4,7 @@
 module SongTakes
   Take = Struct.new(:song, :job, :number, keyword_init: true) do
     def original? = number.zero?
-    def notes = job&.options&.dig('instructions')
+    def notes = job&.options&.dig("instructions")
   end
 
   def self.for(song)
@@ -32,7 +32,7 @@ module SongTakes
   def self.original(song)
     seen = [ song.id ]
     while (job = remix_jobs.find_by(show_id: song.show_id)) &&
-          (parent = Track.find_by(id: job.options['track_id'])) && !seen.include?(parent.id)
+          (parent = Track.find_by(id: job.options["track_id"])) && !seen.include?(parent.id)
       seen << parent.id
       song = parent
     end
