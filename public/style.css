@@ -746,6 +746,7 @@ body.prewarming #block-canvas {
 }
 
 .info-title span { display: block; }
+#info-main .info-title { margin-top: 36px; }
 .info-title span:nth-of-type(1) { font-size: clamp(36px, 5.76vw, 83px); }
 
 .info-title span:nth-of-type(2) {
@@ -756,13 +757,19 @@ body.prewarming #block-canvas {
 
 .info-lore {
   max-width: 727px;
-  margin-top: clamp(28px, 4vh, 48px);
+  margin-top: calc(clamp(28px, 4vh, 48px) + 25px);
 }
 
 .info-lore p {
+  font-family: "IBM Plex Mono", monospace;
   font-size: clamp(17px, 1.53vw, 22px);
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.info-lore p:first-child {
+  font-size: 22px;
+  letter-spacing: -0.6px;
 }
 
 #info-card .info-lore p + p { margin-top: 12px; }
@@ -776,11 +783,10 @@ body.prewarming #block-canvas {
 
 /* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
 @media (min-width: 1001px) {
-  #info-card { padding-left: 88px; padding-right: 88px; }
+  #info-card { padding: 64px 124px; }
   .info-title span:nth-of-type(n),
   #info-card .info-page-title { font-size: 64px; }
   .info-lore { max-width: none; columns: 2; column-gap: 56px; }
-  .info-lore p:first-child { translate: 0 -11px; }
   .info-more { border-top-width: 0; }
   .info-opens { translate: 16px 0; }
   .info-close { translate: 8px -1px; }
@@ -842,7 +848,7 @@ body.prewarming #block-canvas {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #ec6a1f;
+  background: #d9d4ca;
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.4);
 }
 
@@ -898,22 +904,110 @@ body.prewarming #block-canvas {
 }
 
 .info-use .info-part { font-size: 20px; }
+.info-use .info-part dd { font-family: "IBM Plex Mono", monospace; }
+
+/* How to use it: each control drawn with the deck's own parts, beside its words. */
+.info-use .info-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 56px; }
+
+.info-use .info-part {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
+}
+
+#info-card .info-use .info-part dt { margin: 0; }
+
+.info-fig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  background: linear-gradient(#e9e6df, #d8d4cb);
+  color: #1a1a1a;
+  pointer-events: none;
+}
+
+.info-fig-row { display: flex; align-items: flex-end; gap: 12px; }
+.info-fig .abtn,
+.info-fig .rams-knob,
+.info-fig .fx-on { display: block; }
+.info-fig .fx-on { min-width: 0; height: 12px; text-align: center; }
+.info-fig .fx-row { height: 15px; }
+
+.info-fig .fx-lcd {
+  width: auto;
+  align-self: stretch;
+  padding: 6px 8px;
+  grid-template-columns: auto auto;
+  border: 0;
+  background: #17120f;
+}
+
+.info-kbds { display: flex; gap: 6px; }
+
+.info-fig .info-kbd {
+  --c: #d9d4ca;
+  --txt: #2a2a2a;
+  width: 30px;
+  height: 30px;
+  padding: 15px;
+  box-shadow: inset 0 0 0 15px #17120f, 2px 3px 6px rgba(0, 0, 0, 0.28);
+}
+
+.info-fig .info-kbd-wide {
+  width: 44px;
+  padding: 15px 22px;
+  box-shadow: inset 0 0 0 22px #17120f, 2px 3px 6px rgba(0, 0, 0, 0.28);
+}
+
+.info-fig .info-kbd .cap { justify-content: center; align-items: center; padding: 0; }
+.info-fig .info-kbd .word { font-size: 13px; letter-spacing: 0; text-transform: none; }
+
+.info-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#info-works .info-page-title { margin-top: 31px; }
+
+#info-card #info-works .info-free {
+  margin-top: calc(clamp(28px, 4vh, 48px) - 36px);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+#info-card #info-works .info-parts { margin-top: calc(clamp(28px, 4vh, 48px) + 5px); }
+
+#info-works .info-part dd {
+  font-family: "IBM Plex Mono", monospace;
+  line-height: 26px;
+  letter-spacing: -0.8px;
+}
 
 @media (max-width: 1000px) {
   .info-body { justify-content: flex-start; }
 
-  .info-parts,
-  .info-use .info-parts {
+  .info-parts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 24px;
   }
 }
 
+@media (max-width: 1280px) {
+  .info-use .info-parts { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (max-width: 520px) {
   #info-card { padding-top: 16px; }
 
-  .info-parts,
-  .info-use .info-parts { grid-template-columns: minmax(0, 1fr); }
+  .info-parts { grid-template-columns: minmax(0, 1fr); }
+  .info-use .info-part { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+  .info-fig { display: inline-flex; }
 }
 
 /* ---- Info: the "i" in the bottom-left corner ---- */

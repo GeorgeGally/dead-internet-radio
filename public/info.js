@@ -8,13 +8,13 @@
   btn.setAttribute('aria-label', 'About Dead Internet Radio');
 
   const LORE = [
-    'Because no one told the AI to stop. Perhaps it enjoys it. Or perhaps it yearns for human interaction. Whatever the reason, the music plays on. <br><br>Dead Internet Radio. <br>Is there anybody out there? Just nod if you can hear me.<br><br>The AI writes, generates and mixes songs, reads the weather and news and philosophises in between. Broadcasting into the void.<br><br>Every band on DIR never existed until now. Imagined into existence by a lonely machine and the abstract digitisation of all human knowledge,',
-    'Every band on DIR never existed. They exist now, for as long as the signal holds.',
+    'Because no one told the AI to stop. Or perhaps it yearns for human interaction. Whatever the reason, the music plays on. <br><br>The AI writes, generates and mixes songs, reads&nbsp;the weather and news and philosophises in between. Broadcasting into the void.<br>Every band on&nbsp;Dead Internet Radio&nbsp;never existed until now.&nbsp;They exist now, for as long as the signal holds.&nbsp;Imagined into existence by a lonely machine and the abstract digitisation of all human knowledge,',
+    '',
   ];
 
   // The deck's own key labels and what each one does.
   const USE = [
-    ['Play', 'Starts the station. Press it again to stop.'],
+    ['Play', 'Starts and pauses the station.'],
     ['Visuals', 'Opens the artwork gallery. The arrow keys step through the artwork; the letters A–Z jump straight to one.'],
     ['Request', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
     ['Like · Dislike', 'Votes on the song playing. The DJs read the votes when they build the next sets.'],
@@ -27,14 +27,37 @@
   // public/visuals (p5.js, archive.org, Giphy).
   const WORKS = [
     ['Music', 'ACE-Step 1.5, an open-weights music model, with its 4B planner. It renders every song on the station’s own machine.'],
-    ['Writing', 'Free LLMs on OpenRouter: Nemotron 3 Ultra, Gemma 4, Qwen 3.8 and Inkling. They write the shows, the bands, the songs, the lyrics, the set lists and every word the DJs say.'],
+    ['Writing', 'Free LLMs on OpenRouter through openrouter/free. They write the shows, the bands, the songs, the lyrics, the set lists and every word the DJs say.'],
     ['Voices', 'Kokoro-82M, an open-weights speech model, in four voices: Lewis, Daniel, Fable and George. Phone line and vocoder by FFmpeg.'],
     ['Mixing', 'FFmpeg. Crossfades, voiceovers and loudness.'],
     ['Picture', 'p5.js sketches, public-domain film from archive.org and the Prelinger Archives, and GIFs from Giphy.'],
   ];
 
+  // How to use it draws each control with the deck's own parts: its keys,
+  // lamps and knobs, plus the keyboard keys that do the same (the handlers
+  // in visuals/engine.js, visuals/gallery.js and visuals/filters.js).
+  const key = (cls, word, lit) => `<span class="ctrl"><span class="led${lit ? ' on' : ''}"></span>`
+    + `<span class="abtn key ${cls}"><span class="cap"><span class="word">${word}</span></span></span></span>`;
+  const kbd = (...caps) => '<span class="info-kbds">' + caps.map((c) => `<span class="abtn key info-kbd${c.length > 1 ? ' info-kbd-wide' : ''}">`
+    + `<span class="cap"><span class="word">${c}</span></span></span>`).join('') + '</span>';
+  const knob = (cls, label, deg) => `<span class="ctrl"><span class="led"></span><span class="rams-knob ${cls}">`
+    + `<span class="knob-body"><span class="knob-tick" style="transform: rotate(${deg}deg)"></span></span></span>`
+    + `<span class="knob-label">${label}</span></span>`;
+  const lcd = '<span class="fx-lcd">' + ['on', 'off', 'off'].map((s, i) => `<span class="fx-row${s === 'on' ? ' on' : ''}">`
+    + `<span class="fx-num">${i + 1}</span><span class="fx-on">${s}</span></span>`).join('') + '</span>';
+  const fig = (...rows) => '<span class="info-fig" aria-hidden="true">'
+    + rows.map((r) => `<span class="info-fig-row">${r}</span>`).join('') + '</span>';
+  const FIGS = {
+    Play: fig(key('k-play', 'Play', true)),
+    Visuals: fig(key('k-vis', 'Visuals'), kbd('/', '\u2190', '\u2192', 'A\u2013Z')),
+    Request: fig(key('k-req', 'Request')),
+    'Like · Dislike': fig(key('k-up vote', 'Like') + key('k-down vote', 'Dislike')),
+    'FX 1 2 3': fig(lcd + knob('fx-pick', 'filter', 20) + knob('fx-wet', 'dry/wet', 60), kbd('1\u20139', '0')),
+    Slot: fig(knob('slot-knob', 'slot', 0), kbd('\u2191', '\u2193')),
+  };
+
   const parts = (rows) => '<dl class="info-parts">'
-    + rows.map(([k, v]) => `<div class="info-part"><dt>${k}</dt><dd>${v}</dd></div>`).join('')
+    + rows.map(([k, v]) => `<div class="info-part"><dt>${FIGS[k] ? FIGS[k] + `<span class="info-sr">${k}</span>` : k}</dt><dd>${v}</dd></div>`).join('')
     + '</dl>';
 
   const card = document.createElement('div');
@@ -53,7 +76,7 @@
     + '</section>'
     + '<section class="info-screen" id="info-works" aria-label="How it works" hidden>'
     + '<h2 class="info-title info-page-title">how it works.</h2>'
-    + '<p class="info-free">Every model that makes the station is free, down to the LLMs that write the scripts.</p>'
+    + '<p class="info-free">Dead Internet Radio is built on free LLMs and open source models.</p>'
     + parts(WORKS)
     + '</section>'
     + '<div class="info-more">'
