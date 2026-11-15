@@ -15,12 +15,12 @@
       <div class="field-row">
         <div class="field">
           <%= label_tag :track_count, "Tracks" %>
-          <%= number_field_tag :track_count, params[:track_count] || 4, min: 1, max: 20 %>
+          <%= number_field_tag :track_count, params[:track_count] || 10, min: 1, max: 20 %>
         </div>
 
         <div class="field">
           <%= label_tag :crossfade, "Crossfade (s)" %>
-          <%= number_field_tag :crossfade, params[:crossfade] || 5, min: 1, max: 30 %>
+          <%= number_field_tag :crossfade, params[:crossfade] || 4, min: 1, max: 30 %>
         </div>
       </div>
 
