@@ -360,6 +360,8 @@ const gallery = (() => {
   }
 
   // Saved looks keep the whole FX unit. Older saves held one filter key.
+  const BLANK_LOOK = { filters: [], cutoff: 130, resonance: 50, strength: 100 };
+
   function fxOf(p) {
     if (p.fx) return p.fx;
     const k = (p.filters || [])[0];
@@ -485,7 +487,10 @@ const gallery = (() => {
   function loadPreset(id) {
     if (!id) return;
     const p = presets[id] || DEFAULT_PRESETS[id];
-    if (!p) return;
+    if (p) applyLook(p);
+  }
+
+  function applyLook(p) {
     _suppressSave = true;
     canvasFilters.setState(fxOf(p));
     if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
@@ -588,15 +593,11 @@ const gallery = (() => {
     if (slot < 1 || slot > 9) return;
     slotDirty = false;
     const p = artPresets[id] && artPresets[id][slot];
-    // Landing on a saved slot lights both: the slot and its save.
+    // Landing on a saved slot lights both: the slot and its save. An empty
+    // slot shows the listener's own look, never the last slot's, so it can't
+    // pass for a saved one.
     saveLit = !!p;
-    if (!p) { updateSlotUI(); return; }
-    _suppressSave = true;
-    canvasFilters.setState(fxOf(p));
-    if (window._restoreCutoff) window._restoreCutoff(p.cutoff);
-    if (window._restoreResonance) window._restoreResonance(p.resonance);
-    if (window._restoreStrength) window._restoreStrength(p.strength != null ? p.strength : 100);
-    _suppressSave = false;
+    applyLook(p || presets[id] || DEFAULT_PRESETS[id] || BLANK_LOOK);
     updateSlotUI();
   }
 

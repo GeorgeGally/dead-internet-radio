@@ -229,6 +229,21 @@ test('the slot dial has no off: it starts on 1, stops at 1 and 9, and pressing g
   assert.equal(p.gallery.getActiveSlot(), 1);
 });
 
+test('saved slots read the same on the keypad and the dial: an empty slot never shows the last saved look', async () => {
+  const p = player({ server: (url, method) => (method === 'PUT' ? {} : { looks: { bouncy: { 1: look(90), 3: look(200) } }, admin: true }) });
+  await p.gallery.syncLooks();
+  p.gallery.selectSlot(1);
+  p.gallery.nextSlot(1);
+  p.gallery.nextSlot(1);
+  assert.equal(p.restored.cutoff, 200);
+  p.gallery.nextSlot(1);
+  assert.equal(p.gallery.getActiveSlot(), 4);
+  assert.equal(p.gallery.slotHasPreset('bouncy', 4), false);
+  assert.equal(p.restored.cutoff, 110);
+  await p.gallery.saveSlot(5);
+  assert.equal(p.message().keys, 'full - full - now - - - -');
+});
+
 test('slot preview loads its artwork and exact saved settings without uploading old looks', async () => {
   const old = JSON.stringify({ bouncy: { 7: look(70) } });
   const p = player({ stored: { 'visual-slot-presets': old }, server: () => ({
