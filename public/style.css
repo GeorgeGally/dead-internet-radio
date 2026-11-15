@@ -232,7 +232,7 @@ body.prewarming #block-canvas {
   font-family: "Plus Jakarta Sans", "IBM Plex Mono", "Courier New", monospace;
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   color: inherit;
   white-space: nowrap;
   overflow: hidden;
@@ -2099,7 +2099,7 @@ body.slot-preview #info-btn { display: none !important; }
   justify-content: center;
   padding: 18px 28px 16px;
   font-family: "Anka Coder", "IBM Plex Mono", "Courier New", monospace;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   color: #fff;
   opacity: 0;
   visibility: hidden;
