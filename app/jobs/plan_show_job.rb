@@ -18,6 +18,8 @@ class PlanShowJob < ApplicationJob
     @gen_job = gen_job
     @buffer = +""
 
+    Library.write_taste!
+
     Dir.mktmpdir("plan") do |dir|
       plan_path = File.join(dir, "plan.json")
       cmd = [ Rails.configuration.x.python, "generate.py", gen_job.slot, "--tracks", gen_job.track_count.to_s,

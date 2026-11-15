@@ -8,14 +8,19 @@ class PlanShowJobTest < ActiveJob::TestCase
                                 options: { "preview" => true, "dj_name" => "Static" })
     worker = PlanShowJob.new
     seen = nil
+    order = []
     stub = ->(cmd, chdir: nil, &_block) {
       seen = cmd
+      order << :generate
       File.write(cmd[cmd.index("--plan-out") + 1], { slot: "robot club", tracks: [ { title: "Wire Kiss" } ] }.to_json)
       0
     }
-    with_singleton_method(worker, :run_and_stream, stub) { worker.perform(job.id) }
+    with_singleton_method(worker, :run_and_stream, stub) do
+      with_singleton_method(Library, :write_taste!, -> { order << :taste }) { worker.perform(job.id) }
+    end
 
     job.reload
+    assert_equal [ :taste, :generate ], order
     assert_predicate job, :pending?
     assert_equal "Wire Kiss", job.plan["tracks"][0]["title"]
     assert_equal "Plan ready", job.stage
@@ -26,7 +31,9 @@ class PlanShowJobTest < ActiveJob::TestCase
   test "a failed plan fails the job" do
     job = GenerationJob.create!(slot: "robot club", track_count: 2, status: :pending, options: { "preview" => true })
     worker = PlanShowJob.new
-    with_singleton_method(worker, :run_and_stream, ->(*, **) { 1 }) { worker.perform(job.id) }
+    with_singleton_method(worker, :run_and_stream, ->(*, **) { 1 }) do
+      with_singleton_method(Library, :write_taste!, -> { nil }) { worker.perform(job.id) }
+    end
 
     job.reload
     assert_predicate job, :failed?
