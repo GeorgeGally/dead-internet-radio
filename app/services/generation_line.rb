@@ -31,9 +31,12 @@ module GenerationLine
           show = RerenderTrackJob.finish_pc_rerender!(job, folder)
           job.update!(status: :done, completed_at: Time.current, show: show,
                       output_log: "#{job.output_log}Re-rendered on the library master (#{folder})\n")
+        elsif job.options&.dig("kind") == "remix"
+          home = SongHome.settle_take!(job, Show.find_by!(directory: folder))
+          job.update!(status: :done, completed_at: Time.current,
+                      output_log: "#{job.output_log}New take in #{home.name || home.slot} (#{folder})\n")
         else
           show = Show.find_by!(directory: folder)
-          show.update!(kind: "remix") if job.options&.dig("kind") == "remix" && show.kind != "remix"
           job.update!(status: :done, completed_at: Time.current, show: show,
                       output_log: "#{job.output_log}On air: #{folder}\n")
         end

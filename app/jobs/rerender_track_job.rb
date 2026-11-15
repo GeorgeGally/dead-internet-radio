@@ -7,8 +7,9 @@
 #
 # A remix (options kind "remix") renders the same song again as a new take,
 # revised first by the producer when it carries instructions: rerender.py
-# --take writes it to its own folder, imported as a one-song "remix" show, so
-# the original song and its audio stay as they are.
+# --take writes it to its own folder, and the take joins the original song's
+# show as a version of it (SongHome), so the original song and its audio stay
+# as they are.
 class RerenderTrackJob < ApplicationJob
   include ShowImporter
   include SubprocessRunner
@@ -94,7 +95,9 @@ class RerenderTrackJob < ApplicationJob
     raise 'rerender.py did not report a show folder' unless show_dir
 
     show = import_show(show_dir, @gen_job)
-    say("New take: track ##{show.tracks.ordered.first.id}")
+    take = show.tracks.ordered.first
+    home = SongHome.settle_take!(@gen_job, show)
+    say("New take: track ##{take.id} in #{home.name || home.slot}")
   end
 
   def replace_audio(track, spec)

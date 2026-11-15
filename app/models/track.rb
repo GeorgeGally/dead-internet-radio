@@ -13,6 +13,9 @@ class Track < ApplicationRecord
     uniqueness: { scope: :show_id }
 
   scope :ordered, -> { order(position: :asc) }
+  # The show's running order: a remix sits in its song's show as a version
+  # (take), heard from the song's takes, not played as the next song.
+  scope :running, -> { where(take: false) }
   # Every song the station has rendered: not the station's own openings, not
   # a set's copy of a song.
   scope :songs, -> {
@@ -63,9 +66,15 @@ class Track < ApplicationRecord
     down_votes + (STATION_WEIGHT - 1) * -station_vote.clamp(-1, 0)
   end
 
+  # The output/ folder the song was rendered into. A request or remix that
+  # joined another show keeps its audio where it was rendered.
+  def home_folder
+    folder.presence || show&.directory
+  end
+
   # Resolve the DB-stored path to the canonical master on disk.
   # DB stores a link (e.g. "audio/00-foo.mp3"); the real file lives in
-  # output/<show.directory>/<basename>. Returns nil if unresolvable.
+  # output/<home_folder>/<basename>. Returns nil if unresolvable.
   def audio_path
     resolve_media(audio_file)
   end
@@ -92,8 +101,8 @@ class Track < ApplicationRecord
   # The ACE-Step caption this track was rendered from. The caption column only
   # holds "artist — title", the real one is in the show's prompt log.
   def sound_caption
-    return nil if audio_file.blank? || show&.directory.blank?
-    log = Rails.root.join("output", show.directory, "prompts", "#{File.basename(audio_file, '.*')}.prompt.json")
+    return nil if audio_file.blank? || home_folder.blank?
+    log = Rails.root.join("output", home_folder, "prompts", "#{File.basename(audio_file, '.*')}.prompt.json")
     JSON.parse(File.read(log)).dig("payload", "caption").presence if log.exist?
   rescue JSON::ParserError
     nil
@@ -113,7 +122,7 @@ class Track < ApplicationRecord
   private
 
   def resolve_media(rel)
-    return nil if rel.blank? || show&.directory.blank?
-    Rails.root.join("output", show.directory, File.basename(rel))
+    return nil if rel.blank? || home_folder.blank?
+    Rails.root.join("output", home_folder, File.basename(rel))
   end
 end

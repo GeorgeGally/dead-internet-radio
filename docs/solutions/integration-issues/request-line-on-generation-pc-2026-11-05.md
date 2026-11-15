@@ -26,9 +26,9 @@ apps1. Apps1 builds no sets either, so a rendered request had no way on air.
   The key is the authentication, so there is no public route or token.
 - The gate checks with `psql` first, so an idle poll never boots Rails. It reads
   `status = 7`: keep the enum value stable.
-- Done puts the song on with `Station.insert_next`, then `RequestNotifier` moves
-  it to `scheduled` and emails the time. A request show is never `airable`, so it
-  airs this once and then joins the library for sets.
+- Done puts the song on with `Station.insert_next`, joins it to the show it airs
+  in (`SongHome`, see `request-and-remix-join-their-show-2026-11-16.md`), then
+  `RequestNotifier` moves it to `scheduled` and emails the time.
 - `generate.py` writes `"kind": "request"` to `show.json`. Without it
   `dir-import.rb` would add the song to rotation as a show.
 

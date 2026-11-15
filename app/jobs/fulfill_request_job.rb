@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-# Renders one accepted listener request as a 1-track show: generate.py with
-# --request-json, then djmix.py, then import. The song waits in the library
-# until a set picks it up (SetPlanner); the listener is emailed once that set
-# is on the timeline. Local only: it needs ACE-Step. Shares the render lock
-# with GenerateShowJob.
+# Renders one accepted listener request: generate.py with --request-json, then
+# djmix.py, then import. Like a request from the generation PC (RequestLine), it
+# goes on after the current song, joins the show it airs in and the listener is
+# emailed the time. Local only: it needs ACE-Step. Shares the render lock with
+# GenerateShowJob.
 class FulfillRequestJob < ApplicationJob
   include ShowImporter
   include SubprocessRunner
@@ -57,8 +57,8 @@ class FulfillRequestJob < ApplicationJob
         show = import_show(@show_dir, @gen_job)
         show.update!(kind: 'request')
         track = show.tracks.ordered.last
-        req.update!(status: :ready, track: track)
-        say("Ready: track ##{track.id}, waiting for a set")
+        RequestLine.air!(req, track)
+        say("On air next: track ##{track.id} in #{track.reload.show.name || track.show.slot}")
       end
 
       @gen_job.update!(status: :done, completed_at: Time.current)

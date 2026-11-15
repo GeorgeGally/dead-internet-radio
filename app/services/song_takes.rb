@@ -63,8 +63,8 @@ module SongTakes
     queue = [ song.id ]
     seen = [ song.id ]
     while (id = queue.shift)
-      remix_jobs.where("options->>'track_id' = ?", id.to_s).where.not(status: :failed).includes(show: :tracks).each do |job|
-        take_track = job.show&.tracks&.min_by(&:position)
+      remix_jobs.where("options->>'track_id' = ?", id.to_s).where.not(status: :failed).each do |job|
+        take_track = job.take_track
         takes << Take.new(song: take_track, job: job)
         next if take_track.nil? || seen.include?(take_track.id)
 
@@ -76,11 +76,12 @@ module SongTakes
   end
   private_class_method :remix_chain
 
-  # The song a take was remixed from, back to the first one. A remix is
-  # imported as a one-song show, so its show names the job that made it.
+  # The song a take was remixed from, back to the first one. The job that made
+  # a take names it (a remix from before takes joined their song's show is
+  # still a one-song show the job names).
   def self.original(song)
     seen = [ song.id ]
-    while (job = remix_jobs.find_by(show_id: song.show_id)) &&
+    while (job = made_by(song)) &&
           (parent = Track.find_by(id: job.options["track_id"])) && !seen.include?(parent.id)
       seen << parent.id
       song = parent
@@ -88,8 +89,13 @@ module SongTakes
     song
   end
 
+  def self.made_by(song)
+    remix_jobs.find_by("options->>'take_track_id' = ?", song.id.to_s) ||
+      (song.show&.kind == "remix" ? remix_jobs.find_by(show_id: song.show_id) : nil)
+  end
+
   def self.remix_jobs
     GenerationJob.where("options->>'kind' = 'remix'").order(:created_at)
   end
-  private_class_method :remix_jobs
+  private_class_method :made_by, :remix_jobs
 end

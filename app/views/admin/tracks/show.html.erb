@@ -96,7 +96,7 @@
     <h3>Re-renders</h3>
     <table>
       <% @rerenders.each do |job| %>
-        <% take = job.done? && job.show&.tracks&.min_by(&:position) %>
+        <% take = job.done? && (job.options['kind'] == 'remix' ? job.take_track : job.show&.tracks&.min_by(&:position)) %>
         <tr>
           <td><%= local_time(job.started_at || job.created_at) %></td>
           <td><a href="<%= take ? admin_track_path(take) : admin_generation_path(job) %>"><%= [job.options['kind'] == 'remix' && "Remix", job.options['instructions']].compact_blank.join(": ") %></a></td>

@@ -101,7 +101,7 @@ class Station
     out = Track.vetoed.pluck(:id).to_set
     shows = Show.airable.includes(:tracks).sort_by { |s| [ last_aired[s.id] || Time.at(0), s.id ] }
     shows.each do |show|
-      playable = show.tracks.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
+      playable = show.tracks.running.ordered.select { |t| t.duration_ms.to_i > 0 && t.audio_path && File.exist?(t.audio_path) }
       tracks = playable.reject { |t| t.votable? && out.include?(t.song_id) }
       return tracks if tracks.any? && (tracks.size == playable.size || tracks.any?(&:votable?))
     end

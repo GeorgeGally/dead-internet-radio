@@ -15,12 +15,14 @@ class ReimportShowJob < ApplicationJob
 
     show.update!(
       name: data['showName'] || show.name,
-      dj_name: data['djName'] || show.dj_name,
-      track_count: data['tracks'].length
+      dj_name: data['djName'] || show.dj_name
     )
 
+    # Songs that joined the show from their own folder (requests, remixes)
+    # are not in this folder: the folder's songs are the rest, in order.
+    own = show.tracks.where(folder: nil).ordered.to_a
     data['tracks'].each_with_index do |track_data, idx|
-      track = show.tracks.find_or_initialize_by(position: idx + 1)
+      track = own[idx] || show.tracks.new(position: (show.tracks.maximum(:position) || 0) + 1)
       track.assign_attributes(
         title: track_data['title'],
         artist: track_data['artist'],
@@ -34,6 +36,8 @@ class ReimportShowJob < ApplicationJob
       track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
       track.save!
     end
+
+    show.update!(track_count: show.tracks.running.count)
 
     import_cues(show, root)
     import_mix_file(show, root)

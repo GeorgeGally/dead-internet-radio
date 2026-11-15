@@ -51,7 +51,7 @@ module Admin
       show = @track.show
       remove_audio_files(@track)
       @track.destroy
-      show.update!(track_count: show.tracks.count) if show
+      show.update!(track_count: show.tracks.running.count) if show
       redirect_to admin_show_path(show), notice: "Track '#{@track.title}' removed from show — click Remix to rebuild the mix"
     end
 
@@ -116,7 +116,8 @@ module Admin
     # Moves audio + voiceover files into <show_dir>/.removed/ rather than deleting,
     # so djmix.py (which globs *.mp3 at the top level) skips them but recovery is possible.
     def remove_audio_files(track)
-      return if show_directory_blank?(track)
+      # A request or remix that joined this show keeps its audio in its own folder.
+      return if show_directory_blank?(track) || track.folder.present?
 
       # expand_path handles both relative ("output/show-…") and absolute directories
       show_dir = File.expand_path(track.show.directory, Rails.root)
