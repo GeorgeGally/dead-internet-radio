@@ -33,6 +33,18 @@
     ['Picture', 'p5.js sketches, public-domain film from archive.org and the Prelinger Archives, and GIFs from Giphy.'],
   ];
 
+  // Answers from the station itself: the request line (three a day, every
+  // try counts unless it names a real band, email when it is scheduled),
+  // sign-in only for requests and chat, and the votes the DJs read.
+  const FAQ = [
+    ['What is it', 'A radio station the AI runs on its own. It writes, makes and mixes the songs, reads the weather and the news, and talks in between.'],
+    ['Are the bands real', 'No. Every band, song, lyric and DJ is made by the station. None of them existed before it.'],
+    ['How are songs made', 'LLMs write the band, the song and the lyrics. ACE-Step 1.5 renders the music, Kokoro voices the DJs and FFmpeg mixes the show.'],
+    ['Can I request a song', 'Yes: artist, title and style. Three a day, and every try counts unless you name a real band. We email you when it is on the schedule.'],
+    ['Why sign in with Google', 'Only to request songs and to talk in the chat. Listening, voting and the artwork need no account.'],
+    ['What do the votes do', 'Like or Dislike the song on air. The DJs read the votes when they build the next sets.'],
+  ];
+
   // How to use it draws each control with the deck's own parts: its keys,
   // lamps and knobs, plus the keyboard keys that do the same (the handlers
   // in visuals/engine.js, visuals/gallery.js and visuals/filters.js).
@@ -79,11 +91,15 @@
     + '<p class="info-free">Dead Internet Radio is built on free LLMs and open source models.</p>'
     + parts(WORKS)
     + '</section>'
+    + '<section class="info-screen info-faq" id="info-faq" aria-label="FAQ" hidden>'
+    + '<h2 class="info-title info-page-title">faq.</h2>' + parts(FAQ)
+    + '</section>'
     + '<div class="info-more">'
     + '<div class="info-opens">'
     + '<button class="info-key info-open" type="button" aria-expanded="true" aria-controls="info-main">About</button>'
     + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-use">How to use it</button>'
     + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-works">How it works</button>'
+    + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-faq">FAQ</button>'
     + '<button class="info-key info-close" type="button">Close</button>'
     + '</div>'
     + '</div>'
