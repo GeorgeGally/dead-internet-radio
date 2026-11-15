@@ -87,11 +87,12 @@
       <% if @job.running? %>
         <p class="job-show-link"><%= link_to "Show", admin_show_path(@job.show) %></p>
       <% end %>
-      <% if @job.show.mix_path && File.exist?(@job.show.mix_path) %>
-        <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@job.show) %>"></audio>
-      <% end %>
-      <% unless @job.running? %>
+      <% mix = @job.show.mix_path && File.exist?(@job.show.mix_path) %>
+      <% if @job.running? %>
+        <% if mix %><audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@job.show) %>"></audio><% end %>
+      <% else %>
         <% tracks = @job.show.tracks.ordered.includes(:origin_track) %>
+        <% if mix %><%= render "set_player", show: @job.show, tracks: tracks %><% end %>
         <%= render "admin/shows/tracks", show: @job.show, tracks: tracks,
               mine: Vote.where(voter: Vote::ADMIN, track_id: tracks.map(&:song_id)).pluck(:track_id, :value).to_h %>
       <% end %>
@@ -226,6 +227,7 @@
     function start() {
       clearInterval(clock);
       clearTimeout(poll);
+      if (window.initAdminTables) initAdminTables();
       var log = document.getElementById('output-log');
       if (log) log.scrollTop = log.scrollHeight;
       if (!document.querySelector('.job-detail[data-live]')) return;

@@ -108,3 +108,85 @@ function openSwap(btn) {
   load();
   search.focus();
 }
+
+// The set player names the song the mix is on, marks its row and opens its
+// takes. A song played on its own row is the song playing too.
+function songStarts(table) {
+  var at = 0;
+  return Array.prototype.map.call(table.querySelectorAll('tr[data-track]'), function(row) {
+    var cue = parseFloat(row.dataset.cue);
+    var start = isNaN(cue) ? at : cue;
+    at = start + (parseInt(row.dataset.ms, 10) || 0) / 1000;
+    return { id: row.dataset.track, start: start };
+  });
+}
+function showSong(id) {
+  var player = document.querySelector('[data-set-player]');
+  if (!player || player.dataset.song === id) return;
+  player.dataset.song = id;
+  player.querySelectorAll('.sp-song').forEach(function(el) { el.hidden = el.dataset.track !== id; });
+  document.querySelectorAll('table.songs tr[data-track]').forEach(function(row) {
+    row.classList.toggle('now', row.dataset.track === id);
+  });
+}
+function followMix(audio) {
+  var table = document.querySelector('table.songs');
+  if (!table) return;
+  var starts = songStarts(table), t = audio.currentTime, now = starts[0];
+  starts.forEach(function(s) { if (s.start <= t + 0.25) now = s; });
+  if (now) showSong(now.id);
+}
+['timeupdate', 'seeked', 'play'].forEach(function(type) {
+  document.addEventListener(type, function(e) {
+    if (!e.target.matches || !e.target.matches('[data-set-player] audio.show-mix')) return;
+    if (type === 'play') { trackAudio.pause(); stopAll(); }
+    followMix(e.target);
+  }, true);
+});
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest && e.target.closest('table.songs tr[data-track] .btn-play');
+  if (btn) showSong(btn.closest('tr').dataset.track);
+});
+// A table.sortable sorts by any titled column: press its header, press again
+// to turn the order round. A cell's data-sort, when given, is what it sorts by.
+function sortValue(row, i) {
+  var cell = row.children[i];
+  if (!cell) return '';
+  return (cell.dataset.sort != null ? cell.dataset.sort : cell.textContent).trim();
+}
+function sortTable(th) {
+  var table = th.closest('table'), head = th.parentElement, i = Array.prototype.indexOf.call(head.children, th);
+  var asc = th.getAttribute('aria-sort') !== 'ascending';
+  head.querySelectorAll('th').forEach(function(h) { h.removeAttribute('aria-sort'); });
+  th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
+  var rows = Array.prototype.filter.call(table.querySelectorAll('tr'), function(r) {
+    return r !== head && !r.classList.contains('scrub-row') && r.closest('table') === table;
+  });
+  var values = rows.map(function(r) { return sortValue(r, i); });
+  var numeric = values.every(function(v) { return v === '' || !isNaN(Number(v)); });
+  var order = rows.map(function(r, n) { return n; }).sort(function(a, b) {
+    var x = values[a], y = values[b];
+    if (x === '' || y === '') return x === y ? a - b : (x === '' ? 1 : -1);
+    var c = numeric ? Number(x) - Number(y) : x.localeCompare(y, undefined, { sensitivity: 'base', numeric: true });
+    return (asc ? c : -c) || a - b;
+  });
+  var body = rows[0] && rows[0].parentElement;
+  order.forEach(function(n) { body.appendChild(rows[n]); });
+  if (scrubRow && currentBtn && currentBtn.closest('table') === table) currentBtn.closest('tr').after(scrubRow);
+}
+// Run on load, and again when a generation page swaps in its finished state.
+function initAdminTables() {
+  var player = document.querySelector('[data-set-player]'), first = document.querySelector('table.songs tr[data-track]');
+  if (player && first && !player.dataset.song) showSong(first.dataset.track);
+  document.querySelectorAll('table.sortable tr:first-child th').forEach(function(th) {
+    if (!th.textContent.trim() || th.querySelector('.th-sort')) return;
+    var key = document.createElement('button');
+    key.type = 'button';
+    key.className = 'th-sort';
+    key.textContent = th.textContent.trim();
+    key.addEventListener('click', function() { sortTable(th); });
+    th.textContent = '';
+    th.appendChild(key);
+  });
+}
+document.addEventListener('DOMContentLoaded', initAdminTables);

@@ -638,3 +638,43 @@ table.requests tr:target td { background: rgba(255, 90, 31, 0.1); }
 @media (prefers-reduced-motion: reduce) {
   .busy .btn-submit, .btn-submit:disabled, .loader-sweep .loader-fill, .pulse-dot { animation: none; }
 }
+
+/* Set player: the mix, the song it is on, and that song's takes. */
+.set-player { max-width: 720px; margin: 0 0 40px; }
+.set-player .show-mix { margin: 0 0 20px; max-width: none; }
+.sp-now { display: flex; gap: 14px; align-items: baseline; font-size: 18px; margin: 0 0 16px; }
+.sp-pos { color: #c03f0d; font-variant-numeric: tabular-nums; }
+.sp-takes { list-style: none; margin: 0 0 8px; }
+.sp-takes li {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06); font-size: 14px;
+}
+.sp-takes li.in-set .sp-take { color: #c03f0d; }
+.btn-play-gap { width: 32px; flex-shrink: 0; }
+.sp-take { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+.sp-take .scrub { flex-basis: 100%; margin-top: 8px; }
+.sp-notes { color: #6f6a61; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.sp-takes form.sp-use { display: inline; margin: 0; }
+.sp-use .btn-key { height: 32px; }
+.sp-wait { font-size: 13px; color: #6f6a61; }
+.sp-remix { padding: 24px 0 0; }
+.songs tr.now td { background: rgba(192, 63, 13, 0.07); }
+.songs tr.now td:nth-child(2) a, .songs tr.now td:nth-child(2) { color: #c03f0d; }
+
+/* Sortable headers: the header is the key; the order shows beside it. */
+.th-sort {
+  border: none; background: none; padding: 0; cursor: pointer;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+}
+.th-sort:hover { color: #1a1a1a; }
+th[aria-sort] .th-sort { color: #1a1a1a; }
+th[aria-sort="ascending"] .th-sort::after { content: " \25B2"; font-size: 9px; }
+th[aria-sort="descending"] .th-sort::after { content: " \25BC"; font-size: 9px; }
+
+@media (max-width: 600px) {
+  .sp-now { font-size: 16px; }
+  .sp-remix { flex-wrap: wrap; }
+  .sp-remix .rerender-notes { flex: 1 1 100%; max-width: none; }
+}
+.songs td.genre { white-space: normal; min-width: 120px; }
+

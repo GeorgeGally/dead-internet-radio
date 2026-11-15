@@ -25,12 +25,16 @@ module Admin
       render partial: 'swap_options'
     end
 
+    # From the set player, the chosen take goes in and the mix is made again.
     def swap
       track = Track.find(params[:id])
       SetSwap.swap!(track, Track.find(params[:song_id]))
-      redirect_to admin_show_path(track.show), notice: "Swapped in #{track.reload.artist} — #{track.title}"
+      RemixShowJob.perform_later(track.show_id) if params[:remix].present?
+      notice = "Swapped in #{track.reload.artist} — #{track.title}"
+      notice += ". Remixing the set." if params[:remix].present?
+      redirect_to back_path || admin_show_path(track.show), notice: notice
     rescue SetSwap::Error => e
-      redirect_to admin_show_path(track.show), alert: e.message
+      redirect_to back_path || admin_show_path(track.show), alert: e.message
     end
 
     def destroy
@@ -72,7 +76,7 @@ module Admin
                                              'instructions' => params[:instructions].to_s.strip.first(400).presence,
                                              'show_name' => "#{song.artist} — #{song.title}" }.compact)
       RerenderTrackJob.perform_later(job.id)
-      redirect_to admin_track_path(song), notice: "Remix queued: a new take of #{song.artist} — #{song.title}."
+      redirect_to back_path || admin_track_path(song), notice: "Remix queued: a new take of #{song.artist} — #{song.title}."
     end
 
     # The station's own like: a vote from "admin" on the song, counted with
@@ -86,6 +90,12 @@ module Admin
     end
 
     private
+
+    # Where a form on another admin page asked to come back to.
+    def back_path
+      back = params[:back].to_s
+      back if back.start_with?("/admin/") && !back.start_with?("//")
+    end
 
     # Moves audio + voiceover files into <show_dir>/.removed/ rather than deleting,
     # so djmix.py (which globs *.mp3 at the top level) skips them but recovery is possible.

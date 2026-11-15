@@ -99,6 +99,17 @@ class Track < ApplicationRecord
     nil
   end
 
+  # The genre the caption opens with ("Electroclash, 130 BPM…"), when it opens
+  # with one: a few words before the tempo, key or first comma.
+  def genre
+    lead = sound_caption.to_s.tr("\u00a0\u202f", "  ")
+                        .split(/[,.;:(—–]|\s(?:at|in|with|of)\s|\s\d+\s*bpm/i, 2).first.to_s.strip
+                        .sub(/\A(?:an?|the)\s+/i, "")
+    return nil if lead.empty? || lead.length > 32 || lead.split.size > 3 || lead.match?(/\d|bpm/i)
+
+    lead[0].upcase + lead[1..]
+  end
+
   private
 
   def resolve_media(rel)

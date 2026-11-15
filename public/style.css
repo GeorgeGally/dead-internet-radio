@@ -2336,7 +2336,9 @@ body.slot-preview #info-btn { display: none !important; }
 body.set-open #info-btn,
 body.set-open #info-card { display: none; }
 
-@media (min-width: 768px) and (max-width: 1439px) {
+/* Board "Set tracklist", Continuity 834: the inset panel with wide sides, on
+   every screen wider than a phone. */
+@media (min-width: 768px) {
   .set-column {
     width: 881px;
     max-width: 100%;
