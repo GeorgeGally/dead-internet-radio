@@ -47,10 +47,10 @@ class AdminGenerationPreviewTest < ActionDispatch::IntegrationTest
     assert_select "#generation-form input[name=crossfade][value='4']"
 
     post admin_generation_index_path, params: { slot: "robot club", track_count: "", crossfade: "" }
-    assert_equal [10, 4], [GenerationJob.last.track_count, GenerationJob.last.crossfade]
+    assert_equal [ 10, 4 ], [ GenerationJob.last.track_count, GenerationJob.last.crossfade ]
 
     post admin_generation_index_path, params: { slot: "robot club", track_count: 3, crossfade: 7 }
-    assert_equal [3, 7], [GenerationJob.last.track_count, GenerationJob.last.crossfade.to_i]
+    assert_equal [ 3, 7 ], [ GenerationJob.last.track_count, GenerationJob.last.crossfade.to_i ]
   end
 
   test "with preview the plan is written first and nothing is rendered" do
