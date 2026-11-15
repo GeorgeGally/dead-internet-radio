@@ -779,7 +779,7 @@ body.prewarming #block-canvas {
   border-top: 1px solid rgba(255, 255, 255, 0.18);
   /* The captain's key-row position from the final board design, at every size,
      as spacing so the row never rides up over the page above it. */
-  margin: 0 0 96px -12px;
+  margin: 0 12px 96px -12px;
 }
 
 /* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
