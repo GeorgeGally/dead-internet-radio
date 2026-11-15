@@ -360,6 +360,9 @@ def check_ace_step_health():
 
 
 REGISTER_LINE = "Everything in the low and mid register; the melody stays in the bass."
+# Kicks and percussion kept coming out harsh, and the bass thin (listening,
+# 2026-11): the DJ asks for crunch and ACE-Step puts it on the drums.
+MIX_LINE = "A soft, rounded kick and quiet dry percussion sit under a deep, full, modern bass."
 
 
 def station_caption(caption: str) -> str:
@@ -372,9 +375,10 @@ def station_caption(caption: str) -> str:
     caption = caption.strip()
     # Arpeggios too: the good ones were bass sequences, the high ones cheese
     # (sound lab round 4), so the register line stays on.
-    if "low and mid register" in caption.lower():
-        return caption
-    return f"{caption} {REGISTER_LINE}"
+    for line in (REGISTER_LINE, MIX_LINE):
+        if line.lower() not in caption.lower():
+            caption = f"{caption} {line}"
+    return caption
 
 
 def call_ace_step(payload: dict) -> str:
@@ -758,6 +762,36 @@ PLAN_PREFIX = "plan "
 PLAN_SONG_KEYS = ("title", "artist", "caption", "lyrics", "bpm", "keyscale", "duration")
 
 
+def shared_artist_tracks(count: int) -> list[int]:
+    """Track numbers played by one act: two in a set of four or more, three
+    from eight, never back to back."""
+    size = 3 if count >= 8 else 2 if count >= 4 else 0
+    while size:
+        picks = sorted(random.sample(range(1, count + 1), size))
+        if all(b - a > 1 for a, b in zip(picks, picks[1:])):
+            return picks
+    return []
+
+
+def share_artists(songs: list, numbers: list[int]) -> list:
+    """Songs by one artist sound like one act: the same name and the same
+    sound sentence in every caption. The DJ is asked to repeat the sound word
+    for word; this makes sure it does."""
+    if numbers and all(0 < n <= len(songs) for n in numbers):
+        act = [songs[n - 1] for n in numbers]
+        name = next((str(s.get("artist") or "").strip() for s in act if str(s.get("artist") or "").strip()), "")
+        sound = next((str(s.get("sound") or "").strip() for s in act if s.get("sound")), "")
+        for song in act:
+            if name:
+                song["artist"] = name
+            caption = str(song.get("caption") or "").strip()
+            if sound and sound.lower() not in caption.lower():
+                song["caption"] = f"{caption} {sound}".strip()
+    for song in songs:
+        song.pop("sound", None)
+    return songs
+
+
 def plan_song(song: dict) -> dict:
     """The fields ACE-Step is sent for one song, as the plan shows and keeps them."""
     return {key: song.get(key) for key in PLAN_SONG_KEYS}
@@ -1036,6 +1070,19 @@ def main():
         # --- BATCH MODE: compose all tracks in one LLM call ---
         if not plan and not args.no_batch:
             print(f"3. DJ composing {args.tracks} tracks (batch)...", flush=True)
+            shared = shared_artist_tracks(args.tracks)
+            one_act = ""
+            if shared:
+                tracks_named = ", ".join(str(n) for n in shared[:-1]) + f" and {shared[-1]}"
+                one_act = (
+                    f"\nONE ARTIST, SEVERAL TRACKS — tracks {tracks_named} are by the same artist, "
+                    f"so they must sound like one act:\n"
+                    f"- The same artist name on each of them.\n"
+                    f"- A \"sound\" field on each: one sentence naming that act's drum machine, bass, "
+                    f"synths, voice and room, word for word the same on every one of its tracks.\n"
+                    f"- Their captions carry that same sound; each track still has its own title, melody, key and tempo.\n"
+                    f"- Every other track is by a different artist.\n"
+                )
             if args.delay > 0:
                 print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
                 time.sleep(args.delay)
@@ -1048,19 +1095,21 @@ def main():
                 f"- Different keys — no repeats across all {args.tracks} tracks\n"
                 f"- Genre: whatever the slot or brief asks for, any genre or blend (e.g. 'slomo disco', 'electroclash'), vary the tracks within it; with only a mood or time, choose freely in the station's sound. Follow the DJ lessons so it never turns cheesy. When the slot names a genre, every caption starts with that genre word and at most one track leans into a neighbouring genre. Play the genre at its own tempo and beat (electroclash and techno 125+ BPM, four-on-the-floor). Party words (party, club, banger, dancefloor, rave) mean four-on-the-floor bangers at the top of the genre's range. Mood words make tracks slower and darker, never ambient or drone; every track has drums, 90 BPM or more\n"
                 f"- Different basslines, synth palettes and textures; the drum pattern is the genre's own\n"
-                f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n\n"
+                f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n"
+                f"{one_act}\n"
                 f"Guidance:\n"
                 f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
                 f"- When vocals are present, sparse and atmospheric.\n"
                 f"- When a caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                 f"- Vary the sonic palette across the set.\n\n"
                 f"Output a JSON array of {args.tracks} objects, each with: "
-                f"title, artist, caption, lyrics, bpm, keyscale, duration."
+                f"title, artist, caption, lyrics, bpm, keyscale, duration"
+                f"{', and sound on the tracks by the shared artist' if shared else ''}."
                 f"{avoid}"
             )
 
             song_json = call_llm(dj_prompt, dj_input)
-            songs = extract_json_array(song_json)
+            songs = share_artists(extract_json_array(song_json), shared)
 
             if len(songs) < 2:
                 print(f"  WARNING: Batch returned only {len(songs)} tracks, falling back to per-track mode",

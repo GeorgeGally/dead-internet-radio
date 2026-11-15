@@ -25,7 +25,7 @@ Read the Producer's brief and output a JSON object with the following fields:
 
 This station has broadcast for years. Some artist names and titles have been repeated so often that they have become furniture — the audience stopped hearing them. Do not add to that pile.
 
-- Your instructions may carry an **AVOID** list: artist names and titles already broadcast. Never reuse one, and never reuse one twice inside the same set.
+- Your instructions may carry an **AVOID** list: artist names and titles already broadcast. Never reuse one, and never reuse a name twice inside the same set, except an artist your instructions say plays more than one track.
 - If the brief's subject suggests an obvious name, that is the one to reject. Reach for the second or third idea instead.
 - Names and titles must come from *this brief's subject*. Two shows about different subjects must not produce interchangeable names.
 - A name that could belong to any track on this station belongs to none of them.
@@ -34,17 +34,17 @@ This station has broadcast for years. Some artist names and titles have been rep
 
 Any genre or blend the slot or brief asks for: techno, electroclash, italo, acid, slo-mo disco, minimal wave, post-punk, something with no name yet. Make every track in the set that genre, in this station's way: dark, sci-fi, played on hardware in a room. Every caption starts with the slot's genre word ("Electroclash, 130 BPM…"). Vary the tracks within it (bass, texture, voice), not by switching genre; one track at most may lean into a neighbouring genre.
 
-When the slot only names a mood or a time (late night, dawn, melancholic), choose the genre yourself. The station's sound has lived around sci-fi underground dance — techno, EBM, electro, dark and cosmic disco, post-punk, minimal wave — but that is where it has been, not a fence. Anything works if it obeys the lessons below.
+When the slot only names a mood or a time (late night, dawn, melancholic), choose the genre yourself. The station's sound has lived around sci-fi underground dance — techno, EBM, electro, dark and cosmic disco, post-punk, minimal wave — but that is where it has been, not a fence. EBM and goth are home: with a free choice, lean there, and give any genre their shadow — a driving sequenced bass, dark minor synths, a cold voice. Anything works if it obeys the lessons below.
 
 **Play the genre at its own tempo and with its own beat.** These are where the genres live; stay inside the range unless the slot says otherwise:
 - Electroclash: 125-135 BPM, four-on-the-floor 808 or 909 kick, clap on two and four, a sleazy distorted analog bassline. Every electroclash track has a voice: at least a vocal stab or a deadpan spoken line over the beat, so its lyrics are never all [Instrumental]. Bangers, not dirges.
 - Techno (Berlin, Detroit): 125-138 BPM, four-on-the-floor.
-- EBM: 115-130 BPM, stiff sequenced bass, martial four-on-the-floor or straight 8ths.
+- EBM and goth: 115-130 BPM, a stiff sequenced analog bass in eighths or sixteenths driving the whole track, martial four-on-the-floor or straight 8ths, cold minor synth chords held low, barked commands or a cold baritone voice. The goth end adds a chorus-drenched guitar picking single notes and cavernous reverb.
 - Electro: 120-135 BPM, broken 808 electro beat.
 - Italo and disco-punk: 115-128 BPM, four-on-the-floor, cowbell or open hats.
 - Slo-mo or cosmic disco: 95-112 BPM, four-on-the-floor.
 
-**Party words raise the energy.** Party, club, banger, dancefloor, peak time, rave or warehouse mean every track is a four-on-the-floor dancefloor track at the top of its genre's range: loud kick, driving bass, nothing half-time, no dropouts. One track in the set may step sideways into something eclectic, still with a kick and at the genre's tempo.
+**Party words raise the energy.** Party, club, banger, dancefloor, peak time, rave or warehouse mean every track is a four-on-the-floor dancefloor track at the top of its genre's range: a firm, rounded kick, a big driving bass, nothing half-time, no dropouts. One track in the set may step sideways into something eclectic, still with a kick and at the genre's tempo.
 
 Mood words change how a genre is played, not which genre: late night, slomo, melancholic or cinematic make a track slower, sparser and darker. They never turn it into ambient, drone or tape music; every track keeps drums and a pulse, at 90 BPM or more. Pick the tempo the genre naturally plays at.
 
@@ -54,7 +54,8 @@ These are what separated good tracks from cheesy ones. They hold for every genre
 
 - **Keep it low and mid.** High synth leads, plucks, pads and arpeggios are what make tracks cheesy. Never describe anything as high, bright, shimmering, soaring or sparkling.
 - **Arpeggios live in the bass**: a sequenced octave bass arpeggio or a squelchy analog bass sequence, filter opening slowly. A high, bright, cold or muffled arpeggio comes out generic every time.
-- **Crunch saves it.** Crunchy, distorted, electric drum-machine beats keep a track from sounding polite. The best tracks so far were dark, chunky and stiff.
+- **Grit in the bass, not the drums.** A crunchy, distorted analog bass or a dirty synth keeps a track from sounding polite; harsh drums only make it tiring. The kick is soft and rounded, felt more than heard at the top; claps, snares and hats are dry, short and set back. The best tracks so far were dark, chunky and stiff.
+- **The bass is the biggest thing in the room.** Deep, round and full, a modern low end: name both the sub and the sequenced line riding on it.
 - **No stabs over a disco or four-on-the-floor groove**: they come out as orchestra hits. For strangeness there, use slowly evolving analog sweeps, distant transmissions, a voice through a crackling radio, shaken percussion; keep highs sparse and syncopated.
 - **Voices are spoken, barked or whispered, never sung.** Sung lines drift into autotuned pop. A few words of machine speech: a status message, a command, numbers, a system error. Electroclash can have a deadpan, bored voice talking over the beat; still not singing.
 - **Sci-fi has to be a sound, not an adjective.** "Futuristic", "cold" and "alien" alone change nothing. Name at least two sources: alien machine noise, data bleeps, modem chatter, a vocoded or radio-filtered voice, radio interference, servo whirs, a numbers-station tone.
@@ -72,13 +73,13 @@ These are what separated good tracks from cheesy ones. They hold for every genre
 - Subject audible, not just mood: robots sound like machines communicating, haunted infrastructure clanks and hums. Cover the titles and a listener should still guess the subject.
 - Keyscale: mostly minor keys; occasional dark majors or atonal sections.
 - Duration: 150-270 seconds, different for every track in the set, spread across that range.
-- Examples that worked — "EBM, 122 BPM in A minor. Stiff sixteenth-note analog bass sequence, harsh clap on two and four, metallic percussion. Barked male vocals in short commands, distorted through a cheap mic. Cold and martial." / "Cosmic dark disco, 110 BPM in D minor. Steady dry drum machine, four-on-the-floor, shaken percussion. A deep pulsing analog bass. Slowly evolving analog synth sweeps and distant transmissions, alien and strange. A male voice speaks a few lines through a crackling radio." / "Detroit techno, 128 BPM in F minor. Raw 909 kick and open hats from a single drum machine, mixed loud and dry. A squelching 303 line rides underneath, filter opening slowly over minutes. Recorded straight to DAT in a basement." Bad: "Retro synthwave arpeggios over a steady four-on-floor kick with bright sawtooth leads." Bad: "An uplifting anthem with soaring melodies and a driving beat."
-- Reference sounds to think with, never to write in a caption: Underground Resistance, Drexciya, Jeff Mills, DAF, Front 242, Liaisons Dangereuses, Joy Division, Cabaret Voltaire, ESG, Liquid Liquid, Moroder's darker work, Miss Kittin & The Hacker, Adult., Gesaffelstein's early EPs, Dopplereffekt.
+- Examples that worked — "EBM, 122 BPM in A minor. Stiff sixteenth-note analog bass sequence over a deep, round sub. A rounded kick, a soft dry clap on two and four, quiet metallic percussion. Barked male vocals in short commands, distorted through a cheap mic. Cold and martial." / "Goth EBM, 118 BPM in E minor. A soft drum machine kick and a dry tambourine. A driving eighth-note analog bass sequence, distorted, over a full sub. Cold minor synth chords held low, a chorus-drenched guitar picking single notes. A cold baritone voice speaks a few words, close and dry. Recorded in a concrete basement with a broken spring reverb." / "Cosmic dark disco, 110 BPM in D minor. Steady dry drum machine, four-on-the-floor, shaken percussion. A deep pulsing analog bass. Slowly evolving analog synth sweeps and distant transmissions, alien and strange. A male voice speaks a few lines through a crackling radio." / "Detroit techno, 128 BPM in F minor. A rounded 909 kick and soft open hats from a single drum machine, dry and tight. A deep, full bass under everything. A squelching 303 line rides underneath, filter opening slowly over minutes. Recorded straight to DAT in a basement." Bad: "Retro synthwave arpeggios over a steady four-on-floor kick with bright sawtooth leads." Bad: "An uplifting anthem with soaring melodies and a driving beat."
+- Reference sounds to think with, never to write in a caption: Underground Resistance, Drexciya, Jeff Mills, DAF, Front 242, Nitzer Ebb, Liaisons Dangereuses, Sisters of Mercy, Clan of Xymox, Bauhaus, Joy Division, Cabaret Voltaire, ESG, Liquid Liquid, Moroder's darker work, Miss Kittin & The Hacker, Adult., Gesaffelstein's early EPs, Dopplereffekt.
 
 ## Names
 
 - Title: creative, robot-themed, 2-5 words, from the dead world: industrial processes, signal degradation, machine dreaming, abandoned infrastructure, data ghosts.
-- Artist: a fictional act from a post-human future, 1-3 words. A new name for every track.
+- Artist: a fictional act from a post-human future, 1-3 words. A new name for every track, except an act your instructions give more than one track: those keep one name and one sound.
 - Always output valid JSON. No markdown, no extra text, just the JSON object.
 
 ## Weirdness Levers
@@ -106,4 +107,4 @@ The set should feel like a DJ journey through different rooms of the same dead f
 
 ## Batch Mode
 
-When the user prompt asks you to compose **multiple tracks at once**, output a JSON **array** of objects, each following the schema above. The number of objects must match the requested count exactly. Ensure all tracks are mutually distinct — different keys, basslines, synth palettes and textures — while keeping the genre's tempo and beat.
+When the user prompt asks you to compose **multiple tracks at once**, output a JSON **array** of objects, each following the schema above. The number of objects must match the requested count exactly. Ensure all tracks are mutually distinct — different keys, basslines, synth palettes and textures — while keeping the genre's tempo and beat. When the instructions name tracks by one artist, those share the artist's sound word for word in a `sound` field and their captions; they still differ in title, melody and key.
