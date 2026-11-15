@@ -18,10 +18,14 @@ class SetSwap
     songs.sort_by { |s| [ bpm.positive? && s.bpm ? (s.bpm.to_f - bpm).abs : 999, -s.score, -s.id ] }.first(limit)
   end
 
+  def self.ensure_off_air!(track, at: Time.current)
+    raise Error, "It's on air right now" if BroadcastSegment.where(track: track).where("starts_at <= ? AND ends_at > ?", at, at).exists?
+  end
+
   def self.swap!(track, song, at: Time.current)
     raise Error, "Only a set's songs can be swapped" unless track.origin_track_id && track.show&.kind == "set"
     raise Error, "That song isn't in the library" unless Track.songs.exists?(song.id) && song.audio_path && File.exist?(song.audio_path)
-    raise Error, "It's on air right now" if BroadcastSegment.where(track: track).where("starts_at <= ? AND ends_at > ?", at, at).exists?
+    ensure_off_air!(track, at: at)
 
     dir = Rails.root.join("output", track.show.directory)
     prefix = track.audio_file.to_s[/\A\d+/] || format("%02d", track.position - 1)
@@ -56,7 +60,7 @@ class SetSwap
     raise Error, "Only a set's songs can be swapped" unless track.origin_track_id && track.show&.kind == "set"
     song = track.song
     raise Error, "That song isn't in the library" unless song.audio_path && File.exist?(song.audio_path)
-    raise Error, "It's on air right now" if BroadcastSegment.where(track: track).where("starts_at <= ? AND ends_at > ?", at, at).exists?
+    ensure_off_air!(track, at: at)
 
     dir = Rails.root.join("output", track.show.directory)
     prefix = track.audio_file.to_s[/\A\d+/] || format("%02d", track.position - 1)

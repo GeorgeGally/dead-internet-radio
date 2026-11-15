@@ -30,8 +30,10 @@ module Admin
       track = Track.find(params[:id])
       notice = if params[:replaced].present?
         song = track.song
+        in_set = track.origin_track_id && track.show&.kind == "set"
+        SetSwap.ensure_off_air!(track) if in_set
         SongReplaced.apply!(song, params[:replaced].to_s)
-        SetSwap.resync!(track) if track.origin_track_id && track.show&.kind == "set"
+        SetSwap.resync!(track) if in_set
         "Using #{song.reload.artist} — #{song.title}"
       else
         SetSwap.swap!(track, Track.find(params[:song_id]))

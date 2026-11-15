@@ -28,11 +28,11 @@ module SongTakes
     def in_set?(slot)
       return false unless slot.origin_track_id
 
-      if remix?
-        song&.id == slot.song_id
-      else
-        active? && song.id == slot.song_id
-      end
+      return song&.id == slot.song_id if remix?
+
+      mine = audio_path
+      held = slot.audio_path
+      song.id == slot.song_id && mine&.exist? && held&.exist? && File.identical?(held, mine)
     end
 
     def label(newest_replaced_stamp)
