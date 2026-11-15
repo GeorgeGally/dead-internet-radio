@@ -783,7 +783,7 @@ body.prewarming #block-canvas {
 
 /* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
 @media (min-width: 1001px) {
-  #info-card { padding-left: 88px; padding-right: 88px; }
+  #info-card { padding: 64px 124px; }
   .info-title span:nth-of-type(n),
   #info-card .info-page-title { font-size: 64px; }
   .info-lore { max-width: none; columns: 2; column-gap: 56px; }
@@ -933,7 +933,8 @@ body.prewarming #block-canvas {
 .info-fig .abtn,
 .info-fig .rams-knob,
 .info-fig .fx-on { display: block; }
-.info-fig .fx-on { text-align: center; }
+.info-fig .fx-on { min-width: 0; height: 12px; text-align: center; }
+.info-fig .fx-row { height: 15px; }
 
 .info-fig .fx-lcd {
   width: auto;
