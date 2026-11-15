@@ -302,7 +302,7 @@ body.prewarming #block-canvas {
   transition-delay: 0s !important;
 }
 
-/* The keys hang from the top; the 11px under them keeps the deck's lights on one line. */
+/* The keys hang from the top; the 4px above and 7px below them keep the deck's lights on one line. */
 .deck-transport {
   flex-shrink: 0;
   display: flex;
