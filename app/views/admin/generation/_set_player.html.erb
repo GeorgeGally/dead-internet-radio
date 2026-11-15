@@ -1,0 +1,41 @@
+<%# The mix, the song it is on now and that song's takes: hear each one, use one in the set (the mix is made again with it), or ask for a new remix. %>
+<div class="set-player" data-set-player>
+  <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(show) %>"></audio>
+  <% tracks.each do |track| %>
+    <div class="sp-song" data-track="<%= track.id %>" hidden>
+      <p class="sp-now"><span class="sp-pos"><%= format("%02d", track.position) %></span> <span class="sp-name"><%= track.artist %> — <%= track.title %></span></p>
+      <% if track.song.votable? %>
+        <ol class="sp-takes">
+          <% SongTakes.for(track.song).each do |take| %>
+            <% song = take.song %>
+            <li class="<%= 'in-set' if song && song.id == track.song_id %>">
+              <% if song&.audio_path && File.exist?(song.audio_path) %>
+                <button type="button" class="btn-play" data-src="<%= media_track_path(song) %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+              <% else %>
+                <span class="btn-play-gap"></span>
+              <% end %>
+              <span class="sp-take" data-scrub>
+                <%= take.original? ? "Original" : "Remix #{take.number}" %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %>
+              </span>
+              <% if song.nil? %>
+                <%= link_to(take.job.pending? ? "Queued" : "Rendering", admin_generation_path(take.job), class: "sp-wait") %>
+              <% elsif song.id != track.song_id && track.origin_track_id && show.kind == "set" %>
+                <%= button_to "Use", swap_admin_track_path(track), params: { song_id: song.id, remix: 1, back: request.path },
+                      class: "btn-key btn-key-go", form: { class: "sp-use" },
+                      data: { confirm: "Put #{take.original? ? 'the original' : "remix #{take.number}"} in the set and remix the set?" } %>
+              <% end %>
+            </li>
+          <% end %>
+        </ol>
+        <% if track.song.prompt_log['payload'].present? %>
+        <%= form_tag remix_admin_track_path(track), class: "rerender-form sp-remix" do %>
+          <%= hidden_field_tag :back, request.path %>
+          <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+                 placeholder="More vocal stabs, faster, add a 303 line…">
+          <button type="submit" class="btn-key">Remix</button>
+        <% end %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>
