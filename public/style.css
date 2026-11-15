@@ -309,7 +309,7 @@ body.prewarming #block-canvas {
   align-items: flex-start;
   gap: 12px;
   align-self: center;
-  padding-bottom: 11px;
+  padding: 4px 0 7px;
 }
 
 /* Waveform now lives inside the LED screen (see .npd-wave). */
