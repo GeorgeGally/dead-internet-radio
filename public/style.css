@@ -1264,7 +1264,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-group {
-  flex: 1 1 0;
+  /* Text keeps its old 210px column before the meter takes any room. */
+  flex: 1 1 210px;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1283,8 +1284,8 @@ body.prewarming #block-canvas {
 }
 
 .npd-wave {
-  /* Desktop leftover meter, about 18% narrower, with that width returned to the text columns. */
-  flex: 0.46 1 0;
+  /* Meter only gets room past the text columns, and shares it with them. */
+  flex: 4.5 1 0;
   min-width: 0;
   height: 100%;
   display: block;
