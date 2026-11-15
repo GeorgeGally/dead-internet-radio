@@ -605,7 +605,7 @@ const gallery = (() => {
     updateSlotUI();
   }
 
-  // Point the dial at a slot without loading it (used when saving into it).
+  // Point the dial at a slot without loading it.
   function selectSlot(slot) {
     if (slot < 1 || slot > 9) return;
     activeSlot = slot;
