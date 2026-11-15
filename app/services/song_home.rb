@@ -40,7 +40,7 @@ module SongHome
   def self.booked_home(segment)
     own = segment.track.show_id
     prev = segment
-    prev = before(prev) while prev && (prev == segment || prev.source == "request")
+    prev = before(prev) while prev && (prev == segment || (prev.source == "request" && !in_show?(prev, own)))
     return [ prev.track.show, prev.track.position + 1 ] if prev && in_show?(prev, own)
 
     after = BroadcastSegment.where("starts_at >= ?", segment.starts_at).where.not(id: segment.id)

@@ -23,6 +23,21 @@ class SongHomeTest < ActiveSupport::TestCase
     assert_equal request, seg.reload.track
   end
 
+  test "back-to-back requests keep the order they aired in" do
+    first = one_song_show("request")
+    second = one_song_show("request")
+    BroadcastSegment.create!(track: @songs[0], starts_at: 1.minute.ago, ends_at: 2.minutes.from_now)
+    seg1 = BroadcastSegment.create!(track: first, source: "request", starts_at: 2.minutes.from_now, ends_at: 5.minutes.from_now)
+    seg2 = BroadcastSegment.create!(track: second, source: "request", starts_at: 5.minutes.from_now, ends_at: 8.minutes.from_now)
+
+    SongHome.settle_request!(first, seg1)
+    SongHome.settle_request!(second, seg2)
+
+    assert_equal [ @show.id, @show.id ], [ first.reload.show_id, second.reload.show_id ]
+    assert_equal [ 2, 3 ], [ first.position, second.position ]
+    assert_equal [ 1, 4, 5 ], @songs.map { |t| t.reload.position }
+  end
+
   test "between shows a request opens the next show" do
     request = one_song_show("request")
     ident = one_song_show("interlude")
