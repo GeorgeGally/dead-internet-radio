@@ -112,8 +112,8 @@ function playerArtworks(onAir) {
   const sandbox = { console, setTimeout() { return 0; }, clearTimeout() {}, document: {}, performance };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens|robots|computers)\.js"/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens', 'robots', 'computers']);
+  const scripts = [...read('index.html').matchAll(/src="visuals\/(engine|prelinger_broll|aliens|robots|computers|space)\.js"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts, ['engine', 'prelinger_broll', 'aliens', 'robots', 'computers', 'space']);
   for (const name of scripts) vm.runInContext(read(`visuals/${name}.js`), sandbox);
   const visuals = vm.runInContext('visuals', sandbox);
   visuals.setEnabled(onAir);
@@ -175,6 +175,19 @@ test('Mainframe has its own drawer tile after Robots, and choosing it plays Main
   assert.ok(fs.existsSync(path.resolve(__dirname, '../public/visuals/thumbs/computers.jpg')));
   tiles[3].click();
   assert.deepEqual(activated, ['computers']);
+});
+
+test('Space has its own drawer tile after Mainframe, and choosing it plays Space', () => {
+  const { visuals, activated } = playerArtworks(['prelinger_broll', 'aliens', 'robots', 'computers', 'space', 'grid']);
+  const d = drawer(visuals);
+  d.gallery.open();
+  const tiles = d.tiles();
+  assert.deepEqual(tiles.map((t) => t.dataset.id), ['prelinger_broll', 'aliens', 'robots', 'computers', 'space']);
+  assert.deepEqual(tiles.map((t) => t.children[0].textContent), ['B-roll', 'Aliens', 'Robots', 'Mainframe', 'Space']);
+  assert.match(tiles[4].style.backgroundImage, /thumbs\/space\.jpg/);
+  assert.ok(fs.existsSync(path.resolve(__dirname, '../public/visuals/thumbs/space.jpg')));
+  tiles[4].click();
+  assert.deepEqual(activated, ['space']);
 });
 
 test('switching Robots off in the admin takes only its tile out of the drawer', () => {

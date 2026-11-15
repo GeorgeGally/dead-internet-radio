@@ -206,7 +206,7 @@ test('giphy holds two buffered clips and keeps them when the artwork leaves', as
 });
 
 function themedPage(id, results) {
-  const page = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js'], [id]);
+  const page = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js', 'space.js'], [id]);
   page.searches = [];
   page.context.fetch = async (url) => {
     page.fetches.push(url);
@@ -223,6 +223,7 @@ function themedPage(id, results) {
 const aliensPage = (results) => themedPage('aliens', results);
 const robotsPage = (results) => themedPage('robots', results);
 const computersPage = (results) => themedPage('computers', results);
+const spacePage = (results) => themedPage('space', results);
 
 const alienFilms = (videos) => videos.filter((v) => v.url?.startsWith('/broll/')).map((v) => v.url.split('/')[2]);
 
@@ -447,8 +448,47 @@ test('Mainframe hands its frame to the filters', async () => {
   assert.deepEqual(filtered, [instances.at(-1).p]);
 });
 
+test('Space plays what its archive.org space searches find, not a fixed list', async () => {
+  const { artworks, context, videos, instances, searches, fetches } = spacePage((q) => (q.includes('title:(rocket') ? ['apollo-11-launch', 'NIX-LV-1998-00035'] : ['1961-11-30_Chimp_into_space']));
+  assert.equal(artworks.space.name, 'Space');
+  await until(() => alienFilms(videos).length === 3);
+  await tick();
+  artworks.space.start();
+  instances.at(-1).p.draw();
+
+  assert.equal(context.__pb.ready, true);
+  assert.equal(instances.at(-1).leaderDrawn, 0);
+  assert.deepEqual(alienFilms(videos).sort(), ['1961-11-30_Chimp_into_space', 'NIX-LV-1998-00035', 'apollo-11-launch']);
+  assert.equal(new Set(searches).size, 2);
+  assert.ok(searches.every((q) => /\brockets?\b/.test(q) && /astronaut/.test(q) && /apollo/.test(q) && /planets/.test(q) && q.endsWith('AND mediatype:movies')));
+  assert.ok(searches.every((q) => q.length <= 500 && q.includes('item_size:[1000000 TO 90000000]') && q.includes('NOT subject:"copyright blocked"')));
+  assert.ok(!searches.some((q) => /ufo|saucer|robot|mainframe/i.test(q)));
+  assert.ok(!fetches.some((url) => url.includes('giphy')));
+});
+
+test('Space with no archive.org results shows nothing else in their place', async () => {
+  const { artworks, context, videos, instances, fetches } = spacePage(() => []);
+  artworks.space.start();
+  await until(() => context.__pb.failed);
+  instances.at(-1).p.draw();
+
+  assert.equal(videos.length, 0);
+  assert.ok(!fetches.some((url) => url.includes('giphy') || url.startsWith('/broll/')));
+  assert.ok(instances.at(-1).leaderDrawn > 0);
+});
+
+test('Space hands its frame to the filters', async () => {
+  const { artworks, context, instances } = spacePage(() => ['apollo-11-launch']);
+  const filtered = [];
+  context.canvasFilters.applyToP5 = (p) => filtered.push(p);
+  artworks.space.start();
+  await until(() => context.__pb.ready && !context.__pb.loading);
+  instances.at(-1).p.draw();
+  assert.deepEqual(filtered, [instances.at(-1).p]);
+});
+
 test('the original B-roll keeps its own themed searches', async () => {
-  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js'], ['prelinger_broll']);
+  const { videos, fetches } = createPage(['prelinger_broll.js', 'aliens.js', 'robots.js', 'computers.js', 'space.js'], ['prelinger_broll']);
   await until(() => videos.filter((v) => v.url?.startsWith('/broll/')).length === 3);
   const searched = fetches.filter((url) => url.includes('broll-index/search')).map(decodeURIComponent);
   assert.ok(searched.some((q) => q.includes('collection:classic_tv_commercials')));
