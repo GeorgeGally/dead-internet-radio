@@ -1595,7 +1595,7 @@ body.prewarming #block-canvas {
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 10.5px;
   line-height: 1.35;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   text-align: center;
   text-transform: uppercase;
   opacity: 0;
