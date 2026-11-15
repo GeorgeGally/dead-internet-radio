@@ -41,6 +41,18 @@ class AdminGenerationPreviewTest < ActionDispatch::IntegrationTest
     refute_predicate GenerationJob.last, :preview?
   end
 
+  test "a set is ten tracks with a four second crossfade unless changed" do
+    get new_admin_generation_path
+    assert_select "#generation-form input[name=track_count][value='10']"
+    assert_select "#generation-form input[name=crossfade][value='4']"
+
+    post admin_generation_index_path, params: { slot: "robot club", track_count: "", crossfade: "" }
+    assert_equal [ 10, 4 ], [ GenerationJob.last.track_count, GenerationJob.last.crossfade ]
+
+    post admin_generation_index_path, params: { slot: "robot club", track_count: 3, crossfade: 7 }
+    assert_equal [ 3, 7 ], [ GenerationJob.last.track_count, GenerationJob.last.crossfade.to_i ]
+  end
+
   test "with preview the plan is written first and nothing is rendered" do
     assert_enqueued_with(job: PlanShowJob) do
       post admin_generation_index_path, params: { slot: "robot club", track_count: 2, preview: "1" }

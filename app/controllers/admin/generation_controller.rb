@@ -13,7 +13,7 @@ module Admin
     def create
       @job = GenerationJob.new(
         slot: params[:slot],
-        track_count: params[:track_count] || 4,
+        track_count: params[:track_count].presence || 10,
         status: :pending,
         options: {
           'dj_name' => params[:dj_name].presence,
