@@ -33,7 +33,7 @@ when its caption requires them. A direction typed beside the button travels as
 the take's `notes`; the producer revises the song from it first (`revise_song`,
 shared with re-render), before the voice guard runs. The original stays untouched. Remix shows are
 excluded from public programmes and from the static site's show manifests, and
-air only through a set. Re-render with
+air only through a set. Edit (the admin label for re-render) with
 notes still replaces the song's audio in place, moving the old file to the
 show's `.replaced/` folder; the set player lists it as a take (`SongTakes`)
 and Use switches back.

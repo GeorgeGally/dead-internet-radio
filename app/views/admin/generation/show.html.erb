@@ -228,6 +228,7 @@
       clearInterval(clock);
       clearTimeout(poll);
       if (window.initAdminTables) initAdminTables();
+      if (window.initTrackJobLoaders) initTrackJobLoaders();
       var log = document.getElementById('output-log');
       if (log) log.scrollTop = log.scrollHeight;
       if (!document.querySelector('.job-detail[data-live]')) return;

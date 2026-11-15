@@ -31,11 +31,26 @@
           <button type="button" class="btn-key" onclick="openSwap(this)" data-options="<%= swap_options_admin_track_path(track) %>">Swap</button>
         <% end %>
         <% if track.song.votable? %>
-          <button type="button" class="btn-key" onclick="openRerender(this)">Re-render</button>
+          <button type="button" class="btn-key"
+                  data-edit-url="<%= rerender_admin_track_path(track) %>"
+                  data-remix-url="<%= remix_admin_track_path(track) %>"
+                  onclick="openNotes(this, 'edit')">Edit</button>
+          <% if track.song.prompt_log["payload"].present? %>
+            <button type="button" class="btn-key"
+                    data-edit-url="<%= rerender_admin_track_path(track) %>"
+                    data-remix-url="<%= remix_admin_track_path(track) %>"
+                    onclick="openNotes(this, 'remix')">Remix</button>
+          <% end %>
         <% end %>
         <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn-quiet", form: { style: "display:inline" }, data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
       </td>
     </tr>
+    <% if (job = pending_track_job_for(track.song)) %>
+    <tr class="track-job-row">
+      <td></td>
+      <td colspan="8"><%= render "admin/shared/track_job_loader", job: job, compact: true %></td>
+    </tr>
+    <% end %>
     <tr class="swap-row" hidden>
       <td></td>
       <td colspan="8">
@@ -43,14 +58,18 @@
         <div class="swap-results"></div>
       </td>
     </tr>
-    <tr class="rerender-row" hidden>
+    <tr class="notes-row" hidden
+        data-edit-hint="<%= Admin::TrackJobsHelper::EDIT_HINT %>"
+        data-remix-hint="<%= Admin::TrackJobsHelper::REMIX_HINT %>">
       <td></td>
       <td colspan="8">
-        <%= form_tag rerender_admin_track_path(track), class: "rerender-form" do %>
+        <%= form_tag rerender_admin_track_path(track), class: "rerender-form notes-form" do %>
+          <%= hidden_field_tag :back, request.path %>
           <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
                  placeholder="What to change: slower, darker bass, no hi-hats, more space…">
-          <button type="submit" class="btn-key btn-key-go">Render</button>
+          <button type="submit" class="btn-key btn-key-go notes-submit">Edit</button>
         <% end %>
+        <p class="action-hint meta notes-hint"><%= Admin::TrackJobsHelper::EDIT_HINT %></p>
       </td>
     </tr>
   <% end %>

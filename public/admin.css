@@ -414,10 +414,16 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 }
 .scrub-time { font-size: 11px; color: #6f6a61; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.render-progress { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-width: 180px; text-decoration: none; }
-.render-progress .progress-bar { flex: 1; height: 4px; display: block; }
-.render-progress .progress-fill { display: block; background: #c03f0d; }
-.render-stage { font-size: 11px; color: #6f6a61; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.action-hint { margin: 8px 0 12px; font-size: 14px; line-height: 1.45; max-width: 52em; }
+.track-job-loader { margin: 10px 0 0; max-width: 360px; }
+.track-job-loader--compact { margin: 8px 0 0; max-width: 280px; }
+.track-job-loader--compact .loader-bar { height: 6px; }
+.track-job-loader--compact .loader-line { margin-top: 8px; font-size: 13px; gap: 12px; }
+.track-job-loader__link { display: block; color: inherit; text-decoration: none; }
+.track-job-loader__link:hover .loader-stage { color: #1a1a1a; }
+.track-job-failed .loader-fill { background: #8a3b2a; }
+.track-job-failed .loader-stage { color: #8a3b2a; white-space: normal; }
+.track-job-row td { padding-top: 0; border-top: none; }
 
 /* Small square-shouldered keys in the request-page style. */
 .btn-key {

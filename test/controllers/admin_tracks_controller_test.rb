@@ -97,6 +97,7 @@ class AdminTracksControllerTest < ActionDispatch::IntegrationTest
     post remix_admin_track_path(@track), params: { instructions: "  faster, add a 303 line  " }
     job = GenerationJob.last
     assert_redirected_to admin_track_path(@track)
+    assert_equal "Remixing Test Artist — Bad Track", flash[:notice]
     assert_equal "faster, add a 303 line", job.options["instructions"]
 
     installed = AceStepManager.method(:installed?)

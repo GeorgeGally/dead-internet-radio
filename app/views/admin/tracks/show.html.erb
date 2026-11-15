@@ -25,21 +25,32 @@
   </div>
 <% end %>
 
+<% if (job = pending_track_job_for(@song)) %>
+  <section class="track-section">
+    <%= render "admin/shared/track_job_loader", job: job %>
+  </section>
+<% end %>
+
 <% if @song.votable? %>
   <section class="track-section">
-    <h3>What's wrong with it?</h3>
+    <h3>Edit</h3>
+    <p class="action-hint meta"><%= Admin::TrackJobsHelper::EDIT_HINT %></p>
     <%= form_tag rerender_admin_track_path(@song), class: "rerender-form" do %>
       <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
              placeholder="Slower, darker bass, no hi-hats, more space…">
-      <button type="submit" class="btn-key btn-key-go">Re-render</button>
+      <button type="submit" class="btn-key btn-key-go">Edit</button>
     <% end %>
   </section>
   <% if @payload.present? %>
-    <%= form_tag remix_admin_track_path(@song), class: "rerender-form remix-form" do %>
-      <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
-             placeholder="More vocal stabs, faster, add a 303 line…">
-      <button type="submit" class="btn-key">Remix</button>
-    <% end %>
+    <section class="track-section">
+      <h3>Remix</h3>
+      <p class="action-hint meta"><%= Admin::TrackJobsHelper::REMIX_HINT %></p>
+      <%= form_tag remix_admin_track_path(@song), class: "rerender-form remix-form" do %>
+        <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+               placeholder="More vocal stabs, faster, add a 303 line…">
+        <button type="submit" class="btn-key">Remix</button>
+      <% end %>
+    </section>
   <% end %>
 <% end %>
 
