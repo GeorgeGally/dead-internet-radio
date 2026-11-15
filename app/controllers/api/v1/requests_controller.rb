@@ -8,8 +8,12 @@ module Api
 
       def index
         requests = current_user.song_requests.recent.limit(20).to_a
-        airs = BroadcastSegment.next_for(requests.filter_map(&:track_id))
-        render json: requests.map { |r| request_json(r).merge(airs_at: airs[r.track_id]&.starts_at) }
+        song_ids = requests.filter_map(&:track_id)
+        airs = BroadcastSegment.next_for(song_ids)
+        aired = BroadcastSegment.last_aired_for(song_ids)
+        render json: requests.map { |r|
+          request_json(r).merge(airs_at: airs[r.track_id]&.starts_at, aired_at: aired[r.track_id]&.starts_at)
+        }
       end
 
       def create

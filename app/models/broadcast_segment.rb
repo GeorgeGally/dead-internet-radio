@@ -14,6 +14,16 @@ class BroadcastSegment < ApplicationRecord
                 .includes(:track).group_by { |s| s.track.song_id }.transform_values(&:first)
   end
 
+  # Each song's latest airing that has started, keyed by song id: where a
+  # request went once it has played and nothing is booked ahead.
+  def self.last_aired_for(song_ids, at = Time.current)
+    return {} if song_ids.blank?
+
+    where("starts_at <= ?", at).order(starts_at: :desc).joins(:track)
+      .where("COALESCE(tracks.origin_track_id, tracks.id) IN (?)", song_ids)
+      .includes(:track).group_by { |s| s.track.song_id }.transform_values(&:first)
+  end
+
   # The shape the player reads, from /broadcast and /airing alike.
   def to_api
     t = track

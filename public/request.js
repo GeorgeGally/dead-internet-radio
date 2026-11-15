@@ -224,8 +224,9 @@ const requestLine = (() => {
 
   function whereItIs(req) {
     if (req.status !== 'scheduled') return WHERE[req.status];
-    if (!req.airs_at) return 'Aired';
-    return 'Airs ' + new Date(req.airs_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const clock = (at) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (req.airs_at) return 'Airs ' + clock(req.airs_at);
+    return req.aired_at ? 'Aired ' + clock(req.aired_at) : 'Aired';
   }
 
   // A rendered request plays here. The radio stops for it and comes back after.
