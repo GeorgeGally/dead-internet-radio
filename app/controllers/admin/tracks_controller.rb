@@ -51,7 +51,7 @@ module Admin
       show = @track.show
       remove_audio_files(@track)
       @track.destroy
-      show.update!(track_count: show.tracks.count) if show
+      show.update!(track_count: show.tracks.running.count) if show
       redirect_to admin_show_path(show), notice: "Track '#{@track.title}' removed from show — click Remix to rebuild the mix"
     end
 

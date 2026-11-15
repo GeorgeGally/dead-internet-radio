@@ -15,8 +15,7 @@ class ReimportShowJob < ApplicationJob
 
     show.update!(
       name: data['showName'] || show.name,
-      dj_name: data['djName'] || show.dj_name,
-      track_count: data['tracks'].length
+      dj_name: data['djName'] || show.dj_name
     )
 
     # Songs that joined the show from their own folder (requests, remixes)
@@ -37,6 +36,8 @@ class ReimportShowJob < ApplicationJob
       track.mix_out_ms = MixOut.measure(track.audio_path, track.duration_ms)
       track.save!
     end
+
+    show.update!(track_count: show.tracks.running.count)
 
     import_cues(show, root)
     import_mix_file(show, root)
