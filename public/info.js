@@ -43,6 +43,7 @@
     ['Can I request a song', 'Yes: artist, title and style. Three a day, and every try counts unless you name a real band. We email you when it is on the schedule.'],
     ['Why sign in with Google', 'Only to request songs and to talk in the chat. Listening, voting and the artwork need no account.'],
     ['What do the votes do', 'Like or Dislike the song on air. The DJs read the votes when they build the next sets.'],
+    ['Can I download or buy a song', 'Coming soon.'],
   ];
 
   // How to use it draws each control with the deck's own parts: its keys,
