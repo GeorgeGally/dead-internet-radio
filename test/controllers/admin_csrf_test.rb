@@ -67,4 +67,31 @@ class AdminCsrfTest < ActionDispatch::IntegrationTest
     assert_nil job.completed_at
     assert_nil job.output_log
   end
+
+  test "stale csrf token redirects with refresh notice instead of 422" do
+    show_dir = Rails.root.join("tmp", "csrf-show-#{Process.pid}")
+    FileUtils.mkdir_p(show_dir.join("prompts"))
+    show = Show.create!(slot: "csrf", track_count: 1, directory: show_dir.to_s, status: :complete)
+    track = Track.create!(show: show, position: 1, title: "Stale", artist: "Token",
+                          audio_file: show_dir.join("01-stale.mp3").to_s)
+    File.write(show_dir.join("01-stale.mp3"), "x")
+    File.write(show_dir.join("prompts", "01-stale.prompt.json"),
+               JSON.generate(payload: { caption: "test", lyrics: "[Instrumental]", bpm: 120 }))
+
+    get admin_login_path
+    post admin_login_path, params: {
+      authenticity_token: response.body[/name="authenticity_token" value="([^"]+)"/, 1],
+      username: "admin",
+      password: "secret"
+    }
+
+    post remix_admin_track_path(track),
+         params: { authenticity_token: "stale", instructions: "faster" },
+         headers: { "HTTP_REFERER" => admin_track_url(track) }
+
+    assert_redirected_to admin_track_url(track)
+    assert_equal "This page was out of date. It has been refreshed; try again.", flash[:notice]
+  ensure
+    FileUtils.rm_rf(show_dir)
+  end
 end
