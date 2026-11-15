@@ -50,6 +50,41 @@ class SetSwap
     track
   end
 
+  # Re-links a set slot from its library song after that song's master changed
+  # (a re-render or switching to a kept take). Votes stay on the song id.
+  def self.resync!(track, at: Time.current)
+    raise Error, "Only a set's songs can be swapped" unless track.origin_track_id && track.show&.kind == "set"
+    song = track.song
+    raise Error, "That song isn't in the library" unless song.audio_path && File.exist?(song.audio_path)
+    raise Error, "It's on air right now" if BroadcastSegment.where(track: track).where("starts_at <= ? AND ends_at > ?", at, at).exists?
+
+    dir = Rails.root.join("output", track.show.directory)
+    prefix = track.audio_file.to_s[/\A\d+/] || format("%02d", track.position - 1)
+    name = "#{prefix}-#{File.basename(song.audio_path).sub(/\A\d+-/, '')}"
+    replaced = dir.join(".replaced")
+    FileUtils.mkdir_p(replaced)
+    [ track.audio_path, track.voiceover_path ].compact.each do |path|
+      FileUtils.mv(path, replaced.join(path.basename)) if File.exist?(path)
+    end
+    dest = dir.join(name)
+    begin
+      File.link(song.audio_path, dest)
+    rescue SystemCallError
+      FileUtils.cp(song.audio_path, dest)
+    end
+    log = song.audio_path.dirname.join("prompts", "#{song.audio_path.basename('.mp3')}.prompt.json")
+    FileUtils.mkdir_p(dir.join("prompts"))
+    FileUtils.cp(log, dir.join("prompts", "#{dest.basename('.mp3')}.prompt.json")) if File.exist?(log)
+
+    Track.transaction do
+      track.update!(artist: song.artist, title: song.title, bpm: song.bpm, key: song.key,
+                    caption: song.caption, lyrics: song.lyrics, duration_ms: song.duration_ms,
+                    mix_out_ms: song.mix_out_ms || MixOut.measure(dest, song.duration_ms), audio_file: name, voiceover_file: nil, cue_seconds: nil)
+      reflow!(track, at)
+    end
+    track
+  end
+
   # Each future booking of the slot stretches or shrinks; later ones follow.
   def self.reflow!(track, at)
     BroadcastSegment.where(track: track).where("starts_at > ?", at).order(starts_at: :desc).each do |seg|

@@ -6,6 +6,11 @@ class MediaController < ApplicationController
     stream Track.find(params[:id]).audio_path
   end
 
+  def replaced
+    track = Track.find(params[:id])
+    stream SongReplaced.path(track.song, params[:stamp])
+  end
+
   # The same master as a file the browser saves: "artist - title.mp3".
   def download
     track = Track.find(params[:id])

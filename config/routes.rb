@@ -38,6 +38,7 @@ Rails.application.routes.draw do
 
   # Audio streamed off disk from DB-linked paths (no blobs in DB).
   get "media/tracks/:id", to: "media#track", as: :media_track
+  get "media/tracks/:id/replaced/:stamp", to: "media#replaced", as: :media_track_replaced, constraints: { stamp: /\d{8}-\d{6}/ }
   get "media/tracks/:id/download", to: "media#download", as: :download_media_track
   get "media/tracks/:id/voiceover", to: "media#voiceover", as: :media_track_voiceover
   get "media/shows/:id/mix", to: "media#mix", as: :media_show_mix
