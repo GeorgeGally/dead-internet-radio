@@ -30,9 +30,6 @@
       <td class="track-actions">
         <% if song %>
           <% if playable %><%= link_to "Download", download_media_track_path(song), class: "btn-key" %><% end %>
-          <%= button_to "Re-render", rerender_admin_track_path(song), class: "btn-key",
-                        params: { instructions: "Same sound, same lyrics, a new take.", request_id: req.id, inline: 1 },
-                        form: { style: "display:inline" } %>
           <button type="button" class="btn-key" data-notes="<%= notes %>"
                   data-edit-url="<%= rerender_admin_track_path(song) %>"
                   data-remix-url="<%= remix_admin_track_path(song) %>"

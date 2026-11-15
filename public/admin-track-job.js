@@ -77,6 +77,8 @@
       };
       show();
       clocks.push(setInterval(show, 1000));
+      if (el.dataset.polling) return;
+      el.dataset.polling = '1';
       tick(el);
     });
   }

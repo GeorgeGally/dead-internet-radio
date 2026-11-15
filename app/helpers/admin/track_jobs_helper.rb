@@ -2,7 +2,7 @@
 
 module Admin
   module TrackJobsHelper
-    EDIT_HINT = "Redoes this song from your notes; you can switch back to the original."
+    EDIT_HINT = "Redoes this song with your notes. The original is kept; switch back from the set player."
     REMIX_HINT = "Adds a new version next to the original; both stay in the library."
 
     def pending_track_jobs_by_song
