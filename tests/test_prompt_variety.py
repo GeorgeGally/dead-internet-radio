@@ -78,6 +78,7 @@ class PromptVarietyTest(unittest.TestCase):
         notes = "super dark darkwave, sparse bass driver, robo techno, 132bpm"
         song = {"caption": "Robo techno, 132 BPM in C minor. A super dark kick. A sparse bass driver.", "bpm": 132}
         self.assertEqual(generate.missing_terms(notes, song), ["darkwave"])
+        self.assertEqual(generate.missing_terms("needs more cowbell, punchier, faster, weirder", {"caption": "Dark disco, 140 BPM."}), ["cowbell"])
         self.assertEqual(generate.missing_terms("a bit too cheesy, too slow, make in 124bpm", {"caption": "Dark disco.", "bpm": 120}), ["124 BPM"])
 
     def test_revise_song_follows_the_notes_and_replaces_old_sound_fields(self):
