@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 
 import generate
 
@@ -20,23 +19,31 @@ class SharedArtistTest(unittest.TestCase):
                 self.assertTrue(all(1 <= n <= count for n in picks))
                 self.assertTrue(all(b - a > 1 for a, b in zip(picks, picks[1:])))
 
-    def test_one_act_gets_one_name_sound_and_seed(self):
+    def test_one_act_gets_one_name_and_sound(self):
         sound = "A soft 808 kick, a distorted sixteenth bass, a cold baritone through a cheap mic."
         songs = [
             song("Grey Relay", "EBM, 122 BPM in A minor.", sound),
             song("Other", "EBM, 124 BPM in D minor."),
             song("grey relay.", "EBM, 120 BPM in C minor."),
         ]
-        with patch.object(generate.random, "randint", return_value=77):
-            out = generate.share_artists(songs, [1, 3])
+        out = generate.share_artists(songs, [1, 3])
         self.assertEqual(out[2]["artist"], "Grey Relay")
         self.assertTrue(out[0]["caption"].endswith(sound))
         self.assertTrue(out[2]["caption"].endswith(sound))
         self.assertEqual(out[0]["caption"].count(sound), 1)
         self.assertNotIn(sound, out[1]["caption"])
-        self.assertEqual(out[0]["seed"], 77)
-        self.assertEqual(out[2]["seed"], 77)
-        self.assertNotIn("seed", out[1])
+        self.assertFalse(any("seed" in s for s in out))
+        self.assertFalse(any("sound" in s for s in out))
+
+    def test_only_designated_tracks_share_a_sound(self):
+        sound = "A soft 808 kick, a distorted sixteenth bass, a cold baritone through a cheap mic."
+        songs = [
+            song("Grey Relay", "EBM, 122 BPM in A minor.", sound),
+            song("Grey Relay", "EBM, 124 BPM in D minor."),
+            song("Other", "EBM, 120 BPM in C minor."),
+        ]
+        out = generate.share_artists(songs, [])
+        self.assertNotIn(sound, out[1]["caption"])
         self.assertFalse(any("sound" in s for s in out))
 
     def test_every_caption_gets_register_and_mix_lines(self):

@@ -401,9 +401,6 @@ def call_ace_step(payload: dict) -> str:
         # libraries, which break whenever Homebrew upgrades a codec under them.
         "audio_format": "wav",
     }
-    # Songs by one act share a seed as well as a sound (share_artists).
-    if isinstance(payload.get("seed"), int):
-        body.update(use_random_seed=False, seed=payload["seed"])
     req = urllib.request.Request(
         f"{ACE_STEP_URL}/release_task",
         data=json.dumps(body).encode(),
@@ -777,28 +774,18 @@ def shared_artist_tracks(count: int) -> list[int]:
 
 
 def share_artists(songs: list, numbers: list[int]) -> list:
-    """Songs by one artist sound like one act: the same name, the same sound
-    sentence in every caption, and the same ACE-Step seed. The DJ is asked to
-    repeat the sound word for word; this makes sure it does."""
+    """Songs by one artist sound like one act: the same name and the same
+    sound sentence in every caption. The DJ is asked to repeat the sound word
+    for word; this makes sure it does."""
     if numbers and all(0 < n <= len(songs) for n in numbers):
-        name = str(songs[numbers[0] - 1].get("artist") or "").strip()
-        for n in numbers[1:]:
-            songs[n - 1]["artist"] = name
-    acts: dict[str, list] = {}
-    for song in songs:
-        key = str(song.get("artist") or "").strip().lower()
-        if key:
-            acts.setdefault(key, []).append(song)
-    for act in acts.values():
+        act = [songs[n - 1] for n in numbers]
+        name = str(act[0].get("artist") or "").strip()
         sound = next((str(s.get("sound") or "").strip() for s in act if s.get("sound")), "")
-        if len(act) < 2:
-            continue
-        seed = random.randint(0, 2**31 - 1)
         for song in act:
+            song["artist"] = name
             caption = str(song.get("caption") or "").strip()
             if sound and sound.lower() not in caption.lower():
                 song["caption"] = f"{caption} {sound}".strip()
-            song["seed"] = seed
     for song in songs:
         song.pop("sound", None)
     return songs
@@ -806,10 +793,7 @@ def share_artists(songs: list, numbers: list[int]) -> list:
 
 def plan_song(song: dict) -> dict:
     """The fields ACE-Step is sent for one song, as the plan shows and keeps them."""
-    planned = {key: song.get(key) for key in PLAN_SONG_KEYS}
-    if song.get("seed") is not None:
-        planned["seed"] = song["seed"]
-    return planned
+    return {key: song.get(key) for key in PLAN_SONG_KEYS}
 
 
 def read_plan(slot: str) -> dict | None:
