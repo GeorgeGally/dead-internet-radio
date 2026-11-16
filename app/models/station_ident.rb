@@ -26,6 +26,9 @@ class StationIdent < ApplicationRecord
 
   attr_accessor :name
 
+  # A clip voiced at /admin/audio_idents keeps what was said, by whom and how.
+  has_one :ident_render, dependent: :nullify
+
   validates :kind, inclusion: { in: %w[visual audio] }
   validates :number, numericality: { only_integer: true, greater_than: 0 }, uniqueness: { scope: :kind }
 
@@ -33,23 +36,41 @@ class StationIdent < ApplicationRecord
     visual = LAB.read.scan(/^  name: '(.+?)',/).flatten.each_with_index.map do |name, index|
       { kind: "visual", number: index + 1, name: name }
     end
-    audio = Dir.glob(CLIPS.join("id-*.wav")).sort.map do |path|
-      number = File.basename(path)[/\d+/].to_i
-      { kind: "audio", number: number, name: CLIP_NAMES.fetch(number, "Clip #{number}") }
+    said = IdentRender.joins(:station_ident).pluck("station_idents.number", :text).to_h
+    audio = Dir.glob(clips_dir.join("id-*.wav")).map { |path| File.basename(path)[/\d+/].to_i }.sort.map do |number|
+      { kind: "audio", number: number, name: said[number] || CLIP_NAMES.fetch(number, "Clip #{number}") }
     end
     visual + audio
   end
 
-  # Every ident the player can air needs a row to be switchable.
+  # Every ident the player can air needs a row to be switchable. A removed
+  # clip keeps its row, off, so a file that comes back stays gone.
   def self.sync_from_player!
     rows = all.index_by { |row| [row.kind, row.number] }
-    catalogue.map do |entry|
+    catalogue.filter_map do |entry|
       row = rows[entry.values_at(:kind, :number)] || create_or_find_by!(entry.slice(:kind, :number)) do |fresh|
         fresh.active = !(entry[:kind] == "visual" && RETIRED.include?(entry[:number]))
       end
+      next if row.removed
+
       row.name = entry[:name]
       row
     end
+  end
+
+  def self.clips_dir
+    CLIPS
+  end
+
+  def self.clip_file(number)
+    "id-#{number.to_s.rjust(2, '0')}.wav"
+  end
+
+  # Above every clip there is or was, so a new clip never takes an old one's
+  # number (the player and the between-shows interludes go by number).
+  def self.next_audio_number
+    on_disk = Dir.glob(clips_dir.join("id-*.wav")).map { |path| File.basename(path)[/\d+/].to_i }
+    [*on_disk, where(kind: "audio").maximum(:number).to_i].max + 1
   end
 
   # { visual: [1, 2], audio: [3] }, the shape the player reads.
@@ -59,6 +80,17 @@ class StationIdent < ApplicationRecord
   end
 
   def src
-    kind == "audio" ? "/station-ids/id-#{number.to_s.rjust(2, '0')}.wav" : "/labs/station-ident-lab.html?only=#{number}&once"
+    kind == "audio" ? "/station-ids/#{self.class.clip_file(number)}" : "/labs/station-ident-lab.html?only=#{number}&once"
+  end
+
+  def clip_path
+    self.class.clips_dir.join(self.class.clip_file(number))
+  end
+
+  # Off air and off the list. A voiced clip's file goes too; a shipped clip's
+  # file is in the repo and would only come back with the next deploy.
+  def remove!
+    update!(active: false, removed: true)
+    clip_path.delete if ident_render && clip_path.exist?
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.jsonb "options"
     t.index ["show_id"], name: "index_generation_jobs_on_show_id"
     t.index ["status"], name: "index_generation_jobs_on_status"
+  end
+
+  create_table "ident_renders", force: :cascade do |t|
+    t.text "text", null: false
+    t.string "voice", null: false
+    t.jsonb "settings", default: {}, null: false
+    t.integer "status", default: 0, null: false
+    t.boolean "preview", default: false, null: false
+    t.text "error"
+    t.bigint "station_ident_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["station_ident_id"], name: "index_ident_renders_on_station_ident_id"
   end
 
   create_table "master_prompts", force: :cascade do |t|
@@ -106,6 +119,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "removed", default: false, null: false
     t.index ["kind", "number"], name: "index_station_idents_on_kind_and_number", unique: true
   end
 
@@ -201,6 +215,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
 
   add_foreign_key "broadcast_segments", "tracks"
   add_foreign_key "generation_jobs", "shows"
+  add_foreign_key "ident_renders", "station_idents", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", on_delete: :nullify
   add_foreign_key "song_requests", "users"

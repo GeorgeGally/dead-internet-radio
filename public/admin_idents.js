@@ -1,7 +1,7 @@
 (() => {
   const token = document.querySelector('meta[name="csrf-token"]').content;
 
-  document.querySelectorAll('.switch input').forEach((input) => {
+  document.querySelectorAll('.switch input[data-ident-id]').forEach((input) => {
     input.addEventListener('change', async () => {
       const row = input.closest('tr');
       const paint = () => row.classList.toggle('is-off', !input.checked);
@@ -20,39 +20,46 @@
     });
   });
 
-  // One preview at a time, in its own row, across pictures and clips.
-  let preview = null;
-  let key = null;
+  // A picture ident plays full screen, as it airs. Esc, a click or its own
+  // end brings the list back.
+  let stage = null;
 
-  function closePreview() {
-    if (!preview) return;
-    preview.remove();
-    preview = null;
-    key.classList.remove('playing');
-    key.textContent = '▶';
-    key = null;
+  function close() {
+    if (!stage) return;
+    const leaving = stage;
+    stage = null;
+    if (document.fullscreenElement === leaving) document.exitFullscreen().catch(() => {});
+    leaving.remove();
   }
 
   document.addEventListener('click', (event) => {
-    const button = event.target.closest('.btn-play');
+    const button = event.target.closest('.btn-play[data-ident-src]');
     if (!button) return;
-    const again = button === key;
-    closePreview();
-    if (button.dataset.src || again) return;
+    close();
     trackAudio.pause();
     stopAll();
-    key = button;
-    key.classList.add('playing');
-    key.textContent = '■';
-    preview = document.createElement('iframe');
-    preview.title = 'Ident preview';
-    preview.scrolling = 'no';
-    preview.tabIndex = -1;
-    preview.src = button.dataset.identSrc;
-    button.closest('tr').querySelector('.ident-stage').append(preview);
+    stage = document.createElement('div');
+    stage.className = 'ident-full';
+    const frame = document.createElement('iframe');
+    frame.title = 'Ident';
+    frame.scrolling = 'no';
+    frame.tabIndex = -1;
+    frame.src = button.dataset.identSrc;
+    stage.append(frame);
+    stage.addEventListener('click', close);
+    document.body.append(stage);
+    if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (stage && !document.fullscreenElement) close();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close();
   });
 
   window.addEventListener('message', (event) => {
-    if (preview && event.source === preview.contentWindow && event.data === 'ident-done') closePreview();
+    if (stage && event.source === stage.firstChild.contentWindow && event.data === 'ident-done') close();
   });
 })();

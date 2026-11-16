@@ -51,10 +51,7 @@ def apply_lofi(audio: np.ndarray, sr: int, intensity: float = 0.3) -> np.ndarray
 
 
 def apply_vocoder(audio: np.ndarray, sr: int, mix: float = 0.08) -> np.ndarray:
-    """Ring-modulator vocoder for robotic voice character. Applied ~15% of the time."""
-    if random.random() > 0.15:
-        return audio
-
+    """Ring-modulator vocoder for robotic voice character, at the mix asked for."""
     carrier_freq = random.uniform(55, 95)
     t = np.arange(len(audio)) / sr
     carrier = (
