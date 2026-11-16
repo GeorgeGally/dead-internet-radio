@@ -7,7 +7,7 @@ problem_type: performance_issue
 component: frontend
 severity: high
 symptoms:
-  - Visuals show on open, no station ident, the play LED is lit and the label reads Stop
+  - Visuals show on open, the ident has aired, the play LED is lit and the label reads Stop
   - No sound for 10-30 s, then the music starts on its own
   - The audio element sits at readyState 1 after the seek to the live position
 tags: [player, startup, autoplay, broll, network, audio]
@@ -15,12 +15,12 @@ tags: [player, startup, autoplay, broll, network, audio]
 
 # On open the player said it was playing for 10-30 s before any sound
 
-## No ident is expected
+## The ident plays first
 
-When the browser allows autoplay, `skipWelcome()` goes straight on air and no
-station ident plays. That is by design: idents mark a change of set and air at
-most once every 30 minutes (`ident.js`). The splash with its ident only shows
-when a click is needed.
+Every start runs `showWelcome()`, even when the browser allows autoplay: the
+story types out, the station ID plays, then the music comes in. Music is not
+due until the ID has aired, so a slow open can be the ID, not the load.
+Where a click is needed, the story types while it waits.
 
 ## What held the music up
 
@@ -47,7 +47,7 @@ list request, which added one more round trip before the music was asked for.
 
 - `musicHasCushion()` answers "wait" while the music is due but has no
   source yet. It answers "go ahead" again once the welcome splash is up (no
-  music until the click) or once tuning in found nothing to play.
+  music until the ID has aired) or once tuning in found nothing to play.
 - The B-roll reel and the tracking detectors wait for it, the same as the
   Giphy warm-up and the next-track buffer already did. The B-roll stand-in is
   asked for once in the meantime.

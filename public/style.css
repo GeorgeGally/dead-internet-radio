@@ -1773,6 +1773,44 @@ body.prewarming #block-canvas {
   z-index: 1;
 }
 
+/* The story, typed like a terminal before the station ID airs. */
+#welcome-lore {
+  position: absolute;
+  left: clamp(16px, 8vw, 120px);
+  right: 16px;
+  top: calc(50% - 5.5em);
+  z-index: 2;
+  max-width: 52ch;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: clamp(15px, 2.1vw, 26px);
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.lore-line { min-height: 1.55em; }
+
+.lore-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.1em;
+  margin-left: 0.15em;
+  vertical-align: -0.18em;
+  background: #ff5a1f;
+  animation: blink 1s step-end infinite;
+}
+
+#welcome-lore.typing .lore-cursor { animation: none; }
+
+#welcome-splash.airing #welcome-lore { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lore-cursor { animation: none; }
+}
+
 .welcome-letterbox {
   position: absolute;
   left: 0;

@@ -16,6 +16,9 @@
   let starting = false;
   let timer = 0;
   let runs = 0;
+  let own = null;
+  let clip = null;
+  let clipDone = null;
 
   function stored(key) {
     try { return Number(localStorage.getItem(key)) || 0; } catch (e) { return 0; }
@@ -65,21 +68,62 @@
     });
   }
 
-  async function play() {
+  // A station ID clip, one of those on air. Resolves once it has played, or
+  // at once with none on air; a stop ends it early.
+  function clipName(clips) {
+    if (!clips.length) return '';
+    const n = clips[Math.floor(Math.random() * clips.length)];
+    return 'station-ids/id-' + String(n).padStart(2, '0') + '.wav';
+  }
+
+  function playClip(src, el) {
+    endClip();
+    if (!src) return Promise.resolve();
+    // The station's own element unless one is given: the splash brings its own.
+    if (!el) el = own || (own = new Audio());
+    clip = el;
+    if (clip.getAttribute('src') !== src) clip.src = src;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => clipDone(), LONGEST_MS);
+      clipDone = () => {
+        clearTimeout(timer);
+        clip.onended = clip.onerror = null;
+        clipDone = null;
+        resolve();
+      };
+      clip.onended = clip.onerror = clipDone;
+      const started = clip.play();
+      if (started && started.catch) started.catch(() => clipDone && clipDone());
+    });
+  }
+
+  function endClip() {
+    if (!clipDone) return;
+    clip.pause();
+    clipDone();
+  }
+
+  function show(visual) {
     if (!frame || splashUp()) return;
-    stop();
-    const run = runs;
-    const { visual } = await onAir();
-    if (run !== runs) return;
     const src = pick(visual);
     if (!src) return;
     starting = true;
     frame.src = src + '&once';
   }
 
+  async function play() {
+    if (!frame || splashUp()) return;
+    stop();
+    const run = runs;
+    const { visual } = await onAir();
+    if (run !== runs) return;
+    show(visual);
+  }
+
   function stop() {
-    if (!frame) return;
     runs += 1;
+    endClip();
+    if (!frame) return;
     clearTimeout(timer);
     timer = 0;
     starting = false;
@@ -87,5 +131,5 @@
     frame.src = 'about:blank';
   }
 
-  window.idents = { init, play, stop, pick, onAir };
+  window.idents = { init, play, stop, pick, onAir, playClip, clipName };
 })();
