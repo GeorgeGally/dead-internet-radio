@@ -1,0 +1,75 @@
+<h2>Audio IDs</h2>
+<% last = @last&.settings.presence || IdentRender::DEFAULTS %>
+<% labels = { "speed" => "Speed", "lofi" => "Lo-fi", "reverb" => "Reverb", "delay" => "Delay", "vocoder" => "Vocoder" } %>
+
+<form class="ident-maker" data-renders="<%= admin_ident_renders_path %>">
+  <div class="maker-field">
+    <label for="ident-text">Line</label>
+    <textarea id="ident-text" name="ident_render[text]" rows="2" maxlength="300" required placeholder="You're listening to Dead Internet Radio."></textarea>
+  </div>
+
+  <div class="maker-field">
+    <label for="ident-voice">Voice</label>
+    <select id="ident-voice" name="ident_render[voice]">
+      <% IdentRender::VOICES.each do |voice| %>
+        <option value="<%= voice %>" <%= "selected" if voice == (@last&.voice || "bm_lewis") %>><%= voice %></option>
+      <% end %>
+    </select>
+  </div>
+
+  <div class="maker-knobs">
+    <% IdentRender::KNOBS.each do |name, knob| %>
+      <div class="maker-knob">
+        <label for="ident-<%= name %>"><%= labels.fetch(name) %> <output for="ident-<%= name %>"><%= last.fetch(name, knob[:default]) %></output></label>
+        <input type="range" id="ident-<%= name %>" name="ident_render[settings][<%= name %>]"
+               min="<%= knob[:min] %>" max="<%= knob[:max] %>" step="<%= knob[:step] %>" value="<%= last.fetch(name, knob[:default]) %>">
+      </div>
+    <% end %>
+    <div class="maker-knob maker-phone">
+      <span id="ident-telephone-label">Telephone</span>
+      <label class="switch">
+        <input type="hidden" name="ident_render[settings][telephone]" value="0">
+        <input type="checkbox" name="ident_render[settings][telephone]" value="1" aria-labelledby="ident-telephone-label" <%= "checked" if last.fetch("telephone", true) %>>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="maker-actions">
+    <button type="submit" class="btn-key" data-preview>Preview</button>
+    <button type="submit" class="btn-key btn-key-go">Generate</button>
+    <span class="maker-state" role="status"></span>
+  </div>
+</form>
+
+<table class="idents">
+  <thead>
+    <tr><th></th><th>Line</th><th>Voice</th><th></th><th>On air</th></tr>
+  </thead>
+  <tbody>
+    <% @waiting.each do |row| %>
+      <tr class="is-off" data-render-row="<%= row.id %>" data-render-status="<%= row.status %>">
+        <td class="play-cell"></td>
+        <td class="ident-name"><%= row.text %></td>
+        <td class="ident-voice"><%= row.voice %></td>
+        <td class="ident-state"><%= row.failed? ? (row.error.presence || "Failed") : row.status.capitalize %></td>
+        <td class="switch-cell"><%= button_to "Remove", admin_ident_render_path(row), method: :delete, class: "btn-quiet" %></td>
+      </tr>
+    <% end %>
+    <% @clips.reverse_each do |ident| %>
+      <% take = ident.ident_render %>
+      <tr class="<%= 'is-off' unless ident.active %>">
+        <td class="play-cell">
+          <button type="button" class="btn-play" data-src="<%= ident.src %>" onclick="playTrack(this)" aria-label="Play <%= ident.name %>">▶</button>
+        </td>
+        <td class="ident-name"><%= ident.name %></td>
+        <td class="ident-voice" <% if take %>title="<%= take.settings.map { |k, v| "#{k} #{v}" }.join(' · ') %>"<% end %>><%= take&.voice %></td>
+        <td class="ident-remove"><%= button_to "Delete", admin_audio_ident_path(ident), method: :delete, class: "btn-quiet", data: { sure: "" } %></td>
+        <%= render "admin/idents/switch", ident: ident %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<script src="<%= hashed_public_path "/admin_idents.js" %>" defer></script>
+<script src="<%= hashed_public_path "/admin_audio_idents.js" %>" defer></script>

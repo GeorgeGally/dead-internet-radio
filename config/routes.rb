@@ -78,6 +78,10 @@ Rails.application.routes.draw do
     end
     resources :visuals, only: [ :index, :update ]
     resources :idents, only: [ :index, :update ]
+    resources :audio_idents, only: [ :index, :destroy ]
+    resources :ident_renders, only: [ :create, :show, :destroy ] do
+      get :audio, on: :member
+    end
     resources :prompts, except: [ :show ] do
       member do
         post :activate

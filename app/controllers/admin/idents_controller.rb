@@ -3,7 +3,7 @@
 module Admin
   class IdentsController < Admin::BaseController
     def index
-      @idents = StationIdent.sync_from_player!.group_by(&:kind)
+      @idents = StationIdent.sync_from_player!.select { |ident| ident.kind == "visual" }
     end
 
     def update

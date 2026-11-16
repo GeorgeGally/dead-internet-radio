@@ -3,13 +3,18 @@
 require "test_helper"
 
 class AdminIdentsTest < ActionDispatch::IntegrationTest
-  test "the admin lists every ident in the lab and in public/station-ids" do
+  test "pictures and clips each have their own page" do
     sign_in
     get admin_idents_path
     assert_response :success
     assert_select ".idents [data-ident-src]", 25
-    assert_select ".idents [data-src]", Dir.glob(StationIdent::CLIPS.join("id-*.wav")).size
+    assert_select ".idents [data-src]", 0
     assert_select ".ident-name", /ASCII · block wall/
+
+    get admin_audio_idents_path
+    assert_response :success
+    assert_select ".idents [data-src]", Dir.glob(StationIdent::CLIPS.join("id-*.wav")).size
+    assert_select ".idents [data-ident-src]", 0
   end
 
   test "every picture ident has a poster" do
