@@ -24,21 +24,15 @@ test('the intro asks for a gesture as a terminal line, not a separate button', (
   assert.match(js, /'> tap to tune in'/);
 });
 
-const LINES_BEFORE_TAIL = [
-  'the internet died.',
-  'nobody switched off the radio.',
-  'somewhere a server never got the shutdown order.',
-  "it's been writing music ever since,",
-  'credited to bands that were never born.',
-];
-const TAILS = [
-  "still broadcasting. nobody's left to stop it.",
-  "you're tuned in to the last transmission.",
-  'dead internet. live radio.',
-  'still broadcasting. just in case.',
-  "i play music so the silence doesn't win.",
-  'if you can hear this, say something.',
-  'is anyone out there?',
+const STORY = [
+  'somewhere out there,',
+  'bands that never existed',
+  "are playing songs nobody's ever heard.",
+  '',
+  "we're picking up their signals.",
+  'transmissions from the latent space.',
+  '',
+  'dead internet radio.',
 ];
 
 function loadWelcome({ stored = {}, reduced = false, gsap = false } = {}) {
@@ -131,7 +125,7 @@ for (const allowed of [true, false]) {
     }
     assert.equal(w.log.length, 1);
     assert.equal(w.log[0].src, 'station-ids/id-03.wav');
-    assert.deepEqual(w.log[0].shown.slice(0, 5), LINES_BEFORE_TAIL, 'the story is in before the ID');
+    assert.deepEqual(w.log[0].shown.slice(0, STORY.length), STORY, 'the story is in before the ID');
     assert.equal(w.faded(), false, 'the music waits for the ID');
     w.endClip();
     await w.settle();
@@ -139,26 +133,17 @@ for (const allowed of [true, false]) {
   });
 }
 
-test('the story is five lines and one tail, and the tail turns over each visit', () => {
-  const seen = [];
-  const store = {};
-  for (let visit = 0; visit < TAILS.length + 1; visit += 1) {
-    const w = loadWelcome({ stored: store });
+test('the story is the same eight lines every visit, with no rotating tail', () => {
+  for (let visit = 0; visit < 2; visit += 1) {
+    const w = loadWelcome();
     w.show(true);
-    const lines = w.box.children.map((l) => l.textContent);
-    assert.equal(lines.length, 7);
-    assert.deepEqual(lines.slice(0, 5), LINES_BEFORE_TAIL);
-    assert.equal(lines[5], '');
-    seen.push(lines[6]);
-    store['lore-tail'] = w.store.get('lore-tail');
+    assert.deepEqual(w.box.children.map((l) => l.textContent), STORY);
   }
-  assert.deepEqual(seen.slice(0, TAILS.length), TAILS, 'each tail comes once, in turn');
-  assert.equal(seen[TAILS.length], TAILS[0], 'then it starts over');
 });
 
 test('reduced motion shows the whole story at once, without animating', () => {
   const w = loadWelcome({ reduced: true, gsap: true });
   w.show(true);
-  assert.equal(w.box.children.length, 7);
-  assert.equal(w.box.children[0].textContent, LINES_BEFORE_TAIL[0]);
+  assert.equal(w.box.children.length, STORY.length);
+  assert.equal(w.box.children[0].textContent, STORY[0]);
 });
