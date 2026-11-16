@@ -1370,7 +1370,7 @@ body.prewarming #block-canvas {
 .npd-show::before    { content: "Show"; }
 .npd-track::before   { content: "Song"; }
 .npd-artist::before  { content: "Artist"; }
-.npd-artwork::before { content: "Art"; }
+.npd-dj::before      { content: "DJ"; }
 
 .npd-show {
   font-family: "Anka Coder", sans-serif;
@@ -1398,7 +1398,7 @@ body.prewarming #block-canvas {
   color: #fff;
 }
 
-.npd-artwork {
+.npd-dj {
   font-family: "Anka Coder", sans-serif;
   font-size: 15px;
   line-height: 16px;
@@ -1534,7 +1534,7 @@ body.prewarming #block-canvas {
 }
 
 /* Each row: on/off button, then the filter name. The rows share the
-   panel's columns, so the heading and every name start at the same place. */
+   panel's columns, so every name, artwork's too, starts at the same place. */
 .fx-lcd {
   flex: 0 0 auto;
   width: 168px;
@@ -1548,14 +1548,18 @@ body.prewarming #block-canvas {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.fx-heading {
+.fx-artwork-name {
   grid-column: 2 / -1;
+  min-width: 0;
   font-family: "Anka Coder", sans-serif;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #696969;
+  color: #5c8299;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fx-row {

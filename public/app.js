@@ -667,19 +667,31 @@ function currentShowName() {
   return show ? (show.name || show.djName || '') : '';
 }
 
+function currentDjName() {
+  if (playlist && playlist.live) {
+    const seg = playlist.tracks[currentTrack];
+    if (seg && seg.djName) return seg.djName;
+  }
+  if (playlist && playlist.djName) return playlist.djName;
+  const show = showsList.find(s => s.id === currentShowId);
+  return show ? (show.djName || '') : '';
+}
+
 function updateTrackInfo() {
   const showEl = document.querySelector('.npd-show');
+  const djEl = document.querySelector('.npd-dj');
   const trackEl = document.querySelector('.npd-track');
   const artistEl = document.querySelector('.npd-artist');
-  const artworkEl = document.querySelector('.npd-artwork');
+  const fxArtworkEl = document.querySelector('.fx-artwork-name');
   const miniEl = document.getElementById('mini-track');
 
   if (showEl) showEl.textContent = currentShowName() || '—';
+  if (djEl) djEl.textContent = currentDjName() || '—';
 
   if (!playlist) {
     if (trackEl) trackEl.textContent = '—';
     if (artistEl) artistEl.textContent = '';
-    if (artworkEl) artworkEl.textContent = '';
+    if (fxArtworkEl) fxArtworkEl.textContent = '';
     if (miniEl) miniEl.textContent = '—';
     return;
   }
@@ -688,7 +700,7 @@ function updateTrackInfo() {
     if (!track) {
       if (trackEl) trackEl.textContent = '—';
       if (artistEl) artistEl.textContent = '';
-      if (artworkEl) artworkEl.textContent = '';
+      if (fxArtworkEl) fxArtworkEl.textContent = '';
       if (miniEl) miniEl.textContent = '—';
       return;
     }
@@ -702,13 +714,11 @@ function updateTrackInfo() {
     } }));
 
     const visName = visuals.getCurrentName ? visuals.getCurrentName() : '';
-    // Filters show in the FX display, not here.
-    if (artworkEl) artworkEl.textContent = visName || '';
+    if (fxArtworkEl) fxArtworkEl.textContent = visName || '';
 
     if (miniEl) {
       const showName = currentShowName() || '—';
-      const show = showsList.find(s => s.id === currentShowId);
-      const djName = (show && show.djName) || (playlist && playlist.djName) || '—';
+      const djName = currentDjName() || '—';
       const trackName = track.title || track.caption || track.file || '—';
       const artistName = track.artist || '—';
       const vName = visName || '—';
