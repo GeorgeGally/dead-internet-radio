@@ -1,7 +1,9 @@
 <div class="prompts-page">
   <div class="prompts-head">
-    <h2><%= link_to MasterPrompt.label(@prompt.kind), admin_prompts_path(kind: @prompt.kind), class: "prompts-back" %> / New prompt</h2>
+    <h2>Prompts</h2>
   </div>
+
+  <%= render "kinds", current: @prompt.kind %>
 
   <%= render "form", prompt: @prompt %>
 </div>

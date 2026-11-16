@@ -687,58 +687,47 @@ th[aria-sort="descending"] .th-sort::after { content: " \25BC"; font-size: 9px; 
 .songs td.genre { white-space: normal; min-width: 120px; }
 
 
-/* Prompts: the library of master prompts, one in use per kind. */
-.prompts-page { max-width: 880px; }
-.prompts-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
-.prompts-head h2 { flex: 1 1 auto; margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.prompts-back { color: #6f6a61; }
-.prompts-new { display: inline-flex; align-items: center; height: 32px; text-decoration: none !important; }
-.prompt-kinds { display: flex; gap: 4px; border-bottom: 1px solid rgba(0, 0, 0, 0.1); margin-bottom: 8px; overflow-x: auto; }
+/* Prompts: each kind opens on its active prompt, editable in place. */
+.prompts-page { max-width: 960px; }
+.prompts-head { margin-bottom: 24px; }
+.prompts-head h2 { margin: 0; }
+.prompt-kinds { display: flex; gap: 4px; border-bottom: 1px solid rgba(0, 0, 0, 0.1); margin-bottom: 24px; overflow-x: auto; }
 .prompt-kinds a {
   padding: 12px 16px; margin-bottom: -1px; color: #6f6a61; font-size: 15px; letter-spacing: 0.04em;
   border-bottom: 2px solid transparent; text-decoration: none; white-space: nowrap;
 }
 .prompt-kinds a:hover { color: #1a1a1a; text-decoration: none; }
 .prompt-kinds a.is-on { color: #1a1a1a; border-bottom-color: #c03f0d; }
-.prompt-list { list-style: none; }
-.prompt-list li {
-  display: flex; align-items: center; gap: 16px; padding: 16px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-.prompt-item { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 4px; color: #1a1a1a; }
-.prompt-item:hover { text-decoration: none; }
-.prompt-item:hover .prompt-name { color: #c03f0d; }
-.prompt-name { font-size: 17px; }
-.prompt-list li.is-active .prompt-name { color: #c03f0d; }
+.prompt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 16px; }
+.prompt-bar .prompt-select { width: auto; min-width: 220px; max-width: 100%; margin: 0; height: 36px; padding: 0 12px; font-size: 14px; }
+.prompt-bar .prompt-select:focus { outline: none; border-color: #c03f0d; }
 .prompt-meta { font-size: 13px; color: #6f6a61; font-variant-numeric: tabular-nums; }
-.prompt-meta-head { margin: -12px 0 28px; }
-.prompt-notes { flex-basis: 100%; font-size: 13px; color: #6f6a61; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prompt-actions, .prompt-more { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.prompt-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .inline-form { display: inline; margin: 0; }
-.prompt-actions .btn-key, .prompt-more .btn-key, .prompt-buttons .btn-key { height: 32px; }
-.prompt-on { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #c03f0d; padding: 0 4px; }
+.prompt-tools .btn-key, .prompt-buttons .btn-key { height: 32px; }
 .prompt-form { margin: 0; }
-.prompt-form .field { margin-bottom: 24px; }
 .prompt-form input[type="text"], .prompt-form textarea { width: 100%; margin: 0; }
-.prompt-form input[type="text"] { font-size: 17px; }
 .prompt-form textarea { font-size: 14px; line-height: 1.55; resize: vertical; }
 .prompt-form textarea:focus, .prompt-form input:focus { outline: none; border-color: #c03f0d; }
-.prompt-body { min-height: 56vh; tab-size: 2; }
-.prompt-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -12px 0 8px; }
+.prompt-body { display: block; min-height: 64vh; tab-size: 2; padding: 16px 18px; }
+.prompt-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 8px; }
 .prompt-keys-label { font-size: 13px; color: #6f6a61; margin-right: 4px; }
 .prompt-keys code.is-missing { background: rgba(192, 63, 13, 0.12); color: #c03f0d; text-decoration: line-through; }
 .prompt-warning { font-size: 13px; color: #c03f0d; margin-bottom: 8px; }
 .prompt-warning[hidden] { display: none; }
-.prompt-form .field:has(+ .prompt-buttons), .prompt-keys + .prompt-warning + .field { margin-top: 24px; }
+.prompt-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; margin-top: 28px; }
+.prompt-fields .field { margin: 0; }
+.prompt-fields label { letter-spacing: 0.04em; }
 .prompt-buttons { display: flex; gap: 10px; margin-top: 44px; }
-.prompt-more { margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(0, 0, 0, 0.06); justify-content: space-between; }
 .tx-form .prompt-pick { flex-wrap: wrap; column-gap: 16px; }
 .tx-form .prompt-pick .field { flex: 1 1 120px; }
 .tx-form .prompt-pick select { font-size: 16px; padding: 12px 14px; }
 @media (max-width: 600px) {
-  .prompt-list li { flex-wrap: wrap; gap: 12px; }
-  .prompt-actions { width: 100%; }
-  .prompt-body { min-height: 60vh; font-size: 13px; }
+  .prompt-bar .prompt-select { flex: 1 1 100%; }
+  .prompt-tools { margin-left: 0; flex-wrap: wrap; gap: 6px; }
+  .prompt-tools .btn-key { padding: 0 9px; }
+  .prompt-body { min-height: 60vh; font-size: 13px; padding: 12px 14px; }
+  .prompt-fields { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Phone: the nav is a strip across the top, the page takes the width. */

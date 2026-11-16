@@ -1,16 +1,28 @@
 <div class="prompts-page">
   <div class="prompts-head">
-    <h2><%= link_to MasterPrompt.label(@prompt.kind), admin_prompts_path(kind: @prompt.kind), class: "prompts-back" %> / <%= @prompt.name_was %></h2>
-    <% if @prompt.active? %><span class="prompt-on">In use</span><% end %>
+    <h2>Prompts</h2>
   </div>
-  <p class="prompt-meta prompt-meta-head">v<%= @prompt.version %> · <time datetime="<%= @prompt.updated_at.utc.iso8601 %>" data-local="datetime"><%= @prompt.updated_at.utc.strftime("%Y-%m-%d %H:%M") %></time></p>
+
+  <%= render "kinds", current: @prompt.kind %>
+
+  <div class="prompt-bar">
+    <select class="prompt-select" aria-label="<%= MasterPrompt.label(@prompt.kind) %> prompt" onchange="if (this.value) location.href = this.value">
+      <% MasterPrompt.library(@prompt.kind).each do |prompt| %>
+        <option value="<%= edit_admin_prompt_path(prompt) %>" <%= "selected" if prompt.id == @prompt.id %>><%= prompt.name %><%= " · in use" if prompt.active? %></option>
+      <% end %>
+    </select>
+    <span class="prompt-meta">v<%= @prompt.version %> · <time datetime="<%= @prompt.updated_at.utc.iso8601 %>" data-local="datetime"><%= @prompt.updated_at.utc.strftime("%Y-%m-%d %H:%M") %></time></span>
+    <div class="prompt-tools">
+      <% unless @prompt.active? %>
+        <button type="submit" form="prompt-form" name="activate" value="1" class="btn-key btn-key-go">Make active</button>
+      <% end %>
+      <button type="submit" form="prompt-form" name="as_new" value="1" class="btn-key">Save as new</button>
+      <%= button_to "Duplicate", duplicate_admin_prompt_path(@prompt), class: "btn-key", form_class: "inline-form" %>
+      <% unless @prompt.active? %>
+        <%= button_to "Delete", admin_prompt_path(@prompt), method: :delete, class: "btn-quiet", form_class: "inline-form" %>
+      <% end %>
+    </div>
+  </div>
 
   <%= render "form", prompt: @prompt %>
-
-  <div class="prompt-more">
-    <%= button_to "Duplicate", duplicate_admin_prompt_path(@prompt), class: "btn-key", form_class: "inline-form" %>
-    <% unless @prompt.active? %>
-      <%= button_to "Delete", admin_prompt_path(@prompt), method: :delete, class: "btn-quiet", form_class: "inline-form" %>
-    <% end %>
-  </div>
 </div>
