@@ -1,0 +1,57 @@
+<% missing = prompt.body.present? ? prompt.missing_keys : [] %>
+<%= form_with model: prompt, url: (prompt.persisted? ? admin_prompt_path(prompt) : admin_prompts_path), class: "prompt-form", id: "prompt-form" do |f| %>
+  <% if prompt.errors.any? %>
+    <p class="form-error"><%= prompt.errors.full_messages.to_sentence %></p>
+  <% end %>
+  <%= f.hidden_field :kind unless prompt.persisted? %>
+
+  <div class="field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true, autocomplete: "off" %>
+  </div>
+
+  <div class="field">
+    <%= f.label :body, "Prompt" %>
+    <%= f.text_area :body, required: true, spellcheck: false, class: "prompt-body", rows: 28 %>
+  </div>
+
+  <div class="prompt-keys" data-keys="<%= prompt.keys.to_json %>">
+    <span class="prompt-keys-label">Answers carry</span>
+    <% prompt.keys.each do |key| %>
+      <code class="<%= 'is-missing' if missing.include?(key) %>" data-key="<%= key %>"><%= key %></code>
+    <% end %>
+  </div>
+  <p class="prompt-warning" <%= 'hidden' if missing.empty? %>>Missing words fall back to Original if the answers lose them.</p>
+
+  <div class="field">
+    <%= f.label :notes %>
+    <%= f.text_area :notes, rows: 3 %>
+  </div>
+
+  <div class="prompt-buttons">
+    <%= f.button "Save", class: "btn-key", name: nil %>
+    <% unless prompt.active? %>
+      <%= f.button "Save and use", class: "btn-key btn-key-go", name: "activate", value: "1" %>
+    <% end %>
+  </div>
+<% end %>
+
+<script>
+  // Lights each word the pipeline reads from the answers as the prompt is typed.
+  (function() {
+    var body = document.querySelector('.prompt-body'), box = document.querySelector('.prompt-keys');
+    if (!body || !box) return;
+    var warn = document.querySelector('.prompt-warning');
+    function check() {
+      var missing = 0;
+      box.querySelectorAll('code[data-key]').forEach(function(code) {
+        var key = code.dataset.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        var off = !new RegExp('(^|[^A-Za-z0-9_])' + key + '(?![A-Za-z0-9_])').test(body.value);
+        code.classList.toggle('is-missing', off);
+        if (off) missing++;
+      });
+      if (warn) warn.hidden = missing === 0;
+    }
+    body.addEventListener('input', check);
+  })();
+</script>

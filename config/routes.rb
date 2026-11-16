@@ -78,6 +78,12 @@ Rails.application.routes.draw do
     end
     resources :visuals, only: [ :index, :update ]
     resources :idents, only: [ :index, :update ]
+    resources :prompts, except: [ :show ] do
+      member do
+        post :activate
+        post :duplicate
+      end
+    end
     resources :generation, only: [ :index, :new, :create, :show ] do
       member do
         post :retry

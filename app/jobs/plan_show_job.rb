@@ -15,6 +15,7 @@ class PlanShowJob < ApplicationJob
     return unless gen_job.pending? && gen_job.awaiting_plan? && gen_job.plan.blank?
 
     gen_job.update!(started_at: Time.current, output_log: "")
+    gen_job.freeze_prompts!
     @gen_job = gen_job
     @buffer = +""
 
@@ -22,9 +23,10 @@ class PlanShowJob < ApplicationJob
 
     Dir.mktmpdir("plan") do |dir|
       plan_path = File.join(dir, "plan.json")
-      cmd = [ Rails.configuration.x.python, "generate.py", gen_job.slot, "--tracks", gen_job.track_count.to_s,
+      cmd = [ Rails.configuration.x.python, "generate.py", gen_job.generate_slot(gen_job.slot), "--tracks", gen_job.track_count.to_s,
              "--plan-out", plan_path ]
       cmd += [ "--dj-name", gen_job.dj_name ] if gen_job.dj_name
+      say("Prompts: #{MasterPrompt.describe(gen_job.master_prompts)}")
       say("Writing the plan: generate.py --plan-out")
       exit_status = run_and_stream(cmd, chdir: Rails.root.to_s)
       say("Exit: #{exit_status}")

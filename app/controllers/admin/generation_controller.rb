@@ -19,7 +19,8 @@ module Admin
           'dj_name' => params[:dj_name].presence,
           'crossfade' => params[:crossfade].presence,
           'dry_run' => params[:dry_run].presence,
-          'preview' => (true if params[:preview] == '1')
+          'preview' => (true if params[:preview] == '1'),
+          'prompts' => picked_prompts
         }.compact
       )
 
@@ -118,6 +119,13 @@ module Admin
     end
 
     private
+
+    # The prompts picked on the form that differ from the active ones, {kind => id}.
+    def picked_prompts
+      picked = params.fetch(:prompts, {}).permit(*MasterPrompt::KINDS.keys).to_h
+      picked = picked.reject { |kind, id| id.blank? || MasterPrompt.active_for(kind)&.id.to_s == id.to_s }
+      picked.presence
+    end
 
     PLAN_TEXT = %w[show_name brief dj_name dj_announce].freeze
     SONG_TEXT = %w[title artist idea caption lyrics keyscale].freeze

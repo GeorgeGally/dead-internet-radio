@@ -11,7 +11,7 @@ module GenerationLine
 
   def self.spec(job)
     take = job.options&.fetch("take", nil)
-    slot = take ? "remix #{take.to_json}" : job.generate_slot
+    slot = job.generate_slot(("remix #{take.to_json}" if take))
     { slot: slot, tracks: job.track_count, dj_name: job.dj_name, crossfade: job.crossfade.to_i }.compact
   end
 

@@ -98,7 +98,7 @@ class AdminGenerationPreviewTest < ActionDispatch::IntegrationTest
     assert_equal "Kode Red", job.dj_name
     get progress_admin_generation_path(job)
     assert_equal "Edited Club", response.parsed_body["show_name"]
-    sent = JSON.parse(GenerationLine.spec(job)[:slot].delete_prefix("plan "))
+    sent = JSON.parse(JSON.parse(GenerationLine.spec(job)[:slot].delete_prefix("prompts "))["slot"].delete_prefix("plan "))
     assert_equal "Edited Club", sent["show_name"]
     assert_equal "My words.", sent["dj_announce"]
     assert_equal({ "title" => "New Title", "artist" => "Neon Hex", "caption" => "slow disco",

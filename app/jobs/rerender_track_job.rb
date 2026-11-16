@@ -30,6 +30,7 @@ class RerenderTrackJob < ApplicationJob
       end
 
       @gen_job.update!(status: :running, started_at: Time.current, output_log: '')
+      @gen_job.freeze_prompts!
       root = Rails.root.to_s
       spec = nil
       show_dir = nil
@@ -87,6 +88,7 @@ class RerenderTrackJob < ApplicationJob
     take = { 'payload' => payload.merge('title' => track.title, 'artist' => track.artist),
              'file' => track.audio_path.relative_path_from(Rails.root).to_s,
              'notes' => @gen_job.options['instructions'] }.compact
+    @gen_job.freeze_prompts!
     @gen_job.update!(options: @gen_job.options.merge('on_pc' => true, 'take' => take, 'dj_name' => track.show&.dj_name),
                      output_log: "Waiting for the generation PC\n")
   end
@@ -122,6 +124,7 @@ class RerenderTrackJob < ApplicationJob
       title: track.title,
       dj_name: track.show&.dj_name,
       instructions: @gen_job.options['instructions'],
+      prompts: @gen_job.master_prompts,
     ))
     path.to_s
   end

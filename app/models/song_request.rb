@@ -45,7 +45,8 @@ class SongRequest < ApplicationRecord
     # The DJ reads the listener handle, never the Google name.
     name = user.public_handle
     { requester: name,
-      artist: artist, title: title, note: note, seed_caption: matched_track&.sound_caption }
+      artist: artist, title: title, note: note, seed_caption: matched_track&.sound_caption,
+      prompts: MasterPrompt.snapshot }
   end
 
   # The newest station track by this artist, ignoring the station's own drops.

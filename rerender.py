@@ -34,6 +34,7 @@ def main():
     args = parser.parse_args()
 
     spec = json.loads(Path(args.track_json).read_text())
+    g.use_prompts(spec.get("prompts"))
     src = Path(spec["file"])
     if not src.exists():
         print(f"No audio at {src}", file=sys.stderr)
@@ -67,7 +68,7 @@ def main():
         shutil.copy2(log_path, replaced / f"{src.stem}-{stamp}.prompt.json")
     fresh.rename(src)
 
-    log.update({"payload": {**old, **song}, "rerender": {"at": stamp, "notes": notes}})
+    log.update({"payload": {**old, **song}, "rerender": {"at": stamp, "notes": notes, "master_prompts": g.prompts_used()}})
     log_path.parent.mkdir(exist_ok=True)
     log_path.write_text(json.dumps(log, indent=2))
 

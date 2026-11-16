@@ -43,10 +43,27 @@ class GenerationJob < ApplicationRecord
     preview? && !plan_confirmed?
   end
 
-  # What generate.py is given as its slot. A confirmed plan rides along in it,
-  # so the generation PC passes it on as it passes any slot.
-  def generate_slot
-    plan_confirmed? && plan ? "plan #{plan.to_json}" : slot
+  # What generate.py is given as its slot. A confirmed plan and the job's
+  # master prompts ride along in it, so the generation PC passes them on as it
+  # passes any slot.
+  def generate_slot(base = nil)
+    base ||= plan_confirmed? && plan ? "plan #{plan.to_json}" : slot
+    MasterPrompt.wrap_slot(base, master_prompts || MasterPrompt.snapshot(prompt_choices))
+  end
+
+  # The prompts picked on the Generate form, {kind => id}; the rest are the active ones.
+  def prompt_choices
+    options&.dig('prompts') || {}
+  end
+
+  # The master prompts this job is written with, frozen when it starts.
+  def master_prompts
+    options&.dig('master_prompts')
+  end
+
+  def freeze_prompts!
+    update!(options: (options || {}).merge('master_prompts' => MasterPrompt.snapshot(prompt_choices)))
+    master_prompts
   end
 
   # The last thing the log says it is doing, for the job page's loader.

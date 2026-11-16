@@ -55,7 +55,8 @@ class BuildSetJob < ApplicationJob
       slot: @gen_job.slot,
       minutes: (@gen_job.options&.dig('minutes') || 60).to_i,
       dj_name: @gen_job.dj_name,
-      candidates: pool
+      candidates: pool,
+      prompts: @gen_job.freeze_prompts!
     ))
     path.to_s
   end

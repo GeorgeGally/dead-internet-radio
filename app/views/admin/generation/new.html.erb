@@ -29,6 +29,16 @@
         <%= text_field_tag :dj_name, params[:dj_name], placeholder: "Kode Red" %>
       </div>
 
+      <div class="field-row prompt-pick">
+        <% MasterPrompt::KINDS.each_key do |kind| %>
+          <% library = MasterPrompt.library(kind) %>
+          <div class="field">
+            <%= label_tag "prompts_#{kind}", MasterPrompt.label(kind) %>
+            <%= select_tag "prompts[#{kind}]", options_from_collection_for_select(library, :id, :name, params.dig(:prompts, kind) || library.find(&:active?)&.id), id: "prompts_#{kind}" %>
+          </div>
+        <% end %>
+      </div>
+
       <label class="field-check">
         <%= check_box_tag :preview, "1", params[:preview] == "1" %>
         Preview and edit before sending

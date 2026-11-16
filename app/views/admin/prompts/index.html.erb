@@ -1,0 +1,28 @@
+<div class="prompts-page">
+  <div class="prompts-head">
+    <h2>Prompts</h2>
+    <%= link_to "New prompt", new_admin_prompt_path(kind: @kind), class: "btn-key btn-key-go prompts-new" %>
+  </div>
+
+  <%= render "kinds", current: @kind %>
+
+  <ul class="prompt-list">
+    <% @prompts.each do |prompt| %>
+      <li class="<%= 'is-active' if prompt.active? %>">
+        <%= link_to edit_admin_prompt_path(prompt), class: "prompt-item" do %>
+          <span class="prompt-name"><%= prompt.name %></span>
+          <span class="prompt-meta">v<%= prompt.version %> · <time datetime="<%= prompt.updated_at.utc.iso8601 %>" data-local="datetime"><%= prompt.updated_at.utc.strftime("%Y-%m-%d %H:%M") %></time></span>
+          <% if prompt.notes.present? %><span class="prompt-notes"><%= prompt.notes %></span><% end %>
+        <% end %>
+        <div class="prompt-actions">
+          <% if prompt.active? %>
+            <span class="prompt-on">In use</span>
+          <% else %>
+            <%= button_to "Use", activate_admin_prompt_path(prompt), class: "btn-key", form_class: "inline-form" %>
+          <% end %>
+          <%= button_to "Duplicate", duplicate_admin_prompt_path(prompt), class: "btn-key", form_class: "inline-form" %>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+</div>
