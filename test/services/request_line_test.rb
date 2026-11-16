@@ -24,8 +24,24 @@ class RequestLineTest < ActiveJob::TestCase
     assert_equal [@req.id, later.id], lines.map { |l| l.split(" ", 2).first.to_i }
     spec = JSON.parse(lines.first.split(" ", 2).last)
     assert_equal({ "requester" => @user.public_handle, "artist" => "Static Bloom", "title" => "Carrier Signal",
-                   "note" => "colder", "seed_caption" => nil }, spec.except("prompts"))
+                   "note" => "colder", "seed_caption" => nil, "recent_sounds" => [] }, spec.except("prompts"))
     assert_equal "Original", spec.dig("prompts", "dj", "name")
+  end
+
+  test "hands over how the last requests sounded, newest first" do
+    dir = Dir.mktmpdir
+    FileUtils.mkdir_p(File.join(dir, "prompts"))
+    show = Show.create!(slot: "request line", directory: dir, status: :complete)
+    [ [ "01-wire", "Electroclash, 128 BPM in F# minor. A dry kick.", 128, "F# minor" ],
+      [ "02-hex", "Darkwave. A cold pad.", 112, "C minor" ] ].each_with_index do |(stem, caption, bpm, key), i|
+      track = show.tracks.create!(position: i + 1, artist: "A#{i}", title: "T#{i}", bpm: bpm, key: key, audio_file: "#{stem}.mp3")
+      File.write(File.join(dir, "prompts", "#{stem}.prompt.json"), JSON.generate(payload: { caption: caption }))
+      @user.song_requests.create!(artist: "A#{i}", title: "T#{i}", status: :scheduled, track: track)
+    end
+
+    assert_equal [ "Darkwave, 112 BPM, C minor", "Electroclash, 128 BPM, F# minor" ], @req.render_spec[:recent_sounds]
+  ensure
+    FileUtils.rm_rf(dir)
   end
 
   test "walks the line and repeats safely" do

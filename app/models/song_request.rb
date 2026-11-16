@@ -46,7 +46,15 @@ class SongRequest < ApplicationRecord
     name = user.public_handle
     { requester: name,
       artist: artist, title: title, note: note, seed_caption: matched_track&.sound_caption,
+      recent_sounds: self.class.recent_sounds(except: id),
       prompts: MasterPrompt.snapshot }
+  end
+
+  # How the last few rendered requests sounded ("Electroclash, 128 BPM, F# minor"),
+  # so the next one picks another genre and tempo.
+  def self.recent_sounds(except: nil, limit: 5)
+    where.not(id: except).where.not(track_id: nil).recent.includes(:track).limit(limit)
+      .filter_map { |req| [ req.track.genre, req.track.bpm && "#{req.track.bpm} BPM", req.track.key ].compact.join(", ").presence }
   end
 
   # The newest station track by this artist, ignoring the station's own drops.
