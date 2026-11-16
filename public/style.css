@@ -454,6 +454,7 @@ body.prewarming #block-canvas {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   padding: 28px clamp(16px, 6vw, 96px) clamp(24px, 6vh, 64px);
   background: #e9e6df;
   color: #1b1b1b;
@@ -475,7 +476,6 @@ body.prewarming #block-canvas {
   justify-content: space-between;
 }
 
-.rq-head,
 .rq-num,
 .rq-lab,
 .rq-go-label {
@@ -484,6 +484,13 @@ body.prewarming #block-canvas {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #8a857b;
+}
+
+.rq-head {
+  margin: 0;
+  font-size: clamp(20px, 2.5vw, 30px);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
 }
 
 .rq-close {
@@ -520,6 +527,13 @@ body.prewarming #block-canvas {
   font-weight: 500;
   line-height: 1.12;
   letter-spacing: -0.01em;
+}
+
+.rq-intro {
+  margin: 28px 0 8px;
+  white-space: pre-line;
+  font-size: clamp(14px, 1.4vw, 18px);
+  line-height: 1.35;
 }
 
 .rq-form { display: flex; flex-direction: column; }
@@ -645,6 +659,8 @@ body.prewarming #block-canvas {
   transition: background 0.2s ease;
 }
 
+.rq-submit { width: 150px; flex-shrink: 0; }
+
 .rq-go:hover { background: #d45a14; }
 .rq-go:disabled { background: #d9d4ca; color: #9a948a; cursor: default; }
 
@@ -701,20 +717,21 @@ body.prewarming #block-canvas {
 .rq-play.on { background: #2a2a2a; }
 
 .rq-note {
-  margin: 0;
-  position: absolute;
-  left: clamp(16px, 6vw, 96px);
-  bottom: 28px;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  margin: 16px 0 0;
   font-size: 11px;
-  letter-spacing: 0.04em;
+  line-height: 1.4;
+  font-style: italic;
   color: #8a857b;
+  text-align: right;
 }
 
 @media (max-width: 600px) {
-  .rq-row { grid-template-columns: 24px 1fr; }
-  .rq-note { position: static; margin-top: 32px; }
-  .rq-lab { display: none; }
+  .rq-row { grid-template-columns: 24px 48px minmax(0, 1fr); gap: 0 8px; }
+  .rq-note { text-align: left; }
+  .rq-body { justify-content: flex-start; }
+  .rq-row { padding: 12px 0 8px; }
+  .rq-form .rq-foot { margin-top: 32px; }
+  .rq-input { font-size: 18px; }
   .rq-foot { flex-wrap: wrap; gap: 20px; }
   .rq-msg { flex-basis: 100%; }
   .rq-tx-row { grid-template-columns: 56px 1fr; font-size: 14px; }

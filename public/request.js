@@ -121,14 +121,18 @@ const requestLine = (() => {
   // can't be styled). The token client is made once Google's script is in,
   // so the click can open the popup straight away.
   let tokenClient = null;
+  function renderIntro(body) {
+    body.append(el('p', 'rq-intro', "somewhere out there, your favourite band exists.\n\nyou just haven't heard them yet.\n\ngive us a band name and a song title.\nwe'll see what we can pick up."));
+  }
+
   function renderSignIn(body, msg) {
     const lede = el('p', 'rq-lede');
-    body.appendChild(lede);
+    if (openReason === 'chat' || !me || !me.google_client_id) body.appendChild(lede);
     if (!me || !me.google_client_id) {
       lede.textContent = me ? 'Sign-in isn\'t set up yet.' : (msg || 'The line went dead. Try again later.');
       return;
     }
-    lede.textContent = openReason === 'chat' ? 'Sign in with Google to transmit a message to the station.' : 'Name a band that never existed. The station makes the song.';
+    lede.textContent = openReason === 'chat' ? 'Sign in with Google to transmit a message to the station.' : '';
     const foot = el('div', 'rq-foot');
     const out = el('p', 'rq-msg', msg || 'Sign in with Google to send one.');
     const { wrap, go } = goButton('google');
@@ -183,16 +187,16 @@ const requestLine = (() => {
     style.input.placeholder = STYLES[Math.floor(Math.random() * STYLES.length)];
     const done = me.requests_left <= 0 ? 'That\'s three today. The line opens again tomorrow.' : '';
     const out = el('p', 'rq-msg', msg || done);
-    const { wrap, go } = goButton('send', 'submit');
+    const { wrap, go } = goButton('[ SEND REQUEST ]', 'submit');
+    wrap.classList.add('rq-submit');
     const foot = el('div', 'rq-foot');
     foot.append(out, fieldLights([artist.input, title.input, style.input]), wrap);
     if (me.requests_left <= 0) go.disabled = true;
-    form.append(artist.row, title.row, style.row, foot);
+    form.append(artist.row, title.row, style.row, foot, el('p', 'rq-note', 'all requests are subject to the laws of physics, which are no longer strictly enforced.'));
     body.append(form);
     const requestLog = el('div', 'rq-log');
     body.append(requestLog);
     renderLog(requestLog);
-    body.append(el('p', 'rq-note', 'Every artist on DIR is a band that never existed.'));
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -344,6 +348,7 @@ const requestLine = (() => {
     const body = card.querySelector('.rq-body');
     stopPreview();
     body.replaceChildren();
+    if (openReason === 'request') renderIntro(body);
     if (me && me.signed_in) renderForm(body, msg);
     else renderSignIn(body, msg);
   }
@@ -382,7 +387,7 @@ const requestLine = (() => {
     x.type = 'button';
     x.setAttribute('aria-label', 'Close');
     x.addEventListener('click', close);
-    top.append(el('span', 'rq-head', 'Dead Internet Radio Call in line'), x);
+    top.append(el('h1', 'rq-head', 'REQUEST A TRANSMISSION'), x);
     card.append(top, el('div', 'rq-body'));
     document.body.appendChild(card);
 
