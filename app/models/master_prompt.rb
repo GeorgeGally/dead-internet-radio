@@ -88,11 +88,15 @@ class MasterPrompt < ApplicationRecord
   end
 
   def duplicate
-    base = "#{name} copy"
-    copy_name = base
+    self.class.create!(kind: kind, name: self.class.free_name(kind, "#{name} copy"), body: body, notes: notes)
+  end
+
+  # base, or base 2, base 3… whichever this kind has not used.
+  def self.free_name(kind, base)
+    name = base
     n = 1
-    copy_name = "#{base} #{n += 1}" while self.class.of(kind).exists?(name: copy_name)
-    self.class.create!(kind: kind, name: copy_name, body: body, notes: notes)
+    name = "#{base} #{n += 1}" while of(kind).exists?(name: name)
+    name
   end
 
   def keys = KINDS.dig(kind, "keys") || []

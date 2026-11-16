@@ -17,12 +17,26 @@ class AdminPromptsTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_login_path
   end
 
-  test "lists each kind's prompts with the one in use" do
+  test "each kind opens on its active prompt, editable in place" do
     sign_in
     get admin_prompts_path(kind: "dj")
     assert_response :success
     assert_select ".prompt-kinds a", MasterPrompt::KINDS.size
-    assert_select ".prompt-list li.is-active .prompt-name", "Original"
+    assert_select "select.prompt-select option[selected]", "Original · in use"
+    assert_select "form#prompt-form textarea.prompt-body", text: /\S/
+  end
+
+  test "save as new keeps the original and opens the copy" do
+    sign_in
+    MasterPrompt.ensure_seeded!
+    original = MasterPrompt.active_for("rewrite")
+    patch admin_prompt_path(original), params: { as_new: "1", master_prompt: { name: "Original", body: "#{original.body}\nLouder.", notes: "" } }
+    copy = MasterPrompt.find_by!(kind: "rewrite", name: "Original copy")
+    assert_redirected_to edit_admin_prompt_path(copy)
+    assert_match(/Louder\.\z/, copy.body)
+    assert_no_match(/Louder/, original.reload.body)
+    assert_equal 1, original.version
+    assert_predicate original, :active?
   end
 
   test "save a new prompt and use it, then switch back" do
