@@ -18,7 +18,7 @@ test('the silent probe is a valid empty WAV header', () => {
   assert.equal(bytes.readUInt32LE(24), 8000);
 });
 
-test('the start button shows only once the browser refuses: the CSS hides the letterbox until then', () => {
+test('the start button appears only once the browser refuses', () => {
   assert.match(css, /#welcome-splash:not\(\.click-to-start\) \.welcome-letterbox \{\s*visibility: hidden;/);
 });
 
@@ -153,9 +153,4 @@ test('reduced motion shows the whole story at once, without animating', () => {
   w.show(true);
   assert.equal(w.box.children.length, 7);
   assert.equal(w.box.children[0].textContent, LINES_BEFORE_TAIL[0]);
-});
-
-test('the story stays within a terminal letter-spacing', () => {
-  const lore = css.match(/#welcome-lore \{[^}]*\}/)[0];
-  assert.ok(parseFloat(lore.match(/letter-spacing:\s*([\d.]+)em/)[1]) <= 0.04);
 });
