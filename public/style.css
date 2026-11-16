@@ -1262,29 +1262,6 @@ body.prewarming #block-canvas {
   align-items: center;
 }
 
-.dial-readout {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #ff5a1f;
-  height: 11px;
-  line-height: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
-.dial-readout.show {
-  opacity: 0.85;
-}
-
 #np-display {
   flex: 0 0 auto;
   width: 100%;
@@ -1533,14 +1510,14 @@ body.prewarming #block-canvas {
     0 1px 2px rgba(0, 0, 0, 0.14);
 }
 
-/* ---- FX unit in the menubar: four-row display beside the knobs ---- */
+/* ---- FX unit in the menubar: three filter rows beside the knobs ---- */
 
 .deck-display .ctrl.idle .rams-knob {
   opacity: 0.45;
 }
 
-/* Each row: on/off button, then the filter name. The rows share
-   the panel's columns, so every name, Artwork's too, starts at the same place. */
+/* Each row: on/off button, then the filter name. The rows share the
+   panel's columns, so the heading and every name start at the same place. */
 .fx-lcd {
   flex: 0 0 auto;
   width: 168px;
@@ -1552,6 +1529,16 @@ body.prewarming #block-canvas {
   align-content: center;
   gap: 1px 7px;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fx-heading {
+  grid-column: 2 / -1;
+  font-family: "Anka Coder", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: #696969;
 }
 
 .fx-row {
@@ -1574,21 +1561,11 @@ body.prewarming #block-canvas {
 }
 
 .fx-row.on { color: rgba(255, 255, 255, 0.92); }
-.fx-row[data-slot="0"], .fx-row[data-slot="1"], .fx-row[data-slot="2"] { touch-action: none; }
+.fx-row { touch-action: none; }
 .fx-row.dragging { background: rgba(255, 90, 31, 0.18); cursor: grabbing; }
 .fx-row.drop { box-shadow: inset 0 1px 0 #ff5a1f, inset 0 -1px 0 #ff5a1f; }
 .fx-row.focus { background: rgba(255, 255, 255, 0.08); }
 .fx-row.focus .fx-name { color: #ff5a1f; }
-
-.fx-num {
-  grid-area: 1 / 1;
-  justify-self: center;
-  text-align: center;
-  line-height: 1;
-  font-size: 8px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
-}
 
 .fx-name {
   grid-area: 1 / 2;

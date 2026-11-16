@@ -171,14 +171,12 @@ const gallery = (() => {
     document.addEventListener('keydown', handleKeyDown);
   }
 
-  // ---- FX unit in the menubar: dry/wet, a four-row display, a filter dial
+  // ---- FX unit in the menubar: dry/wet, three filter rows, a filter dial
   // and two parameter knobs ----
-  // Rows 1-3 are the filter slots, stacked bottom-up over the artwork row:
-  // slot 1 is applied first. Click one to focus it, its box switches it on and
-  // off, drag it onto another row to reorder. The filter dial turns through filters for the focused slot and
-  // the two knobs set its parameters. Row A is the playing artwork: focused, the
-  // dial is its sensitivity and the knobs its cutoff and resonance.
-  let artFocus = false;
+  // The rows are the filter slots, stacked bottom-up: the bottom one is
+  // applied first. Click one to focus it, its box switches it on and off,
+  // drag it onto another row to reorder. The filter dial turns through
+  // filters for the focused slot and the two knobs set its parameters.
 
   // Drag up/down or scroll. A detented knob steps once per `detent` pixels and
   // also counts sideways travel: the deck sits at the top of the screen, so
@@ -217,16 +215,15 @@ const gallery = (() => {
 
   const FX_KEYS = [null, ...canvasFilters.list().map((f) => f.key)];
   const fxInfo = (key) => canvasFilters.list().find((f) => f.key === key);
-  const ART_KNOBS = ['sensitivity', 'cutoff', 'resonance']; // filter dial, p1, p2
 
   function bindFxUnit() {
     const el = document.querySelector('.deck-content');
     if (!el || !el.querySelector('.fx-lcd')) return;
 
-    // Drag a filter row onto another to reorder the stack. The artwork row
-    // stays at the bottom; a plain click still focuses.
+    // Drag a filter row onto another to reorder the stack; a plain click
+    // still focuses.
     let drag = null;
-    const slotRows = [...el.querySelectorAll('.fx-row')].filter((r) => Number(r.dataset.slot) >= 0);
+    const slotRows = [...el.querySelectorAll('.fx-row')];
     const rowAt = (y) => slotRows.find((r) => { const b = r.getBoundingClientRect(); return y >= b.top && y < b.bottom; });
     slotRows.forEach((row) => {
       row.addEventListener('pointerdown', (e) => {
@@ -250,10 +247,7 @@ const gallery = (() => {
         slotRows.forEach((r) => r.classList.remove('drop'));
         if (!d.moved) return;
         const over = e && e.type === 'pointerup' ? rowAt(e.clientY) : null;
-        if (over) {
-          artFocus = false;
-          canvasFilters.moveSlot(d.from, Number(over.dataset.slot));
-        }
+        if (over) canvasFilters.moveSlot(d.from, Number(over.dataset.slot));
         // Swallow the click that follows this pointerup, but only that one.
         row._skipClick = true;
         setTimeout(() => { row._skipClick = false; }, 0);
@@ -262,16 +256,10 @@ const gallery = (() => {
       row.addEventListener('pointercancel', end);
     });
 
-    el.querySelectorAll('.fx-row').forEach((row) => {
+    slotRows.forEach((row) => {
       row.addEventListener('click', (e) => {
         if (row._skipClick) { row._skipClick = false; return; }
         const i = Number(row.dataset.slot);
-        if (i < 0) {
-          artFocus = true;
-          updateFxUnit(el);
-          return;
-        }
-        artFocus = false;
         canvasFilters.setFocus(i);
         if (e.target.closest('.fx-on')) canvasFilters.setSlotOn(i, !canvasFilters.getSlots()[i].on);
         updateFxUnit(el);
@@ -286,28 +274,22 @@ const gallery = (() => {
       reset: () => canvasFilters.setWet(1),
     });
     bindKnob(el.querySelector('.fx-pick'), {
-      detent: () => (artFocus ? 0 : 14),
-      get: () => (artFocus ? window.artDials.get(ART_KNOBS[0]) : FX_KEYS.indexOf(focused().key)),
+      detent: () => 14,
+      get: () => FX_KEYS.indexOf(focused().key),
       set: (v) => {
-        if (artFocus) { window.artDials.set(ART_KNOBS[0], Math.max(0, Math.min(1, v))); return; }
         const f = canvasFilters.getFocus();
         const key = FX_KEYS[Math.max(0, Math.min(FX_KEYS.length - 1, v))];
         canvasFilters.setSlotFilter(f, key);
         // A filter dialled in starts playing; dialling back to nothing stops it.
         if (key != null) canvasFilters.setSlotOn(f, true);
       },
-      reset: () => { if (artFocus) window.artDials.reset(ART_KNOBS[0]); },
     });
     [0, 1].forEach((j) => {
       bindKnob(el.querySelector(`.fx-p${j + 1}`), {
         detent: () => 0,
-        get: () => (artFocus ? window.artDials.get(ART_KNOBS[j + 1]) : focused().p[j]),
-        set: (v) => {
-          if (artFocus) window.artDials.set(ART_KNOBS[j + 1], Math.max(0, Math.min(1, v)));
-          else canvasFilters.setParam(canvasFilters.getFocus(), j, v);
-        },
+        get: () => focused().p[j],
+        set: (v) => canvasFilters.setParam(canvasFilters.getFocus(), j, v),
         reset: () => {
-          if (artFocus) { window.artDials.reset(ART_KNOBS[j + 1]); return; }
           const f = canvasFilters.FILTERS.find((x) => x.key === focused().key);
           if (f) canvasFilters.setParam(canvasFilters.getFocus(), j, f.params[j][1]);
         },
@@ -315,7 +297,6 @@ const gallery = (() => {
     });
 
     canvasFilters.subscribe(() => updateFxUnit(el));
-    window.artDials.subscribe(() => updateFxUnit(el));
     updateFxUnit(el);
   }
 
@@ -328,14 +309,8 @@ const gallery = (() => {
     const focus = canvasFilters.getFocus();
     el.querySelectorAll('.fx-row').forEach((row) => {
       const i = Number(row.dataset.slot);
-      if (i < 0) {
-        row.classList.add('on');
-        row.classList.toggle('focus', artFocus);
-        row.querySelector('.fx-name').textContent = 'Artwork';
-        return;
-      }
       const s = slots[i];
-      row.classList.toggle('focus', !artFocus && i === focus);
+      row.classList.toggle('focus', i === focus);
       row.classList.toggle('on', s.on);
       row.querySelector('.fx-name').textContent = s.key == null ? '\u2014' : fxInfo(s.key).name;
       const btn = row.querySelector('.fx-on');
@@ -349,15 +324,14 @@ const gallery = (() => {
     turn(el.querySelector('.fx-wet'), canvasFilters.getWet());
     ctrl('fx-wet').querySelector('.led').classList.toggle('on', anyOn);
     const pick = ctrl('fx-pick');
-    pick.querySelector('.knob-label').textContent = artFocus ? ART_KNOBS[0] : 'filter';
-    turn(pick.querySelector('.rams-knob'), artFocus ? window.artDials.get(ART_KNOBS[0]) : FX_KEYS.indexOf(s.key) / (FX_KEYS.length - 1));
-    pick.querySelector('.led').classList.toggle('on', artFocus || s.on);
+    turn(pick.querySelector('.rams-knob'), FX_KEYS.indexOf(s.key) / (FX_KEYS.length - 1));
+    pick.querySelector('.led').classList.toggle('on', s.on);
     [0, 1].forEach((j) => {
       const c = ctrl(`fx-p${j + 1}`);
-      turn(c.querySelector('.rams-knob'), artFocus ? window.artDials.get(ART_KNOBS[j + 1]) : s.p[j]);
-      c.querySelector('.knob-label').textContent = artFocus ? ART_KNOBS[j + 1] : info ? info.params[j] : '\u2014';
-      c.classList.toggle('idle', !artFocus && !info);
-      c.querySelector('.led').classList.toggle('on', artFocus || s.on);
+      turn(c.querySelector('.rams-knob'), s.p[j]);
+      c.querySelector('.knob-label').textContent = info ? info.params[j] : '\u2014';
+      c.classList.toggle('idle', !info);
+      c.querySelector('.led').classList.toggle('on', s.on);
     });
   }
 
