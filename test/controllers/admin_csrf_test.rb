@@ -68,6 +68,43 @@ class AdminCsrfTest < ActionDispatch::IntegrationTest
     assert_nil job.output_log
   end
 
+  test "inline remix from a freshly loaded requests page passes csrf" do
+    show_dir = Rails.root.join("tmp", "csrf-remix-#{Process.pid}")
+    FileUtils.mkdir_p(show_dir.join("prompts"))
+    show = Show.create!(slot: "csrf", track_count: 1, directory: show_dir.to_s, status: :complete)
+    song = Track.create!(show: show, position: 1, title: "Cheesy", artist: "Synth",
+                         audio_file: show_dir.join("01-cheesy.mp3").to_s)
+    File.write(show_dir.join("01-cheesy.mp3"), "x")
+    File.write(show_dir.join("prompts", "01-cheesy.prompt.json"),
+               JSON.generate(payload: { caption: "test", lyrics: "[Instrumental]", bpm: 120 }))
+    user = User.create!(google_uid: "g-csrf-#{Process.pid}", name: "Pat", email: "pat-csrf@example.com")
+    req = user.song_requests.create!(title: "Cheesy", artist: "Synth", status: :ready, track: song)
+
+    get admin_login_path
+    post admin_login_path, params: {
+      authenticity_token: response.body[/name="authenticity_token" value="([^"]+)"/, 1],
+      username: "admin",
+      password: "secret"
+    }
+
+    get admin_requests_path
+    assert_response :success
+    notes_form = response.body[%r{<form[^>]+class="rerender-form notes-form"[\s\S]*?</form>}]
+    token = notes_form&.match(/name="authenticity_token" value="([^"]+)"/)&.[](1)
+    assert token, "expected the notes form to carry an authenticity token"
+
+    # The Remix button points this same form at the remix URL before submit.
+    post remix_admin_track_path(song), params: {
+      authenticity_token: token, request_id: req.id, inline: 1,
+      instructions: "change the cheesy repetitive synth melody to vocals"
+    }
+
+    assert_redirected_to admin_requests_path
+    assert_equal "Remixing Synth — Cheesy", flash[:notice]
+  ensure
+    FileUtils.rm_rf(show_dir) if show_dir
+  end
+
   test "stale csrf token redirects with refresh notice instead of 422" do
     show_dir = Rails.root.join("tmp", "csrf-show-#{Process.pid}")
     FileUtils.mkdir_p(show_dir.join("prompts"))
