@@ -6,15 +6,17 @@ const root = path.resolve(__dirname, '..');
 
 function check(html, enabled) {
   assert.equal((html.match(/G-YRTK3L63H0/g) || []).length, enabled ? 2 : 0);
-  assert.doesNotMatch(html, /GTM-5R26L4MQ|googletagmanager\.com\/ns\.html/);
+  assert.equal((html.match(/GTM-5R26L4MQ/g) || []).length, enabled ? 2 : 0);
   if (enabled) {
     assert.match(html, /<head>\s*<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-YRTK3L63H0"><\/script>/);
     assert.match(html, /gtag\('js', new Date\(\)\);/);
     assert.match(html, /gtag\('config', 'G-YRTK3L63H0'\);/);
+    assert.match(html, /<head>[\s\S]*googletagmanager\.com\/gtm\.js\?id=[\s\S]*GTM-5R26L4MQ[\s\S]*<\/head>/);
+    assert.match(html, /<body>\s*<!-- Google Tag Manager \(noscript\) -->\s*<noscript><iframe src="https:\/\/www\.googletagmanager\.com\/ns\.html\?id=GTM-5R26L4MQ"[\s\S]*?<\/iframe><\/noscript>/);
   }
 }
 
-test('GA4 appears once on production player pages and production static builds only', () => {
+test('GA4 and GTM appear on production player pages and production static builds only', () => {
   const ruby = `require 'active_support/core_ext/object/blank'; require 'active_support/core_ext/hash/except'; require './lib/player_page'; page = PlayerPage.new(->(env) { [404, {}, []] }, public_path: './public', cache: false, google_tag: ARGV[0] == 'production'); print page.call({'PATH_INFO' => ARGV[1], 'REQUEST_METHOD' => 'GET'})[2].join`;
   for (const env of ['production', 'development', 'test']) {
     for (const route of ['/', '/index.html']) {
