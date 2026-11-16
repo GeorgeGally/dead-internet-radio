@@ -738,16 +738,7 @@ function setupControls() {
 
   // The artwork's own dials: cutoff (5-255, rest 130), resonance (0-100, rest
   // 50) and sensitivity (0-100, rest 50, the audio input gain). They have no
-  // knobs of their own: the FX unit's ART row turns them (gallery.js).
-  const dialReadout = document.getElementById('dial-readout');
-  let dialReadoutTimer;
-  function showDialReadout(text) {
-    if (!dialReadout) return;
-    dialReadout.textContent = text;
-    dialReadout.classList.add('show');
-    clearTimeout(dialReadoutTimer);
-    dialReadoutTimer = setTimeout(() => dialReadout.classList.remove('show'), 1400);
-  }
+  // knobs: they sit at rest unless a saved slot restores them.
   const ART_DIALS = {
     cutoff: { min: 5, max: 255, rest: 130, set: (v) => {
       window._cutoffVal = v;
@@ -760,30 +751,13 @@ function setupControls() {
     } },
     sensitivity: { min: 0, max: 100, rest: 50, set: (v) => { window.audioInputGain = v; } },
   };
-  const artVals = {};
-  const artListeners = new Set();
-  function setArtDial(name, v, quiet) {
+  function setArtDial(name, v) {
     const d = ART_DIALS[name];
-    v = Math.max(d.min, Math.min(d.max, v));
-    artVals[name] = v;
-    d.set(v);
-    artListeners.forEach((fn) => fn());
-    if (!quiet) gallery.saveCurrentPreset();
+    d.set(Math.max(d.min, Math.min(d.max, v)));
   }
-  Object.keys(ART_DIALS).forEach((n) => setArtDial(n, ART_DIALS[n].rest, true));
-  // 0-1 view of the dials for the FX unit's knobs.
-  window.artDials = {
-    get: (name) => (artVals[name] - ART_DIALS[name].min) / (ART_DIALS[name].max - ART_DIALS[name].min),
-    set: (name, f) => {
-      const d = ART_DIALS[name];
-      setArtDial(name, d.min + f * (d.max - d.min));
-      showDialReadout(`${name} ${Math.round(window.artDials.get(name) * 100)}%`);
-    },
-    reset: (name) => setArtDial(name, ART_DIALS[name].rest),
-    subscribe: (fn) => artListeners.add(fn),
-  };
-  window._restoreCutoff = (v) => setArtDial('cutoff', v, true);
-  window._restoreResonance = (v) => setArtDial('resonance', v, true);
+  Object.keys(ART_DIALS).forEach((n) => setArtDial(n, ART_DIALS[n].rest));
+  window._restoreCutoff = (v) => setArtDial('cutoff', v);
+  window._restoreResonance = (v) => setArtDial('resonance', v);
   window._restoreStrength = (v) => canvasFilters.setStrength(v);
   window._filterStrengthVal = 100;
   gallery.bindFxUnit();
