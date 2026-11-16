@@ -29,7 +29,7 @@ class RequestMailer < ApplicationMailer
     @calendar_url = google_calendar_url(@event, @zone)
     attachments["dead-internet-radio.ics"] = { mime_type: "text/calendar; method=PUBLISH; charset=UTF-8",
                                                content: ics(@event, "request-#{request.id}") }
-    mail to: request.user.email, subject: "#{request.title} airs #{@at.strftime('%a %H:%M')}"
+    mail to: request.user.email, subject: "We found your request: #{request.title} airs #{@at.strftime('%a %H:%M')}"
   end
 
   private

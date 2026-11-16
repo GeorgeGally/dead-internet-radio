@@ -33,7 +33,7 @@ class RequestNotifierTest < ActiveJob::TestCase
 
     mail = RequestMailer.scheduled(@req, seg.starts_at)
     assert_equal ["pat@example.com"], mail.to
-    assert_equal "Carrier Signal airs Tue 22:40", mail.subject
+    assert_equal "We found your request: Carrier Signal airs Tue 22:40", mail.subject
     assert_includes mail.html_part.body.to_s, "Europe/Berlin"
     assert_includes mail.text_part.body.to_s, "Europe/Berlin"
 
