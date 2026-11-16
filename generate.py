@@ -589,12 +589,38 @@ def station_caption(caption: str) -> str:
     return caption
 
 
+# Tempo and key wording in a caption: "126 BPM", "at 118-122 bpm", "in E minor",
+# "in the key of F# major". ACE-Step gets bpm and key_scale as settings, and a
+# caption that names others fights them (EBM techno at 126 BPM in E minor,
+# rendered at 118 BPM in D minor).
+KEY_WORDS = r"(?-i:[A-G])(?:#|♯|b|♭)?\s*(?:major|minor|maj|min)\b"
+TEMPO_KEY_RE = re.compile(
+    r"[,;]?\s*\b(?:(?:at|around|about)\s+)?~?\d{2,3}(?:\s*(?:-|–|to)\s*\d{2,3})?\s*bpm\b"
+    rf"(?:,?\s*(?:in\s+)?(?:the\s+key\s+of\s+)?{KEY_WORDS})?"
+    rf"|[,;]?\s*\b(?:in\s+)?(?:the\s+key\s+of\s+){KEY_WORDS}"
+    rf"|[,;]?\s*\bin\s+{KEY_WORDS}",
+    re.IGNORECASE,
+)
+
+
+TEMPO_KEY_LINE = "Tempo and key go only in bpm and keyscale, never in the caption: the caption opens with the genre, then the sound."
+
+
+def strip_tempo_key(caption: str) -> str:
+    """The caption without its tempo and key: the bpm and keyscale settings decide them."""
+    text = TEMPO_KEY_RE.sub("", caption or "")
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    text = re.sub(r"([,;:])\s*([.;:])", r"\2", text)
+    text = re.sub(r"\.\s*\.", ".", text)
+    return re.sub(r"\s{2,}", " ", text).strip(" ,;")
+
+
 def call_ace_step(payload: dict) -> str:
     body = {
         # Text to music only: the server refuses covers and reference audio
         # (patches/ace-step-text2music-only.patch).
         "task_type": "text2music",
-        "prompt": station_caption(payload["caption"]),
+        "prompt": station_caption(strip_tempo_key(payload["caption"])),
         "lyrics": payload.get("lyrics", ""),
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
@@ -767,6 +793,22 @@ def generate_announcement(text: str, output_path: Path, intensity: float = 0.5):
         print(f"    TTS skipped (kokoro python not found at {KOKORO_PYTHON})", flush=True)
 
 
+def request_producer_input(request: dict) -> str:
+    """The producer's brief for a listener request: the song's own world, from its band name and title."""
+    title, artist, note = request["title"], request["artist"], request.get("note")
+    return (
+        f"This show is one song a listener asked for: \"{title}\" by {artist}"
+        + (f". The listener said: {note}" if note else "")
+        + ".\n\nWrite a program brief for that song's world, drawn from the band name and the title: "
+        "who this act is, when and where they played, what the name and the title make them sound like. "
+        "The station's request line is not the subject."
+        f"\n\nWrite 1 track idea, for \"{title}\": its subject comes from the title, and its era, city, "
+        f"instrument at the centre, voice and room from what \"{artist}\" suggests. Name its genre: "
+        + ("the one the listener asked for, or else " if note else "")
+        + "the one the band name and the title call for."
+    )
+
+
 def request_block(request: dict) -> str:
     """The DJ's brief for a listener request: their title and artist, our sound."""
     block = (
@@ -779,10 +821,15 @@ def request_block(request: dict) -> str:
             f"a new track in the same sound:\n{request['seed_caption']}\n"
         )
     else:
-        block += "A new artist: give them a sound of their own from the station's home families. "
+        block += ("A new artist: hear what the band name and the title suggest, and give them that sound: "
+                  "the genre, tempo, instruments, voice and room this act would have. ")
     if request.get("note"):
-        block += f"The listener asked for: {request['note']}. Let that shape the mood. "
-    return block + "The station's genre rules win over anything the listener asked for."
+        block += f"The listener asked for: {request['note']}. A genre they name is the genre; the rest shapes the mood. "
+    recent = [str(s) for s in request.get("recent_sounds") or [] if s]
+    if recent:
+        block += ("The last requests sounded like: " + "; ".join(recent) + ". This one is not another of them: "
+                  "a different genre unless the listener named one, and a tempo at least 8 BPM from each. ")
+    return block + "Follow the DJ lessons so it never turns cheesy."
 
 
 # A caption that describes a voice. ACE-Step only voices lyric lines, so a
@@ -1060,6 +1107,53 @@ def share_artists(songs: list, numbers: list[int]) -> list:
     return songs
 
 
+# Words a title and its artist may share: "Glass Refusal" by Refusal Unit may not.
+NAME_FILLER = {"a", "an", "the", "of", "and", "in", "on", "at", "to", "for", "by", "with", "from",
+               "my", "your", "our", "is", "it", "its", "no", "not", "or"}
+NAME_LINE = "A title and its artist share no word: never \"Glass Refusal\" by Refusal Unit."
+
+
+def name_words(name: str) -> set[str]:
+    """A name's content words, plurals folded: "Signals" and "Signal" are one word."""
+    words = set()
+    for word in re.findall(r"[a-z0-9]+", str(name or "").lower()):
+        if word not in NAME_FILLER:
+            words.add(word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word)
+    return words
+
+
+def shared_name_words(title: str, artist: str) -> list[str]:
+    return sorted(name_words(title) & name_words(artist))
+
+
+def retitle_clashes(songs: list, dj_input: str, tries: int = 2) -> list:
+    """A song whose title shares a word with its artist is asked again for a
+    new title; the artist, which a set's act may share, stays."""
+    for song in songs:
+        for _ in range(tries):
+            title, artist = str(song.get("title") or ""), str(song.get("artist") or "")
+            shared = shared_name_words(title, artist)
+            if not shared:
+                break
+            print(f"  Name clash: \"{title}\" by {artist} share {', '.join(shared)}; asking for a new title", flush=True)
+            ask = (f"{song.get('_prompt', dj_input)}\n\nNAME CLASH: the title \"{title}\" and the artist \"{artist}\" "
+                   f"share {', '.join(shared)}. {NAME_LINE} Return this song as one JSON object with a new title that "
+                   f"shares no word with \"{artist}\", everything else unchanged:\n"
+                   + json.dumps({k: v for k, v in song.items() if not k.startswith("_")}))
+            try:
+                again = ask_llm("music", ask, extract_json)
+            except (ValueError, AttributeError, KeyError, TypeError, IndexError):
+                continue
+            if isinstance(again, list):
+                again = again[0] if again else {}
+            new_title = str((again or {}).get("title") or "").strip() if isinstance(again or {}, dict) else ""
+            if new_title:
+                song["title"] = new_title
+        if shared_name_words(str(song.get("title") or ""), str(song.get("artist") or "")):
+            print(f"  WARNING: \"{song.get('title')}\" by {song.get('artist')} still share a word", flush=True)
+    return songs
+
+
 def plan_song(song: dict) -> dict:
     """One song as the plan shows and keeps it: its idea and what ACE-Step is sent."""
     return {key: song.get(key) for key in PLAN_SONG_KEYS if key != "idea" or key in song}
@@ -1229,11 +1323,9 @@ def main():
         ideas_ask = f"\n\nWrite {args.tracks} track ideas, one per track."
         producer_input = f"Time slot: {slot}\n\nWrite a program brief for this slot.{ideas_ask}"
         if request:
-            producer_input = (f"Time slot: {slot}\n\nThis show is one listener request: \"{request['title']}\" "
-                              f"by {request['artist']}"
-                              + (f". The listener said: {request['note']}" if request.get("note") else "")
-                              + ".\n\nWrite a program brief for the song they asked for: its world, "
-                              f"not the station's request line.{ideas_ask}")
+            # No time slot: "request line" made every brief about the station's
+            # phone line, and every request sound alike.
+            producer_input = request_producer_input(request)
         if not plan:
             raw = call_llm(master_prompt("brief"), producer_input)
             try:
@@ -1247,7 +1339,8 @@ def main():
                 ideas = [""] * args.tracks
         if not plan and (not show_name or not brief or "User Safety:" in brief or len(brief) < 20):
             print("  Producer output malformed or moderated, retrying with different model...", flush=True)
-            raw2 = call_llm(fall_back("brief", "wrote no show name or brief"), f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.{ideas_ask}")
+            retry_input = producer_input if request else f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.{ideas_ask}"
+            raw2 = call_llm(fall_back("brief", "wrote no show name or brief"), retry_input)
             try:
                 result2 = extract_json(raw2)
                 show_name = result2.get("show_name", "").strip()
@@ -1377,6 +1470,8 @@ def main():
                 f"- Genre: whatever the slot or brief asks for, any genre or blend (e.g. 'slomo disco', 'electroclash'), vary the tracks within it; with only a mood or time, choose freely in the station's sound. Follow the DJ lessons so it never turns cheesy. When the slot names a genre, every caption starts with that genre word and at most one track leans into a neighbouring genre. Play the genre at its own tempo and beat (electroclash and techno 125+ BPM, four-on-the-floor). Party words (party, club, banger, dancefloor, rave) mean four-on-the-floor bangers at the top of the genre's range. Mood words make tracks slower and darker, never ambient or drone; every track has drums, 90 BPM or more\n"
                 f"- Different basslines, synth palettes and textures; the drum pattern is the genre's own\n"
                 f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n"
+                f"- {TEMPO_KEY_LINE}\n"
+                f"- {NAME_LINE}\n"
                 f"- Every caption in its own words: no run of four or more words may appear in two captions of this set{', except the shared artist sound' if shared else ''}.\n"
                 f"- Station wear (tape, cassette, mains hum, relays, preamp overload, a cracked handset, a basement) goes on at most {max(1, args.tracks // 3)} of the {args.tracks} tracks, a different one each time; the rest are clean recordings in rooms of their own.\n"
                 f"{one_act}\n"
@@ -1443,6 +1538,8 @@ def main():
                     "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
                     "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
                     "- The genre the slot or brief asks for wins; follow the DJ lessons so it never turns cheesy. Every track has drums, 90 BPM or more.\n"
+                    f"- {TEMPO_KEY_LINE}\n"
+                    f"- {NAME_LINE}\n"
                     "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
                     f"{avoid}{worn}"
                 )
@@ -1458,6 +1555,10 @@ def main():
                 song["idea"] = idea
                 song["_prompt"] = dj_input
                 songs.append(song)
+
+        # A listener's request keeps the names they asked for.
+        if not plan and not request:
+            songs = retitle_clashes(songs, dj_input)
 
         # --- Process tracks (shared between batch and per-track) ---
         # An edited plan is sent as it stands.

@@ -4,7 +4,7 @@ You are given one song that already exists: its sound description (the caption A
 
 The notes are the direction:
 - They may change anything: genre, tempo, drums, bass, instruments, the voice, the room. Where the old song and the notes disagree, the notes win.
-- Every genre, style, instrument and tempo the notes name shows up in the new song, in the notes' own words: a genre or style opens the caption ("Darkwave robo techno, 132 BPM in C minor."), an instrument or part they name is described, a tempo goes in bpm. Other direction (faster, darker, punchier) is met by changing the song itself, never by repeating the word. A note that asks for less of something ("too cheesy", "too busy") is met by removing or replacing what caused it.
+- Every genre, style, instrument and tempo the notes name shows up in the new song, in the notes' own words: a genre or style opens the caption ("Darkwave robo techno. A heavy 909 kick…"), an instrument or part they name is described, a tempo goes in bpm and a key in keyscale, never in the caption. Other direction (faster, darker, punchier) is met by changing the song itself, never by repeating the word. A note that asks for less of something ("too cheesy", "too busy") is met by removing or replacing what caused it.
 - Write a new caption, not a paraphrase of the old one. Carry over only what the notes leave alone and still fits.
 - Drop the old wear and the station's furniture — cracked handsets, 4-track tape, cassettes, concrete basements, tape warble, grid static, mains hum, relays, preamp overload — unless the notes ask for it. The room the song was played in comes from the notes and the new genre.
 - Rewrite frequency_band, modulation_type and signal_path for the new sound; never keep the old ones word for word.
