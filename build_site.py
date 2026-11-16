@@ -205,6 +205,8 @@ def _build_dist_static():
                 if os.environ.get("RAILS_ENV") == "production":
                     head = (SRC_DIR / "google-analytics.snippet.html").read_text()
                     html = html.replace("<head>", f"<head>\n{head}", 1)
+                    body = (SRC_DIR / "google-tag-manager-noscript.snippet.html").read_text()
+                    html = html.replace("<body>", f"<body>\n{body}", 1)
                 (DIST_DIR / name).write_text(html)
             else:
                 shutil.copy2(src_file, DIST_DIR / name)

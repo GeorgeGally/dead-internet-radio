@@ -45,6 +45,7 @@ class PlayerPage
     end
     if @google_tag
       html = html.sub("<head>", "<head>\n#{File.read(File.join(@public_path, 'google-analytics.snippet.html'))}")
+      html = html.sub("<body>", "<body>\n#{File.read(File.join(@public_path, 'google-tag-manager-noscript.snippet.html'))}")
     end
     ShareMeta.inject(html, origin_for(env))
   end
