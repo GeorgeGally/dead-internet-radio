@@ -1,7 +1,7 @@
 <%
   sans = "'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
   mono = "'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace"
-  readout = [ [ "Airs", @at.strftime("%a %-d %b · %H:%M") ], [ "Key", @key ], [ "BPM", @bpm ] ].select { |_, v| v.present? }
+  readout = [ [ "Key", @key ], [ "BPM", @bpm ] ].select { |_, v| v.present? }
 %><!doctype html>
 <html lang="en">
 <head>
@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title><%= @request.title %> airs <%= @at.strftime("%a %H:%M") %></title>
+  <title>We found your request: <%= @request.title %> airs <%= @at.strftime("%a %H:%M") %></title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     body { margin: 0; padding: 0; background: #0b0b0a; }
@@ -37,22 +37,32 @@
           </tr>
           <tr>
             <td class="dir-pad" style="padding:56px 48px 0;">
+              <p style="margin:0 0 20px;font-family:<%= mono %>;font-size:13px;line-height:18px;color:#ec6a1f;">We found your request.</p>
               <p class="dir-title" style="margin:0;font-family:<%= sans %>;font-size:52px;line-height:56px;font-weight:600;letter-spacing:-0.01em;color:#f4f1ec;"><%= @request.title %></p>
               <p class="dir-artist" style="margin:8px 0 0;font-family:<%= sans %>;font-size:30px;line-height:36px;font-weight:400;letter-spacing:-0.01em;color:#8a857b;"><%= @request.artist %></p>
             </td>
           </tr>
           <tr>
             <td class="dir-pad" style="padding:40px 48px 0;">
+              <p style="margin:0 0 10px;font-family:<%= mono %>;font-size:12px;line-height:16px;letter-spacing:0.04em;text-transform:uppercase;color:#8a857b;">Airs</p>
+              <p style="margin:0;font-family:<%= sans %>;font-size:32px;line-height:40px;font-weight:600;color:#ec6a1f;"><%= @at.strftime("%a %-d %b · %H:%M") %></p>
+              <p style="margin:4px 0 0;font-family:<%= mono %>;font-size:11px;line-height:16px;color:#8a857b;"><%= @zone %></p>
+            </td>
+          </tr>
+          <% if readout.any? %>
+          <tr>
+            <td class="dir-pad" style="padding:32px 48px 0;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #2c2c29;">
                 <% readout.each do |label, value| %>
                 <tr>
                   <td style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:12px;line-height:16px;letter-spacing:0.04em;text-transform:uppercase;color:#8a857b;"><%= label %></td>
-                  <td align="right" style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:15px;line-height:18px;color:<%= label == 'Airs' ? '#ec6a1f' : '#f4f1ec' %>;"><%= value %><% if label == "Airs" %><br><span style="font-size:11px;line-height:16px;letter-spacing:0.04em;color:#8a857b;"><%= @zone %></span><% end %></td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:15px;line-height:18px;color:#f4f1ec;"><%= value %></td>
                 </tr>
                 <% end %>
               </table>
             </td>
           </tr>
+          <% end %>
           <% if @concept %>
           <tr>
             <td class="dir-pad" style="padding:40px 48px 0;">

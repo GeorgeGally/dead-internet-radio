@@ -30,13 +30,14 @@ class RequestMailerTest < ActionMailer::TestCase
     mail = RequestMailer.scheduled(req, Time.utc(2026, 11, 6, 20, 40))
 
     assert_equal [ "pat@example.com" ], mail.to
-    assert_equal "Carrier Signal airs Fri 21:40", mail.subject
+    assert_equal "We found your request: Carrier Signal airs Fri 21:40", mail.subject
     html = mail.html_part.body.to_s
     assert_operator html.index("Carrier Signal"), :<, html.index("A minor")
     [ "Static Bloom", "Fri 6 Nov · 21:40", "Europe/Berlin", "A minor", "124",
       "A pirate transmitter left on in a flooded mall.", %(href="http://localhost:3000") ].each do |part|
       assert_includes html, part
     end
+    assert_includes html, "We found your request."
     assert_includes html, "Dead Internet Radio"
     assert_includes html, "calendar.google.com/calendar/render?"
     assert_includes html, "dates=20261106T204000Z%2F20261106T204400Z"
@@ -53,6 +54,7 @@ class RequestMailerTest < ActionMailer::TestCase
     assert ics.decoded.split(/\r?\n/).all? { |line| line.bytesize <= 75 }
 
     text = mail.text_part.body.to_s
+    assert_includes text, "We found your request."
     assert_includes text, "Remind me: https://calendar.google.com/"
     assert_includes text, "Key   A minor"
     assert_includes text, "BPM   124"
