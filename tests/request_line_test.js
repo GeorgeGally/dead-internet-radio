@@ -127,6 +127,16 @@ test('the request line opens as a page without taking the browser full screen', 
   assert.equal(fullscreenAsks(), 0);
 });
 
+test('request form presents the transmission copy', async () => {
+  const { line, card } = signedInLine();
+  await line.open();
+  assert.equal(all(card, 'rq-head')[0].tagName, 'H1');
+  assert.equal(text(all(card, 'rq-head')[0]), 'REQUEST A TRANSMISSION');
+  assert.equal(text(all(card, 'rq-intro')[0]), "somewhere out there, your favourite band exists.\n\nyou just haven't heard them yet.\n\ngive us a band name and a song title.\nwe'll see what we can pick up.");
+  assert.equal(text(all(card, 'rq-go-label')[0]), '[ SEND REQUEST ]');
+  assert.equal(text(all(card, 'rq-note')[0]), 'all requests are subject to the laws of physics, which are no longer strictly enforced.');
+});
+
 test('once a request is sent, its key closes the line instead of offering another', async () => {
   const { line, card } = signedInLine();
   await line.open();
