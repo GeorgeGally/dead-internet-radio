@@ -1,7 +1,7 @@
 'use strict';
 
 // Station idents are the versions in labs/station-ident-lab.html, played full
-// frame in an iframe. The welcome splash draws from the same pool. What's on
+// frame in an iframe; the welcome splash draws its own on the CRT. What's on
 // air is switched at /admin/idents and asked for fresh before every ident, so
 // one turned off never airs, even on a page that's been open for hours.
 

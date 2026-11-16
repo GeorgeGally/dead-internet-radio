@@ -3,15 +3,116 @@
 const EPOCH = 2051222400000;
 let _welcomeActive = true;
 
-function startWelcomeIdent(visual) {
-  const frame = document.getElementById('welcome-ident');
-  const src = idents.pick(visual);
-  if (frame && src) frame.src = src;
+// The splash is a green-phosphor CRT. Without GSAP, or with reduced motion,
+// it sits still.
+function crtStill() {
+  return !window.gsap ||
+    !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
-function stopWelcomeIdent() {
-  const frame = document.getElementById('welcome-ident');
-  if (frame) frame.src = 'about:blank';
+// The tube's own life while the splash is up: a 2-4% dip now and then, never
+// a strobe, and one slow band of refresh rolling down the glass.
+function crtLife() {
+  if (crtStill()) return () => {};
+  const gsap = window.gsap;
+  let on = true;
+  (function dip() {
+    if (!on) return;
+    gsap.to('#welcome-flick', {
+      opacity: 0.02 + Math.random() * 0.02, duration: 0.06, yoyo: true, repeat: 1,
+      onComplete: () => gsap.delayedCall(0.4 + Math.random() * 2.2, dip),
+    });
+  })();
+  const roll = gsap.to('#welcome-roll', { top: '110%', duration: 7, ease: 'none', repeat: -1 });
+  return () => { on = false; roll.kill(); gsap.killTweensOf('#welcome-flick'); };
+}
+
+const IDENT_WORDS = ['dead', 'internet', 'radio.'];
+
+// Draws the station ID flat, then remaps it through a barrel lens so the
+// middle swells toward the viewer and the edges stay pinned, like glass
+// bulging out.
+function drawIdent(ident, canvas) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.min(window.innerWidth * 0.86, 980);
+  const h = Math.min(window.innerHeight * 0.62, w * 0.72);
+  const W = Math.round(w * dpr);
+  const H = Math.round(h * dpr);
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
+
+  const flat = document.createElement('canvas');
+  flat.width = W; flat.height = H;
+  const f = flat.getContext('2d');
+  const family = getComputedStyle(ident).fontFamily;
+  const lh = H / (IDENT_WORDS.length + 0.9);
+  let size = lh * 0.92;
+  f.font = `500 ${size}px ${family}`;
+  const widest = Math.max(...IDENT_WORDS.map((t) => f.measureText(t).width));
+  if (widest > W * 0.72) size *= (W * 0.72) / widest;
+  f.font = `500 ${size}px ${family}`;
+  f.fillStyle = '#b0ffbf';
+  f.textAlign = 'center';
+  f.textBaseline = 'middle';
+  IDENT_WORDS.forEach((t, i) => f.fillText(t, W / 2, H / 2 + (i - (IDENT_WORDS.length - 1) / 2) * size * 1.08));
+
+  const src = f.getImageData(0, 0, W, H).data;
+  const g = canvas.getContext('2d');
+  const out = g.createImageData(W, H);
+  const k = 0.28;
+  for (let y = 0; y < H; y += 1) {
+    const ny = (y / H) * 2 - 1;
+    for (let x = 0; x < W; x += 1) {
+      const nx = (x / W) * 2 - 1;
+      const s = (1 + k * (nx * nx + ny * ny)) / (1 + k);
+      const sx = Math.round(((nx * s + 1) / 2) * W);
+      const sy = Math.round(((ny * s + 1) / 2) * H);
+      if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+      const i = (y * W + x) * 4;
+      const j = (sy * W + sx) * 4;
+      out.data[i] = src[j]; out.data[i + 1] = src[j + 1]; out.data[i + 2] = src[j + 2]; out.data[i + 3] = src[j + 3];
+    }
+  }
+  g.putImageData(out, 0, 0);
+}
+
+// The power-on, one breath of the beam: the ID holds at least this long.
+const IDENT_HOLD_S = 0.4 + 0.45 + 2.6;
+
+// Puts the station ID on the glass. Returns its power-off, which resolves
+// once the picture has squeezed to a dot and gone.
+function welcomeIdentOn(box) {
+  const ident = document.getElementById('welcome-ident');
+  const canvas = ident && ident.querySelector('canvas');
+  if (!canvas) return () => Promise.resolve();
+  drawIdent(ident, canvas);
+  if (crtStill()) {
+    box.style.opacity = 0;
+    ident.style.opacity = 1;
+    return () => { ident.style.opacity = 0; return Promise.resolve(); };
+  }
+  const gsap = window.gsap;
+  const on = gsap.timeline()
+    .to(box, { opacity: 0, duration: 0.4 })
+    // The ident powers on: a hot line opens out to the full picture.
+    .set(ident, { opacity: 1 })
+    .fromTo(canvas, { scaleY: 0.01, scaleX: 0.85, filter: 'brightness(5)' },
+      { scaleY: 1, scaleX: 1, filter: 'brightness(1)', duration: 0.45, ease: 'power3.out' })
+    // It sits on the glass with a faint breathing of the beam.
+    .to(canvas, { scale: 1.012, duration: 1.3, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+  return () => new Promise((resolve) => {
+    const off = () => {
+      on.kill();
+      // Power off: it squeezes to a line, then to a dot, and the dot fades.
+      gsap.timeline({ onComplete: resolve })
+        .to(canvas, { scaleY: 0.008, filter: 'brightness(5)', duration: 0.2, ease: 'power2.in' })
+        .to(canvas, { scaleX: 0.004, duration: 0.16, ease: 'power2.in' })
+        .to(ident, { opacity: 0, duration: 0.35 });
+    };
+    const left = IDENT_HOLD_S - on.time();
+    if (left > 0) gsap.delayedCall(left, off);
+    else off();
+  });
 }
 
 // The station's own picks lean hard on video and GIFs: the video archive
@@ -73,24 +174,27 @@ async function autoplayAllowed() {
 
 // The station's own story, typed out on the splash like a terminal.
 // Empty strings are the blank lines between verses.
+// A '|' marks where a line breaks on a phone, so no word is left alone.
 const LORE = [
   'somewhere out there,',
   'bands that never existed',
-  "are playing songs nobody's ever heard.",
+  "are playing songs |nobody's ever heard.",
   '',
   "we're picking up their signals.",
-  'transmissions from the latent space.',
+  'transmissions from |the latent space.',
   '',
   'dead internet radio.',
 ];
+const fitLore = (words) => words.replace(/ \|/g, window.innerWidth < 600 ? '\n' : ' ');
 const LORE_CHAR_S = 0.03;
 const LORE_PAUSE_S = 0.4;
 
 // One line at a time behind a block cursor. Resolves once the last line is
 // in. Without GSAP, or with reduced motion, the lines are simply there.
-function typeLore(box) {
+// It starts after the given delay, once the tube has warmed up.
+function typeLore(box, delay = 0) {
   if (!box) return Promise.resolve();
-  const lines = LORE.map((words) => {
+  const lines = LORE.map(fitLore).map((words) => {
     const line = document.createElement('div');
     line.className = 'lore-line';
     box.append(line);
@@ -108,7 +212,7 @@ function typeLore(box) {
   // The cursor holds still while it types and blinks once it waits.
   box.classList.add('typing');
   return new Promise((resolve) => {
-    const tl = gsap.timeline({ onComplete: () => { box.classList.remove('typing'); resolve(); } });
+    const tl = gsap.timeline({ delay, onComplete: () => { box.classList.remove('typing'); resolve(); } });
     lines.forEach(([line, words]) => {
       const typed = { n: 0 };
       const text = document.createTextNode('');
@@ -173,14 +277,23 @@ function showWelcome(allowed) {
   const box = document.getElementById('welcome-lore');
   // Keys reach the splash from the first moment, before the prompt is typed.
   if (!allowed && splash.focus) { splash.tabIndex = -1; splash.focus({ preventScroll: true }); }
-  const lore = typeLore(box);
+  // The tube warms up: a bright line opens to the full face, then it types.
+  const tube = document.getElementById('welcome-tube');
+  let warm = 0;
+  if (tube && !crtStill()) {
+    window.gsap.fromTo(tube, { scaleY: 0.004, scaleX: 0.7, filter: 'brightness(4)' },
+      { scaleY: 1, scaleX: 1, filter: 'brightness(1)', duration: 0.55, ease: 'power3.out' });
+    warm = 0.55 + 0.25;
+  }
+  const quiet = crtLife();
+  const lore = typeLore(box, warm);
   const onAir = idents.onAir();
 
   let dismissed = false;
   function dismiss() {
     if (dismissed) return;
     dismissed = true;
-    stopWelcomeIdent();
+    quiet();
     audio.volume = 0;
     audio.pause();
     splash.classList.add('fade-out');
@@ -211,14 +324,13 @@ function showWelcome(allowed) {
       if (unlock && unlock.then) unlock.then(unlocked, unlocked);
       else unlocked();
     }
-    Promise.all([onAir, lore]).then(([{ visual, audio: clips }]) => {
+    Promise.all([onAir, lore]).then(([{ audio: clips }]) => {
       if (dismissed) return;
       airing = true;
       setTimeout(dismiss, START_CAP_MS);
       audio.muted = false;
-      splash.classList.add('airing');
-      startWelcomeIdent(visual);
-      return idents.playClip(idents.clipName(clips), audio);
+      const identOff = welcomeIdentOn(box);
+      return idents.playClip(idents.clipName(clips), audio).then(identOff);
     }).then(dismiss);
   }
 
