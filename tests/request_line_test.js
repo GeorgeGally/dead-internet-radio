@@ -247,3 +247,9 @@ for (const outcome of ['lost', 'accepted']) {
     assert.equal(all(card, 'rq-form').length, 1);
   });
 }
+
+test('call text prefills the style field', async () => {
+  const { line, card } = signedInLine();
+  await line.open('request', 'darkwave about rain');
+  assert.equal(all(card, 'rq-input')[2].value, 'darkwave about rain');
+});

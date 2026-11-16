@@ -320,6 +320,13 @@
     if (typeof requestLine !== 'undefined') requestLine.open('chat');
   }
   function runCommand(text) {
+    const call = text.trim().match(/^\/call(?:\s+([\s\S]*))?$/i);
+    if (call) {
+      input.value = '';
+      input.blur();
+      if (typeof requestLine !== 'undefined') requestLine.open('request', (call[1] || '').trim());
+      return true;
+    }
     const run = commands[text.trim().toLowerCase()];
     if (!run) return false;
     input.value = '';
@@ -327,7 +334,7 @@
     run();
     return true;
   }
-  const COMMANDS = 'Commands: /request, /tracklist';
+  const COMMANDS = 'Commands: /call, /request, /tracklist';
   input.addEventListener('focus', () => { if (signedIn) profile(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();

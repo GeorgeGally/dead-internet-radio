@@ -106,7 +106,7 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, r
         : { chat_enabled: chatEnabled, messages: [], id: 'm1', kind: 'chat', body: 'hi' };
       return { ok: true, json: async () => data };
     },
-    requestLine: { open: (reason) => opened.push(['request', reason]) },
+    requestLine: { open: (reason, ...args) => opened.push(['request', reason, ...args]) },
     setList: { open: () => opened.push(['tracklist']) },
   };
   if (frames) sandbox.requestAnimationFrame = (fn) => frames.push(fn);
@@ -139,7 +139,7 @@ const states = [
   ['signed out, chat offline', { signedIn: false, chatEnabled: false }],
 ];
 for (const [label, state] of states) {
-  for (const [typed, want] of [['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']], ['/playlist', ['tracklist']], ['/SetList', ['tracklist']]]) {
+  for (const [typed, want] of [['/call', ['request', 'request', '']], ['/CALL darkwave about rain', ['request', 'request', 'darkwave about rain']], ['/request', ['request', 'request']], ['/TrackList  ', ['tracklist']], ['/playlist', ['tracklist']], ['/SetList', ['tracklist']]]) {
     test(`typing ${typed.trim()} opens its page and posts nothing (${label})`, async () => {
       const s = await signal(state);
       assert.notEqual(s.input.readOnly, true);
@@ -290,7 +290,7 @@ test('an unknown slash command lists the commands in the stream and posts nothin
   assert.deepEqual(s.posts, []);
   assert.deepEqual(s.opened, []);
   assert.equal(s.input.value, '');
-  assert.deepEqual(s.lines(), ['Commands: /request, /tracklist']);
+  assert.deepEqual(s.lines(), ['Commands: /call, /request, /tracklist']);
 });
 
 // Steps the climb one 1/30 s frame at a time.

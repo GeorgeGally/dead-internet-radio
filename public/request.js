@@ -2,9 +2,10 @@
 // only here, when a listener wants to request. Listening never needs it.
 const requestLine = (() => {
   const API = '/api/v1';
-  let card, led, me = null, log = [], gsiLoading = null, openReason = 'request';
+  let card, led, me = null, log = [], gsiLoading = null, openReason = 'request', callText = '';
   // Set while Google's sign-in is out, so the line reopens if the page reloads.
   const RETURN_KEY = 'dir-request-return';
+  const DRAFT_KEY = 'dir-call-draft';
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -86,8 +87,13 @@ const requestLine = (() => {
 
   function rememberReturn(on) {
     try {
-      if (on) sessionStorage.setItem(RETURN_KEY, String(Date.now()));
-      else sessionStorage.removeItem(RETURN_KEY);
+      if (on) {
+        sessionStorage.setItem(RETURN_KEY, String(Date.now()));
+        sessionStorage.setItem(DRAFT_KEY, callText);
+      } else {
+        sessionStorage.removeItem(RETURN_KEY);
+        sessionStorage.removeItem(DRAFT_KEY);
+      }
     } catch (_) {}
   }
 
@@ -172,6 +178,8 @@ const requestLine = (() => {
     const title = field('02', 'Title', 'title', 80);
     // Free text, not a genre list: a style can be "midnight slo-mo disco".
     const style = field('03', 'Style', 'note', 140);
+    style.input.value = callText;
+    style.input.addEventListener('input', () => { callText = style.input.value; });
     style.input.placeholder = STYLES[Math.floor(Math.random() * STYLES.length)];
     const done = me.requests_left <= 0 ? 'That\'s three today. The line opens again tomorrow.' : '';
     const out = el('p', 'rq-msg', msg || done);
@@ -340,9 +348,10 @@ const requestLine = (() => {
     else renderSignIn(body, msg);
   }
 
-  async function open(reason = 'request') {
+  async function open(reason = 'request', prefill = '') {
     if (isOpen()) return;
     openReason = reason;
+    callText = prefill;
     card.classList.add('open');
     led.classList.add('on');
     card.querySelector('.rq-body').replaceChildren(el('p', 'rq-msg', '\u2026'));
@@ -367,18 +376,22 @@ const requestLine = (() => {
     card = el('div', 'request-card');
     card.id = 'request-card';
     card.setAttribute('role', 'dialog');
-    card.setAttribute('aria-label', 'Request a song');
+    card.setAttribute('aria-label', 'Call in');
     const top = el('div', 'rq-top');
     const x = el('button', 'rq-close', '\u00d7');
     x.type = 'button';
     x.setAttribute('aria-label', 'Close');
     x.addEventListener('click', close);
-    top.append(el('span', 'rq-head', 'Dead Internet Radio Request line'), x);
+    top.append(el('span', 'rq-head', 'Dead Internet Radio Call in line'), x);
     card.append(top, el('div', 'rq-body'));
     document.body.appendChild(card);
 
     btn.addEventListener('click', () => (isOpen() ? close() : open('request')));
-    if (shouldReturn()) open();
+    if (shouldReturn()) {
+      let draft = '';
+      try { draft = sessionStorage.getItem(DRAFT_KEY) || ''; sessionStorage.removeItem(DRAFT_KEY); } catch (_) {}
+      open('request', draft);
+    }
     // Typing in the card must not reach the artwork and filter keys.
     card.addEventListener('keydown', (e) => {
       e.stopPropagation();

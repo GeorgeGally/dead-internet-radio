@@ -16,7 +16,7 @@
   const USE = [
     ['Play', 'Starts and pauses the station.'],
     ['Art', 'Opens the artwork gallery. The arrow keys step through the artwork; the letters A–Z jump straight to one.'],
-    ['Request', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
+    ['Call in', 'Asks for a song: artist, title and style. Sign in with Google for three a day, and the line shows when yours airs.'],
     ['Like · Dislike', 'Votes on the song playing. The DJs read the votes when they build the next sets.'],
     ['FX', 'Three filters over the artwork. Turn filter to pick one, press its ON, and turn dry/wet to mix it. Keys 1 to 9 pick a filter and 0 clears them.'],
     ['Slot', 'Loads a look the station saved for this artwork, 1 to 9. Your own FX changes stay with each artwork until you leave.'],
@@ -63,7 +63,7 @@
   const FIGS = {
     Play: fig(key('k-play', 'Play', true)),
     Art: fig(key('k-vis', 'Art'), kbd('/', '\u2190', '\u2192', 'A\u2013Z')),
-    Request: fig(key('k-req', 'Request')),
+    'Call in': fig(key('k-req', 'Call in')),
     'Like · Dislike': fig(key('k-up vote', 'Like') + key('k-down vote', 'Dislike')),
     FX: fig(lcd + knob('fx-pick', 'filter', 20) + knob('fx-wet', 'dry/wet', 60), kbd('1\u20139', '0')),
     Slot: fig(knob('slot-knob', 'slot', 0), kbd('\u2191', '\u2193')),
