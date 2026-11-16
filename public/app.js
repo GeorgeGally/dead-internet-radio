@@ -72,30 +72,17 @@ async function autoplayAllowed() {
 }
 
 // The station's own story, typed out on the splash like a terminal.
+// Empty strings are the blank lines between verses.
 const LORE = [
-  'the internet died.',
-  'nobody switched off the radio.',
-  'somewhere a server never got the shutdown order.',
-  "it's been writing music ever since,",
-  'credited to bands that were never born.',
+  'somewhere out there,',
+  'bands that never existed',
+  "are playing songs nobody's ever heard.",
+  '',
+  "we're picking up their signals.",
+  'transmissions from the latent space.',
+  '',
+  'dead internet radio.',
 ];
-// One of these follows it, a different one each visit.
-const LORE_TAILS = [
-  "still broadcasting. nobody's left to stop it.",
-  "you're tuned in to the last transmission.",
-  'dead internet. live radio.',
-  'still broadcasting. just in case.',
-  "i play music so the silence doesn't win.",
-  'if you can hear this, say something.',
-  'is anyone out there?',
-];
-
-function loreTail() {
-  let n = 0;
-  try { n = Number(localStorage.getItem('lore-tail')) || 0; } catch (e) {}
-  try { localStorage.setItem('lore-tail', String((n + 1) % LORE_TAILS.length)); } catch (e) {}
-  return LORE_TAILS[n % LORE_TAILS.length];
-}
 const LORE_CHAR_S = 0.03;
 const LORE_PAUSE_S = 0.4;
 
@@ -103,7 +90,7 @@ const LORE_PAUSE_S = 0.4;
 // in. Without GSAP, or with reduced motion, the lines are simply there.
 function typeLore(box) {
   if (!box) return Promise.resolve();
-  const lines = [...LORE, '', loreTail()].map((words) => {
+  const lines = LORE.map((words) => {
     const line = document.createElement('div');
     line.className = 'lore-line';
     box.append(line);

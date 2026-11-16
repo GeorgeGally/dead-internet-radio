@@ -1810,7 +1810,7 @@ body.prewarming #block-canvas {
   transition: opacity 0.4s ease;
 }
 
-.lore-line { min-height: 1.55em; }
+.lore-line { min-height: 1.55em; text-wrap: pretty; }
 
 .lore-cursor {
   display: inline-block;
