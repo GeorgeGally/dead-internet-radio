@@ -201,7 +201,11 @@ def _build_dist_static():
             continue
         if src_file.is_file():
             if name == "index.html":
-                (DIST_DIR / name).write_text(_inject_share_meta(src_file.read_text()))
+                html = _inject_share_meta(src_file.read_text())
+                if os.environ.get("RAILS_ENV") == "production":
+                    head = (SRC_DIR / "google-analytics.snippet.html").read_text()
+                    html = html.replace("<head>", f"<head>\n{head}", 1)
+                (DIST_DIR / name).write_text(html)
             else:
                 shutil.copy2(src_file, DIST_DIR / name)
         else:

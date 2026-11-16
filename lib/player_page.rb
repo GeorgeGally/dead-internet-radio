@@ -8,10 +8,11 @@ class PlayerPage
   PATHS = %w[/ /index.html].freeze
   ASSET = /\b(src|href)="(?![a-z]+:|\/\/)([^"?#]+\.(?:js|css|ico|svg|png|webmanifest))"/
 
-  def initialize(app, public_path:, cache: true)
+  def initialize(app, public_path:, cache: true, google_tag: false)
     @app = app
     @public_path = public_path
     @cache = cache
+    @google_tag = google_tag
   end
 
   def call(env)
@@ -41,6 +42,9 @@ class PlayerPage
       next Regexp.last_match(0) unless File.file?(file)
 
       %(#{attribute}="#{asset}?v=#{Digest::SHA256.file(file).hexdigest[0, 10]}")
+    end
+    if @google_tag
+      html = html.sub("<head>", "<head>\n#{File.read(File.join(@public_path, 'google-analytics.snippet.html'))}")
     end
     ShareMeta.inject(html, origin_for(env))
   end

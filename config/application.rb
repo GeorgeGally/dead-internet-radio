@@ -35,7 +35,7 @@ module DeadInternetRadio
 
     # Must stay ahead of the static file server, which caches index.html for a year.
     require_relative "../lib/player_page"
-    config.middleware.insert_before 0, PlayerPage, public_path: File.expand_path("../public", __dir__), cache: Rails.env.production?
+    config.middleware.insert_before 0, PlayerPage, public_path: File.expand_path("../public", __dir__), cache: Rails.env.production?, google_tag: Rails.env.production?
 
     # Configuration for the application, engines, and railties goes here.
     #
