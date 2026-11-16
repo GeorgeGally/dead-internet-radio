@@ -63,7 +63,8 @@
         data-remix-hint="<%= Admin::TrackJobsHelper::REMIX_HINT %>">
       <td></td>
       <td colspan="8">
-        <%= form_tag rerender_admin_track_path(track), class: "rerender-form notes-form" do %>
+        <%# JS swaps the action to remix, so the token must not be tied to this URL. %>
+        <%= form_tag rerender_admin_track_path(track), class: "rerender-form notes-form", authenticity_token: form_authenticity_token do %>
           <%= hidden_field_tag :back, request.path %>
           <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
                  placeholder="What to change: slower, darker bass, no hi-hats, more space…">
