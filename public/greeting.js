@@ -66,6 +66,8 @@ const greeting = (() => {
     if (!clip.city && !clip.region && !clip.country && !clip.tz) return 0;
     let best = -1;
     for (const key of Object.keys(PLACE)) {
+      if (key === 'country' && clip.city) continue;
+      if (key === 'city' && clip.country && !(who.country && clip.country.includes(who.country))) continue;
       if (clip[key] && who[key] && clip[key].includes(who[key])) best = Math.max(best, PLACE[key]);
     }
     if (best < 0 && !who.country && clip.tz && clip.tz.some((tz) => who.tz.startsWith(tz))) best = 1;

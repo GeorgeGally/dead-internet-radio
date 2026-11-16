@@ -16,7 +16,8 @@ time there, the weather, their device, how often they come back.
 Needs Kokoro at kokoro/.venv (or KOKORO_PYTHON=/path/to/python3) and ffmpeg.
 
 Tags a line can carry. A place line plays where any one of its place tags
-fits; every other tag on a line must fit too.
+fits, except that a line's country qualifies its city: the city only counts
+in that country, and the country alone doesn't. Every other tag must fit too.
   city, region, country   upper-case names as geojs.io gives them
   tz                      IANA time zone prefixes, used only while the place is unknown
   time                    late 0-4, dawn 5-7, morning 8-11, afternoon 12-16,
@@ -42,23 +43,23 @@ MANIFEST = OUT_DIR / "manifest.json"
 LINES = [
     # Places. Most specific first; a city line beats its country.
     {"id": "bali", "text": "Welcome to the Bali massive. Somewhere past the rice terraces, a dead signal just found a live one.",
-     "region": ["BALI"], "city": ["DENPASAR", "UBUD", "KUTA", "CANGGU", "SEMINYAK"], "tz": ["Asia/Makassar"]},
+     "region": ["BALI"], "city": ["DENPASAR", "UBUD", "KUTA", "CANGGU", "SEMINYAK"], "country": ["INDONESIA"], "tz": ["Asia/Makassar"]},
     {"id": "bali-night", "text": "Bali massive. The geckos are up, and so are we. Dead Internet Radio, still transmitting.",
-     "region": ["BALI"], "city": ["DENPASAR", "UBUD", "KUTA", "CANGGU", "SEMINYAK"], "tz": ["Asia/Makassar"], "time": ["night", "late"]},
+     "region": ["BALI"], "city": ["DENPASAR", "UBUD", "KUTA", "CANGGU", "SEMINYAK"], "country": ["INDONESIA"], "tz": ["Asia/Makassar"], "time": ["night", "late"]},
     {"id": "indonesia", "text": "Indonesia, you're on the frequency. Seventeen thousand islands, one dead signal.",
      "country": ["INDONESIA"], "tz": ["Asia/Jakarta", "Asia/Pontianak", "Asia/Jayapura"]},
     {"id": "london", "text": "London, you've tuned in. Somewhere under all that grey, the last radio station on Earth says hello.",
-     "city": ["LONDON"], "tz": ["Europe/London"]},
+     "city": ["LONDON"], "country": ["UNITED KINGDOM"], "tz": ["Europe/London"]},
     {"id": "uk", "text": "Hello to the United Kingdom. Put the kettle on. The internet's been dead for years.",
      "country": ["UNITED KINGDOM"]},
     {"id": "new-york", "text": "New York. The city that never sleeps just found the station that never stops.",
-     "city": ["NEW YORK", "BROOKLYN", "QUEENS"], "tz": ["America/New_York"]},
+     "city": ["NEW YORK", "BROOKLYN", "QUEENS"], "country": ["UNITED STATES"], "tz": ["America/New_York"]},
     {"id": "los-angeles", "text": "Los Angeles, the signal reached the coast. Palm trees, smog, and dead air. Welcome.",
-     "city": ["LOS ANGELES"], "tz": ["America/Los_Angeles"]},
+     "city": ["LOS ANGELES"], "country": ["UNITED STATES"], "tz": ["America/Los_Angeles"]},
     {"id": "usa", "text": "Hello, America. Fifty states, one dead network, and you just tuned in.",
      "country": ["UNITED STATES"]},
     {"id": "berlin", "text": "Berlin, welcome to the transmission. The club closed. The signal didn't.",
-     "city": ["BERLIN"], "tz": ["Europe/Berlin"]},
+     "city": ["BERLIN"], "country": ["GERMANY"], "tz": ["Europe/Berlin"]},
     {"id": "germany", "text": "Germany is on the dial. Precise, punctual, and slightly haunted. Welcome.",
      "country": ["GERMANY"]},
     {"id": "amsterdam", "text": "Amsterdam, you're locked in. Canals, bicycles, and a radio station run by ghosts.",

@@ -108,6 +108,16 @@ test('a line for somewhere else never plays, and time zone stands in only withou
   assert.equal(g.fits(london, who({ country: 'UNITED KINGDOM', city: 'LEEDS', tz: 'Europe/London' })), false);
 });
 
+test('a city line needs its country: same-named or neighbouring places do not hear it', () => {
+  const { g } = load();
+  const london = manifest.find((c) => c.id === 'london');
+  const paris = manifest.find((c) => c.id === 'paris');
+  assert.equal(g.fits(london, who({ city: 'LONDON', country: 'CANADA', tz: 'America/Toronto' })), false);
+  assert.equal(g.fits(london, who({ city: 'LONDON', country: 'UNITED KINGDOM', tz: 'Europe/London' })), true);
+  assert.equal(g.fits(paris, who({ city: 'LYON', country: 'FRANCE', tz: 'Europe/Paris' })), false);
+  assert.equal(g.fits(paris, who({ city: 'PARIS', country: 'FRANCE', tz: 'Europe/Paris' })), true);
+});
+
 test('a returning listener is never greeted as new', () => {
   const { g } = load();
   const back = who({ visit: ['return'], time: 'late' });

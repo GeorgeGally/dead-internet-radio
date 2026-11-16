@@ -14,6 +14,9 @@
    "region": [
     "BALI"
    ],
+   "country": [
+    "INDONESIA"
+   ],
    "tz": [
     "Asia/Makassar"
    ]
@@ -31,6 +34,9 @@
    ],
    "region": [
     "BALI"
+   ],
+   "country": [
+    "INDONESIA"
    ],
    "tz": [
     "Asia/Makassar"
@@ -60,6 +66,9 @@
    "city": [
     "LONDON"
    ],
+   "country": [
+    "UNITED KINGDOM"
+   ],
    "tz": [
     "Europe/London"
    ]
@@ -81,6 +90,9 @@
     "BROOKLYN",
     "QUEENS"
    ],
+   "country": [
+    "UNITED STATES"
+   ],
    "tz": [
     "America/New_York"
    ]
@@ -91,6 +103,9 @@
    "text": "Los Angeles, the signal reached the coast. Palm trees, smog, and dead air. Welcome.",
    "city": [
     "LOS ANGELES"
+   ],
+   "country": [
+    "UNITED STATES"
    ],
    "tz": [
     "America/Los_Angeles"
@@ -110,6 +125,9 @@
    "text": "Berlin, welcome to the transmission. The club closed. The signal didn't.",
    "city": [
     "BERLIN"
+   ],
+   "country": [
+    "GERMANY"
    ],
    "tz": [
     "Europe/Berlin"
