@@ -121,6 +121,34 @@ test('the player page is served uncached with hashed asset URLs', () => {
   assert.match(app, /middleware\.insert_before 0, PlayerPage/);
 });
 
+test('the player ships Open Graph and Twitter card meta for link previews', () => {
+  const shareMeta = fs.readFileSync(path.join(root, 'lib/share_meta.rb'), 'utf8');
+  const snippet = fs.readFileSync(path.join(root, 'public/share-meta.snippet.html'), 'utf8');
+  const rendered = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  assert.match(rendered, /<!-- SHARE_META -->/);
+  assert.match(shareMeta, /DESCRIPTION =/);
+  assert.match(snippet, /property="og:image"/);
+  assert.match(snippet, /name="twitter:card" content="summary_large_image"/);
+  assert.ok(fs.existsSync(path.join(root, 'public/share-card.jpg')));
+  const { execFileSync } = require('node:child_process');
+  const out = execFileSync('ruby', ['-I', path.join(root, 'lib'), '-r', 'share_meta', '-e', 'print ShareMeta.render("https://example.test")'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  for (const needle of [
+    'meta name="description"',
+    'property="og:title"',
+    'property="og:description"',
+    'property="og:image" content="https://example.test/share-card.jpg"',
+    'property="og:url" content="https://example.test/"',
+    'property="og:type" content="website"',
+    'name="twitter:card" content="summary_large_image"',
+    'name="twitter:image" content="https://example.test/share-card.jpg"',
+  ]) {
+    assert.match(out, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('every page head links the icon set, and the player hashes it', () => {
   const player = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const icons = fs.readFileSync(path.join(root, 'app/views/layouts/_icons.html.erb'), 'utf8');
@@ -165,18 +193,18 @@ test('short station clips hold the song after them in memory, and a dead segment
 test('artworks fill the mobile viewport without distortion or borders', () => {
   const engine = fs.readFileSync(path.join(root, 'public/visuals/engine.js'), 'utf8');
   const eyes = fs.readFileSync(path.join(root, 'public/visuals/eyes.js'), 'utf8');
-  assert.match(engine, /p\\.canvas\\.style\\.objectFit = 'cover'/);
-  assert.match(engine, /p\\.canvas\\.style\\.height = '100dvh'/);
-  assert.match(css, /canvas\\.p5Canvas,[\\s\\S]*?object-fit: cover/);
-  assert.match(css, /@supports \\(height: 100dvh\\)/);
-  assert.match(eyes, /Math\\.max\\(p\\.width \\/ f\\.width, p\\.height \\/ f\\.height\\)/);
-  assert.match(eyes, /\\(\\(p\\.height - h\\) \\/ 2\\) \\* d/);
+  assert.match(engine, /p\.canvas\.style\.objectFit = 'cover'/);
+  assert.match(engine, /p\.canvas\.style\.height = '100dvh'/);
+  assert.match(css, /canvas\.p5Canvas,[\s\S]*?object-fit: cover/);
+  assert.match(css, /@supports \(height: 100dvh\)/);
+  assert.match(eyes, /Math\.max\(p\.width \/ f\.width, p\.height \/ f\.height\)/);
+  assert.match(eyes, /\(\(p\.height - h\) \/ 2\) \* d/);
 });
 
 test('Eyes uses left-eye framing on portrait while B-roll remains centre-cropped', () => {
   const eyes = fs.readFileSync(path.join(root, 'public/visuals/eyes.js'), 'utf8');
   const broll = fs.readFileSync(path.join(root, 'public/visuals/prelinger_broll.js'), 'utf8');
-  assert.match(eyes, /p\\.width < p\\.height \\? p\\.width \\/ 2 - w \\* 0\\.25/);
-  assert.match(broll, /Math\\.max\\(p\\.width \\/ b\\.w, p\\.height \\/ b\\.h\\)/);
-  assert.match(broll, /\\(p\\.width - dw\\) \\/ 2/);
+  assert.match(eyes, /p\.width < p\.height \? p\.width \/ 2 - w \* 0\.25/);
+  assert.match(broll, /Math\.max\(p\.width \/ b\.w, p\.height \/ b\.h\)/);
+  assert.match(broll, /\(p\.width - dw\) \/ 2/);
 });

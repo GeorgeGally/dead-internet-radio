@@ -174,17 +174,36 @@ def build_playlist(tracks):
     return {"epoch": EPOCH_MS, "djName": dj_name, "tracks": entries}
 
 
+def _share_meta_html(origin: str) -> str:
+    title = "Dead Internet Radio"
+    description = (
+        "An autonomous station of AI-written songs, DJ voiceovers, and generative visuals—broadcasting into the void."
+    )
+    esc = description.replace("&", "&amp;").replace('"', "&quot;")
+    snippet = (SRC_DIR / "share-meta.snippet.html").read_text()
+    return snippet.replace("__ORIGIN__", origin.rstrip("/")).replace("__TITLE__", title).replace("__DESCRIPTION__", esc)
+
+
+def _inject_share_meta(html: str) -> str:
+    origin = os.environ.get("APP_URL", "https://dead-internet-radio.com")
+    return html.replace("<!-- SHARE_META -->", _share_meta_html(origin))
+
+
 def _build_dist_static():
     """Copy static player assets from public/ to dist/."""
     DIST_DIR.mkdir(exist_ok=True)
     (DIST_DIR / "audio").mkdir(exist_ok=True)
     for name in ("index.html", "app.js", "ident.js", "button-sounds.js", "sounds", "style.css", "fonts", "visuals", "welcome",
-                 "favicon.ico", "favicon.svg", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "site.webmanifest"):
+                 "favicon.ico", "favicon.svg", "apple-touch-icon.png", "icon-192.png", "icon-512.png",
+                 "share-card.jpg", "site.webmanifest"):
         src_file = SRC_DIR / name
         if not src_file.exists():
             continue
         if src_file.is_file():
-            shutil.copy2(src_file, DIST_DIR / name)
+            if name == "index.html":
+                (DIST_DIR / name).write_text(_inject_share_meta(src_file.read_text()))
+            else:
+                shutil.copy2(src_file, DIST_DIR / name)
         else:
             dest_dir = DIST_DIR / name
             if dest_dir.exists():
