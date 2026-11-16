@@ -60,6 +60,7 @@ const listenerReport = (() => {
       const c = w.current || {};
       where = {
         city: (g.city || '').toUpperCase(),
+        region: (g.region || '').toUpperCase(),
         country: (g.country || '').toUpperCase(),
         lat, lon,
         net: (g.organization_name || '').toUpperCase(),

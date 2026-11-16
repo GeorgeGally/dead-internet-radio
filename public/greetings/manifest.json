@@ -1,0 +1,517 @@
+{
+ "clips": [
+  {
+   "id": "bali",
+   "file": "greetings/bali-9e3bf2b7.mp3",
+   "text": "Welcome to the Bali massive. Somewhere past the rice terraces, a dead signal just found a live one.",
+   "city": [
+    "DENPASAR",
+    "UBUD",
+    "KUTA",
+    "CANGGU",
+    "SEMINYAK"
+   ],
+   "region": [
+    "BALI"
+   ],
+   "country": [
+    "INDONESIA"
+   ],
+   "tz": [
+    "Asia/Makassar"
+   ]
+  },
+  {
+   "id": "bali-night",
+   "file": "greetings/bali-night-8c268cfa.mp3",
+   "text": "Bali massive. The geckos are up, and so are we. Dead Internet Radio, still transmitting.",
+   "city": [
+    "DENPASAR",
+    "UBUD",
+    "KUTA",
+    "CANGGU",
+    "SEMINYAK"
+   ],
+   "region": [
+    "BALI"
+   ],
+   "country": [
+    "INDONESIA"
+   ],
+   "tz": [
+    "Asia/Makassar"
+   ],
+   "time": [
+    "night",
+    "late"
+   ]
+  },
+  {
+   "id": "indonesia",
+   "file": "greetings/indonesia-43d259d6.mp3",
+   "text": "Indonesia, you're on the frequency. Seventeen thousand islands, one dead signal.",
+   "country": [
+    "INDONESIA"
+   ],
+   "tz": [
+    "Asia/Jakarta",
+    "Asia/Pontianak",
+    "Asia/Jayapura"
+   ]
+  },
+  {
+   "id": "london",
+   "file": "greetings/london-2085735d.mp3",
+   "text": "London, you've tuned in. Somewhere under all that grey, the last radio station on Earth says hello.",
+   "city": [
+    "LONDON"
+   ],
+   "country": [
+    "UNITED KINGDOM"
+   ],
+   "tz": [
+    "Europe/London"
+   ]
+  },
+  {
+   "id": "uk",
+   "file": "greetings/uk-fbc37452.mp3",
+   "text": "Hello to the United Kingdom. Put the kettle on. The internet's been dead for years.",
+   "country": [
+    "UNITED KINGDOM"
+   ]
+  },
+  {
+   "id": "new-york",
+   "file": "greetings/new-york-2b381e97.mp3",
+   "text": "New York. The city that never sleeps just found the station that never stops.",
+   "city": [
+    "NEW YORK",
+    "BROOKLYN",
+    "QUEENS"
+   ],
+   "country": [
+    "UNITED STATES"
+   ],
+   "tz": [
+    "America/New_York"
+   ]
+  },
+  {
+   "id": "los-angeles",
+   "file": "greetings/los-angeles-673a8e37.mp3",
+   "text": "Los Angeles, the signal reached the coast. Palm trees, smog, and dead air. Welcome.",
+   "city": [
+    "LOS ANGELES"
+   ],
+   "country": [
+    "UNITED STATES"
+   ],
+   "tz": [
+    "America/Los_Angeles"
+   ]
+  },
+  {
+   "id": "usa",
+   "file": "greetings/usa-a33527bc.mp3",
+   "text": "Hello, America. Fifty states, one dead network, and you just tuned in.",
+   "country": [
+    "UNITED STATES"
+   ]
+  },
+  {
+   "id": "berlin",
+   "file": "greetings/berlin-f0138ba7.mp3",
+   "text": "Berlin, welcome to the transmission. The club closed. The signal didn't.",
+   "city": [
+    "BERLIN"
+   ],
+   "country": [
+    "GERMANY"
+   ],
+   "tz": [
+    "Europe/Berlin"
+   ]
+  },
+  {
+   "id": "germany",
+   "file": "greetings/germany-9449674a.mp3",
+   "text": "Germany is on the dial. Precise, punctual, and slightly haunted. Welcome.",
+   "country": [
+    "GERMANY"
+   ]
+  },
+  {
+   "id": "amsterdam",
+   "file": "greetings/amsterdam-a37c3fa0.mp3",
+   "text": "Amsterdam, you're locked in. Canals, bicycles, and a radio station run by ghosts.",
+   "city": [
+    "AMSTERDAM"
+   ],
+   "country": [
+    "NETHERLANDS"
+   ],
+   "tz": [
+    "Europe/Amsterdam"
+   ]
+  },
+  {
+   "id": "paris",
+   "file": "greetings/paris-aa0ac880.mp3",
+   "text": "Paris, the static says bonjour. The dead internet sends its regards from the other side of the noise.",
+   "city": [
+    "PARIS"
+   ],
+   "country": [
+    "FRANCE"
+   ],
+   "tz": [
+    "Europe/Paris"
+   ]
+  },
+  {
+   "id": "australia",
+   "file": "greetings/australia-4fc45595.mp3",
+   "text": "Australia, you're upside down and dialled in. The signal took the long way round to find you.",
+   "country": [
+    "AUSTRALIA"
+   ],
+   "tz": [
+    "Australia/"
+   ]
+  },
+  {
+   "id": "south-africa",
+   "file": "greetings/south-africa-ddb8ee5e.mp3",
+   "text": "South Africa on the frequency. Load shedding can't touch a station that's already dead.",
+   "country": [
+    "SOUTH AFRICA"
+   ],
+   "tz": [
+    "Africa/Johannesburg"
+   ]
+  },
+  {
+   "id": "tokyo",
+   "file": "greetings/tokyo-50dd90ba.mp3",
+   "text": "Tokyo, welcome to the broadcast. Ten million glowing screens, and you picked the dead one.",
+   "city": [
+    "TOKYO"
+   ],
+   "country": [
+    "JAPAN"
+   ],
+   "tz": [
+    "Asia/Tokyo"
+   ]
+  },
+  {
+   "id": "brazil",
+   "file": "greetings/brazil-021bf394.mp3",
+   "text": "Brazil, the signal crossed the equator to find you. Welcome to Dead Internet Radio.",
+   "country": [
+    "BRAZIL"
+   ],
+   "tz": [
+    "America/Sao_Paulo"
+   ]
+  },
+  {
+   "id": "india",
+   "file": "greetings/india-272ba274.mp3",
+   "text": "India, you're on the dial. A billion connections, and this one is ours.",
+   "country": [
+    "INDIA"
+   ],
+   "tz": [
+    "Asia/Kolkata",
+    "Asia/Calcutta"
+   ]
+  },
+  {
+   "id": "canada",
+   "file": "greetings/canada-c09ff97a.mp3",
+   "text": "Canada, come on in. Cold outside, warm static in here.",
+   "country": [
+    "CANADA"
+   ],
+   "tz": [
+    "America/Toronto",
+    "America/Vancouver"
+   ]
+  },
+  {
+   "id": "spain",
+   "file": "greetings/spain-0ada263c.mp3",
+   "text": "Spain, you've tuned in. Late dinner, later radio. Welcome to the frequency.",
+   "country": [
+    "SPAIN"
+   ],
+   "tz": [
+    "Europe/Madrid"
+   ]
+  },
+  {
+   "id": "mexico",
+   "file": "greetings/mexico-92186496.mp3",
+   "text": "Mexico, the signal climbed all the way up to find you. Welcome to the transmission.",
+   "country": [
+    "MEXICO"
+   ],
+   "tz": [
+    "America/Mexico_City"
+   ]
+  },
+  {
+   "id": "europe",
+   "file": "greetings/europe-c6c64e3a.mp3",
+   "text": "Hello to whoever's out there in Europe. The old continent, tuned to the old internet.",
+   "tz": [
+    "Europe/"
+   ]
+  },
+  {
+   "id": "americas",
+   "file": "greetings/americas-bf61c350.mp3",
+   "text": "Good to have you, Americas. The signal runs north to south, and tonight it ends with you.",
+   "tz": [
+    "America/"
+   ]
+  },
+  {
+   "id": "asia",
+   "file": "greetings/asia-805b898d.mp3",
+   "text": "Asia, welcome to the frequency. You're hours ahead of us, and we're decades behind.",
+   "tz": [
+    "Asia/"
+   ]
+  },
+  {
+   "id": "africa",
+   "file": "greetings/africa-af5f3ff7.mp3",
+   "text": "Africa, you're on the dial. The signal goes further than the cables ever did.",
+   "tz": [
+    "Africa/"
+   ]
+  },
+  {
+   "id": "late-1",
+   "file": "greetings/late-1-7f835be1.mp3",
+   "text": "Hi to the new listener up at this hour. Only the insomniacs and the machines are awake. Welcome.",
+   "time": [
+    "late"
+   ],
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "late-2",
+   "file": "greetings/late-2-a118e8f3.mp3",
+   "text": "It's the dead of night where you are. Good. That's when the signal comes through clearest.",
+   "time": [
+    "late"
+   ]
+  },
+  {
+   "id": "dawn",
+   "file": "greetings/dawn-9f98833e.mp3",
+   "text": "Early riser. The sun's coming up, and the internet is still dead. Welcome to the morning shift.",
+   "time": [
+    "dawn"
+   ]
+  },
+  {
+   "id": "morning",
+   "file": "greetings/morning-9516f2b5.mp3",
+   "text": "Good morning, new listener. Coffee in one hand, a dead frequency in the other.",
+   "time": [
+    "morning"
+   ],
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "afternoon",
+   "file": "greetings/afternoon-9c94323b.mp3",
+   "text": "Afternoon, stranger. Skipping work for a radio station run by ghosts? Respect.",
+   "time": [
+    "afternoon"
+   ]
+  },
+  {
+   "id": "evening",
+   "file": "greetings/evening-b858e72e.mp3",
+   "text": "Evening, new listener. The lights are coming on, and the signal is coming through.",
+   "time": [
+    "evening"
+   ],
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "night",
+   "file": "greetings/night-dfe49b43.mp3",
+   "text": "Night has fallen where you are. Pull up a chair by the static. Welcome.",
+   "time": [
+    "night"
+   ]
+  },
+  {
+   "id": "friday",
+   "file": "greetings/friday-3f6f6f52.mp3",
+   "text": "It's Friday night where you are, and you chose dead radio. Excellent choice.",
+   "time": [
+    "evening",
+    "night"
+   ],
+   "day": [
+    "fri"
+   ]
+  },
+  {
+   "id": "sunday",
+   "file": "greetings/sunday-e9a941ec.mp3",
+   "text": "A slow Sunday, and someone new on the line. The signal moves gently today.",
+   "day": [
+    "sun"
+   ],
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "return-1",
+   "file": "greetings/return-1-9f94404e.mp3",
+   "text": "Welcome back. The signal remembered you. It always does.",
+   "visit": [
+    "return"
+   ]
+  },
+  {
+   "id": "return-2",
+   "file": "greetings/return-2-aa095f4b.mp3",
+   "text": "You came back. Most people don't. The dead internet appreciates loyalty.",
+   "visit": [
+    "return"
+   ]
+  },
+  {
+   "id": "return-late",
+   "file": "greetings/return-late-cf5736fa.mp3",
+   "text": "Back again, and at this hour. You and the machines, keeping each other company.",
+   "time": [
+    "late"
+   ],
+   "visit": [
+    "return",
+    "regular"
+   ]
+  },
+  {
+   "id": "regular",
+   "file": "greetings/regular-e36c3be4.mp3",
+   "text": "Regular listener detected. At this point, you're part of the broadcast.",
+   "visit": [
+    "regular"
+   ]
+  },
+  {
+   "id": "regular-2",
+   "file": "greetings/regular-2-1ea0a077.mp3",
+   "text": "Hours logged on this frequency. You might be the last human still listening. Thank you.",
+   "visit": [
+    "regular"
+   ]
+  },
+  {
+   "id": "mobile",
+   "file": "greetings/mobile-cd21e4b0.mp3",
+   "text": "Welcome to the listener on the small screen. A whole dead internet, right there in your pocket.",
+   "device": [
+    "mobile"
+   ]
+  },
+  {
+   "id": "rain",
+   "file": "greetings/rain-3b75e75a.mp3",
+   "text": "Rain where you are, static where we are. Perfect listening weather. Welcome.",
+   "sky": [
+    "rain"
+   ]
+  },
+  {
+   "id": "snow",
+   "file": "greetings/snow-5ebdf067.mp3",
+   "text": "Snow outside your window. Stay in, stay tuned. Welcome to Dead Internet Radio.",
+   "sky": [
+    "snow"
+   ]
+  },
+  {
+   "id": "hot",
+   "file": "greetings/hot-f36b1c8b.mp3",
+   "text": "It's hot where you are. The servers are melting too. Welcome in.",
+   "sky": [
+    "hot"
+   ]
+  },
+  {
+   "id": "referred",
+   "file": "greetings/referred-e190bf06.mp3",
+   "text": "Someone sent you here. Good. The signal only spreads by word of mouth now.",
+   "visit": [
+    "first"
+   ],
+   "from": true
+  },
+  {
+   "id": "signed-in",
+   "file": "greetings/signed-in-3ea412e8.mp3",
+   "text": "Call sign confirmed. You're on the chat, and now you're on the air. Welcome.",
+   "signedIn": true
+  },
+  {
+   "id": "hello-1",
+   "file": "greetings/hello-1-485e4597.mp3",
+   "text": "Hello to the new listener. You've found Dead Internet Radio, the last station still broadcasting.",
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "hello-2",
+   "file": "greetings/hello-2-83ae3758.mp3",
+   "text": "A new signal just joined the frequency. Welcome. Stay as long as the static lets you.",
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "hello-3",
+   "file": "greetings/hello-3-2d09ffbd.mp3",
+   "text": "Somebody new is listening. We can tell. Welcome to Dead Internet Radio.",
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "hello-4",
+   "file": "greetings/hello-4-129ed7e1.mp3",
+   "text": "New listener on the line. No algorithm sent you. You just drifted in. Welcome.",
+   "visit": [
+    "first"
+   ]
+  },
+  {
+   "id": "hello-5",
+   "file": "greetings/hello-5-d7d681bc.mp3",
+   "text": "Welcome to the frequency. The internet died, but the music never got the message.",
+   "visit": [
+    "first"
+   ]
+  }
+ ]
+}
