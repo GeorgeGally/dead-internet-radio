@@ -20,8 +20,14 @@
 </head>
 <body>
   <div id="welcome-splash">
-    <iframe id="welcome-ident" title="Dead Internet Radio station ident" scrolling="no" tabindex="-1"></iframe>
-    <div id="welcome-lore" role="text" aria-label="Somewhere out there, bands that never existed are playing songs nobody&#39;s ever heard. We&#39;re picking up their signals. Transmissions from the latent space. Dead internet radio."></div>
+    <div id="welcome-tube">
+      <div id="welcome-roll"></div>
+      <div id="welcome-flick"></div>
+      <div id="welcome-stack">
+        <div id="welcome-lore" role="text" aria-label="Somewhere out there, bands that never existed are playing songs nobody&#39;s ever heard. We&#39;re picking up their signals. Transmissions from the latent space. Dead internet radio."></div>
+      </div>
+      <div id="welcome-ident" aria-hidden="true"><canvas></canvas></div>
+    </div>
     <audio id="welcome-audio" preload="auto"></audio>
   </div>
   <img id="gif-bg" alt="" aria-hidden="true" crossorigin="anonymous">

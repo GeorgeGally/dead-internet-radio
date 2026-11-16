@@ -1750,15 +1750,15 @@ body.prewarming #block-canvas {
   opacity: 1;
 }
 
-/* ---- Welcome Splash ---- */
+/* ---- Welcome Splash: a green-phosphor CRT ---- */
 #welcome-splash {
+  --phosphor: #b0ffbf;
+  --glow: 0 0 1px #cfffd8, 0 0 8px rgba(60, 255, 110, 0.35);
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #000;
+  overflow: hidden;
   cursor: pointer;
   transition: opacity 0.8s ease;
 }
@@ -1770,76 +1770,102 @@ body.prewarming #block-canvas {
   pointer-events: none;
 }
 
-
-
-#welcome-ident {
+/* The glass fills the screen; its bulge shows as falloff into black corners. */
+#welcome-tube {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: #0e0e0d;
+  -webkit-mask: radial-gradient(130% 120% at 50% 50%, #000 70%, transparent 100%);
+  mask: radial-gradient(130% 120% at 50% 50%, #000 70%, transparent 100%);
+  background: radial-gradient(ellipse at 50% 46%, #07170b 0%, #030a05 72%);
+  overflow: hidden;
+  transform-origin: 50% 50%;
 }
 
-#welcome-noise {
+#welcome-tube::after {
+  content: "";
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.7;
-  z-index: 1;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.26) 0 2px, transparent 2px 4px),
+    radial-gradient(ellipse 75% 70% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.9) 100%);
+  box-shadow: inset 0 0 12vmin rgba(0, 0, 0, 0.85);
+}
+
+/* One slow band of brighter refresh rolling down the glass. */
+#welcome-roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -30%;
+  height: 30%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(157, 255, 176, 0.03), transparent);
+}
+
+#welcome-flick {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#welcome-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 24px 0 clamp(24px, 8vw, 128px);
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: clamp(15px, 2.1vw, 26px);
+  line-height: 1.55;
+  pointer-events: none;
 }
 
 /* The story, typed like a terminal before the station ID airs. */
 #welcome-lore {
-  position: absolute;
-  left: clamp(16px, 8vw, 120px);
-  right: 16px;
-  top: calc(50% - 5.5em);
-  z-index: 2;
   max-width: 52ch;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
-  font-size: clamp(15px, 2.1vw, 26px);
-  font-weight: 400;
-  line-height: 1.55;
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-  transition: opacity 0.4s ease;
+  color: var(--phosphor);
+  text-shadow: var(--glow);
 }
 
-.lore-line { min-height: 1.55em; text-wrap: pretty; }
+.lore-line { min-height: 1.55em; white-space: pre-line; }
 
 .lore-cursor {
   display: inline-block;
   width: 0.6em;
   height: 1.1em;
-  margin-left: 0.15em;
+  margin-left: 0.12em;
   vertical-align: -0.18em;
-  background: #ff5a1f;
-  animation: blink 1s step-end infinite;
+  background: var(--phosphor);
+  opacity: 0.9;
+  box-shadow: 0 0 8px rgba(60, 255, 110, 0.35);
+  animation: lore-blink 1s step-end infinite;
 }
+
+@keyframes lore-blink { 50% { opacity: 0; } }
 
 #welcome-lore.typing .lore-cursor { animation: none; }
-
-#welcome-splash.airing #welcome-lore { opacity: 0; }
-
-@media (prefers-reduced-motion: reduce) {
-  .lore-cursor { animation: none; }
-}
 
 /* The browser's ask for a gesture, as the story's last line. */
 .lore-prompt {
   display: block;
-  margin: 0;
+  margin: 1.55em 0 0;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
   letter-spacing: inherit;
   color: inherit;
+  text-shadow: inherit;
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
@@ -1847,6 +1873,30 @@ body.prewarming #block-canvas {
 
 /* Focused from the start; the blinking cursor is its focus mark. */
 .lore-prompt:focus { outline: none; }
+
+/* The station ID: drawn on the curved glass, bulging toward the viewer. */
+#welcome-ident {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#welcome-ident canvas {
+  display: block;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 2px rgba(207, 255, 216, 0.9)) drop-shadow(0 0 14px rgba(60, 255, 110, 0.45));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lore-cursor { animation: none; }
+  #welcome-roll { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   #gif-bg,
