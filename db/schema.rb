@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_130000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_130000) do
     t.jsonb "options"
     t.index ["show_id"], name: "index_generation_jobs_on_show_id"
     t.index ["status"], name: "index_generation_jobs_on_status"
+  end
+
+  create_table "master_prompts", force: :cascade do |t|
+    t.string "kind", null: false
+    t.string "name", null: false
+    t.text "body", null: false
+    t.text "notes"
+    t.boolean "active", default: false, null: false
+    t.integer "version", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kind", "name"], name: "index_master_prompts_on_kind_and_name", unique: true
+    t.index ["kind"], name: "index_master_prompts_one_active_per_kind", unique: true, where: "active"
   end
 
   create_table "shows", force: :cascade do |t|
@@ -190,9 +203,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_130000) do
   add_foreign_key "generation_jobs", "shows"
   add_foreign_key "song_requests", "tracks", column: "matched_track_id", on_delete: :nullify
   add_foreign_key "song_requests", "tracks", on_delete: :nullify
-  add_foreign_key "transmissions", "users", on_delete: :nullify
   add_foreign_key "song_requests", "users"
   add_foreign_key "tracks", "shows"
   add_foreign_key "tracks", "tracks", column: "origin_track_id", on_delete: :nullify
+  add_foreign_key "transmissions", "users", on_delete: :nullify
   add_foreign_key "votes", "tracks", on_delete: :cascade
 end

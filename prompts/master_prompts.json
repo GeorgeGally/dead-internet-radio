@@ -1,0 +1,6 @@
+{
+  "music": { "label": "Music", "file": "dj.md", "keys": ["title", "artist", "caption", "lyrics", "bpm", "keyscale", "duration"] },
+  "brief": { "label": "Brief", "file": "producer.md", "keys": ["show_name", "brief", "ideas"] },
+  "rewrite": { "label": "Rewrite", "file": "rerender.md", "keys": ["caption", "lyrics", "bpm", "keyscale", "duration", "diagnosis", "changes"] },
+  "dj": { "label": "DJ", "file": "announcer.md", "keys": ["DJ_ANNOUNCE", "TRACK_INTRO", "track_number", "text"] }
+}

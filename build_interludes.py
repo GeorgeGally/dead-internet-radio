@@ -25,7 +25,7 @@ MASTER = "adelay=300:all=1,apad=pad_dur=0.8,loudnorm=I=-14:TP=-1.5:LRA=7"
 
 
 def write_lines(count: int) -> list[str]:
-    announcer = g.load_prompt(g.ANNOUNCER_PROMPT_PATH)
+    announcer = g.master_prompt("dj")
     lines: list[str] = []
     for _ in range(count // BATCH + 4):
         if len(lines) >= count:

@@ -75,7 +75,7 @@ class FulfillRequestJob < ApplicationJob
     dir = Rails.root.join('tmp', 'requests')
     FileUtils.mkdir_p(dir)
     path = dir.join("request-#{req.id}.json")
-    path.write(JSON.pretty_generate(req.render_spec))
+    path.write(JSON.pretty_generate(req.render_spec.merge(prompts: @gen_job.freeze_prompts!)))
     path.to_s
   end
 end

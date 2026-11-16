@@ -69,7 +69,9 @@ module Library
   # generate.py reads this before writing a new show.
   TASTE_PATH = Rails.root.join("output", "listener-taste.json")
 
+  # The active master prompts go along too: the generation PC fetches both with the catalog.
   def self.write_taste!
+    MasterPrompt.write_active!
     TASTE_PATH.write(JSON.pretty_generate(taste))
   rescue StandardError => e
     Rails.logger.warn("listener taste not written: #{e.message}")

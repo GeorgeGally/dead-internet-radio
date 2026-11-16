@@ -137,6 +137,7 @@ def main():
     args = parser.parse_args()
 
     spec = json.loads(Path(args.set_json).read_text())
+    g.use_prompts(spec.get("prompts"))
     slot = spec.get("slot") or "late night"
     minutes = int(spec.get("minutes") or 60)
     candidates = [c for c in spec.get("candidates", []) if Path(c["file"]).exists()]
@@ -198,13 +199,13 @@ def main():
         "library": library,
     }, indent=2))
 
-    announcer = g.load_prompt(g.ANNOUNCER_PROMPT_PATH)
     print("2. DJ writing the opening and links...", flush=True)
-    opening = g.call_llm(
-        announcer,
+    opening = g.ask_llm(
+        "dj",
         f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". "
         f"The DJ name is: {dj_name}. Keep it short — 10-20 seconds of speech, about 25-50 words.",
-    ).strip().strip('"').strip("'").strip()
+        g.spoken,
+    )
     opening_stem = "00-dead-internet-radio-opening-dead-internet-radio"
     (prompts_dir / f"{opening_stem}.prompt.json").write_text(json.dumps({
         "track": 0, "slot": slot, "brief": brief, "type": "dj_announce", "text": opening,
@@ -218,7 +219,7 @@ def main():
         entries = "\n".join(f"- Voiceover before track {n}, NEXT TRACK: {songs[n - 1]['artist']} — \"{songs[n - 1]['title']}\""
                             for n in sorted(schedule))
         batch = g.call_llm(
-            announcer,
+            g.master_prompt("dj"),
             f"Show: \"{show_name}\"\nSlot: {slot}\n\nDJ name: {dj_name}\n\nProgram brief:\n\n{brief}\n\n"
             f"Generate {len(schedule)} mid-set voiceovers. Return a JSON array of {len(schedule)} objects.\n\n"
             f"Each voiceover: announce the next track and identify yourself as DJ {dj_name}. "
@@ -236,7 +237,7 @@ def main():
             print("  WARNING: could not parse the links, skipping them", flush=True)
     for n in sorted(requests):
         c = songs[n - 1]
-        lines[n] = g.request_announcement(announcer, slot, dj_name, {
+        lines[n] = g.request_announcement(slot, dj_name, {
             "requester": c["request"]["requester"], "title": c["title"], "artist": c["artist"],
             "note": c["request"].get("note"),
         })

@@ -23,6 +23,7 @@ class GenerateShowJob < ApplicationJob
     return hand_to_pc(gen_job) unless gen_job.dry_run? || AceStepManager.installed?
 
     gen_job.update!(status: :running, started_at: Time.current, output_log: '')
+    gen_job.freeze_prompts!
     @gen_job = gen_job
     @buffer = +''
     @show_dir = nil
@@ -45,6 +46,7 @@ class GenerateShowJob < ApplicationJob
       cmd1 += ['--resume-dir', resume_dir] if resume_dir
       cmd1 += ['--stop-ace-step'] unless gen_job.dry_run?
 
+      say("Prompts: #{MasterPrompt.describe(gen_job.master_prompts)}")
       say(resume_dir ? "Resuming in #{resume_dir}" : 'Running: generate.py')
       exit1 = run_and_stream(cmd1, chdir: root) { |line| capture_show_dir(line) }
       say("Exit: #{exit1}")
@@ -74,7 +76,8 @@ class GenerateShowJob < ApplicationJob
 
   # No ACE-Step here (apps1): the generation PC picks the job up through GenerationLine.
   def hand_to_pc(gen_job)
-    gen_job.update!(options: (gen_job.options || {}).merge('on_pc' => true), output_log: "Waiting for the generation PC\n")
+    gen_job.freeze_prompts!
+    gen_job.update!(options: gen_job.options.merge('on_pc' => true), output_log: "Waiting for the generation PC\n")
   end
 
   def capture_show_dir(line)

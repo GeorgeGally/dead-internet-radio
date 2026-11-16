@@ -41,10 +41,14 @@ OUTPUT_DIR = Path("output")
 PROMPTS_OUTPUT_DIR = OUTPUT_DIR / "prompts"
 
 PROMPTS_DIR = Path("prompts")
-PRODUCER_PROMPT_PATH = PROMPTS_DIR / "producer.md"
-DJ_PROMPT_PATH = PROMPTS_DIR / "dj.md"
-ANNOUNCER_PROMPT_PATH = PROMPTS_DIR / "announcer.md"
-RERENDER_PROMPT_PATH = PROMPTS_DIR / "rerender.md"
+# The admin's prompt library: one prompt per kind is active, each kind's
+# "Original" is its seed file in prompts/. Rails reads the same kinds file.
+MASTER_PROMPTS_PATH = PROMPTS_DIR / "master_prompts.json"
+# Written by Rails whenever the library changes, and sent to the generation PC.
+ACTIVE_PROMPTS_PATH = OUTPUT_DIR / "active-prompts.json"
+# A slot "prompts {"slot": ..., "prompts": {...}}" carries a job's chosen
+# prompts, so the generation PC passes them on as it passes any slot.
+SLOT_PROMPTS_PREFIX = "prompts "
 
 ANNOUNCE_SCRIPT = Path(__file__).parent / "announce.py"
 KOKORO_PYTHON = Path(__file__).parent / "kokoro" / ".venv" / "bin" / "python3"
@@ -74,6 +78,108 @@ def random_dj_name() -> str:
 
 def load_prompt(path: Path) -> str:
     return path.read_text().strip()
+
+
+_chosen_prompts: dict | None = None
+_prompts_used: dict = {}
+
+
+def master_kinds() -> dict:
+    return json.loads(MASTER_PROMPTS_PATH.read_text())
+
+
+def use_prompts(prompts) -> None:
+    """This run's prompts, {kind: {name, version, body}}, in place of the active file."""
+    global _chosen_prompts
+    if isinstance(prompts, dict):
+        _chosen_prompts = prompts
+
+
+def unwrap_slot(slot: str) -> str:
+    """A slot that carries its job's prompts: take them, return the slot itself."""
+    if not slot.startswith(SLOT_PROMPTS_PREFIX + "{"):
+        return slot
+    wrapped = json.loads(slot[len(SLOT_PROMPTS_PREFIX):])
+    use_prompts(wrapped.get("prompts"))
+    return str(wrapped.get("slot") or "")
+
+
+def chosen_prompts() -> dict:
+    if _chosen_prompts is not None:
+        return _chosen_prompts
+    try:
+        return json.loads(ACTIVE_PROMPTS_PATH.read_text()).get("prompts") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def original_prompt(kind: str) -> str:
+    return load_prompt(PROMPTS_DIR / master_kinds()[kind]["file"])
+
+
+def master_prompt(kind: str) -> str:
+    """The system prompt for a kind: the chosen one, or Original when none is
+    chosen, it is empty, or it already failed this run."""
+    if _prompts_used.get(kind, {}).get("fell_back"):
+        return original_prompt(kind)
+    chosen = chosen_prompts().get(kind)
+    body = str(chosen.get("body") or "").strip() if isinstance(chosen, dict) else ""
+    if body:
+        info = {"name": str(chosen.get("name") or "Untitled"), "version": chosen.get("version")}
+    else:
+        body, info = original_prompt(kind), {"name": "Original", "version": None, "from": "file"}
+    _prompts_used.setdefault(kind, info)
+    return body
+
+
+def fall_back(kind: str, why: str) -> str:
+    """Original for the rest of the run, logged. A broken prompt never stops a show."""
+    used = _prompts_used.setdefault(kind, {"name": "Original"})
+    if not used.get("fell_back") and master_prompt(kind) != original_prompt(kind):
+        print(f"  {master_kinds()[kind]['label']} prompt \"{used['name']}\" {why}: using Original", flush=True)
+        used.update(fell_back=True, why=why)
+    return original_prompt(kind)
+
+
+def ask_llm(kind: str, user_message: str, parse=None):
+    """call_llm with the kind's master prompt; output the pipeline cannot read
+    is asked again of Original."""
+    parse = parse or (lambda raw: raw)
+    system = master_prompt(kind)
+    try:
+        return parse(call_llm(system, user_message))
+    except (ValueError, AttributeError, KeyError, TypeError, IndexError) as err:
+        if system == original_prompt(kind):
+            raise
+        return parse(call_llm(fall_back(kind, f"gave output the pipeline cannot read ({err})"), user_message))
+
+
+def spoken(raw: str) -> str:
+    text = raw.strip().strip('"').strip("'").strip()
+    if not text:
+        raise ValueError("no spoken text")
+    return text
+
+
+def prompts_used() -> dict:
+    return {kind: dict(info) for kind, info in _prompts_used.items()}
+
+
+def log_prompts_used(prompts_dir: Path) -> None:
+    """Which master prompts this show was written with, beside its prompt logs."""
+    if _prompts_used:
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+        (prompts_dir / "master-prompts.json").write_text(json.dumps(prompts_used(), indent=2))
+        print_prompts_used()
+
+
+def print_prompts_used() -> None:
+    kinds = master_kinds()
+    named = [f"{kinds[k]['label']} \"{v['name']}\"" + (f" v{v['version']}" if v.get("version") else "")
+             + (" (fell back to Original)" if v.get("fell_back") else "")
+             for k, v in _prompts_used.items()]
+    if named:
+        print(f"Master prompts: {', '.join(named)}", flush=True)
 
 
 def slugify(text: str, max_len: int = 50) -> str:
@@ -837,13 +943,12 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
         f"BPM: {old.get('bpm')}\nKey: {old.get('keyscale', '')}\nDuration: {old.get('duration')}\n\n"
         f"Notes: {notes}"
     )
-    system = load_prompt(RERENDER_PROMPT_PATH)
-    new = extract_json(call_llm(system, message))
+    new = ask_llm("rewrite", message, extract_json)
     new = new if isinstance(new, dict) else {}
     left_out = missing_terms(notes, new)
     if new and left_out:
         print(f"  Rewrite leaves out {', '.join(left_out)}; asking again", flush=True)
-        retry = extract_json(call_llm(system, message + f"\n\nYour last rewrite left out: {', '.join(left_out)}. "
+        retry = extract_json(call_llm(master_prompt("rewrite"), message + f"\n\nYour last rewrite left out: {', '.join(left_out)}. "
                                       "Every genre, style and instrument the notes name must be in the new song.\n"
                                       f"Your last rewrite: {json.dumps(new)}"))
         if isinstance(retry, dict) and retry.get("caption") and len(missing_terms(notes, retry)) < len(left_out):
@@ -895,6 +1000,7 @@ def render_take(take: dict, dj_name: str = "", stop_after: bool = False):
         }, indent=2))
         (show_dir / "prompts" / f"{stem}.prompt.json").write_text(json.dumps({
             "track": 1, "payload": song, "take_of": {"file": take.get("file"), "at": stamp},
+            **({"master_prompts": prompts_used()} if prompts_used() else {}),
             **({"rerender": {"at": stamp, "notes": notes}} if notes else {}),
         }, indent=2))
         ok, err = check_ace_step_health()
@@ -971,19 +1077,20 @@ def read_plan(slot: str) -> dict | None:
     return plan
 
 
-def request_announcement(announcer_prompt: str, slot: str, dj_name: str, request: dict) -> str:
+def request_announcement(slot: str, dj_name: str, request: dict) -> str:
     """The DJ reads a listener request on air. Falls back to a plain read."""
     who, title, artist = request["requester"], request["title"], request["artist"]
     plain = f"A request from {who}. \"{title}\" by {artist}. DJ {dj_name}, Dead Internet Radio."
     note = f" Their note, for your ears only, never quote it: {request['note']}." if request.get("note") else ""
-    text = call_llm(
-        announcer_prompt,
+    text = ask_llm(
+        "dj",
         f"Slot: {slot}\n\nTYPE: REQUEST\n\nThe DJ name is: {dj_name}. Read a listener request on air before it plays. "
         f"It is a request from {who}, for \"{title}\" by {artist}.{note} "
         f"Say \"a request from {who}\", the title and the artist, your DJ name and the station. Then one line of your own "
         "in the station's voice: philosophical, odd, or the station's weather. Never cheesy, no radio cliches, "
         "no shout-outs. 20-45 words. Only the spoken text.",
-    ).strip().strip('"').strip("'").strip()
+        spoken,
+    )
     low = text.lower()
     if who.lower() not in low or title.lower() not in low or len(text.split()) > 70:
         return plain
@@ -1018,7 +1125,7 @@ def main():
         print("Error: OPENROUTER_API_KEY not set in .env", file=sys.stderr)
         sys.exit(1)
 
-    slot = " ".join(args.slot)
+    slot = unwrap_slot(" ".join(args.slot))
     if slot.startswith("remix {"):
         render_take(json.loads(slot[len("remix "):]), args.dj_name, args.stop_ace_step)
         return
@@ -1033,6 +1140,7 @@ def main():
     # A listener request is a one-track show: the DJ reads the request, then it plays.
     request = json.loads(Path(args.request_json).read_text()) if args.request_json else None
     if request:
+        use_prompts(request.get("prompts"))
         args.tracks = 1
         args.no_batch = True
 
@@ -1107,8 +1215,6 @@ def main():
         print(f"Show folder: {show_dir}")
         emit_progress({"type": "show_dir", "path": str(show_dir)})
 
-        producer_prompt = load_prompt(PRODUCER_PROMPT_PATH)
-        dj_prompt = load_prompt(DJ_PROMPT_PATH)
 
         print(f"Dead Internet Radio — {slot}")
         print()
@@ -1129,7 +1235,7 @@ def main():
                               + ".\n\nWrite a program brief for the song they asked for: its world, "
                               f"not the station's request line.{ideas_ask}")
         if not plan:
-            raw = call_llm(producer_prompt, producer_input)
+            raw = call_llm(master_prompt("brief"), producer_input)
             try:
                 result = extract_json(raw)
                 show_name = result.get("show_name", "").strip()
@@ -1141,7 +1247,7 @@ def main():
                 ideas = [""] * args.tracks
         if not plan and (not show_name or not brief or "User Safety:" in brief or len(brief) < 20):
             print("  Producer output malformed or moderated, retrying with different model...", flush=True)
-            raw2 = call_llm(producer_prompt, f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.{ideas_ask}")
+            raw2 = call_llm(fall_back("brief", "wrote no show name or brief"), f"Time slot: {slot}\n\nWrite a creative atmospheric program brief for this fictional radio slot.{ideas_ask}")
             try:
                 result2 = extract_json(raw2)
                 show_name = result2.get("show_name", "").strip()
@@ -1170,8 +1276,6 @@ def main():
 
         # 2. DJ Opening Announcement
         print("2. Announcer writing DJ opening announcement...", flush=True)
-        announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
-
         dj_name = str((plan or {}).get("dj_name") or "").strip() or args.dj_name or random_dj_name()
         # Update show metadata with actual DJ name
         show_meta["dj_name"] = dj_name
@@ -1186,12 +1290,13 @@ def main():
         if plan:
             dj_announce = str(plan.get("dj_announce") or "").strip() or f"Dead Internet Radio. {show_name}. DJ {dj_name}."
         elif request:
-            dj_announce = request_announcement(announcer_prompt, slot, dj_name, request)
+            dj_announce = request_announcement(slot, dj_name, request)
         else:
-            dj_announce = call_llm(
-                announcer_prompt,
+            dj_announce = ask_llm(
+                "dj",
                 f"Slot: {slot}\n\nTYPE: DJ_ANNOUNCE\n\nStation ID, show name, and DJ name. The show is called: \"{show_name}\". The DJ name is: {dj_name}. No descriptions, no poetry, no philosophy. Keep it short — 10-20 seconds of speech, about 25-50 words.",
-            ).strip().strip('"').strip("'").strip()
+                spoken,
+            )
         print(f"   [DJ_ANNOUNCE] \"{dj_announce[:180]}\"")
 
         # A request's read is a DJ voice at 00, so it rides on the track as its voiceover.
@@ -1216,6 +1321,7 @@ def main():
             "brief": brief,
             "type": "dj_announce",
             "text": dj_announce,
+            "master_prompt": prompts_used().get("dj"),
             "payload": {
                 "title": "Opening Broadcast",
                 "artist": "Dead Internet Radio",
@@ -1285,8 +1391,7 @@ def main():
                 f"{avoid}{worn}"
             )
 
-            song_json = call_llm(dj_prompt, dj_input)
-            songs = share_artists(extract_json_array(song_json), shared)
+            songs = share_artists(ask_llm("music", dj_input, extract_json_array), shared)
             for song, idea in zip(songs, ideas):
                 song["idea"] = idea
             repeated = shared_phrases(songs, shared)
@@ -1345,8 +1450,7 @@ def main():
                     dj_input += request_block(request)
 
                 print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
-                song_json = call_llm(dj_prompt, dj_input)
-                song = extract_json(song_json)
+                song = ask_llm("music", dj_input, extract_json)
                 if isinstance(song, list):
                     song = song[0]
                 if request:
@@ -1394,13 +1498,15 @@ def main():
                 "track": i,
                 "slot": slot,
                 "brief": brief,
-                "system_prompt": dj_prompt,
+                "system_prompt": master_prompt("music"),
+                "master_prompt": prompts_used().get("music"),
                 "user_prompt": dj_input,
                 "payload": song,
             }
             prompt_file.write_text(json.dumps(prompt_data, indent=2))
             print(f"  Prompt log → {prompt_file}")
         print()
+        log_prompts_used(show_prompts_dir)
 
         if args.plan_out:
             Path(args.plan_out).write_text(json.dumps({
@@ -1520,7 +1626,6 @@ def main():
                 print(f"  Waiting {args.delay}s (rate limit buffer)...", flush=True)
                 time.sleep(args.delay)
 
-            announcer_prompt = load_prompt(ANNOUNCER_PROMPT_PATH)
             vo_entries = []
             for idx in voiceover_schedule:
                 t = track_history[idx - 1]
@@ -1544,9 +1649,8 @@ def main():
                 f'{{"track_number": int, "type": "TRACK_INTRO", "text": string}}'
             )
 
-            vo_json = call_llm(announcer_prompt, vo_input)
             try:
-                voiceovers = extract_json_array(vo_json)
+                voiceovers = ask_llm("dj", vo_input, extract_json_array)
             except ValueError:
                 print("  WARNING: Could not parse voiceover batch, skipping", flush=True)
                 voiceovers = []
@@ -1610,6 +1714,7 @@ def main():
 """
     set_file = show_prompts_dir / f"set-{slugify(slot)}.md"
     set_file.write_text(set_content)
+    log_prompts_used(show_prompts_dir)
     print(f"  Set notes → {set_file}")
 
     total_duration = sum(

@@ -24,7 +24,9 @@ class PlanShowJobTest < ActiveJob::TestCase
     assert_predicate job, :pending?
     assert_equal "Wire Kiss", job.plan["tracks"][0]["title"]
     assert_equal "Plan ready", job.stage
-    assert_equal [ "generate.py", "robot club", "--tracks", "2" ], seen[1, 4]
+    assert_equal [ "generate.py", "--tracks", "2" ], [ seen[1], *seen[3, 2] ]
+    assert_equal "robot club", JSON.parse(seen[2].delete_prefix("prompts "))["slot"]
+    assert_match(/Prompts: Music "Original" v1/, job.output_log)
     assert_includes seen, "Static"
   end
 
@@ -50,7 +52,9 @@ class PlanShowJobTest < ActiveJob::TestCase
       with_singleton_method(Library, :write_taste!, -> { nil }) { worker.perform(job.id) }
     end
 
-    assert_equal "plan #{plan.to_json}", seen[2]
+    sent = JSON.parse(seen[2].delete_prefix("prompts "))
+    assert_equal "plan #{plan.to_json}", sent["slot"]
+    assert_equal MasterPrompt::KINDS.keys, sent["prompts"].keys
     assert_predicate job.reload, :done?
   end
 

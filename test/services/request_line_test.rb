@@ -24,7 +24,8 @@ class RequestLineTest < ActiveJob::TestCase
     assert_equal [@req.id, later.id], lines.map { |l| l.split(" ", 2).first.to_i }
     spec = JSON.parse(lines.first.split(" ", 2).last)
     assert_equal({ "requester" => @user.public_handle, "artist" => "Static Bloom", "title" => "Carrier Signal",
-                   "note" => "colder", "seed_caption" => nil }, spec)
+                   "note" => "colder", "seed_caption" => nil }, spec.except("prompts"))
+    assert_equal "Original", spec.dig("prompts", "dj", "name")
   end
 
   test "walks the line and repeats safely" do

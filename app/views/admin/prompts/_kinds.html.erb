@@ -1,0 +1,5 @@
+<div class="prompt-kinds" role="tablist">
+  <% MasterPrompt::KINDS.each do |key, kind| %>
+    <%= link_to kind["label"], admin_prompts_path(kind: key), class: ("is-on" if key == current), "aria-current": ("page" if key == current) %>
+  <% end %>
+</div>
