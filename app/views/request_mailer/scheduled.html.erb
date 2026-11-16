@@ -31,6 +31,11 @@
       <td align="center" style="padding:32px 12px 48px;">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#141413" style="width:100%;max-width:600px;background:#141413;border:1px solid #262624;border-radius:6px;">
           <tr>
+            <td class="dir-pad" style="padding:22px 48px 20px;border-bottom:1px solid #262624;font-family:<%= sans %>;font-size:17px;line-height:22px;font-weight:600;letter-spacing:-0.01em;color:#f4f1ec;">
+              <span style="font-family:<%= mono %>;font-weight:500;color:#ec6a1f;">((&#8226;))</span>&nbsp;&nbsp;Dead Internet Radio
+            </td>
+          </tr>
+          <tr>
             <td class="dir-pad" style="padding:56px 48px 0;">
               <p class="dir-title" style="margin:0;font-family:<%= sans %>;font-size:52px;line-height:56px;font-weight:600;letter-spacing:-0.01em;color:#f4f1ec;"><%= @request.title %></p>
               <p class="dir-artist" style="margin:8px 0 0;font-family:<%= sans %>;font-size:30px;line-height:36px;font-weight:400;letter-spacing:-0.01em;color:#8a857b;"><%= @request.artist %></p>
@@ -61,19 +66,18 @@
           </tr>
           <% end %>
           <tr>
-            <td class="dir-pad" style="padding:56px 48px 56px;">
+            <td class="dir-pad" style="padding:56px 48px 64px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td bgcolor="#ec6a1f" style="background:#ec6a1f;border-radius:4px;border-bottom:3px solid #b9500f;">
                     <a href="<%= @url %>" style="display:block;padding:14px 22px 12px;font-family:<%= mono %>;font-size:13px;line-height:16px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Listen &#8594;</a>
                   </td>
+                  <td width="12" style="width:12px;font-size:0;line-height:0;">&nbsp;</td>
+                  <td bgcolor="#262624" style="background:#262624;border-radius:4px;border-bottom:3px solid #0b0b0a;">
+                    <a href="<%= @calendar_url %>" style="display:block;padding:14px 22px 12px;font-family:<%= mono %>;font-size:13px;line-height:16px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;color:#f4f1ec;text-decoration:none;">Remind me</a>
+                  </td>
                 </tr>
               </table>
-            </td>
-          </tr>
-          <tr>
-            <td class="dir-pad" style="padding:20px 48px 24px;border-top:1px solid #262624;font-family:<%= mono %>;font-size:11px;line-height:16px;letter-spacing:0.04em;color:#5f5b54;">
-              <span style="color:#ec6a1f;">((&#8226;))</span>&nbsp; Dead Internet Radio
             </td>
           </tr>
         </table>

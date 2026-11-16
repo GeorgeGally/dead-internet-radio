@@ -37,7 +37,23 @@ class RequestMailerTest < ActionMailer::TestCase
       "A pirate transmitter left on in a flooded mall.", %(href="http://localhost:3000") ].each do |part|
       assert_includes html, part
     end
+    assert_includes html, "Dead Internet Radio"
+    assert_includes html, "calendar.google.com/calendar/render?"
+    assert_includes html, "dates=20261106T204000Z%2F20261106T204400Z"
+    assert_includes html, "ctz=Europe%2FBerlin"
+
+    ics = mail.attachments["dead-internet-radio.ics"]
+    assert_equal "text/calendar", ics.mime_type
+    cal = ics.decoded.gsub(/\r?\n /, "")
+    assert_includes cal, "METHOD:PUBLISH"
+    assert_includes cal, "DTSTART:20261106T204000Z"
+    assert_includes cal, "DTEND:20261106T204400Z"
+    assert_includes cal, "SUMMARY:Static Bloom — Carrier Signal on Dead Internet Radio"
+    assert_includes cal, "URL:http://localhost:3000"
+    assert ics.decoded.split(/\r?\n/).all? { |line| line.bytesize <= 75 }
+
     text = mail.text_part.body.to_s
+    assert_includes text, "Remind me: https://calendar.google.com/"
     assert_includes text, "Key   A minor"
     assert_includes text, "BPM   124"
     assert_includes text, "Listen: http://localhost:3000"

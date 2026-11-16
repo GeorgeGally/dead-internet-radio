@@ -1,3 +1,5 @@
+((•)) Dead Internet Radio
+
 <%= @request.title.upcase %>
 <%= @request.artist %>
 
@@ -9,5 +11,4 @@ Airs  <%= @at.strftime("%A %-d %B at %H:%M") %> (<%= @zone %>)
 <% end %>
 
 Listen: <%= @url %>
-
-((•)) Dead Internet Radio
+Remind me: <%= @calendar_url %>
