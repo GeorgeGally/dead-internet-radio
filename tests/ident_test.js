@@ -121,8 +121,45 @@ test('a stop while the list is on its way cancels the ident', async () => {
 test('the welcome splash plays only what is on air', () => {
   const app = read('public/app.js');
   assert.doesNotMatch(app, /STATION_ID_COUNT/);
-  assert.match(app, /idents\.onAir\(\)\.then\(\(\{ visual, audio: clips \}\)/);
-  assert.match(app, /if \(!clips\.length\) return;/);
+  assert.match(app, /idents\.playClip\(idents\.clipName\(clips\), audio\)/);
+  const { idents } = loadIdents();
+  assert.equal(idents.clipName([]), '');
+  assert.equal(idents.clipName([7]), 'station-ids/id-07.wav');
+});
+
+function clipEl() {
+  const el = {
+    src: '', played: 0, paused: true,
+    getAttribute() { return this.src; },
+    play() { this.played += 1; this.paused = false; return Promise.resolve(); },
+    pause() { this.paused = true; },
+  };
+  return el;
+}
+
+test('a station ID clip resolves when it ends, at once with none on air', async () => {
+  const { idents } = loadIdents();
+  await idents.playClip('');
+  const el = clipEl();
+  let done = false;
+  idents.playClip('station-ids/id-03.wav', el).then(() => { done = true; });
+  assert.equal(el.played, 1);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(done, false, 'waits for the clip');
+  el.onended();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(done, true);
+});
+
+test('a stop cuts the station ID clip short and lets the start go on', async () => {
+  const { idents } = loadIdents();
+  const el = clipEl();
+  let done = false;
+  idents.playClip('station-ids/id-03.wav', el).then(() => { done = true; });
+  idents.stop();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(done, true);
+  assert.equal(el.paused, true);
 });
 
 function grids() {
@@ -209,6 +246,7 @@ function loadApp() {
     gallery: { init() {}, whenQuiet: (fn) => fn() },
     idents: {
       init() {}, play: () => calls.push('play'), stop: () => calls.push('stop'),
+      stationId: () => { calls.push('stationId'); return new Promise((r) => { sandbox.idDone = r; }); },
     },
   };
   vm.createContext(sandbox);
@@ -235,6 +273,41 @@ function loadApp() {
     tuneLive: (showName = 'This Show') => vm.runInContext(`playlist = { live: true, tracks: [{ startsAt: 0, durationMs: 1, file: '/media/x.mp3', showName: ${JSON.stringify(showName)} }] }; currentTrack = 0;`, sandbox),
   };
 }
+
+test('Play starts with the station ID, and the music waits for it', async () => {
+  const app = loadApp();
+  app.player.src = '/media/a.mp3';
+  app.run('togglePlay()');
+  assert.deepEqual(app.calls, ['stationId']);
+  assert.equal(app.player.paused, true, 'no music under the ID');
+  app.run('idDone()');
+  await app.settle();
+  assert.equal(app.player.paused, false);
+  app.run('togglePlay()');
+  assert.equal(app.player.paused, true);
+  app.run('togglePlay()');
+  assert.equal(app.calls.filter((c) => c === 'stationId').length, 2, 'every start gets one');
+});
+
+test('Play pressed during the station ID calls the start off', async () => {
+  const app = loadApp();
+  app.player.src = '/media/a.mp3';
+  app.run('togglePlay()');
+  app.run('togglePlay()');
+  app.run('idDone()');
+  await app.settle();
+  assert.equal(app.player.paused, true);
+  assert.ok(app.calls.includes('stop'));
+});
+
+test('the radio back from a request preview skips the station ID', () => {
+  const app = loadApp();
+  app.player.src = '/media/a.mp3';
+  app.run('togglePlay(false)');
+  assert.equal(app.player.paused, false);
+  assert.ok(!app.calls.includes('stationId'));
+  assert.match(read('public/request.js'), /if \(radioWasOn\) togglePlay\(false\);/);
+});
 
 test('a wait for audio never puts up an ident', async () => {
   const app = loadApp();

@@ -20,5 +20,21 @@ test('the silent probe is a valid empty WAV header', () => {
 test('the start button appears only once the browser refuses', () => {
   assert.match(css, /#welcome-splash:not\(\.click-to-start\) \.welcome-letterbox \{\s*visibility: hidden;/);
   assert.match(js, /if \(!allowed\) document\.getElementById\('welcome-splash'\)\.classList\.add\('click-to-start'\)/);
-  assert.match(js, /if \(await autoplay\) skipWelcome\(\);\s*else showWelcome\(\);/);
+  assert.match(js, /showWelcome\(await autoplay\);/);
+});
+
+test('every start runs the story, then the station ID, then the music, sound allowed or not', () => {
+  assert.doesNotMatch(js, /skipWelcome/);
+  assert.match(js, /if \(allowed\) start\(\);\s*else splash\.addEventListener\('click', start\);/);
+  assert.match(js, /Promise\.all\(\[onAir, lore\]\)\.then/);
+  assert.match(js, /\.then\(dismiss\);/);
+});
+
+test('the story types the five lines, then one tail line that turns over each visit', () => {
+  assert.match(js, /'the internet died\.',\s*'nobody switched off the radio\.',\s*'somewhere a server never got the shutdown order\.',\s*"it's been writing music ever since,",\s*'credited to bands that were never born\.',/);
+  assert.match(js, /'is anyone out there\?'/);
+  assert.match(js, /prefers-reduced-motion: reduce/);
+  const lore = css.match(/#welcome-lore \{[^}]*\}/)[0];
+  const spacing = parseFloat(lore.match(/letter-spacing:\s*([\d.]+)em/)[1]);
+  assert.ok(spacing <= 0.04);
 });

@@ -240,7 +240,7 @@ const requestLine = (() => {
     previewKey.classList.remove('on');
     previewKey.setAttribute('aria-label', 'Play');
     previewKey = null;
-    if (radioWasOn) togglePlay();
+    if (radioWasOn) togglePlay(false);
     radioWasOn = false;
   }
 

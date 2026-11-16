@@ -71,21 +71,87 @@ async function autoplayAllowed() {
   }
 }
 
-// No splash, no station ID: straight onto the air.
-function skipWelcome() {
-  const splash = document.getElementById('welcome-splash');
-  _welcomeActive = false;
-  visuals.cancelPrewarm();
-  openingArtwork();
-  if (splash) splash.style.display = 'none';
+// The station's own story, typed out on the splash like a terminal.
+const LORE = [
+  'the internet died.',
+  'nobody switched off the radio.',
+  'somewhere a server never got the shutdown order.',
+  "it's been writing music ever since,",
+  'credited to bands that were never born.',
+];
+// One of these follows it, a different one each visit.
+const LORE_TAILS = [
+  "still broadcasting. nobody's left to stop it.",
+  "you're tuned in to the last transmission.",
+  'dead internet. live radio.',
+  'still broadcasting. just in case.',
+  "i play music so the silence doesn't win.",
+  'if you can hear this, say something.',
+  'is anyone out there?',
+];
+
+function loreTail() {
+  let n = 0;
+  try { n = Number(localStorage.getItem('lore-tail')) || 0; } catch (e) {}
+  try { localStorage.setItem('lore-tail', String((n + 1) % LORE_TAILS.length)); } catch (e) {}
+  return LORE_TAILS[n % LORE_TAILS.length];
+}
+const LORE_CHAR_S = 0.03;
+const LORE_PAUSE_S = 0.4;
+
+// One line at a time behind a block cursor. Resolves once the last line is
+// in. Without GSAP, or with reduced motion, the lines are simply there.
+function typeLore(box) {
+  if (!box) return Promise.resolve();
+  const lines = [...LORE, '', loreTail()].map((words) => {
+    const line = document.createElement('div');
+    line.className = 'lore-line';
+    box.append(line);
+    return [line, words];
+  });
+  const cursor = document.createElement('span');
+  cursor.className = 'lore-cursor';
+  const gsap = window.gsap;
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!gsap || still) {
+    lines.forEach(([line, words]) => { line.textContent = words; });
+    lines.at(-1)[0].append(cursor);
+    return Promise.resolve();
+  }
+  // The cursor holds still while it types and blinks once it waits.
+  box.classList.add('typing');
+  return new Promise((resolve) => {
+    const tl = gsap.timeline({ onComplete: () => { box.classList.remove('typing'); resolve(); } });
+    lines.forEach(([line, words]) => {
+      const typed = { n: 0 };
+      const text = document.createTextNode('');
+      tl.call(() => line.append(text, cursor))
+        .to(typed, {
+          n: words.length,
+          duration: words.length * LORE_CHAR_S,
+          ease: 'none',
+          onUpdate: () => { text.data = words.slice(0, Math.round(typed.n)); },
+        })
+        .to({}, { duration: LORE_PAUSE_S });
+    });
+  });
 }
 
-function showWelcome() {
+// Longest the splash holds once the station starts, whatever the clip does.
+const START_CAP_MS = 15000;
+
+// Every start of the station runs the same way, whatever the browser
+// remembers of earlier visits: the story types out, the station ID plays,
+// then the music comes in. Where the browser wants a click first, the story
+// types while it waits.
+function showWelcome(allowed) {
   const splash = document.getElementById('welcome-splash');
   const audio = document.getElementById('welcome-audio');
   if (!splash || !audio) return;
-  // Nothing plays until the click.
+  // Nothing plays until the station ID has.
   musicDue = false;
+  const lore = typeLore(document.getElementById('welcome-lore'));
+  const onAir = idents.onAir();
 
   let dismissed = false;
   function dismiss() {
@@ -107,19 +173,34 @@ function showWelcome() {
     }, 900);
   }
 
-  splash.addEventListener('click', dismiss, { once: true });
-  audio.addEventListener('ended', dismiss, { once: true });
-  audio.addEventListener('error', dismiss, { once: true });
-  setTimeout(dismiss, 10000);
+  let started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    splash.classList.remove('click-to-start');
+    // The click unlocks the clip's element, so it may play once the story ends.
+    let airing = false;
+    if (!allowed) {
+      audio.muted = true;
+      audio.src = SILENCE;
+      const unlock = audio.play();
+      const unlocked = () => { if (!airing) audio.pause(); audio.muted = false; };
+      if (unlock && unlock.then) unlock.then(unlocked, unlocked);
+      else unlocked();
+    }
+    Promise.all([onAir, lore]).then(([{ visual, audio: clips }]) => {
+      if (dismissed) return;
+      airing = true;
+      setTimeout(dismiss, START_CAP_MS);
+      audio.muted = false;
+      splash.classList.add('airing');
+      startWelcomeIdent(visual);
+      return idents.playClip(idents.clipName(clips), audio);
+    }).then(dismiss);
+  }
 
-  idents.onAir().then(({ visual, audio: clips }) => {
-    if (dismissed) return;
-    startWelcomeIdent(visual);
-    if (!clips.length) return;
-    const n = clips[Math.floor(Math.random() * clips.length)];
-    audio.src = 'station-ids/id-' + String(n).padStart(2, '0') + '.wav';
-    audio.play().catch(() => {});
-  });
+  if (allowed) start();
+  else splash.addEventListener('click', start);
 }
 
 const LOCAL_PREVIEW_PLAYLIST = {
@@ -597,12 +678,34 @@ function stopPlayback() {
   updatePlayBtn();
 }
 
-function togglePlay() {
+// A press of Play starts the station: a station ID, then the music. A press
+// while the ID plays calls the start off. Coming back from a request preview
+// is no new start, so it skips the ID.
+let idStart = 0;
+let idPlaying = false;
+
+function togglePlay(stationId = true) {
   const audio = document.getElementById('player');
   if (!audio || !audio.src) return;
-  if (audio.paused) {
-    audio.play().catch(() => {});
+  if (idPlaying) {
+    idStart += 1;
+    idPlaying = false;
+    idents.stop();
+    listenerStopped = true;
+  } else if (audio.paused) {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (stationId) {
+      const run = ++idStart;
+      idPlaying = true;
+      idents.stationId().then(() => {
+        if (run !== idStart) return;
+        idPlaying = false;
+        audio.play().catch(() => {});
+        updatePlayBtn();
+      });
+    } else {
+      audio.play().catch(() => {});
+    }
   } else {
     stopPlayback();
   }
@@ -611,9 +714,10 @@ function togglePlay() {
 
 function updatePlayBtn() {
   const audio = document.getElementById('player');
-  const playing = audio && !audio.paused;
+  // The station ID counts as playing: the light is on while it airs.
+  const playing = idPlaying || (audio && !audio.paused);
   // Asked to play but no sound yet: say so instead of claiming it plays.
-  const loading = playing && audio.readyState < 3;
+  const loading = !idPlaying && playing && audio.readyState < 3;
   if (_flashActive) return;
   const led = document.getElementById('led-play');
   if (led) {
@@ -1275,8 +1379,7 @@ let audioAnalysisReady = false;
     if (!allowed) document.getElementById('welcome-splash').classList.add('click-to-start');
   });
   await loadActiveVisuals();
-  if (await autoplay) skipWelcome();
-  else showWelcome();
+  showWelcome(await autoplay);
   tuneIn(broadcast);
 }
 
