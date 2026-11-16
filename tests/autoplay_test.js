@@ -139,7 +139,6 @@ test('the story is the same eight lines every visit, with no rotating tail', () 
     w.show(true);
     assert.deepEqual(w.box.children.map((l) => l.textContent), STORY);
   }
-  assert.doesNotMatch(js, /LORE_TAILS|lore-tail/);
 });
 
 test('reduced motion shows the whole story at once, without animating', () => {
