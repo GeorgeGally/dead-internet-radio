@@ -88,10 +88,7 @@ python generate.py "late night" --dry-run
 
 ## Prompts
 
-Edit the prompts in `prompts/` to tweak the bot personalities and genre constraints.
-
-- `prompts/producer.md` — the Producer's system prompt (DJ persona, scene setting)
-- `prompts/writer.md` — the Writer's system prompt (song structure, ACE-Step payload format)
+Edit and switch prompts at `/admin/prompts`: Music, Brief, Rewrite and DJ each keep a library with one active prompt. Each kind's Original is its seed file in `prompts/` (see `CONCEPTS.md`).
 
 ## Output
 
