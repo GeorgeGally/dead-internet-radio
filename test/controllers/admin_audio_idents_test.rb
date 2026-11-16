@@ -26,10 +26,23 @@ class AdminAudioIdentsTest < ActionDispatch::IntegrationTest
     assert_equal({ "speed" => 1.5, "lofi" => 0.22, "reverb" => 0.3, "delay" => 0.14, "vocoder" => 0.0, "telephone" => false },
                  take.settings)
     assert_includes take.command, "--no-phone"
-    assert_equal "1.5", take.command[take.command.index("--speed") + 1]
+    assert_includes take.command, "--speed=1.5"
 
     get admin_ident_render_path(take), as: :json
     assert_equal "queued", response.parsed_body["status"]
+  end
+
+  test "a line starting with a dash stays bound to --text" do
+    take = IdentRender.create!(text: "-40 degrees and still transmitting", voice: "bm_lewis")
+    assert_includes take.command, "--text=-40 degrees and still transmitting"
+  end
+
+  test "a new preview purges previews older than an hour" do
+    old = IdentRender.create!(text: "old", voice: "bm_lewis", preview: true, created_at: 2.hours.ago)
+    fresh = IdentRender.create!(text: "fresh", voice: "bm_lewis", preview: true)
+    IdentRender.purge_old_previews
+    assert_not IdentRender.exists?(old.id)
+    assert IdentRender.exists?(fresh.id)
   end
 
   test "an unknown voice or an empty line is refused, and only an admin may ask" do

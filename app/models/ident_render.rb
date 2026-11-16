@@ -39,13 +39,20 @@ class IdentRender < ApplicationRecord
     KOKORO.exist?
   end
 
+  def self.purge_old_previews
+    where(preview: true, station_ident_id: nil).where(created_at: ...1.hour.ago).find_each do |old|
+      FileUtils.rm_f(old.path)
+      old.destroy
+    end
+  end
+
   def path
     DIR.join("#{id}.wav")
   end
 
   def command
-    knobs = KNOBS.flat_map { |name, knob| [knob[:flag], settings.fetch(name).to_s] }
-    cmd = [KOKORO.to_s, ANNOUNCE.to_s, "--text", text, "--output", path.to_s, "--voice", voice, *knobs]
+    knobs = KNOBS.map { |name, knob| "#{knob[:flag]}=#{settings.fetch(name)}" }
+    cmd = [KOKORO.to_s, ANNOUNCE.to_s, "--text=#{text}", "--output=#{path}", "--voice=#{voice}", *knobs]
     settings["telephone"] ? cmd : cmd << "--no-phone"
   end
 

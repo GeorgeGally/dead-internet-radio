@@ -15,6 +15,7 @@ class RenderIdentJob < ApplicationJob
     render = IdentRender.find_by(id: render_id)
     return unless render&.queued?
 
+    IdentRender.purge_old_previews if render.preview
     render.rendering!
     raise "Kokoro isn't installed on this server (kokoro/.venv)" unless IdentRender.kokoro?
 
