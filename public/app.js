@@ -678,34 +678,12 @@ function stopPlayback() {
   updatePlayBtn();
 }
 
-// A press of Play starts the station: a station ID, then the music. A press
-// while the ID plays calls the start off. Coming back from a request preview
-// is no new start, so it skips the ID.
-let idStart = 0;
-let idPlaying = false;
-
-function togglePlay(stationId = true) {
+function togglePlay() {
   const audio = document.getElementById('player');
   if (!audio || !audio.src) return;
-  if (idPlaying) {
-    idStart += 1;
-    idPlaying = false;
-    idents.stop();
-    listenerStopped = true;
-  } else if (audio.paused) {
+  if (audio.paused) {
+    audio.play().catch(() => {});
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    if (stationId) {
-      const run = ++idStart;
-      idPlaying = true;
-      idents.stationId().then(() => {
-        if (run !== idStart) return;
-        idPlaying = false;
-        audio.play().catch(() => {});
-        updatePlayBtn();
-      });
-    } else {
-      audio.play().catch(() => {});
-    }
   } else {
     stopPlayback();
   }
@@ -714,10 +692,9 @@ function togglePlay(stationId = true) {
 
 function updatePlayBtn() {
   const audio = document.getElementById('player');
-  // The station ID counts as playing: the light is on while it airs.
-  const playing = idPlaying || (audio && !audio.paused);
+  const playing = audio && !audio.paused;
   // Asked to play but no sound yet: say so instead of claiming it plays.
-  const loading = !idPlaying && playing && audio.readyState < 3;
+  const loading = playing && audio.readyState < 3;
   if (_flashActive) return;
   const led = document.getElementById('led-play');
   if (led) {

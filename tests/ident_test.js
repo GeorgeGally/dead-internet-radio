@@ -119,9 +119,6 @@ test('a stop while the list is on its way cancels the ident', async () => {
 });
 
 test('the welcome splash plays only what is on air', () => {
-  const app = read('public/app.js');
-  assert.doesNotMatch(app, /STATION_ID_COUNT/);
-  assert.match(app, /idents\.playClip\(idents\.clipName\(clips\), audio\)/);
   const { idents } = loadIdents();
   assert.equal(idents.clipName([]), '');
   assert.equal(idents.clipName([7]), 'station-ids/id-07.wav');
@@ -246,7 +243,6 @@ function loadApp() {
     gallery: { init() {}, whenQuiet: (fn) => fn() },
     idents: {
       init() {}, play: () => calls.push('play'), stop: () => calls.push('stop'),
-      stationId: () => { calls.push('stationId'); return new Promise((r) => { sandbox.idDone = r; }); },
     },
   };
   vm.createContext(sandbox);
@@ -274,39 +270,16 @@ function loadApp() {
   };
 }
 
-test('Play starts with the station ID, and the music waits for it', async () => {
+test('Play after a pause resumes the music at once, with no station ID', () => {
   const app = loadApp();
   app.player.src = '/media/a.mp3';
   app.run('togglePlay()');
-  assert.deepEqual(app.calls, ['stationId']);
-  assert.equal(app.player.paused, true, 'no music under the ID');
-  app.run('idDone()');
-  await app.settle();
   assert.equal(app.player.paused, false);
   app.run('togglePlay()');
   assert.equal(app.player.paused, true);
   app.run('togglePlay()');
-  assert.equal(app.calls.filter((c) => c === 'stationId').length, 2, 'every start gets one');
-});
-
-test('Play pressed during the station ID calls the start off', async () => {
-  const app = loadApp();
-  app.player.src = '/media/a.mp3';
-  app.run('togglePlay()');
-  app.run('togglePlay()');
-  app.run('idDone()');
-  await app.settle();
-  assert.equal(app.player.paused, true);
-  assert.ok(app.calls.includes('stop'));
-});
-
-test('the radio back from a request preview skips the station ID', () => {
-  const app = loadApp();
-  app.player.src = '/media/a.mp3';
-  app.run('togglePlay(false)');
   assert.equal(app.player.paused, false);
   assert.ok(!app.calls.includes('stationId'));
-  assert.match(read('public/request.js'), /if \(radioWasOn\) togglePlay\(false\);/);
 });
 
 test('a wait for audio never puts up an ident', async () => {

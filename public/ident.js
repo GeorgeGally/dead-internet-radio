@@ -103,17 +103,6 @@
     clipDone();
   }
 
-  // Every start of the station opens with a station ID: the clip, with an
-  // ident over it. The music waits for it.
-  async function stationId() {
-    stop();
-    const run = runs;
-    const { visual, audio } = await onAir();
-    if (run !== runs) return;
-    show(visual);
-    await playClip(clipName(audio));
-  }
-
   function show(visual) {
     if (!frame || splashUp()) return;
     const src = pick(visual);
@@ -142,5 +131,5 @@
     frame.src = 'about:blank';
   }
 
-  window.idents = { init, play, stop, pick, onAir, stationId, playClip, clipName };
+  window.idents = { init, play, stop, pick, onAir, playClip, clipName };
 })();
