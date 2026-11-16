@@ -41,6 +41,18 @@ To manually test TTS:
 
 The TTS script picks a random voice per call and applies bitcrushing, noise injection, and low-pass filtering for a broken-radio aesthetic.
 
+### Listener greetings
+
+Short DJ hellos the player says to one listener, in their browser, over the stream with the music dipped (`public/greeting.js`): on a first visit, then at most once a week, mid-song only. The lines and their tags (place, time of day, weather, device, returning) live in `generate_greetings.py`; the clips and `manifest.json` it writes to `public/greetings/` are committed and ship with the code.
+
+```bash
+python generate_greetings.py --dry-run   # list the lines
+python generate_greetings.py             # render new or changed lines, rewrite the manifest
+python generate_greetings.py --force     # re-render all of them
+```
+
+Needs Kokoro at `kokoro/.venv` (or `KOKORO_PYTHON=/path/to/python3`). Commit `public/greetings/` and deploy afterwards.
+
 ## Usage
 
 On the public player, open Request and sign in with Google to submit a fictional

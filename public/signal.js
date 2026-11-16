@@ -210,7 +210,7 @@
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ city })
       });
-      if (res.ok) handle = (await res.json()).handle || handle;
+      if (res.ok) window.signalHandle = handle = (await res.json()).handle || handle;
     } catch (_) {}
   }
   async function profile() {
@@ -221,6 +221,7 @@
       csrf = me.csrf_token;
       signedIn = !!me.signed_in;
       handle = me.public_handle || '';
+      window.signalHandle = signedIn ? handle : '';
       updateForm();
       updateCityHandle();
     } catch (_) {}

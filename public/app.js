@@ -756,6 +756,7 @@ function setMusicLevel(level) {
 }
 
 function stopVoiceover() {
+  if (typeof greeting !== 'undefined') greeting.stop();
   if (voiceoverListeners) voiceoverListeners.abort();
   voiceoverListeners = null;
   const vo = document.getElementById('voiceover-el');
