@@ -1,8 +1,7 @@
 <%
   sans = "'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
   mono = "'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace"
-  place = @zone.split("/").last.tr("_", " ")
-  readout = [ [ "Airs", "#{@at.strftime('%a %-d %b · %H:%M')} #{place}" ], [ "Key", @key ], [ "BPM", @bpm ] ].select { |_, v| v.present? }
+  readout = [ [ "Airs", @at.strftime("%a %-d %b · %H:%M") ], [ "Key", @key ], [ "BPM", @bpm ] ].select { |_, v| v.present? }
 %><!doctype html>
 <html lang="en">
 <head>
@@ -43,7 +42,7 @@
                 <% readout.each do |label, value| %>
                 <tr>
                   <td style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:12px;line-height:16px;letter-spacing:0.04em;text-transform:uppercase;color:#8a857b;"><%= label %></td>
-                  <td align="right" style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:15px;line-height:18px;color:<%= label == 'Airs' ? '#ec6a1f' : '#f4f1ec' %>;"><%= value %></td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:15px;line-height:18px;color:<%= label == 'Airs' ? '#ec6a1f' : '#f4f1ec' %>;"><%= value %><% if label == "Airs" %><br><span style="font-size:11px;line-height:16px;letter-spacing:0.04em;color:#8a857b;"><%= @zone %></span><% end %></td>
                 </tr>
                 <% end %>
               </table>

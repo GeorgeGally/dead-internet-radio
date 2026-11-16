@@ -33,7 +33,7 @@ class RequestMailerTest < ActionMailer::TestCase
     assert_equal "Carrier Signal airs Fri 21:40", mail.subject
     html = mail.html_part.body.to_s
     assert_operator html.index("Carrier Signal"), :<, html.index("A minor")
-    [ "Static Bloom", "Fri 6 Nov · 21:40 Berlin", "A minor", "124",
+    [ "Static Bloom", "Fri 6 Nov · 21:40", "Europe/Berlin", "A minor", "124",
       "A pirate transmitter left on in a flooded mall.", %(href="http://localhost:3000") ].each do |part|
       assert_includes html, part
     end
