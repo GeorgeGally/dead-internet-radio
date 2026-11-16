@@ -286,18 +286,50 @@ const requestLine = (() => {
     });
   }
 
-  // Sent: the form goes; what was asked for stays on the page.
+  // Sent: the form goes; what was asked for stays on the page, and the
+  // station logs it going out, in the signal's own marks.
   function renderSent(body, req, msg) {
     if (previewKey && body.contains(previewKey)) stopPreview();
     body.replaceChildren();
     const done = el('div', 'rq-sent');
     done.append(el('p', 'rq-sent-title', req.title), el('p', 'rq-sent-artist', req.artist));
+    const tx = el('div', 'rq-tx');
+    const pad = (n) => String(n).padStart(2, '0');
+    const at = Date.now();
+    let lastWords;
+    [
+      ['request', '\u223f\u223f', 'Into the signal.'],
+      ['station', '((\u2022))', `${req.artist} exists now, for as long as the signal holds.`],
+      ['station', '((\u2022))', 'The machine is writing the song.'],
+    ].forEach(([kind, mark, words], i) => {
+      const t = new Date(at + i * 1000);
+      const row = el('p', `rq-tx-row rq-tx-${kind}`);
+      lastWords = el('span', 'rq-tx-words', words);
+      row.append(el('span', 'rq-tx-time', `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`),
+        el('span', 'rq-tx-mark', mark), lastWords);
+      tx.append(row);
+    });
+    const cursor = lastWords.appendChild(el('i', 'rq-tx-cursor'));
     const foot = el('div', 'rq-foot');
     // The line closes once a request is in, so it isn't sent again at once.
     const { wrap, go } = goButton('close');
     go.addEventListener('click', close);
     foot.append(el('p', 'rq-msg', msg), lights(me.requests_left), wrap);
-    body.append(done, foot);
+    body.append(done, tx, foot);
+    transmit(done, tx, foot, cursor);
+  }
+
+  // The request goes out: the song settles, the log lines arrive a beat
+  // apart, then the cursor keeps blinking. Still without GSAP or motion.
+  function transmit(done, tx, foot, cursor) {
+    const gsap = window.gsap;
+    const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!gsap || still) return;
+    gsap.timeline()
+      .from(done.children, { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08 })
+      .from(tx.children, { opacity: 0, x: -6, duration: 0.25, ease: 'steps(3)', stagger: 0.55 }, '+=0.15')
+      .from(foot, { opacity: 0, y: 8, duration: 0.5, ease: 'power2.out' }, '-=0.1')
+      .to(cursor, { opacity: 0, duration: 0.5, ease: 'steps(1)', repeat: -1, yoyo: true });
   }
 
   function render(msg) {

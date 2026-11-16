@@ -531,6 +531,32 @@ body.prewarming #block-canvas {
 }
 .rq-sent-artist { color: #8a857b; font-weight: 400; }
 
+/* The request going out, logged like the signal: clock, mark, words. */
+.rq-tx { padding-top: 28px; }
+.rq-tx-row {
+  display: grid;
+  grid-template-columns: 96px 64px 1fr;
+  align-items: baseline;
+  margin: 0;
+  padding: 6px 0;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1b1b1b;
+}
+.rq-tx-time { color: #8a857b; }
+.rq-tx-mark { white-space: nowrap; color: #ec6a1f; }
+.rq-tx-request .rq-tx-mark { color: #8f5fb3; }
+.rq-tx-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 6px;
+  vertical-align: -0.15em;
+  background: #ec6a1f;
+}
+.request-card .rq-tx + .rq-foot { margin-top: 64px; }
+
 /* 01  ARTIST  [ big input ] on one hairline row. */
 .rq-row {
   display: grid;
@@ -691,6 +717,8 @@ body.prewarming #block-canvas {
   .rq-lab { display: none; }
   .rq-foot { flex-wrap: wrap; gap: 20px; }
   .rq-msg { flex-basis: 100%; }
+  .rq-tx-row { grid-template-columns: 56px 1fr; font-size: 14px; }
+  .rq-tx-time { display: none; }
 }
 
 /* ---- Info: a full-screen page on what this is, in the deck's dark ---- */

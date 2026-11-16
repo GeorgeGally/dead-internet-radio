@@ -1,5 +1,13 @@
-"<%= @request.title %>" by <%= @request.artist %> airs <%= @at.strftime("%A %-d %B at %H:%M") %> (<%= @zone %>).
+<%= @request.title.upcase %>
+<%= @request.artist %>
 
-<%= @url %>
+Airs  <%= @at.strftime("%A %-d %B at %H:%M") %> (<%= @zone %>)
+<% if @key.present? %>Key   <%= @key %>
+<% end %><% if @bpm.present? %>BPM   <%= @bpm %>
+<% end %><% if @concept %>
+<%= @concept %>
+<% end %>
 
-Dead Internet Radio
+Listen: <%= @url %>
+
+((•)) Dead Internet Radio

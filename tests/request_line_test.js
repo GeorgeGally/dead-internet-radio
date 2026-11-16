@@ -139,6 +139,9 @@ test('once a request is sent, its key closes the line instead of offering anothe
   assert.equal(keys.length, 1);
   assert.equal(text(keys[0].children[0]), 'close');
   assert.doesNotMatch(text(card), /another/i);
+  assert.match(text(card), /Into the signal\./);
+  assert.match(text(card), /Glass Saints exists now/);
+  assert.match(text(card), /Logged\./);
   await keys[0].fire('click');
   assert.equal(line.isOpen(), false);
 });

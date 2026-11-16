@@ -1,0 +1,85 @@
+<%
+  sans = "'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+  mono = "'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace"
+  place = @zone.split("/").last.tr("_", " ")
+  readout = [ [ "Airs", "#{@at.strftime('%a %-d %b · %H:%M')} #{place}" ], [ "Key", @key ], [ "BPM", @bpm ] ].select { |_, v| v.present? }
+%><!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title><%= @request.title %> airs <%= @at.strftime("%a %H:%M") %></title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; padding: 0; background: #0b0b0a; }
+    a { color: #f4f1ec; }
+    @media (max-width: 620px) {
+      .dir-pad { padding-left: 24px !important; padding-right: 24px !important; }
+      .dir-title { font-size: 40px !important; line-height: 44px !important; }
+      .dir-artist { font-size: 24px !important; line-height: 30px !important; }
+      .dir-concept { font-size: 18px !important; line-height: 27px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#0b0b0a;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#0b0b0a;">
+    <%= @request.artist %> airs <%= @at.strftime("%A at %H:%M") %> on Dead Internet Radio.
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b0b0a" style="background:#0b0b0a;">
+    <tr>
+      <td align="center" style="padding:32px 12px 48px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#141413" style="width:100%;max-width:600px;background:#141413;border:1px solid #262624;border-radius:6px;">
+          <tr>
+            <td class="dir-pad" style="padding:56px 48px 0;">
+              <p class="dir-title" style="margin:0;font-family:<%= sans %>;font-size:52px;line-height:56px;font-weight:600;letter-spacing:-0.01em;color:#f4f1ec;"><%= @request.title %></p>
+              <p class="dir-artist" style="margin:8px 0 0;font-family:<%= sans %>;font-size:30px;line-height:36px;font-weight:400;letter-spacing:-0.01em;color:#8a857b;"><%= @request.artist %></p>
+            </td>
+          </tr>
+          <tr>
+            <td class="dir-pad" style="padding:40px 48px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #2c2c29;">
+                <% readout.each do |label, value| %>
+                <tr>
+                  <td style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:12px;line-height:16px;letter-spacing:0.04em;text-transform:uppercase;color:#8a857b;"><%= label %></td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #2c2c29;font-family:<%= mono %>;font-size:15px;line-height:18px;color:<%= label == 'Airs' ? '#ec6a1f' : '#f4f1ec' %>;"><%= value %></td>
+                </tr>
+                <% end %>
+              </table>
+            </td>
+          </tr>
+          <% if @concept %>
+          <tr>
+            <td class="dir-pad" style="padding:40px 48px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="top" style="padding:3px 16px 0 0;font-family:<%= mono %>;font-size:15px;line-height:20px;color:#c69bdf;white-space:nowrap;">&#8767;&#8767;</td>
+                  <td class="dir-concept" style="font-family:<%= sans %>;font-size:20px;line-height:30px;font-weight:400;color:#d9d5cc;"><%= @concept %></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <% end %>
+          <tr>
+            <td class="dir-pad" style="padding:56px 48px 56px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td bgcolor="#ec6a1f" style="background:#ec6a1f;border-radius:4px;border-bottom:3px solid #b9500f;">
+                    <a href="<%= @url %>" style="display:block;padding:14px 22px 12px;font-family:<%= mono %>;font-size:13px;line-height:16px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Listen &#8594;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="dir-pad" style="padding:20px 48px 24px;border-top:1px solid #262624;font-family:<%= mono %>;font-size:11px;line-height:16px;letter-spacing:0.04em;color:#5f5b54;">
+              <span style="color:#ec6a1f;">((&#8226;))</span>&nbsp; Dead Internet Radio
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
