@@ -18,8 +18,10 @@ test('the silent probe is a valid empty WAV header', () => {
   assert.equal(bytes.readUInt32LE(24), 8000);
 });
 
-test('the start button appears only once the browser refuses', () => {
-  assert.match(css, /#welcome-splash:not\(\.click-to-start\) \.welcome-letterbox \{\s*visibility: hidden;/);
+test('the intro asks for a gesture as a terminal line, not a separate button', () => {
+  assert.doesNotMatch(css, /welcome-letterbox|welcome-prompt/);
+  assert.match(js, /'> press any key to tune in'/);
+  assert.match(js, /'> tap to tune in'/);
 });
 
 const LINES_BEFORE_TAIL = [
@@ -58,6 +60,7 @@ function loadWelcome({ stored = {}, reduced = false, gsap = false } = {}) {
     append(...nodes) { this.children.push(...nodes); },
     addEventListener(type, fn) { if (type === 'click') this.clicks.push(fn); },
     getAttribute() { return this.src || null; },
+    setAttribute() {},
     play() { this.paused = false; return Promise.resolve(); },
     pause() { this.paused = true; },
   });
@@ -75,6 +78,7 @@ function loadWelcome({ stored = {}, reduced = false, gsap = false } = {}) {
       createElement: (tag) => make(tag),
       createTextNode: (t) => ({ data: t }),
       addEventListener() {},
+      removeEventListener() {},
     },
     window: {
       matchMedia: (q) => ({ matches: reduced && /reduce/.test(q) }),
@@ -118,6 +122,10 @@ for (const allowed of [true, false]) {
     if (!allowed) {
       assert.equal(w.log.length, 0, 'nothing airs before the click');
       assert.equal(w.splash.clicks.length, 1);
+      const prompt = w.box.children.at(-1);
+      assert.equal(prompt.className, 'lore-line lore-prompt', 'the story ends asking to tune in');
+      assert.equal(prompt.type, 'button');
+      assert.equal(prompt.children[0].data, '> press any key to tune in');
       w.splash.clicks[0]();
       await w.settle();
     }
