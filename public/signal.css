@@ -18,16 +18,12 @@
   color: #f4f1ec;
   pointer-events: none;
 }
-/* Lines climb from the composer to mid-page. Solid until a quarter of the
-   screen height, then a quick fade to nothing well below the halfway line. */
+/* Lines climb from the composer to mid-page. Each line fades itself out as it
+   rises (signal.js), so nothing here clips or masks it. */
 .signal-stack {
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  overflow: clip;
-  -webkit-mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent calc(37.5vh - var(--signal-bottom) - 62px));
-  mask-image: linear-gradient(to top, #000 calc(25vh - var(--signal-bottom) - 62px), transparent calc(37.5vh - var(--signal-bottom) - 62px));
 }
 .signal-entry {
   box-sizing: border-box;
@@ -40,9 +36,9 @@
   column-gap: 1.2ch;
   margin: 0;
   padding: 4px 14px 5px 12px;
-  background: rgba(0,0,0,.78);
+  background: rgba(0,0,0,.6);
   overflow-wrap: anywhere;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 .signal-waiting { visibility: hidden; }
 .signal-time { order: -1; color: rgba(233,230,223,.45); }
@@ -155,7 +151,7 @@ body.slot-preview .signal-hearts { display: none; }
 }
 /* Without motion the lines stack still and leave after their life. */
 @media (prefers-reduced-motion: reduce) {
-  .signal-stack { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 8px; }
+  .signal-stack { overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 8px; }
   .signal-entry { position: static; }
   .signal-floating-heart { animation-duration: 1ms; }
 }

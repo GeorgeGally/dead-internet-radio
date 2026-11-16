@@ -68,12 +68,14 @@
   // Each type is named by plain characters, as a terminal would.
   const marks = { station: '((\u2022))', safety: '\u2622', request: '\u223f\u223f', chat: '@', system: '!' };
 
-  // Lines climb at a steady pace from the composer to mid-page; the stack's mask
-  // fades them from a quarter of the screen height. A new line waits, unseen,
-  // until the line above has climbed clear of it, so lines never overlap.
+  // Lines climb at a steady pace from the composer to mid-page. Past a quarter
+  // of the screen height each line eases itself out, fading and softening, so
+  // no edge ever cuts one. A new line waits, unseen, until the line above has
+  // climbed clear of it, so lines never overlap.
   const SPEED = 30, GAP = 8, QUEUE = 6;
   const climbing = [], waiting = [];
   let ticking = false, lastTick = 0;
+  const fadeEase = typeof gsap !== 'undefined' ? gsap.parseEase('sine.inOut') : t => t;
   const moving = () => !reduced.matches && typeof requestAnimationFrame === 'function';
   function forget(line) {
     const at = climbing.findIndex(c => c.line === line);
@@ -86,12 +88,19 @@
     lastTick = now;
     // A burst climbs faster rather than backing up behind the composer.
     const speed = SPEED * (1 + Math.min(2, waiting.length * 0.5));
-    const top = stack.clientHeight + 60;
+    const height = stack.clientHeight;
+    const fadeTo = Math.max(1, height - window.innerHeight * 0.1);
+    const fadeFrom = Math.max(0, Math.min(fadeTo - 40, height - window.innerHeight * 0.25));
     for (let i = climbing.length - 1; i >= 0; i--) {
       const c = climbing[i];
       c.d += speed * dt;
+      const t = Math.min(1, Math.max(0,
+        (c.d + c.line.offsetHeight / 2 - fadeFrom) / (fadeTo - fadeFrom)));
+      if (t >= 1) { c.drop(); continue; }
+      const fade = fadeEase(t);
       c.line.style.transform = 'translateY(' + (-c.d).toFixed(1) + 'px)';
-      if (c.d > top) c.drop();
+      c.line.style.opacity = (1 - fade).toFixed(3);
+      c.line.style.filter = fade > 0.01 ? 'blur(' + (fade * 2.5).toFixed(2) + 'px)' : '';
     }
     const next = waiting[0];
     const above = climbing[climbing.length - 1];

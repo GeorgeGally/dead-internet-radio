@@ -330,14 +330,18 @@ test('a burst queues at most six lines and the page keeps running', async () => 
   assert.equal(frames.length, 0);
 });
 
-test('a line leaves once it has climbed past the middle of the page', async () => {
+test('a line fades itself out as it climbs, then leaves', async () => {
   const frames = [];
   const s = await signal({ reducedMotion: false, frames });
   const step = frameClock(frames);
   s.track({ title: 'Buffering Memories', artist: 'Dead Internet Radio' });
   const [line] = s.stack().children;
-  step(30 * 11); // 300px lane plus 60px at 30px a second takes 12 seconds
-  assert.equal(line.isConnected, true);
+  // 300px lane on an 800px screen: solid to 100px, gone by 220px, at 30px a second.
+  step(30 * 2);
+  assert.equal(Number(line.style.opacity), 1);
+  step(30 * 4);
+  assert.ok(Number(line.style.opacity) > 0 && Number(line.style.opacity) < 1, 'mid-fade');
+  assert.match(line.style.filter, /blur/);
   step(30 * 2);
   assert.equal(line.isConnected, false);
   assert.equal(frames.length, 0); // nothing left to climb, so the loop stops

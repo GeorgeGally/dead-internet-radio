@@ -178,7 +178,7 @@ body.prewarming #block-canvas {
 .logo-text {
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.04em;
   color: inherit;
   white-space: nowrap;
   opacity: 0;
@@ -1107,7 +1107,7 @@ body.prewarming #block-canvas {
 .dc-label {
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 8px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   opacity: .35;
   color: #1a1a1a;
@@ -1208,7 +1208,7 @@ body.prewarming #block-canvas {
 .knob-label {
   font-family: "Anka Coder", sans-serif;
   font-size: 7px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #000;
   text-align: center;
@@ -1344,7 +1344,7 @@ body.prewarming #block-canvas {
   text-align: right;
   font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.4);
   pointer-events: none;
@@ -1473,7 +1473,7 @@ body.prewarming #block-canvas {
 .gallery-title {
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(0, 0, 0, 0.35);
 }
@@ -1495,7 +1495,7 @@ body.prewarming #block-canvas {
     0 1px 2px rgba(0, 0, 0, 0.14);
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 10px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(0, 0, 0, 0.5);
   cursor: pointer;
@@ -1746,6 +1746,8 @@ body.prewarming #block-canvas {
   transition: opacity 0.8s ease;
 }
 
+#welcome-splash:focus { outline: none; }
+
 #welcome-splash.fade-out {
   opacity: 0;
   pointer-events: none;
@@ -1811,44 +1813,23 @@ body.prewarming #block-canvas {
   .lore-cursor { animation: none; }
 }
 
-.welcome-letterbox {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: clamp(22px, 6vh, 56px);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #fff;
-  text-align: center;
-  pointer-events: none;
+/* The browser's ask for a gesture, as the story's last line. */
+.lore-prompt {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
-#welcome-splash:not(.click-to-start) .welcome-letterbox {
-  visibility: hidden;
-}
-
-#welcome-dir {
-  display: none;
-}
-
-.welcome-prompt {
-  font-family: "IBM Plex Mono", "Plus Jakarta Sans", "Courier New", monospace;
-  font-size: clamp(10px, 1.05vw, 13px);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 10px 16px;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-}
+/* Focused from the start; the blinking cursor is its focus mark. */
+.lore-prompt:focus { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
   #gif-bg,
@@ -2143,11 +2124,6 @@ body.prewarming #block-canvas {
   .deck-mini { padding: 0 12px; }
 
   .gallery-close { top: 6px; right: 12px; }
-
-  .welcome-prompt {
-    font-size: 11px;
-    padding: 14px 20px;
-  }
 
   #visual-notification {
     right: 16px;

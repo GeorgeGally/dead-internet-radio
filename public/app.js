@@ -137,6 +137,39 @@ function typeLore(box) {
   });
 }
 
+// Where the browser wants a gesture first, the terminal asks for one on the
+// line after the story, typed like the rest, as a real button.
+function typePrompt(box) {
+  if (!box) return null;
+  const touch = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const words = touch ? '> tap to tune in' : '> press any key to tune in';
+  const line = document.createElement('button');
+  line.type = 'button';
+  line.className = 'lore-line lore-prompt';
+  line.setAttribute('aria-label', touch ? 'Tap to tune in' : 'Press any key to tune in');
+  const old = box.querySelector && box.querySelector('.lore-cursor');
+  if (old) old.remove();
+  const cursor = document.createElement('span');
+  cursor.className = 'lore-cursor';
+  const text = document.createTextNode('');
+  line.append(text, cursor);
+  box.append(line);
+  if (line.focus) line.focus({ preventScroll: true });
+  const gsap = window.gsap;
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!gsap || still) { text.data = words; return line; }
+  box.classList.add('typing');
+  const typed = { n: 0 };
+  gsap.to(typed, {
+    n: words.length,
+    duration: words.length * LORE_CHAR_S,
+    ease: 'none',
+    onUpdate: () => { text.data = words.slice(0, Math.round(typed.n)); },
+    onComplete: () => box.classList.remove('typing'),
+  });
+  return line;
+}
+
 // Longest the splash holds once the station starts, whatever the clip does.
 const START_CAP_MS = 15000;
 
@@ -150,7 +183,10 @@ function showWelcome(allowed) {
   if (!splash || !audio) return;
   // Nothing plays until the station ID has.
   musicDue = false;
-  const lore = typeLore(document.getElementById('welcome-lore'));
+  const box = document.getElementById('welcome-lore');
+  // Keys reach the splash from the first moment, before the prompt is typed.
+  if (!allowed && splash.focus) { splash.tabIndex = -1; splash.focus({ preventScroll: true }); }
+  const lore = typeLore(box);
   const onAir = idents.onAir();
 
   let dismissed = false;
@@ -177,7 +213,7 @@ function showWelcome(allowed) {
   function start() {
     if (started) return;
     started = true;
-    splash.classList.remove('click-to-start');
+    document.removeEventListener('keydown', onKey);
     // The click unlocks the clip's element, so it may play once the story ends.
     let airing = false;
     if (!allowed) {
@@ -199,8 +235,20 @@ function showWelcome(allowed) {
     }).then(dismiss);
   }
 
+  // Any key tunes in, as a terminal would; Tab still moves focus and Escape
+  // never counts as a gesture the browser will accept.
+  function onKey(e) {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey ||
+        ['Tab', 'Escape', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return;
+    e.preventDefault();
+    start();
+  }
   if (allowed) start();
-  else splash.addEventListener('click', start);
+  else {
+    splash.addEventListener('click', start);
+    document.addEventListener('keydown', onKey);
+    lore.then(() => { if (!started) typePrompt(box); });
+  }
 }
 
 const LOCAL_PREVIEW_PLAYLIST = {
@@ -1353,9 +1401,6 @@ let audioAnalysisReady = false;
   const broadcast = loadBroadcastData();
   broadcast.catch(() => {});
   const autoplay = autoplayAllowed();
-  autoplay.then((allowed) => {
-    if (!allowed) document.getElementById('welcome-splash').classList.add('click-to-start');
-  });
   await loadActiveVisuals();
   showWelcome(await autoplay);
   tuneIn(broadcast);
