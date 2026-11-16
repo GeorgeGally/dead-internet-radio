@@ -44,8 +44,7 @@ class PlayerPage
       %(#{attribute}="#{asset}?v=#{Digest::SHA256.file(file).hexdigest[0, 10]}")
     end
     if @google_tag
-      html = html.sub("<head>", "<head>\n#{File.read(File.join(@public_path, 'gtm-head.snippet.html'))}")
-      html = html.sub("<body>", "<body>\n#{File.read(File.join(@public_path, 'gtm-body.snippet.html'))}")
+      html = html.sub("<head>", "<head>\n#{File.read(File.join(@public_path, 'google-analytics.snippet.html'))}")
     end
     ShareMeta.inject(html, origin_for(env))
   end
