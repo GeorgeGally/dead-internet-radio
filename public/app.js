@@ -858,14 +858,12 @@ function updatePlayBtn() {
     led.classList.toggle('on', !!playing && !loading);
     led.classList.toggle('loading', !!loading);
   }
-  // The key always reads Play, and its light says whether it plays; a press
-  // stops it. While the sound is still coming, the key reads Loading.
+  // Swap between play and pause icons, while the lamp shows the loading state.
   const btn = document.getElementById('btn-play');
   if (btn) {
-    btn.title = playing ? 'Stop' : 'Play';
-    btn.setAttribute('aria-label', loading ? 'Loading' : 'Play');
+    btn.title = loading ? 'Stop loading' : playing ? 'Pause' : 'Play';
+    btn.setAttribute('aria-label', loading ? 'Stop loading' : playing ? 'Pause' : 'Play');
     btn.setAttribute('aria-pressed', String(!!playing));
-    document.getElementById('play-word').textContent = loading ? 'Loading' : 'Play';
   }
 }
 
