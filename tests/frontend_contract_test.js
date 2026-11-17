@@ -20,23 +20,40 @@ test('HTML has the radio player shell', () => {
   assert.match(html, /id="track-title"/);
 });
 
-test('HTML has the five deck keys, Play first, each with its word on it', () => {
+test('HTML has six icon deck keys in order, with accessible names', () => {
   const keys = [
-    ['btn-play', 'Play'],
-    ['btn-gallery', 'Art'],
-    ['btn-request', 'Request'],
-    ['btn-vote-up', 'Like'],
-    ['btn-vote-down', 'Dislike'],
+    ['btn-play', 'play', 'Play'],
+    ['btn-gallery', 'eye', 'Open art gallery'],
+    ['btn-set', 'list', 'Show the set list'],
+    ['btn-request', 'phone', 'Call in'],
+    ['btn-vote-up', 'heart', 'Like this song'],
+    ['btn-vote-down', 'heart-crack', 'Dislike this song'],
   ];
   const order = keys.map(([id]) => html.indexOf(`id="${id}"`));
-  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'keys run Play, Art, Request, Like, Dislike');
-  for (const [id, word] of keys) {
-    assert.match(html, new RegExp(`id="${id}" class="abtn key[^"]*"[^>]*aria-label="[^"]+"[^>]*><span class="cap"><span class="word"[^>]*>${word}</span>`));
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'keys match transport order');
+  for (const [id, icon, label] of keys) {
+    const begin = html.indexOf(`<button id="${id}"`);
+    const button = html.slice(begin, html.indexOf('</button>', begin) + '</button>'.length);
+    assert.match(button, new RegExp(`aria-label="${label}"`));
+    assert.match(button, new RegExp(`<span class="cap cap-icon">[\\s\\S]*?<use href="#dir-key-${icon}"`));
+    assert.match(html, new RegExp(`<symbol id="dir-key-${icon}"`));
+    assert.doesNotMatch(button, /class="word"/);
   }
+  assert.match(html, /id="btn-play"[^>]*aria-pressed="false"/);
+  assert.match(html, /<use href="#dir-key-pause"/);
+  assert.doesNotMatch(html, /id="play-word"/);
   assert.doesNotMatch(html, /class="abtn-label"/);
   assert.doesNotMatch(html, /class="speaker"/);
   assert.doesNotMatch(html, /id="npd-art-(prev|next)"/);
   assert.doesNotMatch(html, /id="btn-stop"/);
+});
+
+test('CSS centers stroke icons and toggles the play/pause glyph', () => {
+  assert.match(css, /\.key \.cap-icon/);
+  assert.match(css, /\.key \.key-icon/);
+  assert.match(css, /\.key\[aria-pressed="true"\] \.icon-pause/);
+  assert.match(js, /btn\.setAttribute\('aria-pressed', String\(!!playing\)\)/);
+  assert.doesNotMatch(js, /getElementById\('play-word'\)/);
 });
 
 test('CSS defines the deck, gif background, and overlay canvas', () => {
