@@ -378,10 +378,9 @@ body.prewarming #block-canvas {
 }
 
 /* Light-grey buttons with a single orange accent (Rams) */
-/* ---- Deck keys: square toggles, each with its word on it ----
-   The key is a square dark well; inside it, a cap with softly rounded corners and
-   its word in white along the bottom. Every key springs back up; its light shows
-   whether it is on. Pressed, the cap shrinks evenly, so the rim stays even. */
+/* ---- Deck keys: square toggles with centered, single-stroke icons ----
+   The key is a square dark well with a softly rounded cap. Its light shows
+   whether it is on. Pressed, the cap shrinks evenly so the rim stays even. */
 .key {
   --c: #8d9aa6;
   --txt: #fff;
@@ -416,6 +415,22 @@ body.prewarming #block-canvas {
     inset 0 1px 0 rgba(255, 255, 255, .35);
   transition: inset .05s ease, box-shadow .05s ease, filter .15s ease;
 }
+.key-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.key .cap-icon { justify-content: center; align-items: center; padding: 0; }
+.key .key-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.key .icon-pause,
+.key[aria-pressed="true"] .icon-play { display: none; }
+.key[aria-pressed="true"] .icon-pause { display: block; }
 .key .word {
   display: block;
   padding-bottom: 8px;
