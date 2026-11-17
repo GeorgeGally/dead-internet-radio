@@ -129,7 +129,7 @@ test('the player ships Open Graph and Twitter card meta for link previews', () =
   assert.match(shareMeta, /DESCRIPTION =/);
   assert.match(snippet, /property="og:image"/);
   assert.match(snippet, /name="twitter:card" content="summary_large_image"/);
-  assert.ok(fs.existsSync(path.join(root, 'public/share-card.jpg')));
+  assert.ok(fs.existsSync(path.join(root, 'public/share-card-still.png')));
   const { execFileSync } = require('node:child_process');
   const out = execFileSync('ruby', ['-I', path.join(root, 'lib'), '-r', 'share_meta', '-e', 'print ShareMeta.render("https://example.test")'], {
     cwd: root,
@@ -139,11 +139,11 @@ test('the player ships Open Graph and Twitter card meta for link previews', () =
     'meta name="description"',
     'property="og:title"',
     'property="og:description"',
-    'property="og:image" content="https://example.test/share-card.jpg"',
+    'property="og:image" content="https://example.test/share-card-still.png"',
     'property="og:url" content="https://example.test/"',
     'property="og:type" content="website"',
     'name="twitter:card" content="summary_large_image"',
-    'name="twitter:image" content="https://example.test/share-card.jpg"',
+    'name="twitter:image" content="https://example.test/share-card-still.png"',
   ]) {
     assert.match(out, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
