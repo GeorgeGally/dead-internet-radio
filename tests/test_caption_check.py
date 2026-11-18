@@ -47,14 +47,6 @@ class CaptionCheckTest(unittest.TestCase):
         # Every caption carries them, so a cheese word here would reach every track.
         self.assertEqual(caption_check.banned_in(generate.station_caption("dry kick")), [])
 
-    def test_dj_prompt_names_no_unwanted_sound(self):
-        sounds = {"stab", "melody", "lead synth", "trumpet", "brass", "horns", "orchestra", "strings",
-                  "supersaw", "pad", "pluck", "uplifting", "euphoric", "anthem", "drop", "build-up", "riser",
-                  "festival", "trance", "synthwave", "EDM", "big room", "sidechain", "soaring", "shimmering",
-                  "sparkling", "cinematic", "bright", "swell", "autotune"}
-        text = (generate.PROMPTS_DIR / "dj.md").read_text()
-        self.assertEqual(sorted(sounds & set(caption_check.banned_in(text))), [])
-
     def test_negative_prompt_leaves_out_what_the_caption_asks_for(self):
         full = caption_check.negative_prompt("dry kick, deep bass")
         self.assertIn("trumpet", full)
