@@ -15,6 +15,8 @@ import urllib.error
 from pathlib import Path
 from dotenv import load_dotenv
 
+import caption_check
+
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -30,6 +32,10 @@ NORMAL_TRACK_SECONDS = (150, 270)
 SHORT_TRACK_CHANCE = 1 / 20
 LONG_TRACK_CHANCE = 1 / 50
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
+# A/B listening tests: ACE_STEP_SEED fixes the seed, ACE_STEP_NEGATIVE=0 sends
+# no negative prompt. Live renders leave both unset.
+ACE_STEP_SEED = os.getenv("ACE_STEP_SEED", "").strip()
+ACE_STEP_NEGATIVE = os.getenv("ACE_STEP_NEGATIVE", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated models are tried in order, with the free router as a fallback
 # when it is not already configured; pinned free models can disappear.
@@ -567,7 +573,7 @@ def check_ace_step_health():
         return False, str(e)
 
 
-REGISTER_LINE = "Everything in the low and mid register; the melody stays in the bass."
+REGISTER_LINE = "Everything in the low and mid register; the bass carries the movement."
 # Kicks and percussion kept coming out harsh, and the bass thin (listening,
 # 2026-11): the DJ asks for crunch and ACE-Step puts it on the drums.
 MIX_LINE = "A soft, rounded kick and quiet dry percussion sit under a deep, full, modern bass."
@@ -581,8 +587,9 @@ def station_caption(caption: str) -> str:
     the line is phrased as what should be there.
     """
     caption = caption.strip()
-    # Arpeggios too: the good ones were bass sequences, the high ones cheese
-    # (sound lab round 4), so the register line stays on.
+    # Sequences too: the good ones lived in the bass (sound lab round 4), so
+    # the register line stays on. It names no lead: ACE-Step reaches for every
+    # instrument it reads.
     for line in (REGISTER_LINE, MIX_LINE):
         if line.lower() not in caption.lower():
             caption = f"{caption} {line}"
@@ -603,7 +610,10 @@ TEMPO_KEY_RE = re.compile(
 )
 
 
-TEMPO_KEY_LINE = "Tempo and key go only in bpm and keyscale, never in the caption: the caption opens with the genre, then the sound."
+# Times the DJ is asked again when its caption carries a word caption_check bans.
+CAPTION_RETRIES = 2
+
+TEMPO_KEY_LINE = "Tempo and key go only in bpm and keyscale, never in the caption: ACE-Step takes them as settings."
 
 
 def strip_tempo_key(caption: str) -> str:
@@ -615,13 +625,21 @@ def strip_tempo_key(caption: str) -> str:
     return re.sub(r"\s{2,}", " ", text).strip(" ,;")
 
 
-def call_ace_step(payload: dict) -> str:
+def ace_prompt(caption: str) -> str:
+    """The caption exactly as ACE-Step reads it."""
+    return station_caption(strip_tempo_key(caption))
+
+
+def ace_step_body(payload: dict) -> dict:
+    """Exactly what ACE-Step receives for a song. Plans, remixes and
+    re-renders all come through here, so each gets the one-verse lyrics and
+    the negative prompt."""
     body = {
         # Text to music only: the server refuses covers and reference audio
         # (patches/ace-step-text2music-only.patch).
         "task_type": "text2music",
-        "prompt": station_caption(strip_tempo_key(payload["caption"])),
-        "lyrics": payload.get("lyrics", ""),
+        "prompt": ace_prompt(payload["caption"]),
+        "lyrics": one_verse(payload.get("lyrics", "")),
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
         "audio_duration": payload.get("duration", 240),
@@ -629,12 +647,24 @@ def call_ace_step(payload: dict) -> str:
         # The LM may plan the song but must not rewrite our caption: its
         # rewrites drift to generic pop (sound lab, 2026-10-24).
         "use_cot_caption": False,
+        # The LM's guidance pushes away from these bare words. It only plans
+        # audio codes when thinking is on, so it does nothing otherwise.
+        "lm_negative_prompt": caption_check.negative_prompt(payload["caption"]) if ACE_STEP_NEGATIVE else "NO USER INPUT",
         # The API defaults to 2 variations and we keep only the first.
         "batch_size": 1,
         # WAV is written by soundfile; ACE-Step's MP3 path needs Homebrew's FFmpeg
         # libraries, which break whenever Homebrew upgrades a codec under them.
         "audio_format": "wav",
     }
+    if ACE_STEP_SEED:
+        body.update(use_random_seed=False, seed=int(ACE_STEP_SEED))
+    return body
+
+
+def call_ace_step(payload: dict) -> str:
+    body = ace_step_body(payload)
+    # The full request in the run log: what a listening test compares.
+    print(f"  ACE-Step request: {json.dumps(body)}", flush=True)
     req = urllib.request.Request(
         f"{ACE_STEP_URL}/release_task",
         data=json.dumps(body).encode(),
@@ -829,7 +859,7 @@ def request_block(request: dict) -> str:
     if recent:
         block += ("The last requests sounded like: " + "; ".join(recent) + ". This one is not another of them: "
                   "a different genre unless the listener named one, and a tempo at least 8 BPM from each. ")
-    return block + "Follow the DJ lessons so it never turns cheesy."
+    return block + "Play it the station's way, as your instructions describe it."
 
 
 # A caption that describes a voice. ACE-Step only voices lyric lines, so a
@@ -860,9 +890,8 @@ def sung_lines(lyrics: str) -> list[str]:
     return [line for line in lines if line and not re.fullmatch(r"\[[^\]]*\]", line)]
 
 
-def voice_stabs(lyrics: str, title: str, artist: str) -> str:
-    """Sparse stabs from the lines the song already has, then its title and
-    artist, spread over the sections with [Instrumental] between."""
+def fallback_verse(lyrics: str, title: str, artist: str) -> str:
+    """One [Verse] of the lines the song already has, then its title and artist."""
     lines = sung_lines(lyrics)
     for extra in (title, artist, title):
         if len(lines) >= MIN_VOICE_LINES:
@@ -871,11 +900,15 @@ def voice_stabs(lyrics: str, title: str, artist: str) -> str:
             lines.append(extra)
     while len(lines) < MIN_VOICE_LINES:
         lines.append("Signal received")
-    sections = ["[Intro]", "[Verse]", "[Bridge]", "[Outro]"]
-    out = ["[Intro]", "[Instrumental]"]
-    for i, line in enumerate(lines):
-        out += [sections[min(i + 1, len(sections) - 1)], line, "[Instrumental]"]
-    return "\n".join(out)
+    return "\n".join(["[Verse]", *lines])
+
+
+def one_verse(lyrics: str) -> str:
+    """Lyrics as ACE-Step should get them: [Instrumental] when no line is
+    said, else one [Verse] of the lines. Section tags ([Intro], [Bridge],
+    [Chorus]...) make it plan a song with builds and returns."""
+    lines = sung_lines(lyrics)
+    return "\n".join(["[Verse]", *lines]) if lines else "[Instrumental]"
 
 
 def lyric_text(value) -> str:
@@ -898,13 +931,14 @@ def lyric_text(value) -> str:
 
 def ensure_voice(song: dict) -> dict:
     """A caption with a voice gets lyrics the voice can say: the DJ is asked
-    once more, and short stabs fill in if it still writes too few lines."""
+    once more, and the title and artist fill in if it still writes too few
+    lines. Either way the lyrics reach ACE-Step as one [Verse] or [Instrumental]."""
     caption = str(song.get("caption") or "")
     original = song.get("lyrics") if isinstance(song.get("lyrics"), str) else ""
     if not describes_voice(caption):
-        return song
+        return {**song, "lyrics": one_verse(original)} if original else song
     if len(sung_lines(original)) >= MIN_VOICE_LINES:
-        return {**song, "lyrics": original}
+        return {**song, "lyrics": one_verse(original)}
     print("  Caption has a voice but the lyrics barely use it; asking for vocal lines...", flush=True)
     lyrics = ""
     try:
@@ -913,8 +947,8 @@ def ensure_voice(song: dict) -> dict:
             f"This track's sound description has a voice in it:\n{caption}\n\n"
             f"Its lyrics:\n{song.get('lyrics') or '[Instrumental]'}\n\n"
             "ACE-Step only voices lyric lines, so as written the voice never speaks. Rewrite the lyrics: "
-            f"{MIN_VOICE_LINES} to 6 short lines spread over a few sections, said the way the caption describes "
-            "the voice, with [Instrumental] between them. Keep any lines already there. "
+            f"one [Verse] of {MIN_VOICE_LINES} to 5 short lines, said the way the caption describes "
+            "the voice. Keep any lines already there. "
             "Output only the lyrics, no JSON, no commentary.",
         )
         lyrics = lyric_text(reply)
@@ -928,8 +962,8 @@ def ensure_voice(song: dict) -> dict:
             lyrics = ""
             break
     if len(sung_lines(lyrics)) < MIN_VOICE_LINES:
-        lyrics = voice_stabs(original, str(song.get("title") or ""), str(song.get("artist") or ""))
-    return {**song, "lyrics": lyrics}
+        lyrics = fallback_verse(original, str(song.get("title") or ""), str(song.get("artist") or ""))
+    return {**song, "lyrics": one_verse(lyrics)}
 
 
 # Genre, style and instrument words the station's notes can ask for.
@@ -1000,18 +1034,36 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
                                       f"Your last rewrite: {json.dumps(new)}"))
         if isinstance(retry, dict) and retry.get("caption") and len(missing_terms(notes, retry)) < len(left_out):
             new = retry
+    found = caption_check.problems(checked_text(new), notes)
+    for attempt in range(1, CAPTION_RETRIES + 1):
+        if not found or not new.get("caption"):
+            break
+        print(f"  Caption check, try {attempt} of {CAPTION_RETRIES}: {sorted({w for ws in found.values() for w in ws})}", flush=True)
+        try:
+            retry = extract_json(call_llm(master_prompt("rewrite"), message + caption_check.correction([(0, found)], [new])
+                                          + f"\nYour last rewrite: {json.dumps(new)}"))
+        except (ValueError, AttributeError, KeyError, TypeError, IndexError):
+            continue
+        again = caption_check.problems(checked_text(retry), notes) if isinstance(retry, dict) else found
+        if isinstance(retry, dict) and retry.get("caption") and caption_check.count(again) < caption_check.count(found) \
+                and len(missing_terms(notes, retry)) <= len(missing_terms(notes, new)):
+            new, found = retry, again
     duration = int(new.get("duration") or old.get("duration") or 150)
     song = {
         "title": title,
         "artist": artist,
         "caption": str(new.get("caption") or old.get("caption") or ""),
-        "lyrics": str(new.get("lyrics") or old.get("lyrics") or "[Instrumental]"),
+        "lyrics": one_verse(str(new.get("lyrics") or old.get("lyrics") or "[Instrumental]")),
         "bpm": new.get("bpm") or old.get("bpm"),
         "keyscale": str(new.get("keyscale") or old.get("keyscale") or ""),
         "duration": min(max(duration, MIN_TRACK_SECONDS), MAX_TRACK_SECONDS),
         # The old sound fields describe the old sound: a rewrite replaces them or drops them.
         **{key: str(new.get(key) or "") for key in SOUND_FIELDS},
     }
+    # Always set, so an old take's flags never ride on a clean rewrite.
+    song["caption_flags"] = sorted({w for ws in found.values() for w in ws})
+    if found:
+        print(f"  WARNING: the rewrite still has {', '.join(song['caption_flags'])} after {CAPTION_RETRIES} retries; flagged", flush=True)
     changes = new.get("changes") if isinstance(new.get("changes"), list) else []
     return song, {"diagnosis": str(new.get("diagnosis") or ""), "changes": [str(c) for c in changes]}
 
@@ -1152,6 +1204,59 @@ def retitle_clashes(songs: list, dj_input: str, tries: int = 2) -> list:
         if shared_name_words(str(song.get("title") or ""), str(song.get("artist") or "")):
             print(f"  WARNING: \"{song.get('title')}\" by {song.get('artist')} still share a word", flush=True)
     return songs
+
+
+def checked_text(song) -> dict:
+    """The parts of a song ACE-Step reads: its final prompt, its shared sound
+    (added to the prompt later) and its lyrics. Names and the technical
+    fields never reach it."""
+    if not isinstance(song, dict):
+        return {}
+    return {"caption": ace_prompt(str(song.get("caption") or "")), "sound": song.get("sound"),
+            "lyrics": song.get("lyrics")}
+
+
+def allowed_words(request: dict | None) -> str:
+    """Words a listener asked for in their note may stay in the caption."""
+    return str((request or {}).get("note") or "")
+
+
+def compose_checked(dj_input: str, parse, allowed: str = "", retries: int = CAPTION_RETRIES):
+    """ask_llm("music"), asked again up to `retries` times while a caption,
+    shared sound or lyric tag carries a word that pulls ACE-Step toward
+    commercial club music (caption_check.BANNED). Each retry replaces only the
+    tracks that still carry one, and only by a version with fewer. A track that
+    still carries one is flagged in its payload and the prompt log."""
+    result = ask_llm("music", dj_input, parse)
+    single = not isinstance(result, list)
+    songs = [result] if single else list(result)
+    found = [caption_check.problems(checked_text(song), allowed) for song in songs]
+    for attempt in range(1, retries + 1):
+        report = [(i, f) for i, f in enumerate(found) if f]
+        if not report:
+            break
+        print(f"  Caption check, try {attempt} of {retries}: "
+              + "; ".join(f"track {i + 1} {sorted({w for ws in f.values() for w in ws})}" for i, f in report), flush=True)
+        try:
+            again = ask_llm("music", dj_input + caption_check.correction(report, songs), parse)
+        except (ValueError, AttributeError, KeyError, TypeError, IndexError):
+            continue
+        again = [again] if not isinstance(again, list) else again
+        if single and len(again) > 1:
+            again = again[:1]
+        if len(again) != len(songs):
+            continue
+        for i, _ in report:
+            new = caption_check.problems(checked_text(again[i]), allowed)
+            if isinstance(again[i], dict) and caption_check.count(new) < caption_check.count(found[i]):
+                songs[i], found[i] = again[i], new
+    for i, f in enumerate(found):
+        if f and isinstance(songs[i], dict):
+            words = sorted({w for ws in f.values() for w in ws})
+            print(f"  WARNING: track {i + 1} \"{songs[i].get('title', '')}\" still has {', '.join(words)} "
+                  f"after {retries} retries; flagged", flush=True)
+            songs[i]["caption_flags"] = words
+    return songs[0] if single else songs
 
 
 def plan_song(song: dict) -> dict:
@@ -1451,9 +1556,9 @@ def main():
                     f"\nONE ARTIST, SEVERAL TRACKS — tracks {tracks_named} are by the same artist, "
                     f"so they must sound like one act:\n"
                     f"- The same artist name on each of them.\n"
-                    f"- A \"sound\" field on each: one sentence naming that act's drum machine, bass, "
-                    f"synths, voice and room, word for word the same on every one of its tracks.\n"
-                    f"- Their captions carry that same sound; each track still has its own title, melody, key and tempo.\n"
+                    f"- A \"sound\" field on each: one short sentence naming that act's drum machine and bass, "
+                    f"word for word the same on every one of its tracks; a voice or room only when all its tracks share one.\n"
+                    f"- Their captions carry that same sound; each track still has its own title, bass line, key and tempo.\n"
                     f"- Every other track is by a different artist.\n"
                 )
             if args.delay > 0:
@@ -1467,7 +1572,7 @@ def main():
                 f"Return a JSON array of exactly {args.tracks} objects.\n\n"
                 f"CONSTRAINTS — all tracks must be distinct:\n"
                 f"- Different keys — no repeats across all {args.tracks} tracks\n"
-                f"- Genre: whatever the slot or brief asks for, any genre or blend (e.g. 'slomo disco', 'electroclash'), vary the tracks within it; with only a mood or time, choose freely in the station's sound. Follow the DJ lessons so it never turns cheesy. When the slot names a genre, every caption starts with that genre word and at most one track leans into a neighbouring genre. Play the genre at its own tempo and beat (electroclash and techno 125+ BPM, four-on-the-floor). Party words (party, club, banger, dancefloor, rave) mean four-on-the-floor bangers at the top of the genre's range. Mood words make tracks slower and darker, never ambient or drone; every track has drums, 90 BPM or more\n"
+                f"- Genre: whatever the slot or brief asks for, played the station's way as your instructions describe it; vary the tracks within it, and at most one track leans into a neighbouring genre. With only a mood or time, choose freely in the station's sound. Each genre keeps its own tempo and beat. Energy words in the slot put every track at the top of its genre's range, a firm steady beat and a driving bass; mood words make tracks slower and darker. Every track has drums, 90 BPM or more\n"
                 f"- Different basslines, synth palettes and textures; the drum pattern is the genre's own\n"
                 f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n"
                 f"- {TEMPO_KEY_LINE}\n"
@@ -1476,9 +1581,9 @@ def main():
                 f"- Station wear (tape, cassette, mains hum, relays, preamp overload, a cracked handset, a basement) goes on at most {max(1, args.tracks // 3)} of the {args.tracks} tracks, a different one each time; the rest are clean recordings in rooms of their own.\n"
                 f"{one_act}\n"
                 f"Guidance:\n"
-                f"- Keep vocals to a minimum. Not all tracks need vocals.\n"
-                f"- When vocals are present, sparse and atmospheric.\n"
-                f"- When a caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
+                f"- Keep voices to a minimum. Not all tracks need one.\n"
+                f"- A voice is sparse: a few spoken words, close and dry.\n"
+                f"- When a caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics are one [Verse] of 3 to 5 short lines, said the way the caption describes; with no voice they are exactly [Instrumental].\n"
                 f"- Vary the sonic palette across the set.\n\n"
                 f"Output a JSON array of {args.tracks} objects, each with: "
                 f"title, artist, caption, lyrics, bpm, keyscale, duration"
@@ -1486,7 +1591,7 @@ def main():
                 f"{avoid}{worn}"
             )
 
-            songs = share_artists(ask_llm("music", dj_input, extract_json_array), shared)
+            songs = share_artists(compose_checked(dj_input, extract_json_array, allowed_words(request)), shared)
             for song, idea in zip(songs, ideas):
                 song["idea"] = idea
             repeated = shared_phrases(songs, shared)
@@ -1524,30 +1629,30 @@ def main():
                     prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
                     dj_input = (
                         f"Program brief:\n\n{brief}\n\n{idea_line}"
-                        f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
+                        f"PREVIOUS TRACKS:\n{prev_summary}\n\n"
                         f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
-                        f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
+                        f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay near them, in the genre's range.\n\n"
                         f"This is track {i} of {args.tracks}. "
-                        f"Make this track SOUND DISTINCT from all previous tracks — "
-                        f"different key, different tempo range, different synth palette, different drum pattern."
+                        f"Make this track SOUND DISTINCT from all previous tracks: a different key, bass line, "
+                        f"signature sounds, voice and room, with the genre's own drum pattern."
                     )
 
                 dj_input += (
                     "\n\nGuidance:\n"
-                    "- Keep vocals to a minimum. Not all tracks need vocals.\n"
-                    "- When vocals are present, they should be sparse and atmospheric — not overpowering pop vocals.\n"
-                    "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics carry it: 3 to 6 short lines across a few sections, said the way the caption describes, never all [Instrumental].\n"
-                    "- The genre the slot or brief asks for wins; follow the DJ lessons so it never turns cheesy. Every track has drums, 90 BPM or more.\n"
+                    "- Keep voices to a minimum. Not all tracks need one.\n"
+                    "- A voice is sparse: a few spoken words, close and dry.\n"
+                    "- When the caption describes a voice (speaking, a spoken line, vocals, a voice through a radio or a handset), the lyrics are one [Verse] of 3 to 5 short lines, said the way the caption describes; with no voice they are exactly [Instrumental].\n"
+                    "- The genre the slot or brief asks for wins, played the station's way as your instructions describe it. Every track has drums, 90 BPM or more.\n"
                     f"- {TEMPO_KEY_LINE}\n"
                     f"- {NAME_LINE}\n"
-                    "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+                    "- Vary the bass, the signature sounds, the voice and the room across the set; the genre, its beat and tempo range stay."
                     f"{avoid}{worn}"
                 )
                 if request:
                     dj_input += request_block(request)
 
                 print(f"3.{i} DJ composing track {i} of {args.tracks}...", flush=True)
-                song = ask_llm("music", dj_input, extract_json)
+                song = compose_checked(dj_input, extract_json, allowed_words(request))
                 if isinstance(song, list):
                     song = song[0]
                 if request:
