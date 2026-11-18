@@ -42,6 +42,9 @@
                     onclick="openNotes(this, 'remix')">Remix</button>
           <% end %>
         <% end %>
+        <% if track.audio_path && File.exist?(track.audio_path) %>
+          <%= link_to "Download", download_media_track_path(track), class: "btn-key", data: { turbo: false } %>
+        <% end %>
         <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn-quiet", form: { style: "display:inline" }, data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
       </td>
     </tr>
