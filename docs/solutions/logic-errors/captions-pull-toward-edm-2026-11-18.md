@@ -45,8 +45,9 @@ The fix:
 - The check reads what ACE-Step reads: the final prompt (`ace_prompt()`), the
   shared sound and the lyrics. Titles and artists are never checked.
 - Jobs send the library's active prompt, not the file. The migration
-  `ActivateDarkroomMusicPrompt` adds the new `dj.md` as "Darkroom" and puts
-  it in use; Original keeps the old text.
+  `ActivateDarkroomPrompts` adds the new `dj.md`, `rerender.md` and
+  `producer.md` as "Darkroom" and puts them in use; Original keeps the old
+  text.
 - Listening tests: `ACE_STEP_SEED` fixes the seed, `ACE_STEP_NEGATIVE=0` sends
   no negative prompt, and every render prints its full `ACE-Step request:`.
 - `use_cot_caption` stays `False`: the LM must not rewrite the caption.
@@ -56,6 +57,5 @@ prompt would have to list the words), checking titles and the technical
 fields (ACE-Step never gets them), a skip-render switch and a caption-rewrite
 switch.
 
-Prompt files that still name the words: `prompts/rerender.md`,
-`prompts/producer.md` and `prompts/set_dj.md`. The rewrite and the remix
-paths pass through the check.
+`rerender.md` writes club-genre notes as their groove and one-verse lyrics;
+`producer.md` describes the hardware instead of listing what to avoid.

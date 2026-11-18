@@ -1556,8 +1556,8 @@ def main():
                     f"\nONE ARTIST, SEVERAL TRACKS — tracks {tracks_named} are by the same artist, "
                     f"so they must sound like one act:\n"
                     f"- The same artist name on each of them.\n"
-                    f"- A \"sound\" field on each: one sentence naming that act's drum machine, bass, "
-                    f"synths, voice and room, word for word the same on every one of its tracks.\n"
+                    f"- A \"sound\" field on each: one short sentence naming that act's drum machine and bass, "
+                    f"word for word the same on every one of its tracks; a voice or room only when all its tracks share one.\n"
                     f"- Their captions carry that same sound; each track still has its own title, bass line, key and tempo.\n"
                     f"- Every other track is by a different artist.\n"
                 )
