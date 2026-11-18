@@ -24,7 +24,7 @@ The fix:
   each track from rhythm, bass, one or two signature sounds and one room, and
   describes each genre by its beat and machines; the club-genre slots are
   written as their groove. Captions open with three or four feel words and
-  run 30-60 words. A test fails if the prompt names a banned sound.
+  run 30-60 words.
 - `caption_check.py` lists the words (`BANNED`). `compose_checked()` asks the
   DJ again, up to `CAPTION_RETRIES` (2) times, when a caption, shared sound or
   lyric tag carries one. Each retry replaces only the tracks that still carry
