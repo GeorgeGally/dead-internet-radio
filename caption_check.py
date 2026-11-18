@@ -39,23 +39,30 @@ BANNED = [
     (r"shimmer(?:s|ing|y)?", "shimmering"),
     (r"sparkl(?:e|es|ing|y)", "sparkling"),
     (r"cinematic", "cinematic"),
+    (r"bright(?:er|est|ness)?", "bright"),
+    (r"swell(?:s|ing)?", "swell"),
     (r"auto-?tuned?", "autotune"),
     (r"chorus(?:es)?", "chorus"),
     # Genre and energy words that pull toward commercial club records.
     (r"disco(?:s)?", "disco"),
     (r"italo", "italo"),
     (r"electroclash", "electroclash"),
-    (r"dance-?floors?|danceable", "dancefloor"),
+    (r"danc(?:e|es|ing|eable)|dance-?floors?", "dance"),
     (r"bangers?", "banger"),
     (r"part(?:y|ies)", "party"),
     (r"peak[\s-]+time", "peak time"),
     (r"rav(?:e|es|er|ers|ey)", "rave"),
+    # Negation names what it negates, and ACE-Step plays it.
+    (r"no|not|never|without|free\s+of", "negation"),
 ]
 BANNED_RE = [(re.compile(rf"\b(?:{p})\b", re.IGNORECASE), word) for p, word in BANNED]
 
-# A word these genres need: goth and shoegaze guitars are chorused.
+# Words these genres need: goth and shoegaze guitars are chorused, shoegaze
+# guitars swell and shimmer.
 GENRE_EXCEPTIONS = {
     "chorus": re.compile(r"\b(?:goth\w*|shoegaze|darkwave|coldwave|post-punk)\b", re.IGNORECASE),
+    "shimmering": re.compile(r"\bshoegaze\b", re.IGNORECASE),
+    "swell": re.compile(r"\bshoegaze\b", re.IGNORECASE),
 }
 
 # The bare words sent to ACE-Step's LM as its negative prompt.

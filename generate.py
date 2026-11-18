@@ -1545,7 +1545,7 @@ def main():
                 f"Return a JSON array of exactly {args.tracks} objects.\n\n"
                 f"CONSTRAINTS — all tracks must be distinct:\n"
                 f"- Different keys — no repeats across all {args.tracks} tracks\n"
-                f"- Genre: whatever the slot or brief asks for, played the station's way as your instructions describe it; vary the tracks within it, and at most one track leans into a neighbouring genre. With only a mood or time, choose freely in the station's sound. Each genre keeps its own tempo and beat. Energy words in the slot put every track at the top of its genre's range with a four-on-the-floor kick; mood words make tracks slower and darker. Every track has drums, 90 BPM or more\n"
+                f"- Genre: whatever the slot or brief asks for, played the station's way as your instructions describe it; vary the tracks within it, and at most one track leans into a neighbouring genre. With only a mood or time, choose freely in the station's sound. Each genre keeps its own tempo and beat. Energy words in the slot put every track at the top of its genre's range, a firm steady beat and a driving bass; mood words make tracks slower and darker. Every track has drums, 90 BPM or more\n"
                 f"- Different basslines, synth palettes and textures; the drum pattern is the genre's own\n"
                 f"- Let the brief's SUBJECT drive the sonic identity: rhythm style, synth motifs, vocal treatment. Two shows from different subjects must not be interchangeable.\n"
                 f"- {TEMPO_KEY_LINE}\n"
@@ -1602,12 +1602,12 @@ def main():
                     prev_bpms = [t["bpm"] for t in track_history if isinstance(t["bpm"], (int, float))]
                     dj_input = (
                         f"Program brief:\n\n{brief}\n\n{idea_line}"
-                        f"PREVIOUS TRACKS (DO NOT REPEAT these keys/BPMs):\n{prev_summary}\n\n"
+                        f"PREVIOUS TRACKS:\n{prev_summary}\n\n"
                         f"Used keys: {', '.join(prev_keys)}. DO NOT reuse any of these keys.\n"
-                        f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay at least 10 BPM away from these.\n\n"
+                        f"Used BPMs: {', '.join(str(b) for b in prev_bpms)}. Stay near them, in the genre's range.\n\n"
                         f"This is track {i} of {args.tracks}. "
-                        f"Make this track SOUND DISTINCT from all previous tracks — "
-                        f"different key, different tempo range, different synth palette, different drum pattern."
+                        f"Make this track SOUND DISTINCT from all previous tracks: a different key, bass line, "
+                        f"signature sounds, voice and room, with the genre's own drum pattern."
                     )
 
                 dj_input += (
@@ -1618,7 +1618,7 @@ def main():
                     "- The genre the slot or brief asks for wins, played the station's way as your instructions describe it. Every track has drums, 90 BPM or more.\n"
                     f"- {TEMPO_KEY_LINE}\n"
                     f"- {NAME_LINE}\n"
-                    "- Vary the sonic palette across the set: different synths, different drums, different keys, different tempos per track."
+                    "- Vary the bass, the signature sounds, the voice and the room across the set; the genre, its beat and tempo range stay."
                     f"{avoid}{worn}"
                 )
                 if request:
