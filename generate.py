@@ -32,6 +32,10 @@ NORMAL_TRACK_SECONDS = (150, 270)
 SHORT_TRACK_CHANCE = 1 / 20
 LONG_TRACK_CHANCE = 1 / 50
 ACE_STEP_THINKING = os.getenv("ACE_STEP_THINKING", "1").lower() not in ("0", "false", "no")
+# A/B listening tests: ACE_STEP_SEED fixes the seed, ACE_STEP_NEGATIVE=0 sends
+# no negative prompt. Live renders leave both unset.
+ACE_STEP_SEED = os.getenv("ACE_STEP_SEED", "").strip()
+ACE_STEP_NEGATIVE = os.getenv("ACE_STEP_NEGATIVE", "1").lower() not in ("0", "false", "no")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 # Comma-separated models are tried in order, with the free router as a fallback
 # when it is not already configured; pinned free models can disappear.
@@ -621,13 +625,21 @@ def strip_tempo_key(caption: str) -> str:
     return re.sub(r"\s{2,}", " ", text).strip(" ,;")
 
 
-def call_ace_step(payload: dict) -> str:
+def ace_prompt(caption: str) -> str:
+    """The caption exactly as ACE-Step reads it."""
+    return station_caption(strip_tempo_key(caption))
+
+
+def ace_step_body(payload: dict) -> dict:
+    """Exactly what ACE-Step receives for a song. Plans, remixes and
+    re-renders all come through here, so each gets the one-verse lyrics and
+    the negative prompt."""
     body = {
         # Text to music only: the server refuses covers and reference audio
         # (patches/ace-step-text2music-only.patch).
         "task_type": "text2music",
-        "prompt": station_caption(strip_tempo_key(payload["caption"])),
-        "lyrics": payload.get("lyrics", ""),
+        "prompt": ace_prompt(payload["caption"]),
+        "lyrics": one_verse(payload.get("lyrics", "")),
         "bpm": payload.get("bpm"),
         "key_scale": payload.get("keyscale", ""),
         "audio_duration": payload.get("duration", 240),
@@ -637,13 +649,22 @@ def call_ace_step(payload: dict) -> str:
         "use_cot_caption": False,
         # The LM's guidance pushes away from these bare words. It only plans
         # audio codes when thinking is on, so it does nothing otherwise.
-        "lm_negative_prompt": caption_check.negative_prompt(payload["caption"]),
+        "lm_negative_prompt": caption_check.negative_prompt(payload["caption"]) if ACE_STEP_NEGATIVE else "NO USER INPUT",
         # The API defaults to 2 variations and we keep only the first.
         "batch_size": 1,
         # WAV is written by soundfile; ACE-Step's MP3 path needs Homebrew's FFmpeg
         # libraries, which break whenever Homebrew upgrades a codec under them.
         "audio_format": "wav",
     }
+    if ACE_STEP_SEED:
+        body.update(use_random_seed=False, seed=int(ACE_STEP_SEED))
+    return body
+
+
+def call_ace_step(payload: dict) -> str:
+    body = ace_step_body(payload)
+    # The full request in the run log: what a listening test compares.
+    print(f"  ACE-Step request: {json.dumps(body)}", flush=True)
     req = urllib.request.Request(
         f"{ACE_STEP_URL}/release_task",
         data=json.dumps(body).encode(),
@@ -885,12 +906,8 @@ def fallback_verse(lyrics: str, title: str, artist: str) -> str:
 def one_verse(lyrics: str) -> str:
     """Lyrics as ACE-Step should get them: [Instrumental] when no line is
     said, else one [Verse] of the lines. Section tags ([Intro], [Bridge],
-    [Chorus]...) make it plan a song with builds and returns. Untagged lines
-    stay as they are."""
-    text = str(lyrics or "").strip()
-    if not caption_check.TAG_RE.search(text):
-        return text
-    lines = sung_lines(text)
+    [Chorus]...) make it plan a song with builds and returns."""
+    lines = sung_lines(lyrics)
     return "\n".join(["[Verse]", *lines]) if lines else "[Instrumental]"
 
 
@@ -1017,7 +1034,7 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
                                       f"Your last rewrite: {json.dumps(new)}"))
         if isinstance(retry, dict) and retry.get("caption") and len(missing_terms(notes, retry)) < len(left_out):
             new = retry
-    found = caption_check.problems(new, notes)
+    found = caption_check.problems(checked_text(new), notes)
     for attempt in range(1, CAPTION_RETRIES + 1):
         if not found or not new.get("caption"):
             break
@@ -1027,7 +1044,7 @@ def revise_song(old: dict, artist: str, title: str, notes: str) -> tuple[dict, d
                                           + f"\nYour last rewrite: {json.dumps(new)}"))
         except (ValueError, AttributeError, KeyError, TypeError, IndexError):
             continue
-        again = caption_check.problems(retry, notes) if isinstance(retry, dict) else found
+        again = caption_check.problems(checked_text(retry), notes) if isinstance(retry, dict) else found
         if isinstance(retry, dict) and retry.get("caption") and caption_check.count(again) < caption_check.count(found) \
                 and len(missing_terms(notes, retry)) <= len(missing_terms(notes, new)):
             new, found = retry, again
@@ -1189,6 +1206,16 @@ def retitle_clashes(songs: list, dj_input: str, tries: int = 2) -> list:
     return songs
 
 
+def checked_text(song) -> dict:
+    """The parts of a song ACE-Step reads: its final prompt, its shared sound
+    (added to the prompt later) and its lyrics. Names and the technical
+    fields never reach it."""
+    if not isinstance(song, dict):
+        return {}
+    return {"caption": ace_prompt(str(song.get("caption") or "")), "sound": song.get("sound"),
+            "lyrics": song.get("lyrics")}
+
+
 def allowed_words(request: dict | None) -> str:
     """Words a listener asked for in their note may stay in the caption."""
     return str((request or {}).get("note") or "")
@@ -1203,7 +1230,7 @@ def compose_checked(dj_input: str, parse, allowed: str = "", retries: int = CAPT
     result = ask_llm("music", dj_input, parse)
     single = not isinstance(result, list)
     songs = [result] if single else list(result)
-    found = [caption_check.problems(song, allowed) for song in songs]
+    found = [caption_check.problems(checked_text(song), allowed) for song in songs]
     for attempt in range(1, retries + 1):
         report = [(i, f) for i, f in enumerate(found) if f]
         if not report:
@@ -1220,7 +1247,7 @@ def compose_checked(dj_input: str, parse, allowed: str = "", retries: int = CAPT
         if len(again) != len(songs):
             continue
         for i, _ in report:
-            new = caption_check.problems(again[i], allowed)
+            new = caption_check.problems(checked_text(again[i]), allowed)
             if isinstance(again[i], dict) and caption_check.count(new) < caption_check.count(found[i]):
                 songs[i], found[i] = again[i], new
     for i, f in enumerate(found):

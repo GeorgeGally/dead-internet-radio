@@ -130,12 +130,13 @@ def correction(report: list[tuple[int, dict]], songs: list) -> str:
         "\n\nREWRITE: ACE-Step moves toward every word it reads, even after \"no\" or \"never\", "
         "and these words turn a track into commercial club music:\n" + "\n".join(lines) +
         "\nWrite those tracks again without them or any variant, describing only what is there: "
-        "the drums, the bass, one or two character sounds and the room. Keep every other track as it was. "
-        "Output the full JSON again."
+        "the drums, the bass, one or two character sounds and the room. Keep every other track as it was, "
+        "and keep each `sound` field word for word. Output the full JSON again."
     )
 
 
 def negative_prompt(caption: str) -> str:
     """The negative words for one track, without any its caption asks for."""
+    # Singular or plural: a goth "string synth" keeps strings out of the list.
     return ", ".join(w for w in NEGATIVE_WORDS
-                     if not re.search(rf"\b{re.escape(w)}\b", caption or "", re.IGNORECASE))
+                     if not re.search(rf"\b{re.escape(w.removesuffix('s'))}s?\b", caption or "", re.IGNORECASE))

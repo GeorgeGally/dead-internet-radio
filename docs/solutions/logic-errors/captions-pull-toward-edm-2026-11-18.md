@@ -39,7 +39,16 @@ The fix:
   replaces the LM's unconditional caption for its CFG (`lm_cfg_scale`, default
   2.5), so it only acts when `thinking` is on. DIR runs with thinking on.
 - `one_verse()` sends lyrics as exactly `[Instrumental]` or one `[Verse]` of
-  the lines. An edited plan is still sent as written.
+  the lines, in `ace_step_body()`, so plans, remixes and re-renders get it
+  too. The negative prompt is worked out there from the caption for the same
+  reason: nothing has to carry it.
+- The check reads what ACE-Step reads: the final prompt (`ace_prompt()`), the
+  shared sound and the lyrics. Titles and artists are never checked.
+- Jobs send the library's active prompt, not the file. The migration
+  `ActivateDarkroomMusicPrompt` adds the new `dj.md` as "Darkroom" and puts
+  it in use; Original keeps the old text.
+- Listening tests: `ACE_STEP_SEED` fixes the seed, `ACE_STEP_NEGATIVE=0` sends
+  no negative prompt, and every render prints its full `ACE-Step request:`.
 - `use_cot_caption` stays `False`: the LM must not rewrite the caption.
 
 Not taken from an outside proposal: a DJ-written `negative` field (the

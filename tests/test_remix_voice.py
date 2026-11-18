@@ -25,7 +25,7 @@ class RemixVoiceTest(unittest.TestCase):
                 result = generate.ensure_voice(song)
                 self.assertEqual(generate.sung_lines(result["lyrics"]), ["Sliced", "Gold", "Sliced"])
         with patch.object(generate, "call_llm", return_value='{"lyrics": "one\\ntwo\\nthree"}'):
-            self.assertEqual(generate.ensure_voice(song)["lyrics"], "one\ntwo\nthree")
+            self.assertEqual(generate.ensure_voice(song)["lyrics"], "[Verse]\none\ntwo\nthree")
 
     def test_retry_preserves_existing_lines(self):
         song = {"caption": "A voice speaks", "lyrics": "[Verse]\nREQUEST RECEIVED", "title": "Sliced", "artist": "Gold"}
@@ -34,14 +34,14 @@ class RemixVoiceTest(unittest.TestCase):
         self.assertEqual(generate.sung_lines(result["lyrics"]), ["REQUEST RECEIVED", "Sliced", "Gold"])
         with patch.object(generate, "call_llm", return_value="REQUEST RECEIVED\none\ntwo"):
             result = generate.ensure_voice(song)
-        self.assertEqual(result["lyrics"], "REQUEST RECEIVED\none\ntwo")
+        self.assertEqual(result["lyrics"], "[Verse]\nREQUEST RECEIVED\none\ntwo")
 
     def test_colon_lyrics_are_preserved(self):
         song = {"caption": "A voice speaks", "lyrics": "[Verse]\nSYSTEM: ONLINE", "title": "Sliced", "artist": "Gold"}
         with patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
             result = generate.ensure_voice(song)
         self.assertEqual(generate.sung_lines(result["lyrics"]), ["SYSTEM: ONLINE", "Sliced", "Gold"])
-        full = {**song, "lyrics": "SYSTEM: ONLINE\nready\nlistening"}
+        full = {**song, "lyrics": "[Verse]\nSYSTEM: ONLINE\nready\nlistening"}
         with patch.object(generate, "call_llm") as llm:
             self.assertEqual(generate.ensure_voice(full), full)
             llm.assert_not_called()
@@ -67,7 +67,7 @@ class RemixVoiceTest(unittest.TestCase):
                         "No vocals - a voice speaks", "No vocals, voice through a telephone"):
             with self.subTest(caption=caption), patch.object(generate, "call_llm", return_value="one\ntwo\nthree"):
                 result = generate.ensure_voice({"caption": caption, "lyrics": "[Instrumental]"})
-                self.assertEqual(result["lyrics"], "one\ntwo\nthree")
+                self.assertEqual(result["lyrics"], "[Verse]\none\ntwo\nthree")
 
     def test_take_collision_preserves_existing_folder_on_failure(self):
         song = {"caption": "synthesizers", "lyrics": "[Instrumental]", "title": "Sliced", "artist": "Gold", "duration": 150}
@@ -102,7 +102,7 @@ class RemixVoiceTest(unittest.TestCase):
             log = json.loads(next((folder / "prompts").iterdir()).read_text())
         self.assertEqual(metadata["kind"], "remix")
         self.assertEqual(metadata["dj_name"], "DJ")
-        self.assertEqual(log["payload"]["lyrics"], "one\ntwo\nthree")
+        self.assertEqual(log["payload"]["lyrics"], "[Verse]\none\ntwo\nthree")
         self.assertEqual(render.call_args.args[0], log["payload"])
         self.assertEqual(song["lyrics"], "[Instrumental]")
 

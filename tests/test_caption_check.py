@@ -60,6 +60,7 @@ class CaptionCheckTest(unittest.TestCase):
         self.assertIn("trumpet", full)
         self.assertNotIn(" no ", f" {full} ")
         self.assertNotIn("piano", caption_check.negative_prompt("a detuned piano in the corner"))
+        self.assertNotIn("strings", caption_check.negative_prompt("goth, a cold string synth held low"))
 
 
 class LyricsTest(unittest.TestCase):
@@ -67,7 +68,10 @@ class LyricsTest(unittest.TestCase):
         self.assertEqual(generate.one_verse("[Intro]\n[Instrumental]\n[Verse]\nSTATUS RED\n[Bridge]\nREBOOT\n[Outro]\n[Instrumental]"),
                          "[Verse]\nSTATUS RED\nREBOOT")
         self.assertEqual(generate.one_verse("[Intro]\n[Instrumental]\n[Outro]\n[Instrumental]"), "[Instrumental]")
-        self.assertEqual(generate.one_verse("SYSTEM: ONLINE\nready"), "SYSTEM: ONLINE\nready")
+        self.assertEqual(generate.one_verse("SYSTEM: ONLINE\nready"), "[Verse]\nSYSTEM: ONLINE\nready")
+        # Order and repeats never survive: one [Verse], lines in their order.
+        self.assertEqual(generate.one_verse("[Outro]\nEND\n[Verse]\nSTART\n[Verse]\nAGAIN"), "[Verse]\nEND\nSTART\nAGAIN")
+        self.assertEqual(generate.one_verse(""), "[Instrumental]")
 
     def test_fallback_is_one_verse(self):
         lyrics = generate.fallback_verse("[Verse]\nREQUEST RECEIVED", "Sliced", "Gold")
@@ -99,6 +103,16 @@ class ComposeCheckedTest(unittest.TestCase):
         self.assertEqual(llm.call_count, 1 + generate.CAPTION_RETRIES)
         self.assertEqual(songs[0]["caption_flags"], ["trumpet"])
 
+    def test_names_are_not_checked(self):
+        clean = [song("Dance Party", "dry kick, deep bass")]
+        songs, llm = self.run_compose([json.dumps(clean)])
+        self.assertEqual(llm.call_count, 1)
+
+    def test_retry_keeps_the_shared_sound(self):
+        first = [song("A", "dry kick, trumpet", sound="One act's sound.")]
+        _, llm = self.run_compose([json.dumps(first), json.dumps([song("A", "dry kick", sound="One act's sound.")])])
+        self.assertIn("`sound` field word for word", llm.call_args.args[1])
+
     def test_single_track_mode(self):
         out, llm = self.run_compose([json.dumps(song("A", "dry kick, deep bass"))], parse=generate.extract_json)
         self.assertEqual(out["title"], "A")
@@ -119,9 +133,22 @@ class AceStepBodyTest(unittest.TestCase):
             generate.call_ace_step({"caption": "raw, dry, EBM, 124 BPM, E minor, rounded kick", "bpm": 124, "keyscale": "E minor"})
         body = json.loads(urlopen.call_args.args[0].data)
         self.assertFalse(body["use_cot_caption"])
+        self.assertTrue(body["thinking"])
+        self.assertEqual(body["lyrics"], "[Instrumental]")
+        self.assertNotIn("seed", body)
         self.assertIn("trumpet", body["lm_negative_prompt"])
         self.assertNotIn("melody", body["prompt"])
         self.assertNotIn("124 BPM", body["prompt"])
+
+
+class AbSwitchesTest(unittest.TestCase):
+    def test_fixed_seed_and_negative_off(self):
+        payload = {"caption": "dry kick", "lyrics": "[Intro]\nGO\n[Bridge]\nSTOP", "bpm": 120, "keyscale": "A minor"}
+        with patch.object(generate, "ACE_STEP_SEED", "132404"), patch.object(generate, "ACE_STEP_NEGATIVE", False):
+            body = generate.ace_step_body(payload)
+        self.assertEqual((body["use_random_seed"], body["seed"]), (False, 132404))
+        self.assertEqual(body["lm_negative_prompt"], "NO USER INPUT")
+        self.assertEqual(body["lyrics"], "[Verse]\nGO\nSTOP")
 
 
 if __name__ == "__main__":
