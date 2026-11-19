@@ -22,6 +22,14 @@ class AdminLibraryGenreTest < ActionDispatch::IntegrationTest
     assert_select "table.songs.sortable td", text: "Aggressive electroclash"
   end
 
+  test "the library shows when each song was made, human-readable" do
+    song = Track.songs.first
+    get admin_library_index_path
+    assert_response :success
+    assert_select "table.songs.sortable th", text: "Made"
+    assert_select "table.songs.sortable td", text: song.created_at.utc.strftime("%-d %B %Y, %-I:%M%P")
+  end
+
   test "a caption that does not open with a genre has none" do
     song = Track.new(caption: nil)
     song.define_singleton_method(:sound_caption) { "Wavering 8-bit synth arpeggios in D minor, mimicking corrupt data" }
