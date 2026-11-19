@@ -9,6 +9,10 @@
 </p>
 
 <% if @show.mix_path && File.exist?(@show.mix_path) %>
+  <p class="now-playing" style="font-size:15px;margin:0 0 12px;">
+    <strong style="color:#c03f0d;">Now playing</strong>
+    <span data-now-playing>Press play to start the mix</span>
+  </p>
   <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@show) %>"></audio>
 <% end %>
 
