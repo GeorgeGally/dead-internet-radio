@@ -21,11 +21,11 @@ module ApplicationHelper
   end
 
   # A time the browser shows in the viewer's own zone (the admin layout's
-  # script rewrites it); "time" shows only the clock, "datetime" the day too.
+  # script rewrites it); "time" shows only the clock, the day otherwise, short.
   def local_time(at, format: "datetime")
     return "" if at.blank?
 
-    text = at.utc.strftime(format == "time" ? "%-I:%M%P" : "%-d %B %Y, %-I:%M%P")
-    tag.time(text, datetime: at.utc.iso8601, data: { local: format })
+    text = at.utc.strftime(format == "time" ? "%-I:%M%P" : "%b %-d")
+    tag.time(text, datetime: at.utc.iso8601, title: at.utc.strftime("%-d %B %Y, %-I:%M%P"), data: { local: format })
   end
 end

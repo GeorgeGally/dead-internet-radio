@@ -29,6 +29,7 @@
 </table>
 <% end %>
 
+<div class="table-scroll">
 <table class="songs sortable">
   <tr><th></th><th>Title</th><th>Artist</th><th>Genre</th><th>BPM</th><th>Key</th><th>Length</th><th>Plays</th><th>Last aired</th><th>Made</th><th>Votes</th><th>Request</th><th></th></tr>
   <% @songs.each do |song| %>
@@ -53,3 +54,4 @@
     </tr>
   <% end %>
 </table>
+</div>

@@ -767,3 +767,7 @@ th[aria-sort="descending"] .th-sort::after { content: " \25BC"; font-size: 9px; 
 .idents .ident-remove form, .idents .switch-cell form { margin: 0; }
 .btn-quiet.is-sure { color: #b3261e; }
 @media (max-width: 800px) { .maker-knobs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Wide tables scroll sideways instead of pushing their last columns off-screen. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.table-scroll table { margin-bottom: 0; }

@@ -27,7 +27,7 @@ class AdminLibraryGenreTest < ActionDispatch::IntegrationTest
     get admin_library_index_path
     assert_response :success
     assert_select "table.songs.sortable th", text: "Made"
-    assert_select "table.songs.sortable td", text: song.created_at.utc.strftime("%-d %B %Y, %-I:%M%P")
+    assert_select "table.songs.sortable td", text: song.created_at.utc.strftime("%b %-d")
   end
 
   test "a caption that does not open with a genre has none" do
