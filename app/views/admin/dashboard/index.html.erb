@@ -26,7 +26,9 @@
   <span id="ace-step-indicator" class="status-dot unknown">○</span>
   <span id="ace-step-text">Checking...</span>
   <span id="ace-step-pid" style="margin-left:8px;opacity:0.6;"></span>
-  <%= button_to "Toggle", admin_ace_step_toggle_path, method: :post, class: "btn btn-sm", style: "margin-left:12px;", id: "ace-step-toggle" %>
+  <% if AceStepManager.installed? %>
+    <%= button_to "Toggle", admin_ace_step_toggle_path, method: :post, class: "btn btn-sm", style: "margin-left:12px;", id: "ace-step-toggle" %>
+  <% end %>
 </div>
 
 <script>
@@ -41,6 +43,11 @@ fetch("/admin/ace_step/status.json")
       dot.className = "status-dot running";
       txt.textContent = "Running";
       pid.textContent = `(PID ${s.pid})`;
+    } else if (!s.installed) {
+      dot.textContent = "●";
+      dot.className = "status-dot running";
+      txt.textContent = `Renders on the generation PC · ${s.waiting} waiting`;
+      pid.textContent = "";
     } else {
       dot.textContent = "○";
       dot.className = "status-dot stopped";
