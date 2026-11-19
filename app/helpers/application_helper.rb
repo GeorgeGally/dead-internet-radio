@@ -25,6 +25,7 @@ module ApplicationHelper
   def local_time(at, format: "datetime")
     return "" if at.blank?
 
-    tag.time(at.utc.strftime("%Y-%m-%d %H:%M"), datetime: at.utc.iso8601, data: { local: format })
+    text = at.utc.strftime(format == "time" ? "%-I:%M%P" : "%-d %B %Y, %-I:%M%P")
+    tag.time(text, datetime: at.utc.iso8601, data: { local: format })
   end
 end

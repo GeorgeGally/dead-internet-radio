@@ -58,11 +58,11 @@
     });
 
     // Times arrive in UTC; show them in this browser's zone.
+    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.querySelectorAll('time[data-local]').forEach(function(t) {
-      var d = new Date(t.getAttribute('datetime')), pad = function(n) { return String(n).padStart(2, '0'); };
-      var clock = pad(d.getHours()) + ':' + pad(d.getMinutes());
-      t.textContent = t.dataset.local === 'time' ? clock
-        : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + clock;
+      var d = new Date(t.getAttribute('datetime'));
+      var clock = (((d.getHours() + 11) % 12) + 1) + ':' + String(d.getMinutes()).padStart(2, '0') + (d.getHours() < 12 ? 'am' : 'pm');
+      t.textContent = t.dataset.local === 'time' ? clock : d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ', ' + clock;
     });
   </script>
 </body>

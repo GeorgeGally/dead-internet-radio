@@ -11,7 +11,7 @@
         <option value="<%= edit_admin_prompt_path(prompt) %>" <%= "selected" if prompt.id == @prompt.id %>><%= prompt.name %><%= " · in use" if prompt.active? %></option>
       <% end %>
     </select>
-    <span class="prompt-meta">v<%= @prompt.version %> · <time datetime="<%= @prompt.updated_at.utc.iso8601 %>" data-local="datetime"><%= @prompt.updated_at.utc.strftime("%Y-%m-%d %H:%M") %></time></span>
+    <span class="prompt-meta">v<%= @prompt.version %> · <%= local_time(@prompt.updated_at) %></span>
     <div class="prompt-tools">
       <% unless @prompt.active? %>
         <button type="submit" form="prompt-form" name="activate" value="1" class="btn-key btn-key-go">Make active</button>
