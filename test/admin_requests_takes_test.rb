@@ -27,6 +27,11 @@ class AdminRequestsTakesTest < ActionDispatch::IntegrationTest
       assert_select ".takes-row"
       assert_select ".takes-row", text: /Earlier version/
       assert_select ".takes-row", text: /slower/
+      assert_select "form[action=?]", throw_take_admin_track_path(track)
+
+      post throw_take_admin_track_path(track), params: { stamp: "20260101-000000" }
+      assert_response :redirect
+      assert_not File.exist?(File.join(replaced, "song-20260101-000000.mp3"))
     end
   end
 end

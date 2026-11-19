@@ -58,8 +58,14 @@
                 <% else %>
                   <span class="btn-play-gap"></span>
                 <% end %>
-                <span class="sp-take"><%= take.label %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %></span>
+                <span class="sp-take"><%= take.label %><% if take.thrown? %> · thrown<% end %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %></span>
                 <% if take_song.nil? && take.job&.live? %><%= render "admin/shared/track_job_loader", job: take.job, compact: true %><% end %>
+                <% if take.remix? && take_song %>
+                  <%= button_to "Keep", keep_take_admin_track_path(song), params: { take_track_id: take_song.id, back: request.path }, class: "btn-key", form: { style: "display:inline" } %>
+                  <% unless take.thrown? %><%= button_to "Throw", throw_take_admin_track_path(song), params: { take_track_id: take_song.id, back: request.path }, class: "btn-quiet", form: { style: "display:inline" } %><% end %>
+                <% elsif take.rerender? %>
+                  <%= button_to "Throw", throw_take_admin_track_path(song), params: { stamp: take.replaced_stamp, back: request.path }, class: "btn-quiet", form: { style: "display:inline" } %>
+                <% end %>
               </li>
             <% end %>
           </ol>
