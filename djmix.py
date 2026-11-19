@@ -115,6 +115,49 @@ def get_duration(path: Path) -> float:
     return 3.0
 
 
+SILENCE_DB = "-40dB"
+SILENCE_MIN_S = 0.5
+EDGE_RING_S = 0.1
+HEAD_SILENCE_WINDOW_S = 12.0
+
+
+def audible_span(path: Path, duration: float) -> tuple[float, float]:
+    """Start and end, in seconds, of the part of a render that carries sound."""
+    try:
+        result = subprocess.run([
+            "ffmpeg", "-hide_banner", "-nostats", "-i", str(path),
+            "-af", f"silencedetect=n={SILENCE_DB}:d={SILENCE_MIN_S}",
+            "-f", "null", "-",
+        ], capture_output=True, text=True)
+    except OSError:
+        return 0.0, duration
+    if result.returncode != 0:
+        return 0.0, duration
+
+    log = result.stdout + result.stderr
+    starts = [float(s) for s in re.findall(r"silence_start: ([\d.]+)", log)]
+    ends = [float(s) for s in re.findall(r"silence_end: ([\d.]+)", log)]
+
+    start = 0.0
+    if starts and starts[0] <= HEAD_SILENCE_WINDOW_S and ends:
+        start = min(ends[0] + EDGE_RING_S, duration)
+    end = duration
+    if starts and (len(ends) < len(starts) or ends[-1] >= duration - 0.25):
+        end = starts[-1] + EDGE_RING_S
+
+    if end - start < 0.5:
+        return 0.0, duration
+    return start, min(end, duration)
+
+
+def trim_to_wav(src: Path, start: float, end: float, dest: Path):
+    subprocess.run([
+        "ffmpeg", "-y", "-i", str(src),
+        "-af", f"atrim=start={start}:end={end},asetpts=PTS-STARTPTS",
+        "-c:a", "pcm_s16le", "-ar", "44100", "-ac", "2", str(dest),
+    ], check=True, capture_output=True)
+
+
 def crossfade_chain(tracks: list[Path], output: Path, duration: float):
     """Cross-fade tracks with WAV intermediates."""
     if len(tracks) == 1:
@@ -318,28 +361,29 @@ def main():
     for n in track_nums:
         dur[n] = get_duration(music[n])
 
-    # Calculate track start times in the final mix timeline
-    # Opening is overlaid at position 0 (no cross-fade with music)
-    # First track starts at opening_offset (or 0 if no opening)
-    mix_start = {}
-    cf = args.crossfade
-    opening_offset = args.opening_offset if (opening_path and not args.no_opening) else 0.0
-    t = opening_offset
-
-    mix_start[track_nums[0]] = t
-    t += dur[track_nums[0]]
-    remaining = track_nums[1:]
-
-    for n in remaining:
-        mix_start[n] = t - cf
-        t += dur[n] - cf
-
-    mix_duration = t
-
     # Phase 1: Build music-only cross-faded mix (no voices, no opening)
     print("Phase 1: Cross-fading tracks...")
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
+
+        for n in track_nums:
+            start, end = audible_span(music[n], dur[n])
+            if end - start < dur[n] - 0.05:
+                trimmed = tmp / f"track_{n:02d}.wav"
+                trim_to_wav(music[n], start, end, trimmed)
+                music[n] = trimmed
+                dur[n] = end - start
+
+        mix_start = {}
+        cf = args.crossfade
+        opening_offset = args.opening_offset if (opening_path and not args.no_opening) else 0.0
+        t = opening_offset
+        mix_start[track_nums[0]] = t
+        t += dur[track_nums[0]]
+        for n in track_nums[1:]:
+            mix_start[n] = t - cf
+            t += dur[n] - cf
+        mix_duration = t
 
         music_mix = tmp / "music_mix.wav"
         if len(track_nums) == 1:
