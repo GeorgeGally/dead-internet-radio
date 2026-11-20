@@ -20,7 +20,29 @@
   <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@show) %>"></audio>
 <% end %>
 
-<p style="margin:16px 0;">
+<% if @reedit_batch.any? || @reedit_failed %>
+  <div class="track-job-loader<%= " track-job-failed" if @reedit_failed %>" role="status" aria-live="polite"
+       data-progress="<%= reedit_progress_admin_show_path(@show) %>"
+       data-kind="rerender" data-since="<%= @reedit_batch.first&.created_at&.iso8601 %>">
+    <div class="loader-bar<%= " loader-sweep" unless @reedit_failed %>"><div class="loader-fill js-track-job-fill"></div></div>
+    <p class="loader-line">
+      <span class="loader-stage js-track-job-stage"><%= @reedit_failed ? "The re-edit failed" : "Editing the show…" %></span>
+      <span class="loader-clock js-track-job-clock">0:00</span>
+    </p>
+  </div>
+<% elsif @reedit_remix %>
+  <%= render "admin/shared/track_job_loader", job: @reedit_remix %>
+<% end %>
+
+<div style="margin:16px 0 6px;">
+  <%= form_tag reedit_admin_show_path(@show), class: "rerender-form" do %>
+    <input type="text" name="instructions" class="rerender-notes" maxlength="400" autocomplete="off"
+           placeholder="What to change across the whole mix: darker, slower, more space…">
+    <button type="submit" class="btn-key btn-key-go">Re-edit whole mix</button>
+  <% end %>
+</div>
+
+<p style="margin:0 0 16px;">
   <%= button_to "Remix", remix_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-run djmix.py on this show?" } %>
   <%= button_to "Re‑import", reimport_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-read filesystem data into DB?" } %>
   <%= button_to "Delete", admin_show_path(@show), method: :delete, class: "btn", style: "display:inline;background:#cc0000;", data: { confirm: "Delete this show?" } %>

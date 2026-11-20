@@ -58,6 +58,9 @@ class RerenderTrackJob < ApplicationJob
     ensure
       AceStepManager.release(@ace_session) if @ace_session
     end
+    # A whole-show re-edit's last track asks for the mix (handed to the PC
+    # returns above and finishes through GenerationLine instead).
+    ShowReedit.complete!(@gen_job)
   end
 
   # The generation PC renders into a remix folder; fold it onto the library

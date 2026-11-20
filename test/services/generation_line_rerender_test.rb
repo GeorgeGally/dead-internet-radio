@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "active_job/test_helper"
 
 class GenerationLineRerenderTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @lib_slug = "line-rerender-lib-#{Process.pid}"
     @remix_slug = "line-rerender-remix-#{Process.pid}"
@@ -41,5 +44,29 @@ class GenerationLineRerenderTest < ActiveSupport::TestCase
     assert_equal "re-rendered", File.read(@show_dir.join("01-fatties.mp3"))
     assert @show_dir.join(".replaced").glob("01-fatties-*.mp3").any?
     assert_equal @song.show_id, @job.show_id
+  end
+
+  # A whole-show re-edit renders track by track; the PC can hand back the last
+  # one minutes after the first, so the mix waits for it (ShowReedit).
+  test "the PC's last finished track of a re-edit asks for the mix" do
+    old_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+    batch = "pc-batch-#{Process.pid}"
+    @job.update!(options: @job.options.merge("batch_id" => batch, "reedit_show_id" => @song.show_id))
+    sibling = GenerationJob.create!(slot: "rerender", track_count: 1, status: :pending,
+                                    options: { "kind" => "rerender", "track_id" => @song.id,
+                                               "batch_id" => batch, "reedit_show_id" => @song.show_id,
+                                               "on_pc" => true })
+
+    begin
+      GenerationLine.mark!(@job.id, "done", @remix_slug)
+      assert_no_enqueued_jobs only: RemixShowJob
+
+      assert_enqueued_with(job: RemixShowJob, args: [@song.show_id]) do
+        GenerationLine.mark!(sibling.id, "failed")
+      end
+    ensure
+      ActiveJob::Base.queue_adapter = old_adapter
+    end
   end
 end

@@ -49,6 +49,8 @@ Rails.application.routes.draw do
       member do
         post :remix
         post :reimport
+        post :reedit
+        get :reedit_progress
       end
     end
     get "schedule", to: "schedule#index", as: :schedule
