@@ -48,6 +48,31 @@
         <%= button_to "Remove", admin_track_path(track), method: :delete, class: "btn-quiet", form: { style: "display:inline" }, data: { confirm: "Remove '#{track.title}' from this show? You'll need to click Remix to rebuild the mix." } %>
       </td>
     </tr>
+    <% log = track.prompt_log %>
+    <% if log.present? %>
+      <tr class="prompt-row">
+        <td></td>
+        <td colspan="8">
+          <details class="track-prompts">
+            <summary>Prompts · <%= track.artist %> — <%= track.title %></summary>
+            <div class="prompt-grid">
+              <p><strong>Caption</strong><br><%= simple_format(log.dig("payload", "caption")) %></p>
+              <p><strong>Lyrics</strong><br><%= simple_format(log.dig("payload", "lyrics")) %></p>
+              <p><strong>Brief</strong><br><%= simple_format(log["brief"]) %></p>
+              <p><strong>DJ prompt</strong><br><%= simple_format(log["user_prompt"]) %></p>
+              <% master = log["master_prompt"] %>
+              <p><strong>Master prompt</strong><br><%= master.is_a?(Hash) ? "#{master["name"]} v#{master["version"]}" : master %></p>
+              <% if log["system_prompt"].present? %>
+                <details class="prompt-system">
+                  <summary>System prompt</summary>
+                  <pre><%= log["system_prompt"] %></pre>
+                </details>
+              <% end %>
+            </div>
+          </details>
+        </td>
+      </tr>
+    <% end %>
     <% if (job = pending_track_job_for(track.song)) %>
     <tr class="track-job-row">
       <td></td>

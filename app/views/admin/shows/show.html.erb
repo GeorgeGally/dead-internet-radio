@@ -8,6 +8,10 @@
   <% if @show.mix_file %>&middot; Mix: ready<% end %>
 </p>
 
+<% if @master_prompts.present? %>
+  <p class="meta">Prompts: <%= MasterPrompt.describe(@master_prompts) %></p>
+<% end %>
+
 <% if @show.mix_path && File.exist?(@show.mix_path) %>
   <p class="now-playing" style="font-size:15px;margin:0 0 12px;">
     <strong style="color:#c03f0d;">Now playing</strong>

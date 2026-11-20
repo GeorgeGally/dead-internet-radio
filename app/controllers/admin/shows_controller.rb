@@ -19,6 +19,7 @@ module Admin
       @show = Show.find(params[:id])
       @tracks = @show.tracks.running.ordered.includes(:origin_track)
       @mine = Vote.where(voter: Vote::ADMIN, track_id: @tracks.map(&:song_id)).pluck(:track_id, :value).to_h
+      @master_prompts = @show.generation_jobs.order(created_at: :desc).first&.master_prompts
     end
 
     def destroy

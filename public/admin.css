@@ -771,3 +771,11 @@ th[aria-sort="descending"] .th-sort::after { content: " \25BC"; font-size: 9px; 
 /* Wide tables scroll sideways instead of pushing their last columns off-screen. */
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 .table-scroll table { margin-bottom: 0; }
+
+.prompt-row > td { background: #fbf9f4; border-bottom: 1px solid #e5e0d8; }
+.track-prompts { padding: 6px 0; }
+.track-prompts > summary { cursor: pointer; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #6f6a61; }
+.prompt-grid { display: grid; gap: 16px; padding: 14px 0 8px; max-width: 900px; font-size: 13px; line-height: 1.55; }
+.prompt-grid p { margin: 0; white-space: pre-wrap; }
+.prompt-grid strong { display: block; margin-bottom: 3px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #8a8378; }
+.prompt-system pre { margin-top: 8px; padding: 12px; background: #fff; border: 1px solid #e5e0d8; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.5; }

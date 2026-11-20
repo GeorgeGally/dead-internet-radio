@@ -32,6 +32,35 @@ class AdminShowNowPlayingTest < ActionDispatch::IntegrationTest
     assert_select "[data-now-playing]", text: "Press play to start the mix"
   end
 
+  test "the show page lists each track's prompts" do
+    home = "test-prompts-#{Process.pid}"
+    base = Rails.root.join("output", home)
+    FileUtils.mkdir_p(base.join("prompts"))
+    File.write(base.join("01-relay.mp3"), "relay")
+    File.write(base.join("prompts", "01-relay.prompt.json"), JSON.dump(
+      "brief" => "A substation relay learned to love syncopation.",
+      "user_prompt" => "Program brief: a substation relay.",
+      "master_prompt" => { "name" => "Original", "version" => nil },
+      "system_prompt" => "You are the DJ bot for Dead Internet Radio.",
+      "payload" => {
+        "caption" => "A brittle electro loop under a cardboard tube.",
+        "lyrics" => "[Verse]\nLoop engaged"
+      }
+    ))
+    show = Show.create!(slot: "night", name: "Prompt Show", directory: home, status: :complete)
+    show.tracks.create!(position: 1, artist: "Relay Tower", title: "Carrier",
+                         duration_ms: 100_000, audio_file: "01-relay.mp3", cue_seconds: 0)
+
+    get admin_show_path(show)
+
+    assert_response :success
+    assert_select "details.track-prompts summary", text: /Prompts · Relay Tower — Carrier/
+    assert_select "details.track-prompts", text: /cardboard tube/
+    assert_select "details.track-prompts", text: /substation relay learned to love syncopation/
+  ensure
+    FileUtils.rm_rf(base)
+  end
+
   test "each track row carries what the player needs to name and follow it" do
     get admin_show_path(@show)
     assert_response :success
