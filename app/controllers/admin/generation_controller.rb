@@ -3,7 +3,7 @@
 module Admin
   class GenerationController < Admin::BaseController
     def index
-      @jobs = GenerationJob.recent
+      @jobs = GenerationJob.recent.where("COALESCE(options->>'kind', '') <> 'set'")
     end
 
     def new
