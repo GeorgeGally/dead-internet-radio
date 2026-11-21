@@ -7,6 +7,13 @@ class AdminGenerationIndexTest < ActionDispatch::IntegrationTest
     @set_job = GenerationJob.create!(slot: "late night", track_count: 0, status: :done, options: { "kind" => "set" })
   end
 
+  test "a new generation defaults to 20 tracks" do
+    get new_admin_generation_path
+
+    assert_response :success
+    assert_select "input[name='track_count'][value='20']"
+  end
+
   test "set builds stay out of the generation list" do
     get admin_generation_index_path
 
