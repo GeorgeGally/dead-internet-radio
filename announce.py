@@ -112,7 +112,7 @@ def apply_reverb(audio: np.ndarray, sr: int, mix: float = 0.75, decay: float = 0
     return audio * (1 - mix) + wet * mix
 
 
-def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path, reverb_mix: float = 0.75, reverb_decay: float = 0.60, delay_ms: float = 110, delay_feedback: float = 0.15, delay_mix: float = 0.14, vocoder_mix: float = 0.0, phone: bool = True):
+def generate_announcement(text: str, voice: str, speed: float, intensity: float, out_path: Path, reverb_mix: float = 0.0, reverb_decay: float = 0.60, delay_ms: float = 0, delay_feedback: float = 0.15, delay_mix: float = 0.0, vocoder_mix: float = 0.0, phone: bool = False):
     model = KModel(repo_id="hexgrad/Kokoro-82M").to("cpu").eval()
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M", model=model)
 
@@ -127,16 +127,26 @@ def generate_announcement(text: str, voice: str, speed: float, intensity: float,
 
     audio = np.concatenate(all_audio)
 
-    audio = apply_lofi(audio, 24000, intensity)
+    # The DJ is dry: Natural Nicole, full-band, peak-normalised the way the
+    # voice lab rendered it (about -19.3 LUFS). Effects stay opt-in.
+    effected = False
+    if intensity > 0:
+        audio = apply_lofi(audio, 24000, intensity)
+        effected = True
     if vocoder_mix > 0:
         audio = apply_vocoder(audio, 24000, mix=vocoder_mix)
-    if delay_ms > 0:
+        effected = True
+    if delay_ms > 0 and delay_mix > 0:
         audio = apply_delay(audio, 24000, delay_ms=delay_ms, feedback=delay_feedback, mix=delay_mix)
-    audio = apply_reverb(audio, 24000, mix=reverb_mix, decay=reverb_decay)
+        effected = True
+    if reverb_mix > 0:
+        audio = apply_reverb(audio, 24000, mix=reverb_mix, decay=reverb_decay)
+        effected = True
 
+    peak = 0.95 if effected or phone else 0.9
     max_val = np.max(np.abs(audio))
     if max_val > 0:
-        audio = audio / max_val * 0.95
+        audio = audio / max_val * peak
 
     sf.write(str(out_path), audio, 24000)
 
@@ -147,27 +157,28 @@ def generate_announcement(text: str, voice: str, speed: float, intensity: float,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate lo-fi TTS announcement")
+    parser = argparse.ArgumentParser(description="Generate a DJ announcement")
     parser.add_argument("--text", "-t", required=True)
     parser.add_argument("--output", "-o", required=True, type=Path)
-    parser.add_argument("--voice", "-v", help="Kokoro voice (default: bm_lewis)")
+    parser.add_argument("--voice", "-v", default="af_nicole", help="Kokoro voice (default: af_nicole)")
     parser.add_argument("--speed", "-s", type=float, default=1.0)
-    parser.add_argument("--intensity", "-i", type=float, default=0.22)
-    parser.add_argument("--reverb", "-r", type=float, default=0.75, help="Reverb wet mix 0-1 (default: 0.75)")
+    parser.add_argument("--intensity", "-i", type=float, default=0.0, help="Lo-fi smoothing 0-1 (default: 0, off)")
+    parser.add_argument("--reverb", "-r", type=float, default=0.0, help="Reverb wet mix 0-1 (default: 0, off)")
     parser.add_argument("--reverb-decay", "-rd", type=float, default=0.60, help="Reverb decay 0-1 (default: 0.60)")
-    parser.add_argument("--delay-ms", "-dm", type=float, default=110, help="Delay time in ms (default: 110, 0 = off)")
+    parser.add_argument("--delay-ms", "-dm", type=float, default=0, help="Delay time in ms (default: 0, off)")
     parser.add_argument("--delay-feedback", "-df", type=float, default=0.15, help="Delay feedback/gain 0-1 (default: 0.15)")
-    parser.add_argument("--delay-mix", "-dx", type=float, default=0.14, help="Delay wet mix 0-1 (default: 0.14)")
-    parser.add_argument("--vocoder-mix", "-vm", type=float, default=0.0, help="Vocoder mix 0-1 (default: 0 = off)")
+    parser.add_argument("--delay-mix", "-dx", type=float, default=0.0, help="Delay wet mix 0-1 (default: 0, off)")
+    parser.add_argument("--vocoder-mix", "-vm", type=float, default=0.0, help="Vocoder mix 0-1 (default: 0, off)")
+    parser.add_argument("--phone", action="store_true", help="Apply the telephone band-pass and μ-law channel")
     parser.add_argument("--no-phone", action="store_true", help="Skip telephone channel treatment")
     args = parser.parse_args()
 
-    voice = args.voice or "bm_lewis"
+    voice = args.voice or "af_nicole"
     generate_announcement(args.text, voice, args.speed, args.intensity, args.output,
                           reverb_mix=args.reverb, reverb_decay=args.reverb_decay,
                           delay_ms=args.delay_ms, delay_feedback=args.delay_feedback,
                           delay_mix=args.delay_mix, vocoder_mix=args.vocoder_mix,
-                          phone=not args.no_phone)
+                          phone=args.phone and not args.no_phone)
 
 
 if __name__ == "__main__":

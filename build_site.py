@@ -312,12 +312,22 @@ def find_shows(only=None):
             if not tn_match:
                 continue
             vo_tn = int(tn_match.group(1))
-            # Find the first song entry with number > vo_tn
-            for t in tracks:
-                if t["number"] > vo_tn:
-                    t["voiceoverFile"] = vo.name
-                    t["voiceoverDurationMs"] = get_duration_ms(vo)
-                    break
+            named = re.search(r"-DJ-voice-(.+)-dead-internet-radio\.mp3$", vo.name)
+            target = None
+            if named:
+                for t in tracks:
+                    song = re.match(rf"\d+-{re.escape(named.group(1))}-dead-internet-radio\.mp3$", t["file"])
+                    if song and t["number"] > 0:
+                        target = t
+                        break
+            if target is None:
+                for t in tracks:
+                    if t["number"] > vo_tn:
+                        target = t
+                        break
+            if target is not None:
+                target["voiceoverFile"] = vo.name
+                target["voiceoverDurationMs"] = get_duration_ms(vo)
 
         dj_name = show_dj or select_dj_name()
 

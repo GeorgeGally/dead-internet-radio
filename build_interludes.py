@@ -10,7 +10,6 @@ and never airs as a show. Needs Kokoro, not ACE-Step.
 """
 import argparse
 import json
-import random
 import subprocess
 import sys
 from datetime import datetime
@@ -89,7 +88,7 @@ def main():
         number += 1
         stem = f"{number:02d}-talk-{g.slugify(line, 40)}-dead-internet-radio"
         wav = show_dir / f"{stem}.wav"
-        g.generate_announcement(line, wav, intensity=0.2 + random.random() * 0.2)
+        g.generate_announcement(line, wav)
         if not wav.exists():
             number -= 1
             continue
