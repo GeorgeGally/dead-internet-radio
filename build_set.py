@@ -119,10 +119,10 @@ def link_song(src: Path, dest: Path):
         shutil.copy2(src, dest)
 
 
-def voice(text: str, stem: str, show_dir: Path, intensity: float) -> bool:
+def voice(text: str, stem: str, show_dir: Path) -> bool:
     wav = show_dir / f"{stem}.wav"
     mp3 = show_dir / f"{stem}.mp3"
-    g.generate_announcement(text, wav, intensity=intensity)
+    g.generate_announcement(text, wav)
     if wav.exists() and wav.stat().st_size > 100:
         g.wav_to_mp3(wav, mp3)
         return True
@@ -246,13 +246,13 @@ def main():
         print("3. Voices skipped (--no-voice)")
     else:
         print(f"3. Kokoro voicing the opening and {len(lines)} links...", flush=True)
-        voice(opening, opening_stem, show_dir, 0.3)
+        voice(opening, opening_stem, show_dir)
     for n in sorted(lines):
         c = songs[n - 1]
         print(f"   before {n:02d}: \"{lines[n][:140]}\"")
         if not args.no_voice:
             voice(lines[n], f"{n - 1:02d}-DJ-voice-{g.slugify(c['artist'] + ' ' + c['title'])}-dead-internet-radio",
-                  show_dir, 0.2 + random.random() * 0.2)
+                  show_dir)
 
     print(f"\nShow folder: {show_dir}")
 

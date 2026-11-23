@@ -25,10 +25,11 @@ class AdminShowNowPlayingTest < ActionDispatch::IntegrationTest
     FileUtils.rm_f(@mix)
   end
 
-  test "the show page has a now-playing label beside its mix audio" do
+  test "the show page has a now-playing label on its player" do
     get admin_show_path(@show)
     assert_response :success
-    assert_select "audio.show-mix"
+    assert_select "[data-show-player]", 1
+    assert_select "audio.show-mix", 0
     assert_select "[data-now-playing]", text: "Press play to start the mix"
   end
 

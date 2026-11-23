@@ -798,7 +798,8 @@ def download_audio(audio_url: str, output_path: Path):
     wav_path.unlink()
 
 
-def generate_announcement(text: str, output_path: Path, intensity: float = 0.5):
+def generate_announcement(text: str, output_path: Path):
+    """Voice one DJ line: Kokoro af_nicole at 1.0×, dry and full-band."""
     if not ANNOUNCE_SCRIPT.exists():
         print(f"  Skipping TTS: {ANNOUNCE_SCRIPT} not found", flush=True)
         return
@@ -807,8 +808,12 @@ def generate_announcement(text: str, output_path: Path, intensity: float = 0.5):
         str(ANNOUNCE_SCRIPT),
         "--text", text[:300],
         "--output", str(output_path),
-        "--voice", "bm_george",
-        "--intensity", str(intensity),
+        "--voice", "af_nicole",
+        "--speed", "1.0",
+        "--intensity", "0",
+        "--reverb", "0",
+        "--delay-ms", "0",
+        "--no-phone",
     ]
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
@@ -1503,7 +1508,7 @@ def main():
             announce_wav = show_dir / f"{opening_stem}.wav"
             announce_mp3 = show_dir / f"{opening_stem}.mp3"
             print("   Generating TTS...", flush=True)
-            generate_announcement(dj_announce, announce_wav, intensity=0.3)
+            generate_announcement(dj_announce, announce_wav)
             if announce_wav.exists() and announce_wav.stat().st_size > 100:
                 if not wav_to_mp3(announce_wav, announce_mp3):
                     print(f"   ffmpeg not found, keeping wav", flush=True)
@@ -1881,7 +1886,7 @@ def main():
 
                 print(f"  [{atype}] \"{text[:120]}\"")
                 print(f"  Generating TTS...", flush=True)
-                generate_announcement(text, wav, intensity=0.2 + random.random() * 0.2)
+                generate_announcement(text, wav)
                 final_file = None
                 if wav.exists() and wav.stat().st_size > 100:
                     if wav_to_mp3(wav, mp3):

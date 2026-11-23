@@ -472,7 +472,12 @@ function setupAudio(noSeek) {
   });
 
   // Joining mid-track: the DJ drop belongs to the top of the track.
-  if (seekSeconds < 5) startVoiceoverIfNeeded();
+  // Arriving from the tail: the DJ is already talking, and the song fades in.
+  const arrived = playlist.tracks[currentTrack];
+  const fromTail = arrived && tailFor === (arrived.id || arrived.file);
+  if (fromTail) tailFor = null;
+  if (seekSeconds < 5 || fromTail) startVoiceoverIfNeeded();
+  if (fromTail) fadeMusicTo(arrived.voiceoverFile ? MUSIC_UNDER_VOICE : 1, 2.2);
   bufferNext();
 }
 
@@ -603,17 +608,59 @@ const TIMELINE_AHEAD_S = 6;
 let segmentLeaving = null;
 let segmentRefreshed = null;
 
+// The outgoing song fades under the DJ, and the next one fades in. No hard cut.
+const CROSS_S = 4;
+let tailFor = null;
+
+function upcomingTrack() {
+  if (!playlist) return null;
+  const at = currentTrack + 1;
+  if (playlist.live) return playlist.tracks[at] || null;
+  if (!playlist.tracks.length) return null;
+  return playlist.tracks[at % playlist.tracks.length];
+}
+
+function fadeMusicTo(level, seconds) {
+  const audio = document.getElementById('player');
+  if (musicGain && audioCtx) {
+    const now = audioCtx.currentTime;
+    musicGain.gain.cancelScheduledValues(now);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, now);
+    musicGain.gain.linearRampToValueAtTime(level, now + seconds);
+  } else if (audio) {
+    audio.volume = level;
+  }
+}
+
+function voiceoverIs(track) {
+  if (!track || !track.voiceoverFile) return false;
+  const vo = document.getElementById('voiceover-el');
+  return !!(vo && vo.getAttribute('src') === playlistBase + track.voiceoverFile && !vo.paused);
+}
+
+function beginTail(next) {
+  const key = next.id || next.file;
+  if (tailFor === key) return;
+  tailFor = key;
+  fadeMusicTo(0.22, CROSS_S * 0.7);
+  if (next.voiceoverFile && !voiceoverIs(next)) startVoiceoverIfNeeded(next);
+}
+
 function onSegmentTime() {
-  if (!playlist || !playlist.live) return;
+  if (!playlist) return;
   const onAir = playlist.tracks[currentTrack];
   const audio = document.getElementById('player');
-  if (!onAir || audio.paused) return;
-  const left = onAir.durationMs / 1000 - audio.currentTime;
-  if (left < TIMELINE_AHEAD_S && segmentRefreshed !== onAir.id) {
+  if (!onAir || !audio || audio.paused) return;
+  const length = playlist.live ? onAir.durationMs / 1000 : audio.duration;
+  if (!length || !isFinite(length)) return;
+  const left = length - audio.currentTime;
+  if (playlist.live && left < TIMELINE_AHEAD_S && segmentRefreshed !== onAir.id) {
     segmentRefreshed = onAir.id;
     refreshTimeline().catch(() => {});
   }
-  if (left <= 0.15 && segmentLeaving !== onAir.id) {
+  const next = upcomingTrack();
+  if (next && left < CROSS_S && left > 0.2) beginTail(next);
+  if (playlist.live && left <= 0.15 && segmentLeaving !== onAir.id) {
     segmentLeaving = onAir.id;
     advanceTrack(true);
   }
@@ -631,7 +678,6 @@ function advanceTrack(ident) {
   }
   trackChangeInProgress = true;
   try {
-    stopVoiceover();
     currentTrack = (currentTrack + 1) % playlist.tracks.length;
     // A new track brings a new artwork, unless the listener is at the deck.
     gallery.whenQuiet(randomArtwork);
@@ -640,12 +686,16 @@ function advanceTrack(ident) {
     updatePlayBtn();
     // Same show, next track: no ident. Idents mark a change of set
     // (nextStation / selectShow / goLive when the show changes).
+    const arrived = playlist.tracks[currentTrack];
+    const fromTail = arrived && tailFor === (arrived.id || arrived.file);
+    if (fromTail) tailFor = null;
     const audio = document.getElementById('player');
-    audio.volume = 1;
-    audio.src = sourceFor(playlistBase + playlist.tracks[currentTrack].file);
+    if (!fromTail || musicGain) audio.volume = 1;
+    audio.src = sourceFor(playlistBase + arrived.file);
     audio.currentTime = 0;
     audio.play().catch(() => {});
     startVoiceoverIfNeeded();
+    if (fromTail) fadeMusicTo(arrived.voiceoverFile ? MUSIC_UNDER_VOICE : 1, 2.2);
     bufferNext();
   } finally {
     trackChangeInProgress = false;
@@ -922,10 +972,17 @@ function stopVoiceover() {
   setMusicLevel(1);
 }
 
-function startVoiceoverIfNeeded() {
+function startVoiceoverIfNeeded(track) {
   if (!playlist) return;
-  const track = playlist.tracks[currentTrack];
-  if (!track || !track.voiceoverFile) return;
+  track = track || playlist.tracks[currentTrack];
+  if (!track || !track.voiceoverFile) {
+    stopVoiceover();
+    return;
+  }
+  if (voiceoverIs(track)) {
+    setMusicLevel(MUSIC_UNDER_VOICE);
+    return;
+  }
 
   const player = document.getElementById('player');
   const vo = document.getElementById('voiceover-el');
@@ -1191,7 +1248,6 @@ async function goLive(fromTrackEnd, ident) {
       return;
     }
   }
-  stopVoiceover();
   const before = playlist && playlist.tracks ? playlist.tracks[currentTrack] : null;
   playlist = next;
   playlistBase = '';

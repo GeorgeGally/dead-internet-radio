@@ -23,6 +23,7 @@ module Admin
       @reedit_batch = ShowReedit.live_batch(@show)
       @reedit_remix = ShowReedit.live_remix(@show) if @reedit_batch.empty?
       @reedit_failed = @reedit_batch.empty? && @reedit_remix.nil? && ShowReedit.failed?(@show)
+      @player_sources = player_sources(@show, @tracks)
     end
 
     def destroy
@@ -66,6 +67,22 @@ module Admin
       @show = Show.find(params[:id])
       ReimportShowJob.perform_later(@show.id)
       redirect_to admin_show_path(@show), notice: 'Re-import started'
+    end
+
+    private
+
+    # The assembled mix when it is on disk; otherwise each running track that
+    # has a file, in show order. Empty when there is nothing to play.
+    def player_sources(show, tracks)
+      mix = show.mix_path
+      return [ { "src" => media_show_mix_path(show) } ] if mix && File.exist?(mix)
+
+      tracks.filter_map do |track|
+        path = track.audio_path
+        next unless path && File.exist?(path)
+
+        { "src" => media_track_path(track), "ms" => track.duration_ms.to_i, "id" => track.id }
+      end
     end
   end
 end

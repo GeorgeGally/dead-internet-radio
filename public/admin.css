@@ -400,6 +400,27 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 
 .show-mix { display: block; width: 100%; max-width: 560px; margin: 16px 0; }
 
+.show-now { font-size: 15px; margin: 28px 0 12px; }
+.show-now strong { color: #c03f0d; }
+.show-player {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 720px;
+  margin-top: 0;
+}
+.show-actions .rerender-form { flex: 1 0 100%; }
+.show-player .scrub { margin-top: 0; flex: 1; min-width: 0; }
+.show-player .scrub-bar { min-width: 0; }
+.show-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 48px 0 32px;
+}
+.show-actions form { margin: 0; }
+
 .scrub-row td { padding: 0 14px 12px; border-top: none; }
 .scrub { display: flex; align-items: center; gap: 12px; margin-top: 10px; width: 100%; }
 .scrub-row .scrub { margin-top: 0; }
