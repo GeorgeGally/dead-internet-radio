@@ -132,12 +132,18 @@ function songStarts(table) {
 }
 function showSong(id) {
   var player = document.querySelector('[data-set-player]');
-  if (!player || player.dataset.song === id) return;
-  player.dataset.song = id;
-  player.querySelectorAll('.sp-song').forEach(function(el) { el.hidden = el.dataset.track !== id; });
+  if (player && player.dataset.song !== id) {
+    player.dataset.song = id;
+    player.querySelectorAll('.sp-song').forEach(function(el) { el.hidden = el.dataset.track !== id; });
+  }
   document.querySelectorAll('table.songs tr[data-track]').forEach(function(row) {
     row.classList.toggle('now', row.dataset.track === id);
   });
+  var label = document.querySelector('[data-now-playing]');
+  if (label) {
+    var row = document.querySelector('table.songs tr[data-track="' + id + '"]');
+    label.textContent = row && row.dataset.now ? row.dataset.now : '';
+  }
 }
 function followMix(audio) {
   var table = document.querySelector('table.songs');
@@ -148,7 +154,7 @@ function followMix(audio) {
 }
 ['timeupdate', 'seeked', 'play'].forEach(function(type) {
   document.addEventListener(type, function(e) {
-    if (!e.target.matches || !e.target.matches('[data-set-player] audio.show-mix')) return;
+    if (!e.target.matches || !e.target.matches('audio.show-mix')) return;
     if (type === 'play') { trackAudio.pause(); stopAll(); }
     followMix(e.target);
   }, true);

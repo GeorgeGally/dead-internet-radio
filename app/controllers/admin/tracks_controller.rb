@@ -105,6 +105,36 @@ module Admin
       render json: { up: song.up_votes, down: song.down_votes, mine: song.votes.find_by(voter: Vote::ADMIN)&.value.to_i }
     end
 
+    # A remix leaves the library and the rotation, or an earlier edit is discarded.
+    def throw_take
+      song = Track.find(params[:id]).song
+      if params[:take_track_id].present?
+        take = Track.find(params[:take_track_id])
+        take.update!(thrown_at: Time.current)
+        Station.drop_upcoming(take.id)
+        Track.where(origin_track_id: take.id).update_all(origin_track_id: song.id, audio_file: song.audio_file)
+        return redirect_to(back_path || admin_requests_path, notice: "Thrown: the remix is out of the library and won't be scheduled.")
+      end
+      if params[:stamp].present?
+        entry = SongReplaced.for_song(song).find { |e| e.stamp == params[:stamp] }
+        if entry
+          FileUtils.rm_f(entry.audio)
+          FileUtils.rm_f(entry.audio.to_s.sub(/\.mp3\z/, ".prompt.json"))
+        end
+        return redirect_to(back_path || admin_requests_path, notice: "Thrown: the earlier edit is discarded.")
+      end
+      redirect_to back_path || admin_requests_path, alert: "Nothing to throw."
+    end
+
+    # A thrown remix goes back into the library; an earlier edit is kept as it is.
+    def keep_take
+      if params[:take_track_id].present?
+        Track.find(params[:take_track_id]).update!(thrown_at: nil)
+        return redirect_to(back_path || admin_requests_path, notice: "Kept: the remix is back in the library.")
+      end
+      redirect_to back_path || admin_requests_path, notice: "Kept."
+    end
+
     private
 
     # Where a form on another admin page asked to come back to.

@@ -3,10 +3,11 @@
 # were asked for. A remix still rendering is a take without a song yet; a
 # failed one is left out.
 module SongTakes
-  Take = Struct.new(:song, :job, :number, :replaced_stamp, :replaced_notes, :kept, keyword_init: true) do
+  Take = Struct.new(:song, :job, :number, :replaced_stamp, :replaced_notes, :kept, :thrown, keyword_init: true) do
     def original? = number.zero? && replaced_stamp.nil? && job.nil?
     def remix? = job.present?
     def rerender? = replaced_stamp.present?
+    def thrown? = !!thrown
 
     def notes = replaced_notes.presence || job&.options&.dig("instructions")
 
@@ -65,7 +66,7 @@ module SongTakes
     while (id = queue.shift)
       remix_jobs.where("options->>'track_id' = ?", id.to_s).where.not(status: :failed).each do |job|
         take_track = job.take_track
-        takes << Take.new(song: take_track, job: job)
+        takes << Take.new(song: take_track, job: job, thrown: take_track&.thrown_at.present?)
         next if take_track.nil? || seen.include?(take_track.id)
 
         seen << take_track.id

@@ -1,4 +1,4 @@
-// Show page: play the mix, or each track in order, with pause, scrub and time.
+// Show page: one player for the mix or the tracks in order. It names the song on.
 (function() {
   var root = document.querySelector('[data-show-player]');
   var data = document.getElementById('show-player-sources');
@@ -15,6 +15,8 @@
   var index = 0;
   var offset = 0;
   var token = 0;
+  var label = document.querySelector('[data-now-playing]');
+  var idleLabel = label ? label.textContent : '';
 
   function fmt(t) {
     t = Math.floor(t || 0);
@@ -49,15 +51,26 @@
     });
     return id;
   }
+  function namePlaying(id) {
+    if (!label) return;
+    if (id == null || id === '') {
+      label.textContent = idleLabel;
+      return;
+    }
+    var row = document.querySelector("table.songs tr[data-track='" + id + "']");
+    label.textContent = (row && row.dataset.now) || idleLabel;
+  }
   function clearMark() {
     root.dataset.current = '';
     document.querySelectorAll('table.songs tr.now').forEach(function(row) { row.classList.remove('now'); });
+    namePlaying(null);
   }
   function mark(id) {
     var key = id == null ? '' : String(id);
     if (root.dataset.current === key) return;
     root.dataset.current = key;
     document.querySelectorAll('table.songs tr.now').forEach(function(row) { row.classList.remove('now'); });
+    namePlaying(key);
     if (!key) return;
     var row = document.querySelector("table.songs tr[data-track='" + key + "']");
     if (!row) return;

@@ -43,6 +43,35 @@
         <%= button_to "Retry", retry_admin_request_path(req), class: "btn" if req.failed? %>
       </td>
     </tr>
+    <% if (takes = @song_takes[song&.id]) %>
+      <tr class="takes-row">
+        <td></td>
+        <td colspan="10">
+          <strong class="meta">Remixes and edits</strong>
+          <ol class="sp-takes">
+            <% takes.each do |take| %>
+              <% take_song = take.song %>
+              <li>
+                <% if take.audio_path&.exist? %>
+                  <% src = take.rerender? ? media_track_replaced_path(take_song, take.replaced_stamp) : media_track_path(take_song) %>
+                  <button type="button" class="btn-play" data-src="<%= src %>" onclick="playTrack(this)" aria-label="Play">▶</button>
+                <% else %>
+                  <span class="btn-play-gap"></span>
+                <% end %>
+                <span class="sp-take"><%= take.label %><% if take.thrown? %> · thrown<% end %><% if take.notes.present? %><span class="sp-notes"><%= take.notes %></span><% end %></span>
+                <% if take_song.nil? && take.job&.live? %><%= render "admin/shared/track_job_loader", job: take.job, compact: true %><% end %>
+                <% if take.remix? && take_song %>
+                  <%= button_to "Keep", keep_take_admin_track_path(song), params: { take_track_id: take_song.id, back: request.path }, class: "btn-key", form: { style: "display:inline" } %>
+                  <% unless take.thrown? %><%= button_to "Throw", throw_take_admin_track_path(song), params: { take_track_id: take_song.id, back: request.path }, class: "btn-quiet", form: { style: "display:inline" } %><% end %>
+                <% elsif take.rerender? %>
+                  <%= button_to "Throw", throw_take_admin_track_path(song), params: { stamp: take.replaced_stamp, back: request.path }, class: "btn-quiet", form: { style: "display:inline" } %>
+                <% end %>
+              </li>
+            <% end %>
+          </ol>
+        </td>
+      </tr>
+    <% end %>
     <% if song %>
       <tr class="notes-row" hidden
           data-edit-hint="<%= Admin::TrackJobsHelper::EDIT_HINT %>"

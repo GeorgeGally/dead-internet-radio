@@ -70,7 +70,7 @@ function clock(start) {
   };
 }
 
-async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true, frames } = {}) {
+async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, reducedMotion = true, frames, random } = {}) {
   const body = node('body');
   const time = clock(240000 * 1000);
   const listeners = {};
@@ -96,6 +96,9 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, r
     AbortController, Date: time.Date, JSON, Promise,
     async fetch(url, opts = {}) {
       if (opts.method === 'POST') posts.push({ url, body: opts.body });
+      if (url.endsWith('/signal/lineup')) {
+        return { ok: true, json: async () => ({ artists: ['Modem Choir', 'Grid Failure'], generated_at: '2026-11-19T00:00:00Z' }) };
+      }
       if (url.endsWith('/signal/bulletins')) {
         if (!bulletins) throw new Error('offline');
         return { ok: true, json: async () => ({ lines: bulletins }) };
@@ -110,6 +113,10 @@ async function signal({ signedIn = true, chatEnabled = true, bulletins, reply, r
     setList: { open: () => opened.push(['tracklist']) },
   };
   if (frames) sandbox.requestAnimationFrame = (fn) => frames.push(fn);
+  if (random !== undefined) {
+    sandbox.Math = Object.create(Math);
+    sandbox.Math.random = () => random;
+  }
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   await flush();
@@ -219,7 +226,7 @@ test('a track that changes while the overlay is hidden is announced once it show
 });
 
 test('a bulletin arrives within seconds of the overlay showing, then every four minutes', async () => {
-  const s = await signal();
+  const s = await signal({ random: 0.1 });
   await s.time.advance(8000);
   assert.equal(s.safety().length, 1);
   const first = s.safety()[0].querySelector('.signal-copy').textContent;
@@ -230,16 +237,25 @@ test('a bulletin arrives within seconds of the overlay showing, then every four 
   assert.notEqual(s.safety()[0].querySelector('.signal-copy').textContent, first);
 });
 
+test('a coming-up notice is not always followed by a bulletin', async () => {
+  const s = await signal({ random: 0.9 });
+  await s.time.advance(8000);
+  assert.ok(s.lines().some(l => l.startsWith('Coming up in the next hour')));
+  assert.equal(s.safety().length, 0);
+  await s.time.advance(4 * 60000);
+  assert.equal(s.safety().length, 1);
+});
+
 test('bulletins use the lines the station serves', async () => {
   const served = ['DIR FICTION / The moon has been deprecated. Please migrate to the sun.'];
-  const s = await signal({ bulletins: served });
+  const s = await signal({ bulletins: served, random: 0.1 });
   await s.time.advance(8000);
   assert.deepEqual(s.safety().map((l) => l.querySelector('.signal-copy').textContent),
     ['The moon has been deprecated. Please migrate to the sun.']);
 });
 
 test('bulletins fall back to built-in lines when the station is out of reach', async () => {
-  const s = await signal();
+  const s = await signal({ random: 0.1 });
   await s.time.advance(8000);
   assert.equal(s.safety().length, 1);
   assert.ok(s.safety()[0].querySelector('.signal-copy').textContent.length > 10);

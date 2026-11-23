@@ -3,7 +3,7 @@
 module Admin
   class GenerationController < Admin::BaseController
     def index
-      @jobs = GenerationJob.recent
+      @jobs = GenerationJob.recent.where("COALESCE(options->>'kind', '') <> 'set'")
     end
 
     def new
@@ -13,7 +13,7 @@ module Admin
     def create
       @job = GenerationJob.new(
         slot: params[:slot],
-        track_count: params[:track_count].presence || 10,
+        track_count: params[:track_count].presence || 20,
         status: :pending,
         options: {
           'dj_name' => params[:dj_name].presence,

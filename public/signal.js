@@ -422,7 +422,7 @@
       entries.clear();
       climbing.length = waiting.length = 0;
     }
-    if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); setTimeout(bulletin, 4000); }
+    if (wasHidden && !nowHidden) { history(); upcoming(); announceTrack(); if (Math.random() < 0.5) setTimeout(bulletin, 4000); }
     wasHidden = nowHidden;
   }, 1500);
   updateForm();

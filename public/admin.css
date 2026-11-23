@@ -400,13 +400,16 @@ code { font-family: "IBM Plex Mono", "Courier New", monospace; background: rgba(
 
 .show-mix { display: block; width: 100%; max-width: 560px; margin: 16px 0; }
 
+.show-now { font-size: 15px; margin: 28px 0 12px; }
+.show-now strong { color: #c03f0d; }
 .show-player {
   display: flex;
   align-items: center;
   gap: 16px;
   max-width: 720px;
-  margin-top: 28px;
+  margin-top: 0;
 }
+.show-actions .rerender-form { flex: 1 0 100%; }
 .show-player .scrub { margin-top: 0; flex: 1; min-width: 0; }
 .show-player .scrub-bar { min-width: 0; }
 .show-actions {
@@ -785,3 +788,15 @@ th[aria-sort="descending"] .th-sort::after { content: " \25BC"; font-size: 9px; 
 .idents .ident-remove form, .idents .switch-cell form { margin: 0; }
 .btn-quiet.is-sure { color: #b3261e; }
 @media (max-width: 800px) { .maker-knobs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Wide tables scroll sideways instead of pushing their last columns off-screen. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.table-scroll table { margin-bottom: 0; }
+
+.prompt-row > td { background: #fbf9f4; border-bottom: 1px solid #e5e0d8; }
+.track-prompts { padding: 6px 0; }
+.track-prompts > summary { cursor: pointer; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #6f6a61; }
+.prompt-grid { display: grid; gap: 16px; padding: 14px 0 8px; max-width: 900px; font-size: 13px; line-height: 1.55; }
+.prompt-grid p { margin: 0; white-space: pre-wrap; }
+.prompt-grid strong { display: block; margin-bottom: 3px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #8a8378; }
+.prompt-system pre { margin-top: 8px; padding: 12px; background: #fff; border: 1px solid #e5e0d8; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 11px; line-height: 1.5; }

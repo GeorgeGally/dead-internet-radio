@@ -49,6 +49,8 @@ Rails.application.routes.draw do
       member do
         post :remix
         post :reimport
+        post :reedit
+        get :reedit_progress
       end
     end
     get "schedule", to: "schedule#index", as: :schedule
@@ -57,6 +59,8 @@ Rails.application.routes.draw do
       post :rerender, on: :member
       post :remix, on: :member
       post :like, on: :member
+      post :throw_take, on: :member
+      post :keep_take, on: :member
       get :swap_options, on: :member
       post :swap, on: :member
     end

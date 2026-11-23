@@ -43,5 +43,6 @@ module GenerationLine
       else raise ArgumentError, "no such state: #{state}"
       end
     end
+    ShowReedit.complete!(job.reload) if job.done? || job.failed?
   end
 end

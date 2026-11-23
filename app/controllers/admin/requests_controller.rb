@@ -13,6 +13,15 @@ module Admin
                                   .order(:id)
                                   .index_by { |j| j.options["request_id"].to_i }
       @pending_song_jobs = pending_track_jobs_by_song
+      # Every remix and earlier edit under the latest, for songs that have any.
+      @song_takes = {}
+      @requests.each do |req|
+        song = req.track
+        next unless song
+
+        takes = SongTakes.for(song)
+        @song_takes[song.id] = takes if takes.any? { |take| take.remix? || take.rerender? }
+      end
     end
 
     def fulfill

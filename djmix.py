@@ -119,40 +119,6 @@ def voice_introduces(path: Path, music: dict[int, Path]) -> int | None:
     return None
 
 
-def musical_end(path: Path) -> float | None:
-    """Seconds where trailing silence starts, so a fade lands on the music."""
-    proc = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path),
-         "-af", "silencedetect=n=-40dB:d=0.4", "-f", "null", "-"],
-        capture_output=True, text=True,
-    )
-    starts = [float(v) for v in re.findall(r"silence_start: ([\d.]+)", proc.stderr)]
-    ends = [float(v) for v in re.findall(r"silence_end: ([\d.]+)", proc.stderr)]
-    if not starts:
-        return None
-    dur = get_duration(path)
-    start = starts[-1]
-    end = ends[-1] if len(ends) >= len(starts) else None
-    if end is not None and end > start and end < dur - 0.25:
-        return None
-    if dur - start < 0.45:
-        return None
-    return start
-
-
-def trim_tail(src: Path, dest: Path) -> Path:
-    end = musical_end(src)
-    if end is None:
-        return src
-    cut = end + 0.2
-    subprocess.run(
-        ["ffmpeg", "-y", "-i", str(src), "-af", f"atrim=end={cut:.3f},asetpts=PTS-STARTPTS",
-         "-c:a", "pcm_s16le", "-ar", "44100", str(dest)],
-        check=True, capture_output=True,
-    )
-    return dest
-
-
 def duck_music(src: Path, dest: Path, spans: list[tuple[float, float]]) -> None:
     """Lower the bed while a voice talks, with a short ramp in and out."""
     if not spans:
@@ -189,6 +155,49 @@ def get_duration(path: Path) -> float:
     except Exception:
         pass
     return 3.0
+
+
+SILENCE_DB = "-40dB"
+SILENCE_MIN_S = 0.5
+EDGE_RING_S = 0.1
+HEAD_SILENCE_WINDOW_S = 12.0
+
+
+def audible_span(path: Path, duration: float) -> tuple[float, float]:
+    """Start and end, in seconds, of the part of a render that carries sound."""
+    try:
+        result = subprocess.run([
+            "ffmpeg", "-hide_banner", "-nostats", "-i", str(path),
+            "-af", f"silencedetect=n={SILENCE_DB}:d={SILENCE_MIN_S}",
+            "-f", "null", "-",
+        ], capture_output=True, text=True)
+    except OSError:
+        return 0.0, duration
+    if result.returncode != 0:
+        return 0.0, duration
+
+    log = result.stdout + result.stderr
+    starts = [float(s) for s in re.findall(r"silence_start: ([\d.]+)", log)]
+    ends = [float(s) for s in re.findall(r"silence_end: ([\d.]+)", log)]
+
+    start = 0.0
+    if starts and starts[0] <= HEAD_SILENCE_WINDOW_S and ends:
+        start = min(ends[0] + EDGE_RING_S, duration)
+    end = duration
+    if starts and (len(ends) < len(starts) or ends[-1] >= duration - 0.25):
+        end = starts[-1] + EDGE_RING_S
+
+    if end - start < 0.5:
+        return 0.0, duration
+    return start, min(end, duration)
+
+
+def trim_to_wav(src: Path, start: float, end: float, dest: Path):
+    subprocess.run([
+        "ffmpeg", "-y", "-i", str(src),
+        "-af", f"atrim=start={start}:end={end},asetpts=PTS-STARTPTS",
+        "-c:a", "pcm_s16le", "-ar", "44100", "-ac", "2", str(dest),
+    ], check=True, capture_output=True)
 
 
 def crossfade_chain(tracks: list[Path], output: Path, duration: float):
@@ -387,27 +396,34 @@ def main():
         print(f"Opening offset: {args.opening_offset}s (music starts during DJ intro)")
     print()
 
-    # Trailing silence is cut before the timeline is built, so the crossfade
-    # is the end of the music into the next song, not a gap after it.
     dur = {}
     if opening_path and not args.no_opening:
         dur[0] = get_duration(opening_path)
-    cf = args.crossfade
-    opening_offset = args.opening_offset if (opening_path and not args.no_opening) else 0.0
 
     # Phase 1: Build music-only cross-faded mix (no voices, no opening)
     print("Phase 1: Cross-fading tracks...")
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
+        # Silent heads and tails come off before the timeline, so each crossfade
+        # is sound into sound and the first song can fade in under the DJ.
+        # Original filenames stay in `music`: the DJ line is matched by name.
         trimmed = {}
         for n in track_nums:
-            cut = trim_tail(music[n], tmp / f"trim_{n:02d}.wav")
-            trimmed[n] = cut
-            dur[n] = get_duration(cut)
+            full = get_duration(music[n])
+            start, end = audible_span(music[n], full)
+            if end - start < full - 0.05:
+                cut = tmp / f"track_{n:02d}.wav"
+                trim_to_wav(music[n], start, end, cut)
+                trimmed[n] = cut
+                dur[n] = end - start
+            else:
+                trimmed[n] = music[n]
+                dur[n] = full
 
-        # Durations are known only after the trim, so the timeline follows the music.
         mix_start = {}
+        cf = args.crossfade
+        opening_offset = args.opening_offset if (opening_path and not args.no_opening) else 0.0
         t = opening_offset
         mix_start[track_nums[0]] = t
         t += dur[track_nums[0]]
