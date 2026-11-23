@@ -828,107 +828,83 @@ body.prewarming #block-canvas {
 
 .info-lore p {
   font-family: "IBM Plex Mono", monospace;
-  font-size: clamp(17px, 1.53vw, 22px);
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.info-lore p:first-child {
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 28px;
   letter-spacing: -0.6px;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 #info-card .info-lore p + p { margin-top: 12px; }
 
 .info-more {
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  /* The captain's key-row position from the final board design, at every size,
-     as spacing so the row never rides up over the page above it. */
-  margin: 0 12px 96px -12px;
+  margin-top: 64px;
+  margin-bottom: 24px;
 }
 
-/* Wide screens only: the captain's tunes from the final board design (captures 45-77). */
+.info-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* Deck keys: the legend sits in the cap. No label above it. */
+.info-dk {
+  position: relative;
+  width: 132px;
+  height: 72px;
+  margin: 0;
+  padding: 8px 12px;
+  display: flex;
+  align-items: flex-end;
+  border: 3px solid #17120f;
+  border-radius: 9px;
+  background: #3a3733;
+  color: #d9d4ca;
+  font: 500 13px/1 "IBM Plex Mono", "Courier New", monospace;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.info-dk:hover { background: #45413c; }
+
+.info-dk[aria-pressed="true"],
+.info-dk[aria-pressed="true"]:hover {
+  background: #d9d4ca;
+  color: #0b0b0b;
+}
+
+.info-dk:active { border-width: 4px; }
+
+.info-dk:focus-visible { outline: 2px solid #ec6a1f; outline-offset: 3px; }
+
+.info-x {
+  width: 153px;
+  margin-left: auto;
+  background: #ec6a1f;
+  color: #fff;
+}
+
+.info-x:hover { background: #ec6a1f; color: #fff; }
+
+/* Wide screens: the deck-keys column, with the earlier headline and lore tunes. */
 @media (min-width: 1001px) {
-  #info-card { padding: 64px 124px; }
+  #info-card { padding: 64px 24px; }
+  .info-body { width: 100%; max-width: 987px; margin-inline: auto; }
   .info-title span:nth-of-type(n),
   #info-card .info-page-title { font-size: 64px; }
   .info-lore { max-width: none; columns: 2; column-gap: 56px; }
-  .info-more { border-top-width: 0; }
-  .info-opens { translate: 16px 0; }
-  .info-close { translate: 8px -1px; }
+  .info-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); column-gap: 28px; }
+  .info-x { grid-column: 6; justify-self: end; margin-left: 0; }
   #info-card .info-free { padding-bottom: 16px; }
 }
 
-.info-opens {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+@media (max-width: 520px) {
+  .info-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .info-dk { width: auto; }
+  .info-x { grid-column: 1 / -1; width: auto; margin-left: 0; }
 }
-
-/* The row's keys, built like the deck's: light grey keycaps with one orange. */
-.info-key {
-  --c: #d9d4ca;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 15px 18px 13px;
-  border: 0;
-  border-radius: 6px;
-  font: 500 12px/1 "IBM Plex Mono", "Courier New", monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #2a2a2a;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 92%, #fff), var(--c));
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.5),
-    inset 0 1px 1px rgba(255, 255, 255, 0.55),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.16),
-    0 2px 4px rgba(0, 0, 0, 0.4);
-  cursor: pointer;
-  transition: transform 0.05s ease, box-shadow 0.05s ease;
-}
-
-.info-key:active {
-  transform: translateY(1px);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.info-key:focus-visible { outline: 2px solid #ec6a1f; outline-offset: 3px; }
-
-/* Page keys: grey-blue caps with an orange lamp that glows on the page on screen. */
-.info-open {
-  --c: #8d9aa6;
-  /* Lamps on the left, all in the same place (capture 79). */
-  justify-content: flex-start;
-  /* A thin ring in the key colour with a white inner highlight (captures 80-82). */
-  box-shadow: 0 0 0 1px #8d9aa6, inset 0 2px 4px #fff, inset 0 0 0 0 transparent, 0 0 0 0 transparent;
-  color: #0b0b0b;
-  font-family: "Anka Coder", "IBM Plex Mono", monospace;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
-.info-open::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #d9d4ca;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.4);
-}
-
-.info-open[aria-expanded="true"]::before {
-  background: #ec6a1f;
-  box-shadow: 0 0 5px rgba(236, 106, 31, 0.8), inset 0 0 1px rgba(255, 255, 255, 0.6);
-}
-
-.info-close { --c: #ec6a1f; color: #fff; margin-left: auto; }
-
-/* Every key the same width. */
-.info-key { min-width: 152px; }
-.info-close { justify-content: center; }
 
 .info-page-title { font-size: clamp(36px, 5.76vw, 83px); }
 

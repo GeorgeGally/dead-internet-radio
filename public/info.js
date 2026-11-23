@@ -87,36 +87,36 @@
     + '<div class="info-lore">' + LORE.map((p) => `<p>${p}</p>`).join('') + '</div>'
     + '</section>'
     + '<section class="info-screen info-use" id="info-use" aria-label="How to use it" hidden>'
-    + '<h2 class="info-title info-page-title">how to use it.</h2>' + parts(USE)
+    + '<h2 class="info-title info-page-title">Controls.</h2>' + parts(USE)
     + '</section>'
     + '<section class="info-screen" id="info-works" aria-label="How it works" hidden>'
-    + '<h2 class="info-title info-page-title">how it works.</h2>'
-    + '<p class="info-free">Dead Internet Radio is built on free LLMs and open source models.</p>'
+    + '<h2 class="info-title info-page-title">TECH.</h2>'
+    + '<p class="info-free">Dead Internet Radio is specifically built on free LLMs and open source models.</p>'
     + parts(WORKS)
     + '</section>'
     + '<section class="info-screen info-faq" id="info-faq" aria-label="FAQ" hidden>'
     + '<h2 class="info-title info-page-title">faq.</h2>' + parts(FAQ)
     + '</section>'
-    + '<div class="info-more">'
-    + '<div class="info-opens">'
-    + '<button class="info-key info-open" type="button" aria-expanded="true" aria-controls="info-main">About</button>'
-    + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-use">How to use it</button>'
-    + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-works">How it works</button>'
-    + '<button class="info-key info-open" type="button" aria-expanded="false" aria-controls="info-faq">FAQ</button>'
-    + '<button class="info-key info-close" type="button">Close</button>'
+    + '<nav class="info-more" aria-label="About pages">'
+    + '<div class="info-row">'
+    + '<button class="info-dk info-open" type="button" aria-pressed="true" aria-controls="info-main">About</button>'
+    + '<button class="info-dk info-open" type="button" aria-pressed="false" aria-controls="info-use">Controls</button>'
+    + '<button class="info-dk info-open" type="button" aria-pressed="false" aria-controls="info-works">Tech</button>'
+    + '<button class="info-dk info-open" type="button" aria-pressed="false" aria-controls="info-faq">FAQ</button>'
+    + '<button class="info-dk info-x info-close" type="button">CLOSE</button>'
     + '</div>'
-    + '</div>'
+    + '</nav>'
     + '</div>';
 
   const close = card.querySelector('.info-close');
   const opens = [...card.querySelectorAll('.info-open')];
 
-  // One key per page: About, How to use it, How it works. The lit key is the
-  // page on screen, and each page replaces the one before it.
+  // One key per page. The lit key is the page on screen, and each page
+  // replaces the one before it.
   const show = (key) => {
     opens.forEach((o) => {
       const mine = o === key;
-      o.setAttribute('aria-expanded', String(mine));
+      o.setAttribute('aria-pressed', mine ? 'true' : 'false');
       card.querySelector('#' + o.getAttribute('aria-controls')).hidden = !mine;
     });
     card.scrollTop = 0;
