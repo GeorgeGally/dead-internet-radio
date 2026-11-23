@@ -23,7 +23,7 @@ class AdminAudioIdentsTest < ActionDispatch::IntegrationTest
     assert_response :created
     take = IdentRender.find(response.parsed_body["id"])
     assert take.preview
-    assert_equal({ "speed" => 1.5, "lofi" => 0.22, "reverb" => 0.3, "delay" => 0.14, "vocoder" => 0.0, "telephone" => false },
+    assert_equal({ "speed" => 1.5, "lofi" => 0.0, "reverb" => 0.3, "delay" => 0.0, "vocoder" => 0.0, "telephone" => false },
                  take.settings)
     assert_includes take.command, "--no-phone"
     assert_includes take.command, "--speed=1.5"

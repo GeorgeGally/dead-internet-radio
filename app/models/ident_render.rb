@@ -19,12 +19,12 @@ class IdentRender < ApplicationRecord
   # own defaults, so an untouched render sounds like the station's other talk).
   KNOBS = {
     "speed" => { flag: "--speed", min: 0.5, max: 1.5, step: 0.05, default: 1.0 },
-    "lofi" => { flag: "--intensity", min: 0.0, max: 1.0, step: 0.01, default: 0.22 },
-    "reverb" => { flag: "--reverb", min: 0.0, max: 1.0, step: 0.01, default: 0.75 },
-    "delay" => { flag: "--delay-mix", min: 0.0, max: 1.0, step: 0.01, default: 0.14 },
+    "lofi" => { flag: "--intensity", min: 0.0, max: 1.0, step: 0.01, default: 0.0 },
+    "reverb" => { flag: "--reverb", min: 0.0, max: 1.0, step: 0.01, default: 0.0 },
+    "delay" => { flag: "--delay-mix", min: 0.0, max: 1.0, step: 0.01, default: 0.0 },
     "vocoder" => { flag: "--vocoder-mix", min: 0.0, max: 1.0, step: 0.01, default: 0.0 },
   }.freeze
-  DEFAULTS = KNOBS.transform_values { |knob| knob[:default] }.merge("telephone" => true).freeze
+  DEFAULTS = KNOBS.transform_values { |knob| knob[:default] }.merge("telephone" => false).freeze
 
   belongs_to :station_ident, optional: true
 
@@ -52,8 +52,8 @@ class IdentRender < ApplicationRecord
 
   def command
     knobs = KNOBS.map { |name, knob| "#{knob[:flag]}=#{settings.fetch(name)}" }
-    cmd = [KOKORO.to_s, ANNOUNCE.to_s, "--text=#{text}", "--output=#{path}", "--voice=#{voice}", *knobs]
-    settings["telephone"] ? cmd : cmd << "--no-phone"
+    cmd = [KOKORO.to_s, ANNOUNCE.to_s, "--text=#{text}", "--output=#{path}", "--voice=#{voice}", "--delay-ms=110", *knobs]
+    cmd << (settings["telephone"] ? "--phone" : "--no-phone")
   end
 
   # The rendered take goes on the station's list as the next clip, off air.

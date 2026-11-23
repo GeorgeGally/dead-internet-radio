@@ -100,6 +100,82 @@ def _parse_track(filename: str) -> tuple:
     return None, None
 
 
+def _body(name: str) -> str:
+    """The slug a song and the DJ line that introduces it share."""
+    stem = re.sub(r"-dead-internet-radio$", "", Path(name).stem)
+    voiced = re.search(r"-DJ-voice-(.+)$", stem)
+    if voiced:
+        return voiced.group(1)
+    numbered = re.match(r"\d+-(.+)$", stem)
+    return numbered.group(1) if numbered else stem
+
+
+def voice_introduces(path: Path, music: dict[int, Path]) -> int | None:
+    """The song a DJ line names, so the line rides that song's entrance."""
+    key = _body(path.name)
+    for n, song in music.items():
+        if _body(song.name) == key:
+            return n
+    return None
+
+
+def musical_end(path: Path) -> float | None:
+    """Seconds where trailing silence starts, so a fade lands on the music."""
+    proc = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path),
+         "-af", "silencedetect=n=-40dB:d=0.4", "-f", "null", "-"],
+        capture_output=True, text=True,
+    )
+    starts = [float(v) for v in re.findall(r"silence_start: ([\d.]+)", proc.stderr)]
+    ends = [float(v) for v in re.findall(r"silence_end: ([\d.]+)", proc.stderr)]
+    if not starts:
+        return None
+    dur = get_duration(path)
+    start = starts[-1]
+    end = ends[-1] if len(ends) >= len(starts) else None
+    if end is not None and end > start and end < dur - 0.25:
+        return None
+    if dur - start < 0.45:
+        return None
+    return start
+
+
+def trim_tail(src: Path, dest: Path) -> Path:
+    end = musical_end(src)
+    if end is None:
+        return src
+    cut = end + 0.2
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(src), "-af", f"atrim=end={cut:.3f},asetpts=PTS-STARTPTS",
+         "-c:a", "pcm_s16le", "-ar", "44100", str(dest)],
+        check=True, capture_output=True,
+    )
+    return dest
+
+
+def duck_music(src: Path, dest: Path, spans: list[tuple[float, float]]) -> None:
+    """Lower the bed while a voice talks, with a short ramp in and out."""
+    if not spans:
+        shutil.copy2(src, dest)
+        return
+    pieces = []
+    for start, end in spans:
+        pieces.append(
+            f"if(between(t,{start:.3f},{end:.3f}),"
+            f"0.28+0.72*min(min(max(t-{start:.3f},0)/0.4,max({end:.3f}-t,0)/0.5),1),1)"
+        )
+    expr = pieces[0]
+    for piece in pieces[1:]:
+        expr = f"min({expr},{piece})"
+    # Commas split the filtergraph, so they stay inside the expression.
+    expr = expr.replace(",", r"\,")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(src), "-af", f"volume={expr}",
+         "-c:a", "pcm_s16le", "-ar", "44100", str(dest)],
+        check=True, capture_output=True,
+    )
+
+
 def get_duration(path: Path) -> float:
     try:
         return MP3(str(path)).info.length
@@ -242,8 +318,8 @@ def main():
     parser.add_argument(
         "--voice-reverb",
         type=float,
-        default=0.3,
-        help="Subtle reverb decay on voice (0=off, 0.3=subtle room, default: 0.3)",
+        default=0.0,
+        help="Reverb decay on voice (0=off, default: 0)",
     )
     parser.add_argument(
         "--station-id-gain",
@@ -311,53 +387,53 @@ def main():
         print(f"Opening offset: {args.opening_offset}s (music starts during DJ intro)")
     print()
 
-    # Calculate durations
+    # Trailing silence is cut before the timeline is built, so the crossfade
+    # is the end of the music into the next song, not a gap after it.
     dur = {}
     if opening_path and not args.no_opening:
         dur[0] = get_duration(opening_path)
-    for n in track_nums:
-        dur[n] = get_duration(music[n])
-
-    # Calculate track start times in the final mix timeline
-    # Opening is overlaid at position 0 (no cross-fade with music)
-    # First track starts at opening_offset (or 0 if no opening)
-    mix_start = {}
     cf = args.crossfade
     opening_offset = args.opening_offset if (opening_path and not args.no_opening) else 0.0
-    t = opening_offset
-
-    mix_start[track_nums[0]] = t
-    t += dur[track_nums[0]]
-    remaining = track_nums[1:]
-
-    for n in remaining:
-        mix_start[n] = t - cf
-        t += dur[n] - cf
-
-    mix_duration = t
 
     # Phase 1: Build music-only cross-faded mix (no voices, no opening)
     print("Phase 1: Cross-fading tracks...")
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
+        trimmed = {}
+        for n in track_nums:
+            cut = trim_tail(music[n], tmp / f"trim_{n:02d}.wav")
+            trimmed[n] = cut
+            dur[n] = get_duration(cut)
+
+        # Durations are known only after the trim, so the timeline follows the music.
+        mix_start = {}
+        t = opening_offset
+        mix_start[track_nums[0]] = t
+        t += dur[track_nums[0]]
+        for n in track_nums[1:]:
+            mix_start[n] = t - cf
+            t += dur[n] - cf
+        mix_duration = t
+
         music_mix = tmp / "music_mix.wav"
         if len(track_nums) == 1:
             subprocess.run([
-                "ffmpeg", "-y", "-i", str(music[track_nums[0]]),
+                "ffmpeg", "-y", "-i", str(trimmed[track_nums[0]]),
                 "-c:a", "pcm_s16le", "-ar", "44100",
                 str(music_mix),
             ], check=True, capture_output=True)
         else:
-            crossfade_chain([music[n] for n in track_nums], music_mix, cf)
+            crossfade_chain([trimmed[n] for n in track_nums], music_mix, cf)
 
         # Pad start of music mix so music enters at opening_offset
         if opening_offset > 0:
             padded = tmp / "padded_music.wav"
             delay_ms = int(opening_offset * 1000)
+            # The first song eases in under the opening instead of arriving at full level.
             subprocess.run([
                 "ffmpeg", "-y", "-i", str(music_mix),
-                "-af", f"adelay={delay_ms}|{delay_ms}",
+                "-af", f"adelay={delay_ms}|{delay_ms},afade=t=in:st={opening_offset:.3f}:d=3",
                 "-c:a", "pcm_s16le", "-ar", "44100",
                 str(padded),
             ], check=True, capture_output=True)
@@ -371,15 +447,30 @@ def main():
             voice_placements.append((0.0, opening_path))
             print(f"  Opening at 0.0s (music starts at {opening_offset:.0f}s)")
 
+        opening_len = dur.get(0, 0.0)
         for vn in sorted(voices.keys()):
-            if vn in mix_start:
-                start = mix_start[vn] + args.offset
-                voice_placements.append((start, voices[vn]))
-                print(f"  Voice track {vn:02d} at {start:.1f}s")
+            target = voice_introduces(voices[vn], music)
+            if target is None:
+                target = vn if vn in mix_start else None
+            # The opening is the intro. A line for the first song would play
+            # on top of it: the double intro.
+            if target == track_nums[0] and opening_len > 0:
+                print(f"  {voices[vn].name} skipped (the opening already introduces the show)")
+                continue
+            if target not in mix_start:
+                continue
+            start = mix_start[target] + min(args.offset, max(cf - 0.5, 0))
+            voice_placements.append((start, voices[vn]))
+            print(f"  Voice for track {target:02d} at {start:.1f}s")
 
         if voice_placements:
+            spans = []
+            for start, vpath in voice_placements:
+                spans.append((start, start + get_duration(vpath)))
+            ducked = tmp / "ducked_music.wav"
+            duck_music(music_mix, ducked, spans)
             with_voices = tmp / "with_voices.wav"
-            overlay_voices(music_mix, voice_placements, with_voices,
+            overlay_voices(ducked, voice_placements, with_voices,
                            args.voice_gain, args.voice_reverb, pre_gain_db=5)
         else:
             with_voices = music_mix
@@ -404,6 +495,9 @@ def main():
                     cf_start = mix_start[n]
                     cf_end = cf_start + cf
                     id_mid = (cf_start + cf_end) / 2
+                    # A station ID on the opening, or on a DJ, plays the intro twice.
+                    if id_mid < opening_len + 1:
+                        continue
                     if not _vo_near(id_mid, window=cf + 2):
                         wav = random.choice(id_wavs)
                         placements.append((id_mid, wav))
@@ -419,6 +513,8 @@ def main():
                         continue
                     for attempt in range(20):
                         t = random.uniform(mix_duration * 0.15, latest)
+                        if t < opening_len + 1:
+                            continue
                         if not _vo_near(t, window=id_dur + 1):
                             placements.append((t, wav))
                             print(f"  Station ID at {t:.1f}s: {wav.name}")

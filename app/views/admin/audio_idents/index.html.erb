@@ -12,7 +12,7 @@
     <label for="ident-voice">Voice</label>
     <select id="ident-voice" name="ident_render[voice]">
       <% IdentRender::VOICES.each do |voice| %>
-        <option value="<%= voice %>" <%= "selected" if voice == (@last&.voice || "bm_lewis") %>><%= voice %></option>
+        <option value="<%= voice %>" <%= "selected" if voice == (@last&.voice || "af_nicole") %>><%= voice %></option>
       <% end %>
     </select>
   </div>
@@ -29,7 +29,7 @@
       <span id="ident-telephone-label">Telephone</span>
       <label class="switch">
         <input type="hidden" name="ident_render[settings][telephone]" value="0">
-        <input type="checkbox" name="ident_render[settings][telephone]" value="1" aria-labelledby="ident-telephone-label" <%= "checked" if last.fetch("telephone", true) %>>
+        <input type="checkbox" name="ident_render[settings][telephone]" value="1" aria-labelledby="ident-telephone-label" <%= "checked" if last.fetch("telephone", false) %>>
         <span class="switch-track"></span>
       </label>
     </div>

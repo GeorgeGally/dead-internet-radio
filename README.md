@@ -7,7 +7,7 @@ A fully AI-generated radio station for robots. Post-human synthpop, techno, and 
 - **Producer** — an LLM that writes a scene-setting program brief ("midnight DJ", "dawn frequency")
 - **Writer** — an LLM that converts the brief into a structured song payload for ACE-Step
 - **ACE-Step 1.5** — local music generation model that turns the payload into an MP3
-- **Announcer** — Kokoro TTS + lo-fi effects that generate degraded DJ voiceovers alongside each track
+- **Announcer** — Kokoro TTS. DJ lines use Natural Nicole (af_nicole at 1.0×), dry and full-band
 
 ## Setup
 
@@ -32,14 +32,14 @@ contain a comma-separated list of models to try in order; if the list omits
 
 ## TTS (DJ Voiceovers)
 
-The pipeline automatically generates lo-fi DJ announcements alongside each track using [Kokoro](https://github.com/hexgrad/kokoro). The kokoro environment is pre-configured in `kokoro/.venv/`.
+The pipeline voices each DJ announcement with [Kokoro](https://github.com/hexgrad/kokoro)'s af_nicole at 1.0×, dry and full-band. The kokoro environment is pre-configured in `kokoro/.venv/`.
 
 To manually test TTS:
 ```bash
 ./announce.py --text "This is Dead Internet Radio." --output output/test.wav
 ```
 
-The TTS script picks a random voice per call and applies bitcrushing, noise injection, and low-pass filtering for a broken-radio aesthetic.
+The TTS script uses af_nicole at 1.0× and writes the voice dry: no telephone filter, reverb, or crackle.
 
 ### Listener greetings
 

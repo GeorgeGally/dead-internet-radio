@@ -266,6 +266,10 @@ def generate_tts(text, voice, output_path, intensity=0.3, speed=1.0):
         "--voice", voice,
         "--intensity", str(intensity),
         "--speed", str(speed),
+        "--reverb", "0.75",
+        "--delay-ms", "110",
+        "--delay-mix", "0.14",
+        "--phone",
     ]
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)

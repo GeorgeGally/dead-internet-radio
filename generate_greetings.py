@@ -2,8 +2,8 @@
 """Render the listener greetings: short DJ lines the player says, now and then,
 to one listener in their own browser, over the stream with the music dipped.
 
-Each line is voiced once, offline, in the DJ's voice and FX (generate.py's
-generate_announcement: Kokoro bm_george through announce.py), and written to
+Each line is voiced once, offline, in the DJ's voice (generate.py's
+generate_announcement: Kokoro af_nicole at 1.0×, dry, through announce.py), and written to
 public/greetings/ with a manifest.json the player reads to pick the clip that
 best fits what the page already knows about the listener: where they are, the
 time there, the weather, their device, how often they come back.
@@ -154,8 +154,8 @@ TAGS = ("city", "region", "country", "tz", "time", "day", "visit", "device", "sk
 
 
 def clip_name(line):
-    """A new line gets a new file name, so a year-long browser cache can't replay the old one."""
-    digest = hashlib.sha1(line["text"].encode()).hexdigest()[:8]
+    """The file name follows the line and the voice, so a year-long cache can't replay an old take."""
+    digest = hashlib.sha1(f"af_nicole 1.00 dry\n{line['text']}".encode()).hexdigest()[:8]
     return f"{line['id']}-{digest}.mp3"
 
 
@@ -201,7 +201,7 @@ def main():
             continue
         print(f"→ {line['id']}: {line['text']}", flush=True)
         wav = mp3.with_suffix(".wav")
-        generate.generate_announcement(line["text"], wav, intensity=0.3)
+        generate.generate_announcement(line["text"], wav)
         if not (wav.exists() and generate.wav_to_mp3(wav, mp3)):
             failed.append(line["id"])
 
