@@ -8,15 +8,13 @@
   <% if @show.mix_file %>&middot; Mix: ready<% end %>
 </p>
 
-<% if @show.mix_path && File.exist?(@show.mix_path) %>
-  <audio class="show-mix" controls preload="none" src="<%= media_show_mix_path(@show) %>"></audio>
-<% end %>
+<%= render "admin/shows/player", sources: @player_sources %>
 
-<p style="margin:16px 0;">
-  <%= button_to "Remix", remix_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-run djmix.py on this show?" } %>
-  <%= button_to "Re‑import", reimport_admin_show_path(@show), method: :post, class: "btn", style: "display:inline;margin-right:8px;", data: { confirm: "Re-read filesystem data into DB?" } %>
-  <%= button_to "Delete", admin_show_path(@show), method: :delete, class: "btn", style: "display:inline;background:#cc0000;", data: { confirm: "Delete this show?" } %>
-</p>
+<div class="show-actions">
+  <%= button_to "Remix", remix_admin_show_path(@show), method: :post, class: "btn", data: { confirm: "Re-run djmix.py on this show?" } %>
+  <%= button_to "Re‑import", reimport_admin_show_path(@show), method: :post, class: "btn", data: { confirm: "Re-read filesystem data into DB?" } %>
+  <%= button_to "Delete", admin_show_path(@show), method: :delete, class: "btn", style: "background:#cc0000;", data: { confirm: "Delete this show?" } %>
+</div>
 
 <% if @show.directory %>
   <p class="meta">Directory: <code><%= @show.directory %></code></p>

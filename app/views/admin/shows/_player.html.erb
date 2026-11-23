@@ -1,0 +1,12 @@
+<%# Play and pause, a scrub bar and the time. Sources are the mix, or the tracks in order. %>
+<% if sources.present? %>
+  <div class="show-player" data-show-player>
+    <button type="button" class="btn-play" data-show-play aria-label="Play">▶</button>
+    <div class="scrub">
+      <div class="scrub-bar" data-show-bar role="slider" aria-label="Position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="scrub-fill" data-show-fill></div></div>
+      <span class="scrub-time" data-show-time>0:00 / 0:00</span>
+    </div>
+  </div>
+  <script type="application/json" id="show-player-sources"><%= json_escape(sources.to_json).html_safe %></script>
+  <script src="<%= hashed_public_path "/admin-show-player.js" %>" defer></script>
+<% end %>
