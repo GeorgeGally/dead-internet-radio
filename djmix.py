@@ -27,6 +27,7 @@ except ImportError:
 DJ_VO_RE = re.compile(r"-DJ-voice-")
 MIXES_DIR = Path("mixes")
 STATION_IDS_DIR = Path("station-ids")
+MAX_STEM = 200
 
 
 class ShowMeta:
@@ -74,9 +75,9 @@ class ShowMeta:
             })
         return result
 
-    def mix_name(self) -> str:
+    def mix_name(self, artists: list[str] | None = None) -> str:
         parts = []
-        ua = self.unique_artists()
+        ua = self.unique_artists() if artists is None else artists
         if ua:
             parts.append(" / ".join(ua))
         if self._slot:
@@ -84,8 +85,23 @@ class ShowMeta:
         return " — ".join(parts) if parts else "Dead Internet Radio — Untitled Broadcast"
 
     def output_filename(self, ext: str = ".mp3") -> str:
-        safe = re.sub(r"[^a-zA-Z0-9]+", "-", self.mix_name()).strip("-")
-        return safe.lower() + ext
+        """The mix file name: the artists and the slot, cut to fit a file name.
+
+        A file name holds 255 bytes and the cue file adds ".cues.json", so a
+        20-track show named after every artist could not be written, and the
+        whole render was lost at the last step. Artists drop off the end until
+        it fits; the slot stays.
+        """
+        artists = self.unique_artists()
+        stem = _slug(self.mix_name(artists))
+        while len(stem) > MAX_STEM and len(artists) > 1:
+            artists.pop()
+            stem = _slug(self.mix_name(artists))
+        return stem[:MAX_STEM].strip("-") + ext
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
 
 
 def _parse_track(filename: str) -> tuple:
